@@ -102,6 +102,8 @@ var _delai_activite := 0.0
 var _en_conversation := false
 var _debut_conversation := 0.0
 var _bloque := 0.0
+var _prog_t := 0.0               # RENTRE : temps depuis la dernière mesure d'approche
+var _prog_d := INF               # RENTRE : distance au point visé à cette mesure
 var _invite := false
 var _var := 1.0  # variation personnelle de rythme (animations de repos)
 var _marche := MARCHE  # vitesse de marche personnelle
@@ -252,6 +254,8 @@ func nom_affiche() -> String:
 
 ## Appelé par le dialogue : renvoie les répliques (1re fois puis « apres »).
 func parler() -> Array:
+	if seq != "":
+		return _parler_reveille()
 	# la première fois il se présente ; ses répliques de quête viennent ensuite
 	var lignes: Array = [] if deja_parle else donnees.get("lignes", []).duplicate()
 	var de_quete: Array = quetes.repliques(donnees.get("id", "")) if quetes != null else []
@@ -290,7 +294,7 @@ func _jouer(nom: String, fondu := 0.2) -> void:
 	_anim = nom
 	anim.play(nom, fondu)
 	if _pieds != null:
-		_pieds.actif = not (nom in SANS_PIEDS or nom.begins_with("Sit") or nom.begins_with("Lie") or nom.begins_with("Death"))
+		_pieds.actif = not (nom in SANS_PIEDS or nom.begins_with("Sit") or nom.begins_with("Lie") or nom.begins_with("Couche") or nom.begins_with("Death"))
 	if nom != "Walk":  # Walk est réglé à chaque image sur la vitesse réelle
 		anim.speed_scale = _var
 
@@ -310,6 +314,8 @@ func _activite(immediat := false) -> void:
 
 func _physics_process(dt: float) -> void:
 	if etat == DORT:
+		if seq != "":
+			_au_lit(dt)      # lot sommeil : s'asseoir, s'allonger, dormir, se lever (le corps ne bouge plus : pas de move_and_slide)
 		return
 	_t += dt
 	_images_physique += 1
@@ -342,6 +348,7 @@ func _physics_process(dt: float) -> void:
 			POSTE:
 				_t_poste(dt)
 				_variete(dt)
+				_eveille(dt)
 			ALLER:
 				cap = _vers_point(points[_cible_index()], dt)
 			PAUSE:
@@ -352,6 +359,7 @@ func _physics_process(dt: float) -> void:
 				cap = _vers_point(poste(), dt)
 			RENTRE:
 				cap = _vers_but(dt)
+				_portes_en_route()
 		if cap == Vector3.ZERO and etat == POSTE and anim != null and _anim == "Idle" \
 				and _act() == "PickUp_Table":
 			_delai_activite -= dt
@@ -569,6 +577,10 @@ func poste() -> Vector3:
 func est_endormi() -> bool:
 	return etat == DORT
 
+## Couché (ou en train de se coucher / de se lever) dans un lit visible.
+func au_lit() -> bool:
+	return etat == DORT and seq != ""
+
 func occupe() -> bool:
 	return _en_conversation or remplace != null
 
@@ -579,8 +591,13 @@ func chemin_libre(a: Vector3, b: Vector3) -> bool:
 ## Va à `but` en suivant `via` ; arrivé, il entre dans le bâtiment (`entre`, DORT) ou se pose là : poste du moment avec `activite` et `cap`
 ## (radians, NAN = inchangé). `poste_jour` : le but est son poste habituel. Refusé pendant une conversation.
 func rentrer(but: Vector3, entre: bool, via: Array = [], vite := false, poste_jour := false, activite := "", cap := NAN) -> void:
+	if seq in ["redresser", "lever"]:
+		_apres_lever = [but, entre, via, vite, poste_jour, activite, cap]   # il finit de se lever, puis repart
+		return
 	if _en_conversation:
 		return
+	if not entre:
+		_eveil_t = 0.0
 	_route = via.duplicate()
 	_route.append(but)
 	_entre = entre
@@ -591,15 +608,21 @@ func rentrer(but: Vector3, entre: bool, via: Array = [], vite := false, poste_jo
 	etat = RENTRE
 	_t = 0.0
 	_bloque = 0.0
+	_prog_t = 0.0
+	_prog_d = INF
 	_variete_fin = 0.0
 	_autour = 0.0
 
 ## Instantané (heure sautée, hors de vue) : il est déjà arrivé.
 func installer(but: Vector3, entre: bool, poste_jour := false, activite := "", cap := NAN) -> void:
+	if seq != "":
+		_quitter_lit()      # placement direct : il quitte le lit sans animation
 	rentrer(but, entre, [], false, poste_jour, activite, cap)
 	_en_conversation = false
 	global_position = but + Vector3(0, 0.05, 0)
+	_instant = true
 	_arrive()
+	_instant = false
 
 func _vers_but(dt: float) -> Vector3:
 	if _route.is_empty():
@@ -610,10 +633,19 @@ func _vers_but(dt: float) -> Vector3:
 	d.y = 0.0
 	var vitesse_reelle := Vector2(velocity.x, velocity.z).length()
 	_bloque = _bloque + dt if (_t > 1.0 and _avance and vitesse_reelle < 0.2) else 0.0
+	# lot sommeil : pietine sans approcher (il glisse contre un autre corps, ou tourne sur place) : coincé aussi
+	_prog_t += dt
+	var pietine := false
+	if _prog_t > 5.0:
+		pietine = _prog_d - d.length() < 0.3
+		_prog_t = 0.0
+		_prog_d = d.length()
 	var dernier := _route.size() == 1
-	if d.length() < (0.45 if dernier else 0.8) or _bloque > 3.0 or _t > 120.0:
-		var coince := _bloque > 3.0 or _t > 120.0
+	if d.length() < (0.45 if dernier else 0.8) or _bloque > 3.0 or pietine or _t > 120.0:
+		var coince := _bloque > 3.0 or pietine or _t > 120.0
 		_bloque = 0.0
+		_prog_t = 0.0
+		_prog_d = INF
 		if coince:
 			global_position = Vector3(p.x, global_position.y + 0.05, p.z)   # coincé : il se pose au point visé plutôt que de rester planté
 		_route.pop_front()
@@ -623,11 +655,15 @@ func _vers_but(dt: float) -> Vector3:
 	return d.normalized()
 
 func _arrive() -> void:
+	_portes_route.clear()
 	_vite = false
 	_vit = 0.0
 	velocity = Vector3(0, velocity.y, 0)
 	if _entre:
-		coucher()
+		if lit != null and is_instance_valid(lit):
+			coucher_au_lit(_instant)
+		else:
+			coucher()
 		return
 	etat = POSTE
 	_t = 0.0
@@ -651,7 +687,13 @@ func coucher() -> void:
 	process_mode = Node.PROCESS_MODE_DISABLED
 
 ## Sort devant la porte `pos` : visible, solide, et il repart (RETOUR vers son poste du moment tant que Vie ne lui donne pas autre chose).
-func reveiller(pos: Vector3) -> void:
+func reveiller(pos: Vector3, instant := true) -> void:
+	if seq != "":
+		if not instant and seq in ["assoir", "assis", "allonger", "dort"]:
+			_sortie_lit = pos
+			_se_lever(false)        # il se lève, sort par la porte, puis suit ce que Vie lui demande (rentrer() mis en attente)
+			return
+		_quitter_lit()
 	global_position = pos + Vector3(0, 0.05, 0)
 	velocity = Vector3.ZERO
 	visible = true
@@ -732,3 +774,405 @@ func restaurer(mod: Node3D, pos: Vector3, lacet: float) -> void:
 		if not c.is_empty():
 			c["mode"] = ""       # replanifié au prochain tick de Vie (retour au poste du moment)
 			c["fuit"] = false
+# --- lot sommeil : lit, coucher, lever (pilotés par Vie, lits posés par Sommeil) -----------------------------------------
+## Le soir, s'il a un lit (Sommeil.lit_pour), il passe la porte (qu'il ouvre et referme), va au bord de son lit, s'assoit (Sitting_Enter),
+## s'allonge (bascule du corps autour du bassin, clip « Couche_Dort » : pose couchée et respiration lente), dort ; le matin il se
+## redresse, se lève (Sitting_Exit) et ressort. Couché : visible, sans collision (le cadre du lit en a une), sans move_and_slide.
+## Réveillé (on lui parle, combat ou bruit tout près), il se lève, réagit, puis se recouche si c'est encore la nuit.
+const CLIP_COUCHE := "Couche_Dort"
+const T_ALLONGER := 1.6          # s : bascule assis -> couché (et l'inverse)
+const DIST_LIT := 16.0           # m : au-delà, le dormeur est caché et gelé (l'intérieur l'est aussi au-delà de 13 m)
+const EVEIL_PARLER := 7.0        # s debout après une conversation de nuit, avant de se recoucher
+const EVEIL_SURSAUT := 35.0      # s debout après un bruit, un combat
+const BASSIN_DEBOUT := Vector3(0.0, 0.88, -0.09)  # bassin du clip Idle (repère du modèle ; mesuré sur le rig UAL), avant toute mesure
+const BASSIN_ASSIS := Vector3(0.0, 0.54, -0.33)   # bassin du clip Sitting_Idle : siège à ~0,44 m
+const DY_ASSIS := 0.06           # la paillasse est à 0,50 m : le modèle assis est rehaussé d'autant
+
+var lit: Lit = null              # lit attribué (Sommeil) ; null : il dort caché dans le bâtiment (sans lit)
+var place_lit := 0
+var cote_lit := 0.0              # 0 = côté libre du lit
+var porte_int_lit := Vector3.ZERO   # point juste derrière la porte de son foyer (Sommeil)
+var seq := ""                    # "" | assoir | assis | allonger | dort | redresser | lever
+var _seq_t := 0.0
+var _seq_d := 1.0
+var _xf_m0 := Transform3D()      # transform du modèle debout (repère du corps)
+var _xf_m_couche := Transform3D()
+var _xf_m_assis := Transform3D()
+var _o_debout := BASSIN_DEBOUT
+var _o_assis := BASSIN_ASSIS
+var _xf_assis := Transform3D()   # corps assis au bord (monde)
+var _rot_depart := 0.0
+var _pos_depart := Vector3.ZERO
+var _apres_lever: Array = []
+var _sortie_lit := Vector3.ZERO
+var _eveil_t := 0.0
+var _instant := false
+var _portes_route: Array = []    # [{ip, p}] portes à franchir sur la route
+var _porte_ouverte: Interieur = null
+var _ip_foyer: Interieur = null
+var _centre_porte_foyer := Vector3.ZERO
+var _porte_p := Vector3.ZERO
+
+## Sommeil attribue un lit (place, côté) et le point derrière la porte du foyer.
+func attribuer_lit(l: Lit, place: int, porte_int := Vector3.ZERO, ip: Interieur = null, centre_porte := Vector3.ZERO) -> void:
+	lit = l
+	place_lit = place
+	porte_int_lit = porte_int
+	_ip_foyer = ip
+	_centre_porte_foyer = centre_porte
+	cote_lit = 0.0
+
+## Point (monde) où il se tient debout avant de s'asseoir sur son lit.
+func abord_lit() -> Vector3:
+	return lit.point_abord(place_lit, cote_lit) if lit != null else global_position
+
+## La route passe par la porte d'un intérieur : il l'ouvre à 1,9 m et la referme derrière lui.
+func traverser(ip: Interieur, centre: Vector3) -> void:
+	if ip != null:
+		_portes_route.append({"ip": ip, "p": centre})
+
+func _portes_en_route() -> void:
+	var p := global_position
+	for e: Dictionary in _portes_route:
+		var ip: Interieur = e["ip"]
+		var c: Vector3 = e["p"]
+		if is_instance_valid(ip) and Vector2(c.x - p.x, c.z - p.z).length() < 1.9:
+			if not ip.ouverte:
+				ip.basculer(true)
+			_porte_ouverte = ip           # ouverte par lui ou trouvée ouverte : il la refermera derrière lui
+			_porte_p = c
+	_refermer_porte()
+
+## Referme la porte qu'il a ouverte dès qu'il en est à 2,4 m, si le joueur n'est pas dans l'embrasure.
+func _refermer_porte() -> void:
+	if _porte_ouverte == null:
+		return
+	if not is_instance_valid(_porte_ouverte) or not _porte_ouverte.ouverte:
+		_porte_ouverte = null
+		return
+	var p := global_position
+	if Vector2(_porte_p.x - p.x, _porte_p.z - p.z).length() < 2.4:
+		return
+	if joueur != null and is_instance_valid(joueur) and Vector2(_porte_p.x - joueur.global_position.x, _porte_p.z - joueur.global_position.z).length() < 2.2:
+		return
+	for v: Node in get_tree().get_nodes_in_group("villageois"):
+		var v3 := v as Node3D
+		if v3 != self and v3.visible and v3.get("etat") == RENTRE and Vector2(_porte_p.x - v3.global_position.x, _porte_p.z - v3.global_position.z).length() < 2.6:
+			return          # un autre arrive ou sort : il laisse la porte ouverte (le dernier la refermera)
+	_porte_ouverte.basculer(false)
+	_porte_ouverte = null
+	_portes_route = _portes_route.filter(func(e: Dictionary) -> bool: return Vector2(e["p"].x - p.x, e["p"].z - p.z).length() < 6.0)
+
+## Position du bassin (repère du modèle), mesurée sur le squelette tel qu'il est animé.
+func _bassin_local() -> Vector3:
+	var sq: Skeleton3D = modele.find_child("Skeleton3D", true, false) if modele != null else null
+	if sq == null:
+		return Vector3.INF
+	var i := sq.find_bone("pelvis")
+	if i < 0:
+		return Vector3.INF
+	return modele.global_transform.affine_inverse() * (sq.global_transform * sq.get_bone_global_pose(i).origin)
+
+## Clip couché (une fois par bibliothèque) : la pose de l'Idle figée, et une respiration lente (4,4 s) sur le haut du dos et les épaules.
+func _assurer_clip_couche() -> bool:
+	if anim == null:
+		return false
+	if anim.has_animation(CLIP_COUCHE):
+		return true
+	if not anim.has_animation("Idle"):
+		return false
+	var src := anim.get_animation("Idle")
+	var a := Animation.new()
+	a.length = 4.4
+	a.loop_mode = Animation.LOOP_LINEAR
+	var souffle := {"spine_02": 0.035, "spine_03": 0.03, "clavicle_l": -0.025, "clavicle_r": -0.025, "neck_01": -0.02}
+	for t in src.get_track_count():
+		var ty := src.track_get_type(t)
+		var chemin := src.track_get_path(t)
+		var os := String(chemin.get_concatenated_subnames())
+		var k := a.add_track(ty)
+		a.track_set_path(k, chemin)
+		match ty:
+			Animation.TYPE_ROTATION_3D:
+				var q := src.rotation_track_interpolate(t, 0.0)
+				if souffle.has(os):
+					var r := Quaternion(Vector3.RIGHT, float(souffle[os]))
+					a.rotation_track_insert_key(k, 0.0, q)
+					a.rotation_track_insert_key(k, 1.9, q * r)
+					a.rotation_track_insert_key(k, 4.4, q)
+				else:
+					a.rotation_track_insert_key(k, 0.0, q)
+			Animation.TYPE_POSITION_3D:
+				a.position_track_insert_key(k, 0.0, src.position_track_interpolate(t, 0.0))
+			Animation.TYPE_SCALE_3D:
+				a.scale_track_insert_key(k, 0.0, src.scale_track_interpolate(t, 0.0))
+			_:
+				a.remove_track(k)
+	var lib := anim.get_animation_library("")
+	if lib == null:
+		return false
+	if not lib.has_animation(CLIP_COUCHE):
+		lib.add_animation(CLIP_COUCHE, a)
+	return true
+
+## Se couche dans son lit : assis au bord puis allongé (instant : directement couché, heure sautée ou hors de vue).
+func coucher_au_lit(instant := false) -> void:
+	if lit == null or not is_instance_valid(lit):
+		coucher()
+		return
+	if lit.occupants[place_lit] != self:
+		if lit.occupants[place_lit] != null and is_instance_valid(lit.occupants[place_lit]):
+			var autre := lit.place_libre()
+			if autre < 0:
+				coucher()        # lit pris (par le joueur) : il dort caché, comme avant
+				return
+			place_lit = autre
+		lit.occupants[place_lit] = self
+	etat = DORT
+	_route.clear()
+	_eveil_t = 0.0
+	_en_conversation = false
+	if _invite and dialogue != null and is_instance_valid(dialogue):
+		_invite = false
+		dialogue.retirer_invite(self)
+	visible = true
+	process_mode = Node.PROCESS_MODE_INHERIT
+	lod = 0
+	velocity = Vector3.ZERO
+	_vit = 0.0
+	if _forme != null:
+		_forme.set_deferred("disabled", true)
+	if _pieds != null:
+		_pieds.actif = false
+	if _tete != null:
+		(_tete as SkeletonModifier3D).active = false
+	if seq == "":
+		_xf_m0 = modele.transform
+	_xf_m_assis = Transform3D(_xf_m0.basis, _xf_m0.origin + Vector3.UP * DY_ASSIS)
+	_assurer_clip_couche()
+	_xf_assis = lit.pose_assise(place_lit, cote_lit)
+	_pos_depart = global_position
+	_rot_depart = rotation.y
+	var b := _bassin_local()
+	if b != Vector3.INF and not instant and _anim in ["Idle", "Walk", "Idle_Talking", ""]:
+		_o_debout = b
+	if instant:
+		_poser_assis()
+		_xf_m_couche = _couche_local()
+		modele.transform = _xf_m_couche
+		_anim = ""
+		_jouer(CLIP_COUCHE, 0.0)
+		anim.seek(randf() * 4.0, true)
+		seq = "dort"
+		return
+	seq = "assoir"
+	_seq_t = 0.0
+	_anim = ""
+	_jouer("Sitting_Enter", 0.25)
+	_seq_d = anim.get_animation("Sitting_Enter").length if anim.has_animation("Sitting_Enter") else 0.8
+
+func _poser_assis() -> void:
+	global_position = _xf_assis.origin
+	var f := _xf_assis.basis.z
+	rotation.y = atan2(f.x, f.z)
+
+## Transform du modèle couché, dans le repère du corps (le corps est déjà posé assis au bord).
+func _couche_local() -> Transform3D:
+	var xf := global_transform.affine_inverse() * lit.pose_couchee(place_lit)
+	return Transform3D(xf.basis.orthonormalized().scaled_local(_xf_m0.basis.get_scale()), xf.origin)
+
+## Pose intermédiaire assis (k = 0) -> couché (k = 1) : le bassin glisse en arc (au-dessus du long pan), le corps pivote autour de lui.
+func _pose_mi(k: float) -> Transform3D:
+	var a := _xf_m_assis
+	var b := _xf_m_couche
+	var pa := a * _o_assis
+	var pb := b * _o_debout
+	var q := a.basis.get_rotation_quaternion().slerp(b.basis.get_rotation_quaternion(), k)
+	var bas := Basis(q).scaled_local(_xf_m0.basis.get_scale())
+	var o := _o_assis.lerp(_o_debout, k)
+	var p := pa.lerp(pb, k) + Vector3.UP * sin(PI * k) * 0.14
+	return Transform3D(bas, p - bas * o)
+
+func _au_lit(dt: float) -> void:
+	_seq_t += dt
+	if _en_conversation:
+		_debut_conversation += dt
+		if joueur != null and not joueur.en_dialogue and _debut_conversation > 0.3:
+			_en_conversation = false
+			if seq == "":
+				_activite()
+	match seq:
+		"assoir":
+			var k := clampf(_seq_t / 0.35, 0.0, 1.0)
+			global_position = _pos_depart.lerp(_xf_assis.origin, k)
+			var f := _xf_assis.basis.z
+			rotation.y = lerp_angle(_rot_depart, atan2(f.x, f.z), k)
+			modele.transform = _xf_m0.interpolate_with(_xf_m_assis, smoothstep(0.3, 1.0, _seq_t / _seq_d))
+			if _seq_t >= _seq_d:
+				_poser_assis()
+				modele.transform = _xf_m_assis
+				seq = "assis"
+				_seq_t = 0.0
+				_jouer("Sitting_Idle", 0.2)
+		"assis":
+			if _seq_t > 0.6:
+				var b := _bassin_local()
+				if b != Vector3.INF:
+					_o_assis = b
+				_xf_m_couche = _couche_local()
+				seq = "allonger"
+				_seq_t = 0.0
+				_jouer(CLIP_COUCHE, T_ALLONGER * 0.8)
+		"allonger":
+			var k := smoothstep(0.0, T_ALLONGER, _seq_t)
+			modele.transform = _pose_mi(k)
+			if _seq_t >= T_ALLONGER:
+				modele.transform = _xf_m_couche
+				seq = "dort"
+				_seq_t = 0.0
+		"dort":
+			_invite_lit()
+		"redresser":
+			var k := 1.0 - smoothstep(0.0, T_ALLONGER, _seq_t)
+			modele.transform = _pose_mi(k)
+			if _seq_t >= T_ALLONGER:
+				modele.transform = _xf_m_assis
+				seq = "lever"
+				_seq_t = 0.0
+				_jouer("Sitting_Exit", 0.2)
+				_seq_d = anim.get_animation("Sitting_Exit").length if anim.has_animation("Sitting_Exit") else 0.8
+		"lever":
+			modele.transform = _xf_m_assis.interpolate_with(_xf_m0, smoothstep(0.0, 0.7, _seq_t / _seq_d))
+			if _seq_t >= _seq_d:
+				_fin_lever()
+	_refermer_porte()
+
+## Commence à se lever (redressement puis Sitting_Exit) ; `sursaut` : réveillé dans la nuit, il reste debout puis se recouche.
+func _se_lever(sursaut: bool) -> void:
+	process_mode = Node.PROCESS_MODE_INHERIT
+	visible = true
+	lod = 0
+	if sursaut:
+		_sortie_lit = Vector3.ZERO
+	match seq:
+		"dort", "allonger":
+			_xf_m_couche = modele.transform if seq == "allonger" else _xf_m_couche
+			seq = "redresser"
+			_seq_t = 0.0
+			_jouer("Sitting_Idle", T_ALLONGER * 0.7)
+		"assoir", "assis":
+			seq = "lever"
+			_seq_t = 0.0
+			_jouer("Sitting_Exit", 0.2)
+			_seq_d = anim.get_animation("Sitting_Exit").length if anim.has_animation("Sitting_Exit") else 0.8
+
+## Debout à côté du lit : il redevient un corps solide, puis repart (route en attente), ou reste éveillé un moment.
+func _fin_lever() -> void:
+	seq = ""
+	if lit != null and is_instance_valid(lit):
+		lit.liberer(self)
+	modele.transform = _xf_m0
+	if _forme != null:
+		_forme.set_deferred("disabled", false)
+	if _pieds != null:
+		_pieds.actif = lod == 0
+	if _tete != null:
+		(_tete as SkeletonModifier3D).active = lod == 0
+	etat = POSTE
+	_t = 0.0
+	_anim = ""
+	_jouer("Idle", 0.15)
+	var reste := _apres_lever
+	_apres_lever = []
+	if not reste.is_empty() and _sortie_lit != Vector3.ZERO:
+		var via: Array = []
+		if porte_int_lit != Vector3.ZERO:
+			via.append(porte_int_lit)
+		via.append(_sortie_lit)
+		via.append_array(reste[2])
+		_sortie_lit = Vector3.ZERO
+		rentrer(reste[0], reste[1], via, reste[3], reste[4], reste[5], reste[6])
+		traverser(_ip_foyer, _centre_porte_foyer)
+		return
+	_poste_vie = global_position        # éveillé : il reste là, sans promenade, puis se recouche
+	_act_vie = "Idle"
+	if _eveil_t <= 0.0:
+		_eveil_t = EVEIL_PARLER if _en_conversation else EVEIL_SURSAUT
+
+## Quitte le lit sans animation (placement direct).
+func _quitter_lit() -> void:
+	if lit != null and is_instance_valid(lit):
+		lit.liberer(self)
+	if seq != "" and modele != null:
+		modele.transform = _xf_m0
+	seq = ""
+	_apres_lever = []
+	if _pieds != null:
+		_pieds.actif = true
+	if _tete != null:
+		(_tete as SkeletonModifier3D).active = true
+	_anim = ""
+
+## Éveillé la nuit : une fois le délai écoulé (et la conversation finie), il se recouche si Vie le veut encore à la maison.
+func _eveille(dt: float) -> void:
+	if lit == null or _eveil_t <= 0.0 or _en_conversation:
+		return
+	_eveil_t -= dt
+	if _eveil_t > 0.0:
+		return
+	_eveil_t = 0.0
+	if vie != null and vie.has_method("mode_de") and vie.mode_de(self) == "maison":
+		rentrer(abord_lit(), true, [])
+
+## Réveil brusque (bruit, combat tout près) : il se lève et s'inquiète à voix haute.
+func reveiller_en_sursaut() -> void:
+	if not seq in ["dort", "allonger", "assis", "assoir"]:
+		return
+	_eveil_t = EVEIL_SURSAUT
+	_se_lever(true)
+	if dialogue != null and is_instance_valid(dialogue) and joueur != null and global_position.distance_to(joueur.global_position) < 14.0:
+		var l: String = vie.call("_ligne", self, "reveil") if vie != null else ""
+		dialogue.dire_au_passage(nom_affiche(), l if l != "" else "Hein ? Qu'est-ce que c'est que ce vacarme ?")
+
+## On lui parle pendant qu'il dort : il se redresse, grommelle, puis se recouchera.
+func _parler_reveille() -> Array:
+	var l: String = vie.call("_ligne", self, "reveil") if vie != null else ""
+	_eveil_t = EVEIL_PARLER
+	if seq in ["dort", "allonger", "assis", "assoir"]:
+		_se_lever(true)
+	_en_conversation = true
+	_debut_conversation = 0.0
+	return [l if l != "" else "Hmm… Quoi ? On ne peut plus dormir en paix ?", "Revenez demain, voulez-vous."]
+
+func texte_action() -> String:
+	return ("Réveiller %s" if seq == "dort" else "Parler à %s") % nom_affiche()
+
+## Invite « E Réveiller » : le joueur est tout près et regarde sa tête, sur l'oreiller.
+func _invite_lit() -> void:
+	if dialogue == null or not is_instance_valid(dialogue) or joueur == null or not is_instance_valid(joueur):
+		return
+	var tete := modele.global_transform * Vector3(0, 1.55, 0)
+	var veut := false
+	var cam: Camera3D = joueur.camera
+	if cam != null and Vector2(joueur.global_position.x - tete.x, joueur.global_position.z - tete.z).length() < DIST_PARLER:
+		veut = (-cam.global_transform.basis.z).dot((tete - cam.global_position).normalized()) > 0.8
+	if veut and not _invite:
+		_invite = true
+		dialogue.inviter(self)
+	elif not veut and _invite:
+		_invite = false
+		dialogue.retirer_invite(self)
+
+## Niveau de détail d'un dormeur couché (Vie) : caché et gelé au-delà de DIST_LIT m (les murs le cachent de toute façon).
+func lod_lit(d: float) -> void:
+	if seq != "dort":
+		return
+	var cache := d > DIST_LIT
+	if cache == (lod == 2):
+		return
+	lod = 2 if cache else 0
+	visible = not cache
+	process_mode = Node.PROCESS_MODE_DISABLED if cache else Node.PROCESS_MODE_INHERIT
+	if cache and _invite and dialogue != null and is_instance_valid(dialogue):
+		_invite = false
+		dialogue.retirer_invite(self)

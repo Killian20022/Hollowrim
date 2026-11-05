@@ -74,7 +74,7 @@ static func construire_aide() -> Array:
 	return [[Touches.libelle_deplacement(), "marcher"], [Touches.libelle("course"), "courir"], [Touches.libelle("saut"), "sauter"],
 		["Clic gauche", "frapper"], ["Clic droit", "parer"], [Touches.libelle("interagir"), "agir"], [Touches.libelle("menu"), "menu"],
 		[Touches.libelle("inventaire"), "sac"], ["1 - 0", "raccourcis"], [Touches.libelle("torche"), "torche"],
-		[Touches.libelle("vue"), "vue"], ["Échap", "pause"]]
+		[Touches.libelle("attendre"), "attendre"], [Touches.libelle("vue"), "vue"], ["Échap", "pause"]]
 var aide_t := 0.0          # secondes d'affichage restantes (fondu sur la dernière)
 var aide_forcee := false   # F1
 ## Menu du personnage (MenuPersonnage, posé par lui-même) : `panneau_ouvert` lit son état ; l'écrire l'ouvre ou le ferme

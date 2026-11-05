@@ -278,7 +278,7 @@ static func _lit_clos(b: Interieurs, xe: float) -> void:
 	var F := Interieurs.F
 	# alcôve de planches : cloison à claire-voie, ciel de lit, lit large et peaux
 	b.bx(Vector3(xe - 0.35, 1.0, -2.0), Vector3(1.1, 1.0, 1.9), "bois_sombre", 0.0, true)     # coffre-banquette sous la couche
-	b.lit(Vector3(xe - 1.05, F, -2.15), PI * 0.5, 2.0, 1.4, "peau_claire")
+	b.lit(Vector3(xe - 1.05, F, -2.15), PI * 0.5, 2.0, 1.4, "peau_claire", 0, "chef", "", false)      # lot sommeil : lit clos gardé tel quel (coffre-banquette, table et bancs l'enserrent : pas de couchage)
 	b.bx(Vector3(xe - 1.9, 0.95 + F * 0.0, -2.15), Vector3(0.08, 1.0, 1.5), "bois_v")
 	b.bx(Vector3(xe - 0.45, 1.8, -2.15), Vector3(1.9, 0.07, 1.6), "bois_sombre", PI * 0.5)
 	for sz in [-1.0, 1.0]:

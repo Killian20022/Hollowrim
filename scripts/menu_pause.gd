@@ -220,7 +220,7 @@ func _input(e: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _action_du_jeu(e: InputEvent) -> bool:
-	for a in ["menu", "interagir", "sauvegarde_rapide", "chargement_rapide", "torche", "vue", "inventaire", "competences", "quetes", "carte"]:
+	for a in ["menu", "interagir", "sauvegarde_rapide", "chargement_rapide", "torche", "attendre", "vue", "inventaire", "competences", "quetes", "carte"]:
 		if e.is_action(a):
 			return true
 	return false

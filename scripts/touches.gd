@@ -17,7 +17,8 @@ const ACTIONS := [
 	{"id": "saut", "nom": "Sauter", "defaut": [KEY_SPACE, KEY_NONE]},
 	{"id": "esquive", "nom": "Esquiver (pas de côté / en arrière)", "defaut": [KEY_ALT, KEY_C]},
 	{"id": "interagir", "nom": "Parler, ouvrir, ramasser", "defaut": [KEY_E, KEY_NONE]},
-	{"id": "torche", "nom": "Torche", "defaut": [KEY_T, KEY_NONE]},
+	{"id": "torche", "nom": "Torche", "defaut": [KEY_H, KEY_NONE]},      # lot sommeil : T passe à « Attendre » (comme Skyrim)
+	{"id": "attendre", "nom": "Attendre", "defaut": [KEY_T, KEY_NONE]},
 	{"id": "vue", "nom": "Vue 1re / 3e personne", "defaut": [KEY_V, KEY_NONE]},
 	{"id": "menu", "nom": "Menu du personnage", "defaut": [KEY_TAB, KEY_NONE]},
 	{"id": "inventaire", "nom": "Sac", "defaut": [KEY_I, KEY_NONE]},
@@ -55,6 +56,9 @@ static func charger() -> void:
 		for a: Dictionary in ACTIONS:
 			var id: String = a["id"]
 			liaisons[id] = [int(Jeu.option("touches", id)), int(Jeu.option("touches", id + "_2"))]
+		# options écrites avant « Attendre » : la torche y est encore sur T, qui revient désormais à l'attente
+		if liaisons["torche"][0] == KEY_T and liaisons["attendre"][0] == KEY_T:
+			liaisons["torche"][0] = KEY_H
 	appliquer()
 
 ## Crée (si besoin) les actions et leur donne leurs touches. Sans danger si appelé plusieurs fois (joueur, menus…).

@@ -709,8 +709,28 @@ func etagere(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3,
 	modele("etagere_" + variante(pos, 2), pos, lacet, Vector3(larg / 1.5, haut / 2.0, prof / 0.3))
 	solide(pos + Vector3(0, haut * 0.5, 0), Vector3(larg, haut, prof), lacet)
 
-## Lit : montants, chevets, paillasse, couverture de peau drapée, coussin (modules L6). Tête vers -X local.
-func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0) -> void:
+## Lit (lot « sommeil ») : un Marker3D du groupe « emplacement_lit » où Sommeil pose un `Lit` (modèle procédural, places de couchage,
+## collision, « Dormir »). Tête vers -X local (lacet 0), comme les lits d'avant ; le marqueur regarde la tête en +Z (son -Z = le pied).
+## `proprietaire` : id(s) de PNJ séparés par des virgules, « joueur », « auberge », ou "" (lit libre du foyer `foyer`).
+## `marqueur` faux : l'ancien lit fusionné (modules Quaternius / L6), sans couchage (lit clos de la halle, bâti autour de lui).
+func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0, proprietaire := "", foyer := "", marqueur := true) -> void:
+	if not marqueur:
+		_lit_fusionne(pos, lacet, long, larg, peau_mat, etat)
+		return
+	var m := Marker3D.new()
+	m.name = "EmplacementLit"
+	m.add_to_group("emplacement_lit", true)
+	m.set_meta("proprietaire", proprietaire)
+	m.set_meta("largeur", larg)
+	m.set_meta("longueur", long)
+	m.set_meta("peau", peau_mat)
+	if foyer != "":
+		m.set_meta("foyer", foyer)
+	m.transform = Transform3D(Basis(Vector3.UP, lacet - PI * 0.5), pos)
+	_p().add_child(m)
+
+## Lit d'avant le lot sommeil : montants, chevets, paillasse, peau drapée, coussin (modules L6), tête vers -X local.
+func _lit_fusionne(pos: Vector3, lacet: float, long: float, larg: float, peau_mat: String, etat: int) -> void:
 	var b := Basis(Vector3.UP, lacet)
 	solide(pos + Vector3(0, 0.3, 0), Vector3(long, 0.12, larg), lacet)
 	if rempl("q_lit"):      # Bed_Twin : longueur le long de Z du prop → tourné d'un quart de tour (tête vers -X local comme avant)

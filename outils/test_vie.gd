@@ -1,6 +1,6 @@
 extends SceneTree
 ## Lot vie_pnj (P1-P3) : le village vit, dort, fuit et se souvient.
-##   - planning à 8 h / 13 h (au poste) / 20 h (soirée) / 23 h / 3 h (tous endormis, cachés, sans collision, sauf Haldor) / réveil ;
+##   - planning à 8 h / 13 h (au poste) / 20 h (soirée) / 23 h / 3 h (tous endormis sans collision, couchés dans un lit ou cachés, sauf Haldor) / réveil ;
 ##   - rentrée à pied (RENTRE puis DORT) et sortie à pied, sans téléportation quand l'heure avance normalement ;
 ##   - fuite devant un hostile à moins de 15 m, gardes alertés par le bus, retour une fois le danger passé ;
 ##   - répliques contextuelles (nuit, danger) et voix à travers la porte la nuit ;
@@ -111,9 +111,11 @@ func _tester() -> void:
 	for h in [23.0, 3.0]:
 		await _heure(h)
 		var dort := _nb(func(c: Dictionary) -> bool: return c["n"].est_endormi())
-		var caches := _nb(func(c: Dictionary) -> bool: return c["n"].est_endormi() and not c["n"].visible and c["n"].process_mode == Node.PROCESS_MODE_DISABLED and c["n"]._forme.disabled)
+		# lot sommeil : ceux qui ont un lit y sont couchés (visibles de près, sans collision propre), les autres dorment cachés et gelés
+		var caches := _nb(func(c: Dictionary) -> bool: return c["n"].est_endormi() and c["n"]._forme.disabled and (c["n"].au_lit() or (not c["n"].visible and c["n"].process_mode == Node.PROCESS_MODE_DISABLED)))
+		var au_lit := _nb(func(c: Dictionary) -> bool: return c["n"].au_lit())
 		var veille: Node3D = vie.civil("garde")["n"]
-		_verif(dort == 15 and caches == 15, "%.0f h : 15 civils dorment, cachés, gelés et sans collision (%d / %d)" % [h, dort, caches])
+		_verif(dort == 15 and caches == 15, "%.0f h : 15 civils dorment (%d au lit), les autres cachés et gelés, tous sans collision (%d / %d)" % [h, au_lit, dort, caches])
 		_verif(not veille.est_endormi() and veille.visible, "%.0f h : Haldor tient la porte" % h)
 
 	# --- 7 h : réveil, tout le monde ressort
@@ -142,6 +144,9 @@ func _tester() -> void:
 	var dort2 := _nb(func(c: Dictionary) -> bool: return c["n"].est_endormi())
 	_verif(dort2 == 15, "rentrée : 15 civils ont fini par s'endormir à la porte de leur bâtiment (%d)" % dort2)
 	var coince := _nb(func(c: Dictionary) -> bool: return c["n"].etat == 4)
+	for c: Dictionary in vie.civils:
+		if c["n"].etat == 4 or (c["id"] != "garde" and not c["n"].est_endormi()):
+			print("   en route : %s état %d, route %d %s, lit %s, à %s, process %d, vit %.2f, avance %s, v %s, t %.0f" % [c["id"], c["n"].etat, c["n"]._route.size(), str(c["n"]._route), c["n"].lit, str(c["n"].global_position), c["n"].process_mode, c["n"]._vit, c["n"]._avance, str(c["n"].velocity), c["n"]._t])
 	_verif(coince == 0, "rentrée : personne n'est resté en route (%d)" % coince)
 
 	# --- voix à travers la porte (marchands) : on frappe chez le forgeron

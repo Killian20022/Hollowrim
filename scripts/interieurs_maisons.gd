@@ -79,7 +79,7 @@ static func _sigrun(b: Interieurs, xch: float) -> void:
 	b.halo(Vector3(cx, F + 0.12, cz), Vector3.UP, 2.4, 2.4, Color(0.25, 0.8, 1.0, 1))
 	b.lumiere(Vector3(cx, F + 0.9, cz), 0.8, 3.6, Color(0.35, 0.8, 1.0), 1.6, false)
 	# --- lit au coin du fond (ouest)
-	b.lit(Vector3(-2.75, F, zb + 0.62), 0.0, 2.0, 1.0, "peau_sombre")
+	b.lit(Vector3(-2.75, F, zb + 0.62), 0.0, 2.0, 1.0, "peau_sombre", 0, "volva")
 	b.peau_murale(Vector3(-2.75, 1.7, zb + 0.04), 0.0, 1.0, 1.2, "peau_claire")
 	b.bx(Vector3(-3.6, 1.55, -1.55), Vector3(0.7, 0.04, 0.4), "bois", 0.0)           # petite planchette au chevet
 	b.bougie(Vector3(-3.6, 1.57, -1.55), 0.12)
@@ -152,10 +152,10 @@ static func _chasseurs(b: Interieurs, xch: float) -> void:
 		b.cyl(Vector3(xch - 1.6 + k * 0.25, F + 0.14, 0.9 + k * 0.1), 0.06, 0.28, "cuir", 6, false, 0.08, Basis(Vector3.BACK, 0.15))
 		b.cyl(Vector3(xch - 1.5 + k * 0.25, F + 0.04, 1.06 + k * 0.1), 0.065, 0.1, "cuir", 6, false, 0.07, Basis(Vector3.RIGHT, PI * 0.5))
 	# --- lit d'Ylva (au fond, ouest) et lit défait d'Eirik (devant, ouest)
-	b.lit(Vector3(-2.75, F, zb + 0.62), 0.0, 2.0, 1.0, "peau")
+	b.lit(Vector3(-2.75, F, zb + 0.62), 0.0, 2.0, 1.0, "peau", 0, "chasseuse")
 	b.peau_murale(Vector3(-2.75, 1.7, zb + 0.04), 0.0, 1.1, 1.3, "peau_sombre")
 	b.lit(Vector3(-2.9, F, 1.7), 0.0, 1.95, 1.0, "peau_claire", 1)
-	b.parchemin(Vector3(-2.6, F + 0.68, 1.62), 0.5)
+	b.parchemin(Vector3(-2.6, F + 0.56, 1.62), 0.5)      # lot sommeil : posé sur la fourrure du lit procédural (dessus à 0,55 m)
 	b.sac(Vector3(-3.5, F, 0.85), 1.3, 0.55)
 	b.carquois(Vector3(-3.45, F + 0.28, 1.2), 0.3)
 	# --- mur du fond : arcs, carquois, hache, épée ; table de dépeçage
@@ -250,7 +250,7 @@ static func _grima(b: Interieurs, xch: float) -> void:
 	b.bx(Vector3(mx + 0.9, F + 0.18, mz + 0.5), Vector3(0.7, 0.28, 0.45), "foin", 0.2)       # panier de laine
 	b.solide(Vector3(mx, F + 1.0, mz), Vector3(1.55, 2.0, 0.35))
 	# --- lit modeste (sud-ouest), couverture
-	b.lit(Vector3(xw + 1.1, F, zf - 0.6), PI * 0.5, 1.9, 0.95, "peau")
+	b.lit(Vector3(xw + 1.1, F, zf - 0.97), PI * 0.5, 1.9, 0.95, "peau", 0, "ancienne")      # lot sommeil : pied du mur (le lit procédural fait 1,9 m hors tout)
 	b.tenture(Vector3(xw + 0.06, 1.65, zf - 0.8), PI * 0.5, 1.2, 1.5, "tenture_v")
 	# --- cuisine au fond (est) : étagères de pots, table de pétrissage, tonneaux
 	b.etagere(Vector3(xch + 1.3, F, zb + 0.18), 0.0, 1.5, 2.0, 4, 0.3)

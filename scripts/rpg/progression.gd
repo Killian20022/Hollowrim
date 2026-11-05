@@ -79,10 +79,13 @@ func competence(nom: String) -> int:
 
 ## Pratique d'une compétence (remplace Competences.pratiquer, qui reste valable). Perks « xp_<compétence> » : gain accru.
 ## Compétence inconnue : ignorée.
+## Bonus « reposé » du sommeil (Sommeil : +10 % / +15 % d'expérience des compétences, quelques heures de jeu) ; 0 = aucun.
+static var bonus_repos := 0.0
+
 func pratiquer(nom: String, quantite: float) -> void:
 	var i := interne(canonique(nom))
 	if competences.niveaux.has(i):
-		competences.pratiquer(i, quantite * (1.0 + perk_total("xp_" + canonique(nom))))
+		competences.pratiquer(i, quantite * (1.0 + perk_total("xp_" + canonique(nom)) + bonus_repos))
 
 ## Pratique pour la progression courante (sorts, calcul des dégâts : pas de référence au joueur). Sans joueur : rien.
 static func pratiquer_global(nom: String, quantite: float) -> void:
