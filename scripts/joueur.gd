@@ -189,20 +189,7 @@ func basculer_vue(troisieme_personne: bool) -> void:
 		camera.current = true
 
 func _actions() -> void:
-	var touches := {
-		"avant": [KEY_W, KEY_UP], "arriere": [KEY_S, KEY_DOWN],
-		"gauche": [KEY_A, KEY_LEFT], "droite": [KEY_D, KEY_RIGHT],
-		"saut": [KEY_SPACE], "course": [KEY_SHIFT],
-		"esquive": [KEY_ALT, KEY_C],   # pas de côté (ou en arrière sans direction) : voir esquiver()
-	}
-	for nom in touches:
-		if InputMap.has_action(nom):
-			continue
-		InputMap.add_action(nom)
-		for touche_clavier in touches[nom]:
-			var e := InputEventKey.new()
-			e.physical_keycode = touche_clavier
-			InputMap.action_add_event(nom, e)
+	Touches.installer()   # avant/arriere/gauche/droite/saut/course/esquive… : actions de l'InputMap, touches réglables (Options > Touches)
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not mort and not en_dialogue:
@@ -212,7 +199,7 @@ func _unhandled_input(e: InputEvent) -> void:
 		tete.rotation.x = clampf(tete.rotation.x - e.screen_relative.y * k * (-1.0 if Jeu.inverser_y else 1.0), -1.45, 1.45)
 	elif e is InputEventMouseButton and e.pressed:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_V:
+	elif e.is_action_pressed("vue", false):
 		basculer_vue(not troisieme)
 	elif e is InputEventKey and e.pressed and e.physical_keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE

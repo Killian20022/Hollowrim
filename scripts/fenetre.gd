@@ -23,6 +23,7 @@ func _ready() -> void:
 		return
 	if Jeu.option("affichage", "plein_ecran"):
 		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	Graphismes.appliquer()   # vsync, limite d'images, taille de fenêtre (Options)
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	var k := event as InputEventKey
@@ -37,6 +38,8 @@ func basculer() -> void:
 
 func regler_plein_ecran(plein: bool) -> void:
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN if plein else DisplayServer.WINDOW_MODE_WINDOWED)
+	if not plein:
+		Graphismes.appliquer_resolution.call_deferred()   # retour en fenêtre : la taille choisie dans les options
 	Jeu.regler("affichage", "plein_ecran", plein)
 	plein_ecran_change.emit(plein)
 

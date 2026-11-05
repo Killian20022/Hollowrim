@@ -17,6 +17,8 @@ var demi := Vector2(3.0, 2.0)          # demi-emprise INTÉRIEURE (x, z)
 var racine: Node3D
 var lumieres: Array = []               # [OmniLight3D, énergie, phase]
 var vantaux: Array = []                # [Node3D charnière, angle d'ouverture (rad)]
+## Le joueur a ouvert ou fermé la porte (touche E) : `ouverte` = état après l'action.
+signal porte_actionnee(ouverte: bool)
 var bloc_porte: CollisionShape3D
 var porte_locale := Vector3.ZERO       # centre de la porte (repère local)
 var ouverte := false
@@ -116,6 +118,7 @@ func activer(joueur: CharacterBody3D, dialogue: Control) -> void:
 	it.rayon = 2.4
 	it.action = func() -> Array:
 		basculer(not ouverte)
+		porte_actionnee.emit(ouverte)   # autosauvegarde à la porte d'une maison (Monde)
 		return []
 	it.position = porte_locale + Vector3(0, 0.0, 0)
 	add_child(it)

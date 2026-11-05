@@ -220,6 +220,10 @@ func _plus_proche() -> Node3D:
 			meilleur = p
 	return meilleur
 
+## Icône dessinée « E » de l'invite : seulement si la touche d'interaction est E ; sinon l'invite s'écrit « [touche] ».
+func _icone_touche() -> Texture2D:
+	return _tex["touche"] if Touches.libelle("interagir") == "E" else null
+
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventJoypadButton and e.pressed:
 		_manette((e as InputEventJoypadButton).button_index)
@@ -227,7 +231,7 @@ func _unhandled_input(e: InputEvent) -> void:
 	if not (e is InputEventKey) or not e.pressed or e.echo:
 		return
 	var touche: Key = e.physical_keycode
-	if touche == KEY_E or (_choix_vis and touche in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]):
+	if touche == KEY_E or e.is_action_pressed("interagir", false) or (_choix_vis and touche in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]):
 		if _ouvert:
 			_suite()
 			get_viewport().set_input_as_handled()
@@ -404,10 +408,10 @@ func _process(dt: float) -> void:
 		# un objet peut proposer son propre verbe (« Fouiller le corps », « Entrer »…)
 		_invite_texte.text = p.texte_action() if p.has_method("texte_action") else "Parler à %s" % p.nom_affiche()
 		var l := ceilf(_police.get_string_size(_invite_texte.text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
-		var icone: Texture2D = _tex["touche"]
-		var larg_icone := 11.0 if icone != null else _police.get_string_size("[E] ", HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
+		var icone: Texture2D = _icone_touche()
+		var larg_icone := 11.0 if icone != null else _police.get_string_size("[%s] " % Touches.libelle("interagir"), HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
 		if icone == null:
-			_invite_texte.text = "[E] " + _invite_texte.text
+			_invite_texte.text = "[%s] " % Touches.libelle("interagir") + _invite_texte.text
 		var total := l + larg_icone + (4.0 if icone != null else 0.0)
 		_invite_larg = total
 		var nom_obj: String = String(p.nom_affiche()) if p.has_method("nom_affiche") else ""
@@ -430,5 +434,5 @@ func _draw() -> void:
 		if _invite_nom != "":
 			MenuStyle.texte_detoure(self, _police, Vector2(roundf(floorf(size.x * 0.5) - ln * 0.5), _invite.position.y + 23.0), _invite_nom, TAILLE_POLICE, OR, 0.9)
 	# icône de la touche E à côté de l'invite
-	if _invite != null and _invite.visible and _tex["touche"] != null:
-		draw_texture(_tex["touche"], _invite.position + Vector2(0, 2))
+	if _invite != null and _invite.visible and _icone_touche() != null:
+		draw_texture(_icone_touche(), _invite.position + Vector2(0, 2))

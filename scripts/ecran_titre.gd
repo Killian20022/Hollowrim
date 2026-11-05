@@ -92,6 +92,10 @@ func _ready() -> void:
 	_construire()
 	get_viewport().size_changed.connect(_placer)
 	_placer()
+	if not mode_test:
+		var recent := Sauvegardes.plus_recent()   # « Continuer » reprend la sauvegarde la plus récente (manuelle ou automatique)
+		if recent >= 0:
+			Sauvegardes.actif = recent
 	# F9 ou « Charger » d'une partie précédente : relancé pour charger aussitôt
 	if not mode_test and Jeu.lire_relance() == "continuer" and Jeu.sauvegarde_valide():
 		_noir.modulate.a = 1.0
@@ -537,7 +541,7 @@ func _valider(b: BoutonRunique, action: Callable) -> void:
 	action.call()
 
 func _nouvelle() -> void:
-	if Jeu.sauvegarde_valide():
+	if Sauvegardes.plus_recent() >= 0:
 		_ouvrir_panneau(_confirmation)
 		_confirmation.get_meta("non").grab_focus.call_deferred()
 	else:
@@ -570,6 +574,9 @@ func _lancer(nouvelle: bool, direct := false) -> void:
 		return
 	_demarre = true
 	Jeu.nouvelle_partie = nouvelle
+	if nouvelle:   # la nouvelle partie prend un emplacement libre (sinon le 1, qu'elle remplace) ; les autres parties restent intactes
+		var libre := Sauvegardes.premier_libre()
+		Sauvegardes.actif = libre if libre >= 1 else 1
 	for b in _boutons:
 		b.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if not direct:
@@ -632,7 +639,7 @@ func _panneau_confirmation() -> PanelContainer:
 	p.add_child(v)
 	v.add_child(_titre_panneau("Nouvelle partie"))
 	var l := Label.new()
-	l.text = "Une partie existe déjà.\nLa remplacer par une nouvelle ?"
+	l.text = "Des parties existent déjà.\nCommencer une nouvelle partie ?\n(Si les trois emplacements sont pris, l'emplacement 1 sera remplacé.)"
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(l)
 	var h := HBoxContainer.new()
@@ -670,12 +677,12 @@ func _panneau_charger() -> PanelContainer:
 	sep.add_theme_stylebox_override("separator", ligne)
 	v.add_child(sep)
 	var st := Label.new()
-	st.text = "Copies de secours"
+	st.text = "Emplacements et copies de secours"
 	st.add_theme_color_override("font_color", MenuStyle.LUEUR.lerp(MenuStyle.GIVRE, 0.4))
 	st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(st)
 	var defil := ScrollContainer.new()
-	defil.custom_minimum_size = Vector2(0, 150)
+	defil.custom_minimum_size = Vector2(0, 190)
 	defil.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	defil.follow_focus = true
 	v.add_child(defil)
@@ -709,8 +716,24 @@ func _maj_charger(avis := "") -> void:
 	for c in _liste_copies.get_children():
 		_liste_copies.remove_child(c)
 		c.queue_free()
+	# les quatre emplacements (automatique, 1 à 3) : un bouton chacun, la partie choisie est chargée aussitôt
+	for e: int in Sauvegardes.tous():
+		var res := Sauvegardes.resume(e)
+		var heure_e := float(res["heure"])
+		var texte_e: String = Sauvegardes.ligne(res)
+		if not res["vide"] and heure_e >= 0.0:
+			texte_e += " — %dh%02d" % [int(heure_e) % 24, int(fmod(heure_e, 1.0) * 60.0)]
+		var be := _bouton_panneau(texte_e, func() -> void: _charger_emplacement(e))
+		be.name = "Emplacement%d" % e
+		be.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		be.add_theme_font_size_override("font_size", 25)
+		if res["vide"]:
+			be.disabled = true
+			be.focus_mode = Control.FOCUS_NONE
+		_liste_copies.add_child(be)
 	var dossier: String = Jeu.dossier_secours()
 	var copies := Jeu.copies_secours()
+	_liste_copies.add_child(_petit("Copies de secours"))
 	if dossier == "":
 		_liste_copies.add_child(_petit("Désactivée — à choisir dans Options > Copie de secours\n(un dossier Google Drive ou OneDrive, par exemple)."))
 	elif copies.is_empty():
@@ -727,6 +750,14 @@ func _maj_charger(avis := "") -> void:
 				b.text += " (illisible)"
 			_liste_copies.add_child(b)
 	_avis_charger.text = avis
+
+## Charge la partie d'un emplacement : il devient l'emplacement en cours, puis le monde est lancé.
+func _charger_emplacement(emplacement: int) -> void:
+	if not Sauvegardes.valide(emplacement):
+		_maj_charger("Cet emplacement est illisible.")
+		return
+	Sauvegardes.actif = emplacement
+	_lancer(false)
 
 func _petit(texte: String) -> Label:
 	var l := Label.new()

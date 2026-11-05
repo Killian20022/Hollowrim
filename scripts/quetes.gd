@@ -6,6 +6,8 @@ extends Node
 ## d'Eirik avant qu'Ylva ne la demande), sauf les conversations.
 
 signal change
+## Une quête vient d'être menée à son terme (récompenses données) : autosauvegarde (Monde).
+signal quete_terminee(id: String)
 ## Chaque événement signalé (hors "") : les ennemis en attente (reveil_evt) s'y abonnent.
 signal evenement(evt: String)
 
@@ -142,6 +144,7 @@ func _completer(q: Dictionary, i: int) -> void:
 			hud.avis("+ " + joueur.inventaire.nom(id))
 		if not q.get("discrete", false):
 			Sons.interface(self, ["ui_quete_fin"], -6.0)
+		quete_terminee.emit(String(q["id"]))   # autosauvegarde de fin de quête (Sauvegardes)
 		change.emit()
 		signaler("fini:" + q["id"])   # une quête peut en lancer une autre (premier déclencheur « fini:<id> ») : la suite de l'histoire
 		return

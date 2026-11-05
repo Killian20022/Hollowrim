@@ -186,18 +186,21 @@ static func losange(ci: CanvasItem, c: Vector2, couleur: Color, alpha: float, cr
 
 ## Jauge de ressource 80x7 (même encombrement que l'ancien assets/ui/barre_cadre.svg) : plaque de cuir à filet d'or,
 ## remplissage 76x3 (reflet / base / ombre) qui se vide vers le centre, fond noir ; pointes d'or aux deux bouts.
-static func jauge(ci: CanvasItem, pos: Vector2, ratio: float, couleurs: Array, alpha: float) -> void:
+## `larg` x `haut` : taille de la plaque (80x7 pour la barre d'un ennemi ; 120x9 pour les barres du joueur, plus lisibles).
+static func jauge(ci: CanvasItem, pos: Vector2, ratio: float, couleurs: Array, alpha: float, larg := 80, haut := 7) -> void:
 	if alpha < 0.02:
 		return
-	plaque(ci, Rect2(pos, Vector2(80, 7)), alpha, OR_TERNI, 0.9)
-	ci.draw_rect(Rect2(pos + Vector2(2, 2), Vector2(76, 3)), Color(NOIR, 0.9 * alpha))
-	var l := roundi(76.0 * clampf(ratio, 0.0, 1.0))
-	var x := pos.x + 2.0 + floorf((76 - l) * 0.5)
-	for ligne in 3:
-		ci.draw_rect(Rect2(x, pos.y + 2 + ligne, l, 1), Color(couleurs[ligne], alpha))
-	if l > 0 and l < 76:   # bords du remplissage soulignés d'or pâle : on lit le niveau même sur la neige
-		ci.draw_rect(Rect2(x - 1, pos.y + 2, 1, 3), Color(OR_SOMBRE, alpha))
-		ci.draw_rect(Rect2(x + l, pos.y + 2, 1, 3), Color(OR_SOMBRE, alpha))
+	plaque(ci, Rect2(pos, Vector2(larg, haut)), alpha, OR_TERNI, 0.9)
+	var li := larg - 4
+	var hi := haut - 4
+	ci.draw_rect(Rect2(pos + Vector2(2, 2), Vector2(li, hi)), Color(NOIR, 0.9 * alpha))
+	var l := roundi(li * clampf(ratio, 0.0, 1.0))
+	var x := pos.x + 2.0 + floorf((li - l) * 0.5)
+	for ligne in hi:
+		ci.draw_rect(Rect2(x, pos.y + 2 + ligne, l, 1), Color(couleurs[mini(2, ligne * 3 / hi)], alpha))
+	if l > 0 and l < li:   # bords du remplissage soulignés d'or pâle : on lit le niveau même sur la neige
+		ci.draw_rect(Rect2(x - 1, pos.y + 2, 1, hi), Color(OR_SOMBRE, alpha))
+		ci.draw_rect(Rect2(x + l, pos.y + 2, 1, hi), Color(OR_SOMBRE, alpha))
 
 ## Gemme 9x9 devant une jauge : contour noir, sertissure d'or, cœur de la couleur de la ressource, reflet.
 static func gemme(ci: CanvasItem, c: Vector2, couleurs: Array, alpha: float) -> void:

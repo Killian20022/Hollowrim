@@ -33,6 +33,6 @@ func fermer() -> void:
 func entree(_e: InputEvent) -> bool:
 	return false
 
-## Bandeau d'aide : [[touche, action], …] ex. [["Clic gauche / A", "Équiper"], ["L / Y", "Lâcher"]].
+## Bandeau d'aide : [[touche, action], …] ex. [["Clic gauche", "Équiper"], ["R", "Lâcher"]] (touches du clavier seulement : pas de manette en jeu).
 func aide() -> Array:
 	return []

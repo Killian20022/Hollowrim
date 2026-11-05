@@ -12,6 +12,7 @@ func _init() -> void:
 		if not copies.is_empty():
 			print("%s : sauvegarde reprise de l'ancien dossier (%s)" % [Jeu.nom(), ", ".join(copies)])
 	Jeu.charger_options()
+	Touches.charger()   # touches du joueur (Options > Touches) appliquées à l'InputMap
 
 func _ready() -> void:
 	if Jeu.mode_outil():

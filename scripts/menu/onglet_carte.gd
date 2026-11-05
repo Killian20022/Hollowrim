@@ -79,7 +79,7 @@ func titre() -> String:
 	return "Carte"
 
 func aide() -> Array:
-	return [["ZQSD", "Déplacer"], ["Molette / Gâch.", "Zoom"], ["Espace / Y", "Moi"], ["F / X", "Quête"]]   # stick G / croix : déplacer
+	return [[Touches.libelle_deplacement(), "Déplacer"], ["Molette", "Zoom"], ["Espace", "Moi"], ["F", "Quête"]]
 
 func _init() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -242,10 +242,10 @@ func _process(dt: float) -> void:
 	_t += dt
 	# clavier (touches physiques : ZQSD en AZERTY = WASD) et manette, en continu
 	var dep := Vector2.ZERO
-	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP): dep.y -= 1.0
-	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN): dep.y += 1.0
-	if Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT): dep.x -= 1.0
-	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT): dep.x += 1.0
+	if Input.is_action_pressed("avant"): dep.y -= 1.0   # les touches de déplacement du joueur (réglables), flèches comprises
+	if Input.is_action_pressed("arriere"): dep.y += 1.0
+	if Input.is_action_pressed("gauche"): dep.x -= 1.0
+	if Input.is_action_pressed("droite"): dep.x += 1.0
 	var zoom := 0.0
 	for pad in Input.get_connected_joypads():
 		var s := Vector2(Input.get_joy_axis(pad, JOY_AXIS_LEFT_X), Input.get_joy_axis(pad, JOY_AXIS_LEFT_Y))

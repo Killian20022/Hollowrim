@@ -78,17 +78,16 @@ var sbire: CharacterBody3D
 var depart_joueur := Vector3.ZERO
 var draugrs := {}  # identifiant → draugr
 var _minuterie_sauvegarde := 0.0
-const SAUVEGARDE_REELLE := "user://sauvegarde.json"
-## La vraie partie reste sur sauvegarde.json ; tout lancement avec arguments utilisateur (après « -- »),
+const SAUVEGARDE_REELLE := Sauvegardes.SAUVEGARDE_REELLE
+## La vraie partie reste sur sauvegarde.json (emplacement 1) ; tout lancement avec arguments utilisateur (après « -- »),
 ## en --script ou sans fenêtre (tests, captures, --nouvelle…) lit et écrit sauvegarde_test_<dossier>.json :
 ## un fichier par copie du projet, pour que les tests de deux worktrees lancés en même temps ne s'écrasent pas.
+## Emplacements (3 manuels + 1 automatique) : voir Sauvegardes.
 static func fichier_test() -> String:
-	return "user://sauvegarde_test_%08x.json" % (hash(ProjectSettings.globalize_path("res://")) & 0xffffffff)
+	return Sauvegardes.fichier_test()
+## Fichier de la partie en cours (emplacement Sauvegardes.actif ; l'emplacement 1 par défaut).
 static func fichier_sauvegarde() -> String:
-	var args := OS.get_cmdline_args()
-	if OS.get_cmdline_user_args().size() > 0 or "--script" in args or "-s" in args or DisplayServer.get_name() == "headless":
-		return fichier_test()
-	return SAUVEGARDE_REELLE
+	return Sauvegardes.fichier(Sauvegardes.actif)
 var _t := 0.0
 
 var _audio_vent: AudioStreamGeneratorPlayback
@@ -679,6 +678,9 @@ func _villageois() -> void:
 	add_child(quetes)
 	hud.quetes = quetes
 	village.activer_interieurs(joueur, dialogue)   # portes des maisons (touche E)
+	for ip in village.interieurs:   # autosauvegarde : porte d'une maison, fin de quête
+		ip.porte_actionnee.connect(func(_ouverte: bool) -> void: demander_autosauvegarde("maison", 1.5))
+	quetes.quete_terminee.connect(func(_id: String) -> void: demander_autosauvegarde("quête", 1.0))
 	services.poser(village, dialogue)              # lot E RPG : coffre loué chez Grima, coffre et râtelier de la maison
 	_uniques_village()
 	EtalMarchand.poser_village(village, self, not _arguments().has("capture"))   # pièces exposées après le chargement (EtalMarchand : exposition différée) ; objets monde : étals de Brodd et de Grima (stock du moment en 3D)
@@ -990,6 +992,7 @@ func _tertre() -> void:
 	if not tertre.get("bati"):   # chargement étalé : le _ready du tertre rend la main entre les pièces de la crypte
 		await Signal(tertre, "bati_fini")
 	tertre.entree.connect(_sous_terre)
+	tertre.entree.connect(func(_dedans: bool) -> void: demander_autosauvegarde("donjon", 2.5))   # entrée et sortie de la crypte
 	# le sommeil de Svanhild rescellé, un dragon de givre vient tourner au-dessus du hameau
 	quetes.change.connect(func() -> void:
 		if quetes.etat.get("anneau_givre", 0) >= 6 and dragon == null and not dragon_vaincu:
@@ -1009,6 +1012,7 @@ func _grotte_acces() -> void:
 	grotte_acces.rotation.y = GrotteAcces.LACET
 	add_child(grotte_acces)
 	grotte_acces.entree.connect(func(dedans: bool) -> void:
+		demander_autosauvegarde("donjon", 2.5)   # entrée et sortie de la grotte
 		_sous_terre(dedans)
 		if dedans:
 			grotte_acces.grotte.ambiance(_env))
@@ -1367,6 +1371,8 @@ func _interface() -> void:
 	add_child(pause)
 	if _arguments().has("sans-ps1"):
 		_basculer_ps1()
+	if not Jeu.mode_outil():
+		Graphismes.appliquer_ombres(get_tree())   # portée des ombres choisie dans les options
 
 func _basculer_ps1() -> void:
 	var actif: bool = not post.get_shader_parameter("actif")
@@ -1374,19 +1380,19 @@ func _basculer_ps1() -> void:
 	Palette.regler_ps1(actif)
 
 func _unhandled_input(e: InputEvent) -> void:
-	if e is InputEventKey and e.pressed and not e.echo:
-		match e.physical_keycode:
-			KEY_P:
-				if OS.is_debug_build():   # bascule de l'effet PS1 : outil de développement, absent du jeu exporté
-					_basculer_ps1()
-			KEY_F5:
-				sauvegarder()
-				hud.avis("Partie sauvegardée")
-			KEY_F9:
-				# on relance le jeu plutôt que la scène : recréer le monde dans le même
-				# processus fait planter Godot (modèles importés rechargés en double)
-				if FileAccess.file_exists(fichier_sauvegarde()):
-					Jeu.relancer("continuer")   # l'écran titre du processus relancé charge aussitôt la partie
+	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_P:
+		if OS.is_debug_build():   # bascule de l'effet PS1 : outil de développement, absent du jeu exporté
+			_basculer_ps1()
+	elif e.is_action_pressed("sauvegarde_rapide", false):
+		if sauvegarder(Sauvegardes.emplacement_rapide()):
+			hud.avis("Partie sauvegardée (%s)" % Sauvegardes.nom(Sauvegardes.actif).to_lower())
+		else:
+			hud.avis("Sauvegarde impossible")
+	elif e.is_action_pressed("chargement_rapide", false):
+		# on relance le jeu plutôt que la scène : recréer le monde dans le même
+		# processus fait planter Godot (modèles importés rechargés en double)
+		if FileAccess.file_exists(fichier_sauvegarde()):
+			Jeu.relancer("continuer")   # l'écran titre du processus relancé charge aussitôt la partie
 
 func _exit_tree() -> void:
 	for v in _pnj_differes:   # villageois jamais nés (monde quitté avant leur naissance)
@@ -1405,9 +1411,56 @@ func _notification(quoi: int) -> void:
 
 # --- sauvegarde ------------------------------------------------------------------
 
-func sauvegarder() -> void:
+## Sauvegarde automatique (emplacement « automatique », jamais celui du joueur) : toutes les 10 minutes de jeu, à l'entrée et à la
+## sortie d'un donjon, à la porte d'une maison et à la fin d'une quête. Elle attend la fin d'un combat, un dialogue ou un menu ouvert.
+const INTERVALLE_AUTOSAUVEGARDE := 600.0
+var _autosauvegarde_demandee := ""
+var _attente_autosauvegarde := 0.0
+## Dernière sauvegarde automatique réussie (texte du moment, tests et affichage).
+var derniere_autosauvegarde := ""
+signal autosauvegarde_faite(raison: String)
+
+## Demande une sauvegarde automatique : faite dès que c'est possible (hors combat). `delai` : secondes d'attente avant la première tentative
+## (laisse finir la téléportation d'une entrée de donjon).
+func demander_autosauvegarde(raison: String, delai := 0.0) -> void:
+	if _autosauvegarde_demandee == "":
+		_autosauvegarde_demandee = raison
+		_attente_autosauvegarde = delai
+
+## Vrai si l'on peut figer la partie sans danger : vivant, monde prêt, aucun ennemi en combat, ni dialogue ni menu ouvert.
+func _autosauvegarde_possible() -> bool:
+	if joueur == null or joueur.mort or bool(joueur.get("en_dialogue")) or get_tree().paused or not pret:
+		return false
+	return not en_combat()
+
+## Un ennemi poursuit ou attaque le joueur (même critère que le HUD des raccourcis).
+func en_combat() -> bool:
+	for n in get_tree().get_nodes_in_group("ennemis"):
+		if is_instance_valid(n) and n.has_method("en_combat") and n.en_combat():
+			return true
+	return false
+
+func autosauvegarder() -> bool:
+	var raison := _autosauvegarde_demandee if _autosauvegarde_demandee != "" else "manuelle"
+	_autosauvegarde_demandee = ""
+	if joueur == null or joueur.mort:
+		return false
+	var ok := sauvegarder(Sauvegardes.AUTO)
+	if ok:
+		derniere_autosauvegarde = raison
+		autosauvegarde_faite.emit(raison)
+		if hud != null:
+			hud.avis("Sauvegarde automatique")
+	return ok
+
+## Écrit la partie. `emplacement` : -1 = l'emplacement en cours (Sauvegardes.actif), 0 = automatique, 1 à 3 = manuels.
+## Un emplacement manuel devient l'emplacement en cours ; l'automatique, non, et ne fait pas de copie de secours.
+## Renvoie vrai si le fichier est écrit (écriture atomique : Sauvegardes.ecrire).
+func sauvegarder(emplacement := -1) -> bool:
 	if joueur.mort:
-		return
+		return false
+	if emplacement < 0:
+		emplacement = Sauvegardes.actif
 	var morts := []
 	for id in draugrs:
 		if not is_instance_valid(draugrs[id]) or not draugrs[id].vivant():
@@ -1448,10 +1501,15 @@ func sauvegarder() -> void:
 		"lieux_vus": hud.lieux_vus.keys(),   # lot L7 : lieux déjà annoncés (« Lieu découvert »)
 		"menu": inventaire_ui.exporter_menu() if inventaire_ui != null else {},   # favoris du Sac (menu du personnage)
 	}
-	var f := FileAccess.open(fichier_sauvegarde(), FileAccess.WRITE)
-	f.store_string(JSON.stringify(donnees, "\t"))
-	f.close()
-	Jeu.copie_secours(fichier_sauvegarde())   # copie de secours (dossier choisi dans les options ; échec = simple avertissement)
+	var chemin := Sauvegardes.fichier(emplacement)
+	var err := Sauvegardes.ecrire(chemin, JSON.stringify(donnees, "\t"))
+	if err != OK:
+		push_warning("Sauvegarde impossible (%s) : %s" % [error_string(err), chemin])
+		return false
+	if emplacement != Sauvegardes.AUTO:
+		Sauvegardes.actif = emplacement
+		Jeu.copie_secours(chemin)   # copie de secours (dossier choisi dans les options ; échec = simple avertissement)
+	return true
 
 ## --test-butin : remplit le sac (pièces, toutes les armures de armures.json, tous les tomes de sorts) et apprend tous les sorts.
 ## Une seule fois par partie (drapeau « test_butin_fait » dans la sauvegarde) : pas de doublons au rechargement.
@@ -1552,9 +1610,15 @@ func _process(dt: float) -> void:
 	FeuFixe.regler_vent(Vector3.ZERO if _sous_terre_actif else Vector3(0.82, 0.0, 0.36) * rafale)
 	_remplir_audio()
 	_minuterie_sauvegarde += dt
-	if _minuterie_sauvegarde > 120.0 and not _arguments().has("capture"):
+	if _minuterie_sauvegarde > INTERVALLE_AUTOSAUVEGARDE and not _arguments().has("capture"):
 		_minuterie_sauvegarde = 0.0
-		sauvegarder()
+		demander_autosauvegarde("temps")
+	if _autosauvegarde_demandee != "":
+		_attente_autosauvegarde -= dt
+		if _attente_autosauvegarde <= 0.0:
+			_attente_autosauvegarde = 2.0   # on réessaie toutes les 2 s tant qu'on est en combat
+			if _autosauvegarde_possible():
+				autosauvegarder()
 
 ## Lot 7 : distance du brouillard variable. Creux et forêt dense : la brume se resserre (jusqu'à -35 %) ;
 ## crêtes : elle se dégage (jusqu'à +25 %), récompense d'exploration. Lissé sur ~1,5 s ; `net` = sans lissage (captures).

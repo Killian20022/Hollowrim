@@ -54,7 +54,7 @@ func titre() -> String:
 	return "Compétences"
 
 func aide() -> Array:
-	return [["Flèches / Croix", "Choisir"], ["Page / LT RT", "Pierres"], ["Entrée / A", "Apposer le sceau"]]
+	return [["Flèches", "Choisir"], ["Page préc. / suiv.", "Pierres"], ["Entrée", "Apposer le sceau"]]
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_PASS
