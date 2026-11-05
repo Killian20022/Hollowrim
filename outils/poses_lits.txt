@@ -1,0 +1,8 @@
+# Lot sommeil : vues de trois quarts des lits (outils/planche_lits.gd --avant) ; « nom bâtiment œil_x œil_y œil_z visée_x visée_z » (repère du bâtiment)
+sigrun sigrun -0.9 1.6 0.3 -2.75 -1.94
+chasseurs_fond chasseurs -0.8 1.6 0.2 -2.75 -1.94
+chasseurs_devant chasseurs -0.8 1.6 -0.1 -2.9 1.7
+chasseurs_nord_est chasseurs 0.9 1.6 0.3 2.88 -1.74
+grima grima -0.3 1.6 -0.2 -2.26 1.39
+grima_fermieres grima -0.3 1.6 1.3 -2.31 -0.05
+halle halle 3.4 1.6 -0.3 5.66 -2.15

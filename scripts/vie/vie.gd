@@ -55,6 +55,7 @@ static func peupler(monde_: Node3D) -> Vie:
 	v.village = monde_.village
 	monde_.add_child(v)
 	v._enregistrer()
+	v.evenement.connect(v._sur_evenement)          # lot sommeil : bruit / combat réveillent les dormeurs couchés
 	var gv: Node = monde_.get_node_or_null("GardesVillage")
 	if gv != null:
 		v.evenement.connect(gv.sur_evenement)      # le bus alerte aussi les gardes
@@ -125,10 +126,12 @@ func tick() -> void:
 		var n: Node3D = c["n"]
 		if not is_instance_valid(n):
 			continue
-		# niveau de détail (les dormeurs sont déjà cachés)
+		# niveau de détail (les dormeurs cachés le sont déjà ; ceux qui sont au lit, cachés au-delà de quelques mètres)
 		if not n.est_endormi():
 			var d := pj.distance_to(n.global_position)
 			n.regler_lod(0 if d < GardesVillage.DIST_COMPLET else (1 if d < GardesVillage.DIST_ALLEGE else 2))
+		elif n.has_method("au_lit") and n.au_lit():
+			n.lod_lit(pj.distance_to(n.global_position))
 		_evaluer(c, heure, menaces, saut)
 	_frapper(heure)
 
@@ -190,6 +193,18 @@ func _evaluer(c: Dictionary, heure: float, menaces: Array, saut: bool) -> void:
 	if n.occupe():
 		return
 	var veilleur := String(c["f"].get("toujours", "")) != ""
+	# --- au lit : un hostile tout près le réveille (il est déjà à l'abri chez lui : il se lève et reste sur ses gardes)
+	if n.has_method("au_lit") and n.au_lit():
+		var e0 := _danger_proche(n.global_position, menaces)
+		if e0 != null:
+			c["danger_t"] = _horloge
+			n.reveiller_en_sursaut()
+			return
+	if n.get("lit") != null and c["mode"] == "maison" and not n.est_endormi() and not c["fuit"] and _chez_lui(n, c):
+		var e1 := _danger_proche(n.global_position, menaces)
+		if e1 != null:
+			c["danger_t"] = _horloge    # réveillé chez lui : il reste à l'abri de ses murs, debout
+			return
 	# --- danger
 	if not veilleur and not (n.est_endormi() and not c["fuit"]):
 		var e := _danger_proche(n.global_position, menaces)
@@ -271,15 +286,17 @@ func _transition(c: Dictionary, m: String, instant: bool) -> void:
 		if maison == "" or porte == Vector3.ZERO:
 			return                                    # pas de maison : il reste là
 		c["porte"] = porte
+		if _vers_le_lit(c, maison, porte, loin):
+			return
 		if loin:
 			n.installer(porte, true)
 		else:
 			n.rentrer(porte, true, _via(n, porte))
 		return
-	# poste ou soir : on sort d'abord si on dormait
+	# poste ou soir : on sort d'abord si on dormait (au lit et en vue : il se lève, sort par la porte, puis va où on l'envoie)
 	if n.est_endormi():
 		var sortie: Vector3 = c["porte"] if c["porte"] != Vector3.ZERO else _porte_de(maison, id)
-		n.reveiller(sortie)
+		n.reveiller(sortie, loin)
 	var soir := String(f.get("soir", "poste"))
 	if m == "soir" and soir != "poste":
 		var spot := _spot_soir(soir, id)
@@ -287,7 +304,7 @@ func _transition(c: Dictionary, m: String, instant: bool) -> void:
 			if loin:
 				n.installer(spot["pos"], false, false, "Idle_Talking", spot["cap"])
 			else:
-				n.rentrer(spot["pos"], false, _via(n, spot["pos"]), false, false, "Idle_Talking", spot["cap"])
+				n.rentrer(spot["pos"], false, _sortie(c, n, spot["pos"]), false, false, "Idle_Talking", spot["cap"])
 			return
 	# poste de jour (ou « soir » au poste : service, veilleur)
 	var poste: Vector3 = n.points[0]
@@ -296,7 +313,69 @@ func _transition(c: Dictionary, m: String, instant: bool) -> void:
 	elif loin:
 		n.installer(poste, false, true)
 	else:
-		n.rentrer(poste, false, _via(n, poste), false, true)
+		n.rentrer(poste, false, _sortie(c, n, poste), false, true)
+
+## Lot sommeil : s'il a un lit dans son foyer (Sommeil), il passe la porte et va se coucher ; sinon (false) il dort caché, comme avant.
+func _vers_le_lit(c: Dictionary, maison: String, porte: Vector3, loin: bool) -> bool:
+	var sm: Node = monde.get("sommeil")
+	var n: Node3D = c["n"]
+	if sm == null or not n.has_method("coucher_au_lit"):
+		return false
+	var a: Array = sm.lit_pour(String(c["id"]), maison)
+	if a.is_empty():
+		return false
+	var dedans: Vector3 = sm.porte_interieure(maison)
+	n.attribuer_lit(a[0], a[1], dedans, village.interieur(maison), sm.centre_porte(maison))
+	var abord: Vector3 = n.abord_lit()
+	if loin:
+		n.installer(abord, true)
+		return true
+	var route := _via(n, porte)
+	route.append(porte)
+	if dedans != Vector3.ZERO:
+		route.append(dedans)
+		if not n.chemin_libre(dedans, abord):
+			var ip: Interieur = village.interieur(maison)
+			if ip != null:
+				route.append(ip.to_global(Vector3(0.0, ip.sol_y, 0.0)))     # contourne les meubles par le milieu de la pièce
+	n.rentrer(abord, true, route)
+	n.traverser(village.interieur(maison), sm.centre_porte(maison))
+	return true
+
+## Debout dans son foyer (réveillé la nuit) : vrai s'il est dans l'emprise de l'intérieur de sa maison.
+func _chez_lui(n: Node3D, c: Dictionary) -> bool:
+	var ip: Interieur = village.interieur(String(c["f"].get("maison", "")))
+	return ip != null and ip.dedans(ip.to_local(n.global_position), 0.1)
+
+## Trajet vers `but` : s'il est debout chez lui, il sort d'abord par la porte (point intérieur, porte), qu'il ouvre et referme.
+func _sortie(c: Dictionary, n: Node3D, but: Vector3) -> Array:
+	var maison := String(c["f"].get("maison", ""))
+	var sm: Node = monde.get("sommeil")
+	if sm == null or not n.has_method("traverser") or not _chez_lui(n, c) or n.au_lit():
+		return _via(n, but)
+	var porte := _porte_de(maison, String(c["id"]))
+	var r: Array = [sm.porte_interieure(maison), porte]
+	n.traverser(village.interieur(maison), sm.centre_porte(maison))
+	var hub: Vector3 = village.lieux.get("place", Vector3.ZERO)
+	if not n.chemin_libre(porte, but) and hub != Vector3.ZERO:
+		r.append(hub)
+	return r
+
+## Mode courant (poste, soir, maison, abri) d'un civil : les dormeurs réveillés se recouchent tant que c'est « maison ».
+func mode_de(n: Node) -> String:
+	for c: Dictionary in civils:
+		if c["n"] == n:
+			return String(c["mode"])
+	return ""
+
+## Bruit, combat, alarme sur le bus : les dormeurs couchés à portée se réveillent en sursaut.
+func _sur_evenement(type: String, pos: Vector3, rayon: float, _source: Node) -> void:
+	if not type in ["bruit", "combat", "alarme"]:
+		return
+	for c: Dictionary in civils:
+		var n: Node3D = c["n"]
+		if is_instance_valid(n) and n.has_method("au_lit") and n.au_lit() and n.global_position.distance_to(pos) < maxf(rayon, 8.0):
+			n.reveiller_en_sursaut()
 
 ## Point devant la porte du bâtiment `bat`, décalé sur le côté selon l'id (ils ne s'empilent pas à la porte).
 func _porte_de(bat: String, id: String) -> Vector3:

@@ -50,6 +50,7 @@ var quetes: Node
 var aides: Aides
 var narration: Narration
 var vie: Vie            # lot vie_pnj : horloge du village (planning, fuite, répliques)
+var sommeil: Sommeil    # lot sommeil : lits (marqueurs « emplacement_lit »), dormir / attendre, PNJ au lit
 var tertre: Node3D
 var chemins: Chemins
 var arbres: Array = []  # transforms de tous les arbres (pour Sol)
@@ -715,6 +716,7 @@ func _villageois() -> void:
 		GardesVillage.peupler(self)
 		_chrono("  villageois : gardes")
 	vie = Vie.peupler(self)     # lot vie_pnj : planning jour/nuit, fuite, répliques (data/vie/) ; --sans-vie : A/B
+	sommeil = Sommeil.installer(self)   # lot sommeil : lits posés sur les marqueurs, fenêtre Dormir / Attendre (T), PNJ couchés
 	_chrono("  villageois : vie")
 
 ## Villageois dont la naissance est reportée APRÈS le chargement (écran de chargement : Jeu.chargement_etale) : créer leur corps
@@ -1494,7 +1496,8 @@ func sauvegarder(emplacement := -1) -> bool:
 		"magie": joueur.mains.magie.exporter() if joueur.mains.get("magie") != null else {},   # mains, sorts connus, mana (docs/MAGIE.md)
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
-		"vie": vie.exporter() if vie != null else {},   # lot vie_pnj : l'emploi du temps recalcule tout depuis l'heure ; seul le compteur d'alarmes est gardé
+		"vie": vie.exporter() if vie != null else {},
+		"sommeil": sommeil.exporter() if sommeil != null else {},   # bonus « reposé » en cours, lits loués   # lot vie_pnj : l'emploi du temps recalcule tout depuis l'heure ; seul le compteur d'alarmes est gardé
 		"faune": faune.exporter() if faune != null else {},   # heures de jeu et territoires dépeuplés (Faune : repeuplement lent)
 		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
 		"marchands": Marchand.exporter(),  # lot L8 : heures de jeu écoulées, stock et bourse de chaque marchand (docs/BUTIN.md §9)
@@ -1586,6 +1589,8 @@ func charger() -> void:
 		hud.lieux_vus[String(nom)] = true
 	if vie != null and d.get("vie") is Dictionary:
 		vie.restaurer(d["vie"])
+	if sommeil != null:
+		sommeil.restaurer(d.get("sommeil", {}) if d.get("sommeil") is Dictionary else {})
 	var parles: Array = d.get("villageois_parles", [])
 	for v in _tous_les_villageois():
 		if v.donnees.get("id", "") in parles:

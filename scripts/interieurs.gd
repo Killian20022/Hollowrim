@@ -693,16 +693,21 @@ func etagere(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3,
 	modele("etagere_" + variante(pos, 2), pos, lacet, Vector3(larg / 1.5, haut / 2.0, prof / 0.3))
 	solide(pos + Vector3(0, haut * 0.5, 0), Vector3(larg, haut, prof), lacet)
 
-## Lit : montants, chevets, paillasse, couverture de peau drapée, coussin (modules L6). Tête vers -X local.
-func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0) -> void:
-	var b := Basis(Vector3.UP, lacet)
-	solide(pos + Vector3(0, 0.3, 0), Vector3(long, 0.12, larg), lacet)
-	if rempl("q_lit"):      # Bed_Twin : longueur le long de Z du prop → tourné d'un quart de tour (tête vers -X local comme avant)
-		qf("q_lit" if variante(pos, 2) == "a" else "q_lit_2", pos, lacet + PI * 0.5, Vector3(larg, 0.75, long))
-		return
-	modele("lit_" + variante(pos, 2), pos, lacet, Vector3(long / 2.0, 1.0, larg / 1.0), {"PEAU": peau_mat})
-	if etat == 1:   # défait
-		modele("fourrure_froissee", pos + b * Vector3(0.25, 0.0, 0.1), lacet + 0.3, Vector3.ONE, {"PEAU": peau_mat})
+## Lit (lot « sommeil ») : un Marker3D du groupe « emplacement_lit » où Sommeil pose un `Lit` (modèle procédural, places de couchage,
+## collision, « Dormir »). Tête vers -X local (lacet 0), comme les lits d'avant ; le marqueur regarde la tête en +Z (son -Z = le pied).
+## `proprietaire` : id(s) de PNJ séparés par des virgules, « joueur », « auberge », ou "" (lit libre du foyer `foyer`).
+func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", _etat := 0, proprietaire := "", foyer := "") -> void:
+	var m := Marker3D.new()
+	m.name = "EmplacementLit"
+	m.add_to_group("emplacement_lit", true)
+	m.set_meta("proprietaire", proprietaire)
+	m.set_meta("largeur", larg)
+	m.set_meta("longueur", long)
+	m.set_meta("peau", peau_mat)
+	if foyer != "":
+		m.set_meta("foyer", foyer)
+	m.transform = Transform3D(Basis(Vector3.UP, lacet - PI * 0.5), pos)
+	_p().add_child(m)
 
 func _etagere_boites(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3, prof := 0.32) -> void:
 	pos = _sol(pos)
