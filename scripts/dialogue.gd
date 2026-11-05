@@ -312,6 +312,13 @@ func commercer() -> bool:
 	var m := Marchand.trouver(self)
 	return m != null and m.ouvrir(id, nom)
 
+## Ouvre la conversation avec `pnj` sans attendre la touche E (garde qui arrête le joueur : crime.gd). Faux si une boîte est ouverte.
+func engager(pnj: Node3D) -> bool:
+	if _ouvert or pnj == null or joueur == null or joueur.mort:
+		return false
+	_ouvrir(pnj)
+	return _ouvert
+
 func _ouvrir(pnj: Node3D) -> void:
 	_lignes = pnj.parler()
 	if _lignes.is_empty():
@@ -322,7 +329,7 @@ func _ouvrir(pnj: Node3D) -> void:
 	joueur.en_dialogue = true
 	_sous_titre.modulate.a = 0.0
 	_sous_titre_t = 0.0
-	_nom.text = pnj.nom_affiche()
+	_nom.text = String(pnj.nom_affiche()) if pnj.has_method("nom_affiche") else String(pnj.get("nom_affiche"))   # combattant (crime.gd) : propriété
 	_marchand = Marchand.pour_pnj(pnj)
 	_options = []
 	if _marchand != "":
@@ -331,7 +338,12 @@ func _ouvrir(pnj: Node3D) -> void:
 	var d_pnj: Variant = pnj.get("donnees")
 	if services != null and d_pnj is Dictionary:
 		_options.append_array(services.options(String((d_pnj as Dictionary).get("id", ""))))
-	if not _options.is_empty():
+	if pnj.has_method("options_dialogue"):   # crime.gd : arrestation (amende / geôle / résister), choix « seul » sans Au revoir
+		_options.append_array(pnj.options_dialogue())
+	var seul := false
+	for o: Dictionary in _options:
+		seul = seul or bool(o.get("seul", false))
+	if not _options.is_empty() and not seul:
 		_options.append({"texte": "Au revoir"})
 	_choix_vis = false
 	_choix_ui.visible = false

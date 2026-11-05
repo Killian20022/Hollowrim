@@ -1,0 +1,22 @@
+{
+	"_doc": "Répliques du système de crime et de justice (scripts/crime.gd). Une clé = une situation ; une réplique est tirée au hasard. %p = prime (pièces).",
+	"vol_proprietaire": ["Hé ! Ça m'appartient, voleur !", "Repose ça tout de suite !", "Par la barbe d'Ymir, tu me voles sous mes yeux ?", "Rends-moi ça, chien !"],
+	"vol_temoin": ["Au voleur ! Au voleur !", "J'ai tout vu ! La garde !", "Voleur ! Qu'on l'arrête !", "Il vole ! À la garde !"],
+	"vol_garde": ["Halte, voleur !", "Je t'ai vu faire. Halte !", "Pose ça et ne bouge plus !"],
+	"intrusion": ["Qu'est-ce que tu fais ici ? Dehors !", "Tu n'as rien à faire là !", "Hors de chez moi, rôdeur !"],
+	"crochetage": ["Tu crochètes cette serrure ? La garde !", "Je te vois, avec ton crochet !"],
+	"avertissement": ["Hé ! Fais attention avec ça !", "Range ta lame, imbécile, tu as failli me toucher !", "Encore une fois et tu le regretteras.", "Holà ! Regarde où tu frappes !"],
+	"agression_victime": ["Tu vas me le payer !", "À l'aide ! On m'attaque !", "Tu cherches la bagarre ? Tu l'auras !"],
+	"agression_temoin": ["Il frappe les gens ! La garde !", "Assassin ! À l'aide !", "Arrêtez-le !"],
+	"fuite": ["Pitié ! Laisse-moi !", "Au secours !", "Ne me tue pas !"],
+	"garde_hostile": ["Tu as frappé la garde. Meurs !", "Pour le jarl ! Abattez-le !", "Aux armes ! Il attaque la garde !", "Tu ne quitteras pas Skarnholt vivant !"],
+	"garde_accourt": ["J'arrive !", "Où est-il ?", "Encerclez-le !"],
+	"meurtre": ["Meurtrier ! Tu vas payer pour ça !", "Assassin ! Sur lui !", "Il a tué ! À mort !"],
+	"vigie": ["Alerte ! Alerte en bas !", "À la garde, au village !"],
+	"arrestation": ["Halte ! Tu as enfreint la loi de Skarnholt.", "Ta prime s'élève à %p pièces.", "Paie l'amende, viens en geôle, ou résiste. Choisis."],
+	"rends_toi": ["Assez ! Rends-toi, et peut-être que tu vivras.", "Jette ton arme. Ta prime s'élève à %p pièces."],
+	"amende": ["Sage décision. Tes biens volés sont saisis.", "Paie, et que je ne te reprenne plus."],
+	"prison": ["Bien. La geôle te rafraîchira les idées."],
+	"resister": ["Alors c'est par le fer !", "Tu l'auras voulu !"],
+	"pardon": ["Bon. Va en paix, mais garde tes mains propres."]
+}

@@ -238,8 +238,8 @@ func _process(dt: float) -> void:
 ## Bus d'événements de Vie (« danger », « combat », « alarme ») : l'ennemi source reste une menace MEMOIRE_BUS s, même sans être « en combat »
 ## (un loup qui rôde fait fuir les civils avant d'attaquer ; les gardes lui font face dès l'alarme).
 func sur_evenement(type: String, _pos: Vector3, _rayon: float, source: Node) -> void:
-	if source == null or not (type in ["danger", "combat", "alarme"]):
-		return
+	if source == null or not (type in ["danger", "combat", "alarme"]) or source is PnjCombat or source == joueur:
+		return    # un PNJ du village qui se bat contre le joueur : c'est Crime qui mène la garde (scripts/crime.gd)
 	_bus[source.get_instance_id()] = {"n": source, "t": Time.get_ticks_msec() / 1000.0}
 
 ## Ennemis en combat dans l'enceinte (ou à ses abords) : chaque garde éveillé à moins de DIST_ALERTE de l'un d'eux lui fait face.
@@ -247,7 +247,7 @@ func _alertes() -> void:
 	var menaces: Array = []
 	for e: Node in get_tree().get_nodes_in_group("ennemis"):
 		var n3 := e as Node3D
-		if n3 == null or not n3.is_inside_tree() or not e.has_method("en_combat") or not e.en_combat():
+		if n3 == null or not n3.is_inside_tree() or not e.has_method("en_combat") or not e.en_combat() or e is PnjCombat:
 			continue
 		if e.has_method("vivant") and not e.vivant():
 			continue
