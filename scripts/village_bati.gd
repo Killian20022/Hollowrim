@@ -11,9 +11,9 @@ class_name VillageBati
 ## dégagés de l'emprise + 2,5 m (`exclu`, appelé par ReliefVillage.exclu au moment des tirages).
 const EXTERIEURS := [
 	[79.5, 24.5, 9.0, 6.0, 0.0],      # ferme A (longue maison de rondins)
-	[87.5, 24.5, 7.0, 5.0, -90.0],    # grange A (axe nord-sud, portes à l'ouest, sur la cour)
+	[87.5, 24.5, 7.0, 5.0, -90.0],    # grange A (axe nord-sud, portes à l'ouest, sur la cour ; bâtiment ouvert : portes côté amont, voir maison)
 	[61.0, 3.5, 8.0, 5.0, 0.0],       # ferme B (pierre et planches, le long du chemin de la grotte)
-	[67.5, 6.0, 6.0, 5.0, 90.0],      # grange B
+	[69.5, 6.0, 6.0, 5.0, 90.0],      # grange B (retours exe 5 : 2 m plus à l'est ; le pignon de la ferme B la traversait, et son égout enneigé entrait dans la ferme B)
 	[95.5, 13.0, 7.5, 13.5, 0.0],     # moulin à vent sur la butte nord-est (tour + disque des ailes)
 ]
 const PENTE := 53.0
@@ -43,24 +43,24 @@ static func construire(v) -> void:
 	var haut: Node3D = v.groupe_fusion("BatiV2_haut")
 	var ext: Node3D = v.groupe_fusion("BatiV2_fermes")
 	# H1 : maison de rondins au bord de la place (porte au nord), pignons à têtes de dragon, cheminée qui fume
-	maison(v, bas, 36.0, 53.0, PI, {"L": 7.0, "W": 5.0, "h": 2.3, "style": "rondins", "dragons": true, "cheminee": 1.2, "fumee": true, "torche": true})
+	maison(v, bas, 36.0, 53.0, PI, {"id": "h1", "L": 7.0, "W": 5.0, "h": 2.3, "style": "rondins", "dragons": true, "cheminee": 1.2, "fumee": true, "torche": true})
 	# H2 : rez de pierre, étage à colombages en encorbellement (vue « bâtiments modules » n° 2), porte au nord
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
-	maison(v, bas, 54.0, 55.5, PI, {"L": 6.0, "W": 4.5, "h": 2.0, "style": "colombage", "pente": 56.0, "cheminee": -1.6, "fumee": false, "enseigne": "chope"})
+	maison(v, bas, 54.0, 55.5, PI, {"id": "h2", "L": 6.0, "W": 4.5, "h": 2.0, "style": "colombage", "pente": 56.0, "cheminee": -1.6, "fumee": false, "enseigne": "chope"})
 	# H6 : grenier sur pierres levées (stabbur), étage en surplomb, escalier détaché
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
-	maison(v, bas, 60.0, 20.5, deg_to_rad(-30.0), {"L": 6.0, "W": 4.2, "h": 1.8, "style": "grenier", "pente": 58.0})
+	maison(v, bas, 60.0, 20.5, deg_to_rad(-30.0), {"id": "grenier", "L": 6.0, "W": 4.2, "h": 2.1 if BatimentsOuverts.actif else 1.8, "style": "grenier", "pente": 58.0})   # rez de 2,1 m : on y entre debout
 	# maison du moulin à eau (porte à l'est ; mur sud plein sur la berge : l'arbre de la roue y entre, lot C7c)
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
-	maison(v, bas, 25.5, 55.5, PI * 0.5, {"L": 6.0, "W": 6.0, "h": 2.6, "style": "pierre", "pente": 50.0, "fenetres": [["+Z", 1.6], ["+X", 0.0], ["-Z", 0.8]], "enseigne": "roue", "cheminee": 1.8, "fumee": false})
+	maison(v, bas, 25.5, 55.5, PI * 0.5, {"id": "moulin_eau", "L": 6.0, "W": 6.0, "h": 2.6, "style": "pierre", "pente": 50.0, "fenetres": [["+Z", 1.6], ["+X", 0.0], ["-Z", 0.8]], "enseigne": "roue", "cheminee": 1.8, "fumee": false})
 	# haute rue : H3 (T1, planches, porte sur le pignon est vers l'escalier, appentis à bois), H4 (T2, pierre, porte ouest),
 	# H5 (T3, rondins, porche, porte au nord vers la vue)
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
-	maison(v, haut, 35.5, 71.0, 0.0, {"L": 6.0, "W": 5.0, "h": 2.2, "style": "planches", "porte": "+X", "pente": 48.0, "appentis": true, "fenetres": [["-Z", -1.2], ["-Z", 1.3], ["+Z", 0.0]]})
+	maison(v, haut, 35.5, 71.0, 0.0, {"id": "h3", "L": 6.0, "W": 5.0, "h": 2.2, "style": "planches", "porte": "+X", "pente": 48.0, "appentis": true, "fenetres": [["-Z", -1.2], ["-Z", 1.3], ["+Z", 0.0]]})
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
-	maison(v, haut, 54.0, 77.0, 0.0, {"L": 6.0, "W": 5.0, "h": 2.5, "style": "pierre", "porte": "-X", "pente": 45.0, "cheminee": 2.2, "fumee": true, "fenetres": [["-Z", -1.0], ["-Z", 1.2], ["+Z", 0.5]]})
+	maison(v, haut, 54.0, 77.0, 0.0, {"id": "h4", "L": 6.0, "W": 5.0, "h": 2.5, "style": "pierre", "porte": "-X", "pente": 45.0, "cheminee": 2.2, "fumee": true, "fenetres": [["-Z", -1.0], ["-Z", 1.2], ["+Z", 0.5]]})
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
-	maison(v, haut, 36.0, 85.0, PI, {"L": 6.0, "W": 5.0, "h": 2.3, "style": "rondins", "porche": true, "pente": 58.0, "cheminee": -1.0, "fumee": false})
+	maison(v, haut, 36.0, 85.0, PI, {"id": "h5", "L": 6.0, "W": 5.0, "h": 2.3, "style": "rondins", "porche": true, "pente": 58.0, "cheminee": -1.0, "fumee": false})
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	tour(v, haut, 45.0, 87.0)
 	# fermes et granges (hors enceinte, sur la pente : socle de pierre côté bas)
@@ -68,15 +68,15 @@ static func construire(v) -> void:
 	var cib: PackedFloat32Array = v._monde._cibles_fermes if v._monde != null and "_cibles_fermes" in v._monde else PackedFloat32Array()
 	var ty := func(k: int) -> Dictionary: return {"y": cib[k]} if k < cib.size() and not is_nan(cib[k]) else {}
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
-	maison(v, ext, e[0][0], e[0][1], deg_to_rad(e[0][4]), ty.call(0).merged({"L": 9.0, "W": 6.0, "h": 2.0, "style": "rondins", "pente": 42.0, "dragons": true, "cheminee": 2.2, "fumee": true, "bois": true,
+	maison(v, ext, e[0][0], e[0][1], deg_to_rad(e[0][4]), ty.call(0).merged({"id": "ferme_a", "L": 9.0, "W": 6.0, "h": 2.0, "style": "rondins", "pente": 42.0, "dragons": true, "cheminee": 2.2, "fumee": true, "bois": true,
 		"bois_pos": Vector3(-5.05, 0, -0.6)}))   # passe D : tas de bois côté ouest (à l'est il tombait dans le talus de la grange A)
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
-	maison(v, ext, e[1][0], e[1][1], deg_to_rad(e[1][4]), ty.call(1).merged({"L": 7.0, "W": 5.0, "h": 2.7, "style": "grange", "pente": 50.0}))
+	maison(v, ext, e[1][0], e[1][1], deg_to_rad(e[1][4]), ty.call(1).merged({"id": "grange_a", "L": 7.0, "W": 5.0, "h": 2.7, "style": "grange", "pente": 50.0}))
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
-	maison(v, ext, e[2][0], e[2][1], deg_to_rad(e[2][4]), ty.call(2).merged({"L": 8.0, "W": 5.0, "h": 2.2, "style": "pierre", "porte": "-X", "pente": 47.0, "cheminee": 2.6, "fumee": true, "fenetres": [["+Z", -1.5], ["+Z", 1.5], ["-Z", 0.0]], "bois": true,
+	maison(v, ext, e[2][0], e[2][1], deg_to_rad(e[2][4]), ty.call(2).merged({"id": "ferme_b", "L": 8.0, "W": 5.0, "h": 2.2, "style": "pierre", "porte": "-X", "pente": 47.0, "cheminee": 2.6, "fumee": true, "fenetres": [["+Z", -1.5], ["+Z", 1.5], ["-Z", 0.0]], "bois": true,
 		"bois_pos": Vector3(-4.55, 0, -1.0)}))   # passe D : tas de bois côté ouest (à l'est il traversait la grange B)
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
-	maison(v, ext, e[3][0], e[3][1], deg_to_rad(e[3][4]), ty.call(3).merged({"L": 6.0, "W": 5.0, "h": 2.4, "style": "grange", "porte": "+X", "pente": 54.0}))
+	maison(v, ext, e[3][0], e[3][1], deg_to_rad(e[3][4]), ty.call(3).merged({"id": "grange_b", "L": 6.0, "W": 5.0, "h": 2.4, "style": "grange", "porte": "+X", "pente": 54.0}))
 	await v._souffle()   # chargement étalé : une image entre deux bâtiments
 	moulin_vent(v, ext, e[4][0], e[4][1])
 
@@ -117,12 +117,14 @@ static func pignon(v, p: Node3D, x: float, y0: float, demi: float, h: float, mat
 
 ## Porte close : cadre épais, vantail de planches debout à deux bandes de fer cloutées, anneau, deux marches de pierre.
 ## `c` = milieu du seuil sur le nu du mur (y = dessus du soubassement), `n` = normale sortante.
-static func porte(v, p: Node3D, c: Vector3, n: Vector3, larg := 1.1, haut := 1.95, graine := 1, marches := true) -> void:
+static func porte(v, p: Node3D, c: Vector3, n: Vector3, larg := 1.1, haut := 1.95, graine := 1, marches := true, vantail := true) -> void:
 	var f := _face(c, n)
 	for sx in [-1.0, 1.0]:
 		v._boite(p, Vector3(0.18, haut + 0.12, 0.3), f * Transform3D(Basis(), Vector3(sx * (larg * 0.5 + 0.09), (haut + 0.12) * 0.5, 0.04)), v.m_poutres_h)
 	v._boite(p, Vector3(larg + 0.56, 0.2, 0.34), f * Transform3D(Basis(), Vector3(0, haut + 0.16, 0.05)), v.m_poutres_h)
-	if PropsQuaternius.remplace and PropsQuaternius.existe("q_porte_4_plate"):      # props/remplacement : vantail Door_4 Quaternius (planches, ferrures)
+	if not vantail:
+		pass      # bâtiment ouvert : le vantail est sur sa charnière (BatimentsOuverts._vantaux, modele_porte)
+	elif PropsQuaternius.remplace and PropsQuaternius.existe("q_porte_4_plate"):      # props/remplacement : vantail Door_4 Quaternius (planches, ferrures)
 		var vq: String = ["q_porte_1_plate", "q_porte_4_plate", "q_porte_8_plate", "q_porte_2_plate"][graine % 4]
 		var bq := PropsQuaternius.boite(vq)
 		var xv := f * Transform3D(Basis.from_scale(Vector3(larg / bq.size.x, haut / bq.size.y, 1.0)), Vector3(0, 0, 0.04))
@@ -228,6 +230,7 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	var h: float = o.get("h", 2.3)
 	var style: String = o.get("style", "rondins")
 	var graine := int(absf(x) * 13.0 + absf(z) * 7.0) + 5
+	var ouvert := BatimentsOuverts.actif and o.has("id")      # retours exe 5 : enterable (porte sur charnière, intérieur à la demande)
 	var bas := Basis(Vector3.UP, lacet)
 	var hmin := INF
 	var hmax := -INF
@@ -240,6 +243,10 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	var y: float = v.h_sol(x, z) if hmax - hmin < 0.3 else (hmin + hmax) * 0.5 + 0.1
 	if o.has("y"):
 		y = o["y"]   # passe D : fermes hors enceinte posées sur leur terrasse (monde._terrasses_fermes)
+	if ouvert:
+		# bâtiment ouvert : le plancher passe au-dessus du sol le plus haut de l'emprise (le terrain ne perce pas la pièce) ; sur une
+		# forte pente (grange A), c'est une grange à rampe : entrée de plain-pied côté amont, haut socle de pierre côté aval
+		y = maxf(y, hmax + 0.05 - (1.0 if style == "grenier" else 0.4))
 	var p: Node3D = v.pivot_monde(x, z, lacet, y, g)
 	p.name = "Bati_%s_%d_%d" % [style, roundi(x), roundi(z)]
 	var socle := hmin - y
@@ -263,6 +270,11 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	var pente: float = o.get("pente", PENTE)
 	var faite := (Wt * 0.5 + 0.78) * tan(deg_to_rad(pente)) - RELEVE
 	var cote_porte: String = o.get("porte", "+Z")
+	if ouvert and style == "grange" and hmax - hmin > 1.0:
+		# grange à rampe (forte pente, plancher au niveau du haut) : les grandes portes passent sur le long pan amont, de plain-pied
+		var hp: float = v.h_sol((Vector3(x, 0, z) + bas * Vector3(0, 0, W * 0.5 + 1.2)).x, (Vector3(x, 0, z) + bas * Vector3(0, 0, W * 0.5 + 1.2)).z)
+		var hm: float = v.h_sol((Vector3(x, 0, z) + bas * Vector3(0, 0, -W * 0.5 - 1.2)).x, (Vector3(x, 0, z) + bas * Vector3(0, 0, -W * 0.5 - 1.2)).z)
+		cote_porte = "+Z" if hp >= hm else "-Z"
 	var e_mur: float = {"pierre": 0.25, "colombage": 0.25, "planches": 0.11, "grange": 0.11, "grenier": 0.11}.get(style, 0.02)   # nu du mur
 	var e_pignon: float = {"pierre": 0.22, "colombage": 0.15, "planches": 0.1, "grange": 0.1, "grenier": 0.1}.get(style, 0.0)
 	var fen: Array = v._fenetres_de(L)
@@ -280,7 +292,7 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 			_murs_pierre(v, p, L, W, y_sol, h, graine)
 			_etage_colombage(v, p, L, W, y_sol + h, 1.9, graine)
 		"grenier":
-			_grenier(v, p, L, W, h, graine)
+			_grenier(v, p, L, W, h, graine, not ouvert)
 	# pignons : planches debout (pierre : pierre jusqu'à la moitié, planches au-dessus), décor à dragons sur certaines
 	for cote in [-1.0, 1.0]:
 		if style == "rondins":
@@ -307,9 +319,16 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	var nporte := _normale(cote_porte)
 	var cporte := Vector3(nporte.x * (L * 0.5 + e_mur), y_sol, nporte.z * (W * 0.5 + e_mur))   # sur le nu du mur (rondins : dans l'ouverture)
 	if style == "grange":
-		_portes_grange(v, p, cporte, nporte, graine)   # (bâti hybride : VillageBatiQ.portes_grange, sur la grange en bardage du kit)
+		_portes_grange(v, p, cporte, nporte, graine, ouvert)   # (bâti hybride : VillageBatiQ.portes_grange, sur la grange en bardage du kit)
+		if ouvert and hmax - hmin > 1.0:
+			# grange à rampe : pont de planches du seuil au talus (sa collision : BatimentsOuverts._rampe, palier)
+			var fp := _face(cporte, nporte)
+			v._boite(p, Vector3(3.1, 0.12, 1.5), fp * Transform3D(Basis(), Vector3(0, -0.06, 0.85)), v.m_poutres_h)
+			for sx in [-1.0, 1.0]:
+				v._boite(p, Vector3(0.16, 0.14, 1.5), fp * Transform3D(Basis(), Vector3(sx * 1.45, -0.19, 0.85)), v.m_colombage)
+				v._boite(p, Vector3(0.18, 1.2, 0.18), fp * Transform3D(Basis(), Vector3(sx * 1.4, -0.8, 1.45)), v.m_colombage)
 	elif style != "grenier":
-		porte(v, p, cporte, nporte, 1.1, 1.95, graine)
+		porte(v, p, cporte, nporte, 1.1, 1.95, graine, true, not ouvert)
 	# fenêtres
 	var yf := y_sol + minf(1.45, h * 0.62)
 	if style == "rondins":
@@ -352,9 +371,53 @@ static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary
 	# collision : le corps du bâtiment (socle compris)
 	var bas_c := minf(socle, 0.0) - 0.3
 	var haut_c := y0 + faite * 0.6
+	if ouvert:
+		var ip := BatimentsOuverts.ouvrir(v, p, _spec_ouvert(o, style, L, W, Wt, y_sol, y0, faite, cporte, nporte, cote_porte, graine, fen, bas_c, haut_c, v))
+		v._emprise(p, Vector2(L * 0.5 + 0.5, Wt * 0.5 + 0.5), Vector2.ZERO, ip)
+		return p
 	v._collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, (bas_c + haut_c) * 0.5, 0)), Vector3(L + 0.45, haut_c - bas_c, Wt + 0.45))
 	v._emprise(p, Vector2(L * 0.5 + 0.5, Wt * 0.5 + 0.5))
 	return p
+
+## Vantail Quaternius d'une porte (même tirage que `porte`).
+static func modele_porte(graine: int) -> String:
+	if not (PropsQuaternius.remplace and PropsQuaternius.existe("q_porte_4_plate")):
+		return ""
+	return ["q_porte_1_plate", "q_porte_4_plate", "q_porte_8_plate", "q_porte_2_plate"][graine % 4]
+
+## Empreinte d'un bâtiment fait maison pour BatimentsOuverts.ouvrir (repère du pivot).
+static func _spec_ouvert(o: Dictionary, style: String, L: float, W: float, Wt: float, y_sol: float, y0: float, faite: float, cporte: Vector3,
+		nporte: Vector3, cote: String, graine: int, fen: Array, bas_c: float, haut_c: float, v) -> Dictionary:
+	var ep: float = {"rondins": 0.15, "grange": 0.13, "planches": 0.13, "grenier": 0.13}.get(style, 0.28)
+	var pente: float = o.get("pente", PENTE)
+	var sp := {"id": o["id"], "style": {"rondins": "rondins", "pierre": "pierre"}.get(style, "planches"),
+		"int": Vector2(L * 0.5 - ep, W * 0.5 - ep), "ext": Vector2(L * 0.5 + 0.22, W * 0.5 + 0.22), "y_sol": y_sol, "y_mur": y0,
+		"toit": {"faite": y0 + faite, "pente": (faite + RELEVE) / (Wt * 0.5 + 0.78)}, "bas": bas_c, "haut": haut_c, "fenetres": []}
+	if style == "grange":
+		sp["porte"] = {"cote": cote, "c": cporte + nporte * 0.02, "n": nporte, "larg": 2.56, "haut": 2.5, "vantaux": 2,
+			"dessin": func(h: Node3D, k: int, xf: Transform3D) -> void: _vantail_grange(v, h, xf, 1.0 if k == 0 else -1.0)}
+	elif style == "grenier":
+		sp["porte"] = {"cote": "+Z", "c": Vector3(0, y_sol, W * 0.5 + 0.12) + Vector3(0, 0, 0.04), "n": Vector3.BACK, "larg": 0.9, "haut": 1.9, "q": modele_porte(graine)}
+	else:
+		sp["porte"] = {"cote": cote, "c": cporte + nporte * 0.04, "n": nporte, "larg": 1.1, "haut": 1.95, "q": modele_porte(graine)}
+	if style == "rondins":
+		var yf: float = (v._y_lit(4, y0 - y_sol) + v._y_lit(5, y0 - y_sol)) * 0.5
+		for xw in fen:
+			for face in [1.0, -1.0]:
+				sp["fenetres"].append([Vector3(xw, yf, face * W * 0.5), Vector2(0.7, 0.55), true])
+	if o.has("cheminee"):
+		sp["foyer"] = Vector2(o["cheminee"], 0.0)
+	return sp
+
+## Vantail de grange (planches debout, traverses, écharpe en Z, poignée) dans le repère de son milieu au sol (`xf`).
+static func _vantail_grange(v, h: Node3D, xf: Transform3D, sx: float) -> void:
+	v._boite(h, Vector3(1.28, 2.5, 0.08), xf * Transform3D(Basis(), Vector3(0, 1.25, 0.0)), v.m_poutres)
+	for by in [0.3, 2.2]:
+		v._boite(h, Vector3(1.2, 0.14, 0.05), xf * Transform3D(Basis(), Vector3(0, by, 0.05)), v.m_poutres_h)
+	var a := xf * Vector3(-sx * 0.55, 0.35, 0.06)
+	var b := xf * Vector3(sx * 0.55, 2.15, 0.06)
+	piece(v, h, a, b, Vector2(0.13, 0.05), xf.basis * Vector3.BACK, v.m_poutres_h)
+	v._boite(h, Vector3(0.1, 0.22, 0.05), xf * Transform3D(Basis(), Vector3(-sx * 0.53, 1.25, 0.08)), v.m_fer)
 
 ## Murs de pierre sèche (pierre plate à joints, projetée en mètres) avec chaînages d'angle en gros blocs alternés.
 static func _murs_pierre(v, p: Node3D, L: float, W: float, y_sol: float, h: float, graine: int) -> void:
@@ -422,7 +485,7 @@ static func _etage_colombage(v, p: Node3D, L: float, W: float, y_bas: float, h: 
 
 ## Grenier sur pierres levées (stabbur) : 6 pierres plates + billots, plancher à 1 m, rez en planches debout, étage en surplomb
 ## (0,3 m) de planches horizontales, escalier détaché de 4 marches devant la porte (+Z).
-static func _grenier(v, p: Node3D, L: float, W: float, h: float, graine: int) -> void:
+static func _grenier(v, p: Node3D, L: float, W: float, h: float, graine: int, vantail := true) -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = graine
 	for sx in [-1.0, 0.0, 1.0]:
@@ -438,7 +501,7 @@ static func _grenier(v, p: Node3D, L: float, W: float, h: float, graine: int) ->
 		v._boite(p, Vector3(L + 0.3, 0.16, 0.2), Transform3D(Basis(), Vector3(0, yh + 0.04, sz * (W * 0.5 + 0.22))), v.m_colombage)
 		for sx in [-1.0, 1.0]:
 			piece(v, p, Vector3(sx * (L * 0.5 - 0.3), yh - 0.55, sz * (W * 0.5 + 0.1)), Vector3(sx * (L * 0.5 - 0.7), yh, sz * (W * 0.5 + 0.22)), Vector2(0.1, 0.1), Vector3(0, 0, sz), v.m_colombage)
-	porte(v, p, Vector3(0, 1.0, W * 0.5 + 0.12), Vector3.BACK, 0.9, 1.7, graine, false)
+	porte(v, p, Vector3(0, 1.0, W * 0.5 + 0.12), Vector3.BACK, 0.9, 1.9 if not vantail else 1.7, graine, false, vantail)
 	if VillageBatiQ.detail("bq_escalier"):      # bâti hybride : escalier extérieur Quaternius (Stairs_Exterior_Straight), 1 m de large
 		for mc: Array in PropsQuaternius.morceaux("bq_escalier"):      # en bois sombre comme le grenier (la pierre du kit, enneigée, sortait blanche)
 			v._ajouter(p, mc[1], Transform3D(Basis.from_scale(Vector3(0.5, 1.0, 0.6)), Vector3(0, -0.2, W * 0.5 + 1.0)), v.m_poutres_h)
@@ -449,11 +512,13 @@ static func _grenier(v, p: Node3D, L: float, W: float, h: float, graine: int) ->
 		piece(v, p, Vector3(sx * 0.55, 0.0, W * 0.5 + 1.6), Vector3(sx * 0.55, 0.95, W * 0.5 + 0.35), Vector2(0.1, 0.16), Vector3(sx, 0, 0), v.m_poutres)
 
 ## Grandes portes de grange (2 vantaux de 1,3 × 2,5 m, planches debout, écharpes en Z) et porte de fenil au-dessus.
-static func _portes_grange(v, p: Node3D, c: Vector3, n: Vector3, graine: int) -> void:
+static func _portes_grange(v, p: Node3D, c: Vector3, n: Vector3, graine: int, ouvrable := false) -> void:
 	var f := _face(c, n)
 	v._boite(p, Vector3(2.9, 0.22, 0.32), f * Transform3D(Basis(), Vector3(0, 2.62, 0.06)), v.m_colombage)
 	for sx in [-1.0, 1.0]:
 		v._boite(p, Vector3(0.2, 2.6, 0.32), f * Transform3D(Basis(), Vector3(sx * 1.4, 1.3, 0.06)), v.m_colombage)
+		if ouvrable:
+			continue      # vantaux sur charnière : BatimentsOuverts (_vantail_grange)
 		v._boite(p, Vector3(1.28, 2.5, 0.08), f * Transform3D(Basis(), Vector3(sx * 0.65, 1.25, 0.02)), v.m_poutres)
 		for by in [0.3, 2.2]:
 			v._boite(p, Vector3(1.2, 0.14, 0.05), f * Transform3D(Basis(), Vector3(sx * 0.65, by, 0.07)), v.m_poutres_h)
@@ -595,7 +660,8 @@ static func tour(v, g: Node3D, x: float, z: float) -> void:
 		v._boite(p, Vector3(s + 0.34, 0.24, s + 0.34), Transform3D(Basis(), Vector3(0, y1 + 0.1, 0)), v.m_brute)
 	# porte au nord (+Z) : arc approché par deux claveaux, vantail, marches
 	var zp := S * 0.5
-	porte(v, p, Vector3(0, 0.7, zp + 0.06), Vector3.BACK, 1.25, 2.25, 8801)
+	var ouvert := BatimentsOuverts.actif      # retours exe 5 : le rez de la tour est le poste du guet
+	porte(v, p, Vector3(0, 0.7, zp + 0.06), Vector3.BACK, 1.25, 2.25, 8801, true, not ouvert)
 	var tour_q := VillageBatiQ.detail("bq_toit_tour") and VillageBatiQ.detail("bq_cadre_rond_pierre")
 	if tour_q:      # bâti hybride (gen/bati2) : encadrement cintré de pierre du kit (DoorFrame_Round_Brick) autour de la porte
 		VillageBatiQ.kit(v, p, "bq_cadre_rond_pierre", Transform3D(Basis.from_scale(Vector3(1.75 / 1.59, 3.05 / 2.59, 1.1)), Vector3(0, 0.62, zp + 0.08)), null, v.m_brute)
@@ -650,15 +716,25 @@ static func tour(v, g: Node3D, x: float, z: float) -> void:
 		_fleche(v, p, sb + 0.5, y_f, hf, true)
 		# la pièce : pyramide carrée à coyau de 4,5 m (dont la pointe) + épi de fer de 2,9 m ; étirée à 1,35 : flèche de ~6 m
 		VillageBatiQ.kit(v, p, "bq_toit_tour", Transform3D(Basis.from_scale(Vector3(0.98, 1.35, 0.98)), Vector3(0, y_f + 0.3, 0)), v.m_colombage, v.m_brute)
-		v._collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, (yb + hb) * 0.5, 0)), Vector3(S + 0.4, yb + hb, S + 0.4))
-		v._emprise(p, Vector2(S * 0.5 + 0.6, S * 0.5 + 0.6))
+		_corps_tour(v, p, S, yb, hb, zp, ouvert)
 		return      # épi : celui du kit
 	_fleche(v, p, sb + 0.5, y_f, hf)
 	v._cylindre(p, 0.03, 0.04, 1.1, Transform3D(Basis(), Vector3(0, y_f + hf + 0.85, 0)), v.m_fer, 6)
 	v._boite(p, Vector3(0.5, 0.05, 0.05), Transform3D(Basis(), Vector3(0, y_f + hf + 1.0, 0)), v.m_fer)
 	v._cylindre(p, 0.09, 0.09, 0.12, Transform3D(Basis(), Vector3(0, y_f + hf + 0.4, 0)), v.m_fer, 8)
-	v._collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, (yb + hb) * 0.5, 0)), Vector3(S + 0.4, yb + hb, S + 0.4))
-	v._emprise(p, Vector2(S * 0.5 + 0.6, S * 0.5 + 0.6))
+	_corps_tour(v, p, S, yb, hb, zp, ouvert)
+
+## Collision et emprise de la tour : bloc plein, ou rez enterable (retours exe 5).
+static func _corps_tour(v, p: Node3D, S: float, yb: float, hb: float, zp: float, ouvert: bool) -> void:
+	if not ouvert:
+		v._collision(p, BoxShape3D.new(), Transform3D(Basis(), Vector3(0, (yb + hb) * 0.5, 0)), Vector3(S + 0.4, yb + hb, S + 0.4))
+		v._emprise(p, Vector2(S * 0.5 + 0.6, S * 0.5 + 0.6))
+		return
+	var ip := BatimentsOuverts.ouvrir(v, p, {"id": "tour", "style": "tour", "int": Vector2(S * 0.5 - 0.4, S * 0.5 - 0.4), "ext": Vector2(S * 0.5 + 0.2, S * 0.5 + 0.2),
+		"y_sol": 0.7, "y_mur": 5.6, "plat": 5.6, "bas": -0.3, "haut": yb + hb,
+		"porte": {"cote": "+Z", "c": Vector3(0, 0.7, zp + 0.1), "n": Vector3.BACK, "larg": 1.25, "haut": 2.25, "q": modele_porte(8801)},
+		"fenetres": [[Vector3(0, 5.0, zp), Vector2(0.3, 0.8), false], [Vector3(-zp, 4.2, -0.4), Vector2(0.28, 0.8), false]]})
+	v._emprise(p, Vector2(S * 0.5 + 0.6, S * 0.5 + 0.6), Vector2.ZERO, ip)
 
 ## Flèche pyramidale de base `b`, du haut du beffroi `y0`, hauteur `h` : 4 pans à coyau (base évasée), arêtiers enneigés.
 static func _fleche(v, p: Node3D, b: float, y0: float, h: float, coyau_seul := false) -> void:
@@ -703,6 +779,8 @@ static func moulin_vent(v, g: Node3D, x: float, z: float) -> void:
 		hmin = minf(hmin, hc)
 		hmax = maxf(hmax, hc)
 	var y := (hmin + hmax) * 0.5
+	if BatimentsOuverts.actif:
+		y = maxf(y, hmax + 0.05 - 0.62)      # bâtiment ouvert : le sol de la salle des meules au-dessus du terrain
 	var p: Node3D = v.pivot_monde(x, z, -PI * 0.5, y, g)   # +Z local = ouest (les ailes regardent le village)
 	p.name = "MoulinVent"
 	var socle := hmin - y
@@ -714,12 +792,13 @@ static func moulin_vent(v, g: Node3D, x: float, z: float) -> void:
 		var hb := 0.95 - socle
 		v._bloc(p, Vector3(1.0, hb * 0.9, 0.6), r.randi(), Vector3(sin(a) * 3.2, socle - 0.35 + hb * 0.45, cos(a) * 3.2), v.m_brute, a, 0.7, 0.2, 0.07)
 	var ht := 8.6
-	v._cylindre(p, 2.05, 2.6, ht, Transform3D(Basis(), Vector3(0, 0.6 + ht * 0.5, 0)), v.m_roche, 10, true)
+	var ouvert := BatimentsOuverts.actif      # retours exe 5 : le rez du moulin (meules) est enterable
+	v._cylindre(p, 2.05, 2.6, ht, Transform3D(Basis(), Vector3(0, 0.6 + ht * 0.5, 0)), v.m_roche, 10, not ouvert)
 	v._cylindre(p, 2.42, 2.42, 0.2, Transform3D(Basis(), Vector3(0, 4.6, 0)), v.m_brute, 10)
 	v._cylindre(p, 2.25, 2.25, 0.28, Transform3D(Basis(), Vector3(0, 0.6 + ht, 0)), v.m_colombage, 10)
 	# porte au sud (local -X), fenêtres
 	var rp := 2.55
-	porte(v, p, Vector3(-rp - 0.02, 0.62, 0), Vector3.LEFT, 1.0, 1.9, 9301)
+	porte(v, p, Vector3(-rp - 0.02, 0.62, 0), Vector3.LEFT, 1.0, 1.9, 9301, true, not ouvert)
 	v._quad_x(p, Vector3(-(2.3 + 0.12), 3.4, 0.0), 0.4, 0.5, -1.0, v.m_fen_pignon)
 	v._quad_z(p, Vector3(0.0, 6.6, -(2.2 + 0.08)), 0.38, 0.48, -1.0, v.m_fen_pignon)
 	# calotte de bois (cône à 10 pans) coiffée de neige
@@ -764,4 +843,11 @@ static func moulin_vent(v, g: Node3D, x: float, z: float) -> void:
 		v._boite(ailes, Vector3(1.2, 4.4, 0.02), Transform3D(b, b * Vector3(0.74, 3.8, 0.02)), m_toile)
 		v._boite(ailes, Vector3(0.14, 1.0, 0.04), Transform3D(b, b * Vector3(0, 6.0, 0.09)), v.m_neige)
 	v.ailes_moulin = ailes
-	v._emprise(p, Vector2(3.4, 3.4))
+	if not ouvert:
+		v._emprise(p, Vector2(3.4, 3.4))
+		return
+	var ip := BatimentsOuverts.ouvrir(v, p, {"id": "moulin_vent", "style": "rond", "int": Vector2(2.22, 2.22), "ext": Vector2(2.75, 2.75), "rayon_haut": 1.92,
+		"y_sol": 0.62, "y_mur": 4.45, "plat": 4.45, "bas": socle - 0.4, "haut": 0.6 + ht, "bord": 3.4,
+		"porte": {"cote": "-X", "c": Vector3(-rp - 0.02 - 0.04, 0.62, 0), "n": Vector3.LEFT, "larg": 1.0, "haut": 1.9, "q": modele_porte(9301)},
+		"fenetres": [[Vector3(-2.42, 3.4, 0.0), Vector2(0.4, 0.5), false]]})
+	v._emprise(p, Vector2(3.4, 3.4), Vector2.ZERO, ip)

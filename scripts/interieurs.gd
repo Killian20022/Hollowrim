@@ -76,6 +76,7 @@ static func materiaux() -> Dictionary:
 	d["pierre_sombre"] = _m("pierre_int", Color(0.62, 0.67, 0.76), 64.0, 0.9)
 	d["brute"] = _m("pierre_int_s", Color(0.92, 0.98, 1.06), 64.0, 0.9)
 	d["seche"] = _m("pierre_int", Color(1.0, 0.95, 0.9), 64.0, 1.0)
+	d["pierre_mur"] = _m("pierre_int", Color(0.74, 0.7, 0.68), 64.0, 0.9)      # murs de pierre des bâtiments ouverts : moins clair que la pierre des foyers
 	d["fer"] = _m("fer", Color(0.85, 0.87, 0.95))
 	d["fer_noir"] = _m("fer", Color(0.45, 0.45, 0.5))
 	d["etain"] = _m("fer", Color(1.35, 1.38, 1.45))
@@ -694,7 +695,29 @@ func etagere(pos: Vector3, lacet: float, larg: float, haut: float, niveaux := 3,
 	solide(pos + Vector3(0, haut * 0.5, 0), Vector3(larg, haut, prof), lacet)
 
 ## Lit : montants, chevets, paillasse, couverture de peau drapée, coussin (modules L6). Tête vers -X local.
-func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0) -> void:
+## Retours exe 5 (contrat « sommeil ») : chaque lit est un EMPLACEMENT (Marker3D du groupe « emplacement_lit », meta « proprietaire »
+## = id du PNJ ou "" libre / à louer, « largeur » 1 simple ou 2 double ; -Z du marqueur = pied du lit, origine = centre du lit au sol) :
+## le système de sommeil y pose le vrai lit. Le dessin d'avant n'est gardé qu'avec `--lits-provisoires` (captures, essais).
+static var lits_provisoires := OS.get_cmdline_user_args().has("--lits-provisoires")
+var _n_lits := 0
+
+func emplacement_lit(pos: Vector3, lacet: float, larg: float, proprietaire: String) -> Marker3D:
+	var mk := Marker3D.new()
+	mk.name = "EmplacementLit%d" % _n_lits
+	_n_lits += 1
+	mk.transform = Transform3D(Basis(Vector3.UP, lacet - PI * 0.5), Vector3(pos.x, ip.sol_y if pos.y < 0.2 else pos.y, pos.z))
+	mk.set_meta("proprietaire", proprietaire)
+	mk.set_meta("largeur", 2 if larg >= 1.3 else 1)
+	mk.add_to_group("emplacement_lit")
+	ip.racine.add_child(mk)
+	return mk
+
+func lit(pos: Vector3, lacet: float, long := 1.95, larg := 0.95, peau_mat := "peau", etat := 0, proprietaire := "?") -> void:
+	if proprietaire == "?":      # lits des intérieurs d'origine : propriétaire tiré de data/batiments.json (« lits_existants »)
+		proprietaire = BatimentsOuverts.proprietaire_lit(ip.get_meta("id", ""), _n_lits)
+	emplacement_lit(pos, lacet, larg, proprietaire)
+	if not lits_provisoires:
+		return
 	var b := Basis(Vector3.UP, lacet)
 	solide(pos + Vector3(0, 0.3, 0), Vector3(long, 0.12, larg), lacet)
 	if rempl("q_lit"):      # Bed_Twin : longueur le long de Z du prop → tourné d'un quart de tour (tête vers -X local comme avant)

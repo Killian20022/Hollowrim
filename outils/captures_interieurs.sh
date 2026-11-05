@@ -16,5 +16,5 @@ while read -r nom type reste; do
 	done
 done < "$POSES"
 "$G" --path "$(wslpath -w "$ICI")" --disable-vsync -- --captures="$(wslpath -w "$TMP")" --sortie="$(wslpath -w "$OUT")" \
-	--nouvelle --paisible --sans-particules --sans-mains --attente=120 > "$OUT/lot.log" 2>&1
+	--nouvelle --paisible --sans-particules --sans-mains --lits-provisoires --attente=120 > "$OUT/lot.log" 2>&1
 grep -E "LOT|ERROR" "$OUT/lot.log" | head

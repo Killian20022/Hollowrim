@@ -1,5 +1,5 @@
 {
- "note": "Planning jour/nuit des civils (scripts/vie/vie.gd + emploi_du_temps.gd). Heures de jeu (cycle.heure, 0-24, 1 h = 100 s). Trois modes : « poste » (travail), « soir » (feu, longue maison, au poste pour les services), « maison » (il rentre, puis dort caché dans le bâtiment). Fenêtre `poste` = [reveil, debut_soir[ ; `soir` = [debut_soir, rentree[ (la clé `soir` d'un PNJ est le LIEU de la soirée : feu, longue_maison, puits, poste) ; `maison` = [rentree, reveil[ (passe minuit). `etalement` = décalage maximal (h) dérivé de l'id, pour qu'ils ne bougent pas tous à la même minute. Bâtiments : halle, sigrun, chasseurs, grima, forge (village.interieur) ; lieux du village : place, longue_maison, puits, enclos, porte, forge. Marchands (profil « service ») : ouverts jusqu'au coucher tardif, la nuit on entend leur voix à travers la porte (repliques.json, section « porte »).",
+ "note": "Planning jour/nuit des civils (scripts/vie/vie.gd + emploi_du_temps.gd). Heures de jeu (cycle.heure, 0-24, 1 h = 100 s). Trois modes : « poste » (travail), « soir » (feu, longue maison, au poste pour les services), « maison » (il rentre, puis dort caché dans le bâtiment). Fenêtre `poste` = [reveil, debut_soir[ ; `soir` = [debut_soir, rentree[ (la clé `soir` d'un PNJ est le LIEU de la soirée : feu, longue_maison, puits, poste) ; `maison` = [rentree, reveil[ (passe minuit). `etalement` = décalage maximal (h) dérivé de l'id, pour qu'ils ne bougent pas tous à la même minute. Bâtiments : halle, sigrun, chasseurs, grima, forge et les bâtiments ouverts de data/batiments.json (h1…h5, moulin_eau, tour… : village.interieur) ; lieux du village : place, longue_maison, puits, enclos, porte, forge. Marchands (profil « service ») : ouverts jusqu'au coucher tardif, la nuit on entend leur voix à travers la porte (repliques.json, section « porte »).",
  "etalement": 0.25,
  "lieux_extra": {"feu": [36.0, 39.0]},
  "profils": {
@@ -18,9 +18,17 @@
   "forgeron": {"profil": "service", "maison": "forge", "soir": "poste"},
   "chasseuse": {"profil": "travailleur", "maison": "chasseurs", "soir": "feu"},
   "volva": {"profil": "travailleur", "maison": "sigrun", "soir": "poste"},
-  "garde": {"profil": "veilleur", "maison": "halle"},
+  "garde": {"profil": "veilleur", "maison": "tour"},
   "ancienne": {"profil": "service", "maison": "grima", "soir": "poste"},
-  "hab_paysanne_2": {"soir": "puits"},
-  "hab_paysanne_3": {"soir": "poste"}
+  "hab_paysanne_2": {"soir": "puits", "maison": "h2"},
+  "hab_paysanne_3": {"soir": "poste", "maison": "h3"},
+  "hab_paysan_2": {"maison": "h3"},
+  "hab_paysan_3": {"maison": "moulin_eau"},
+  "hab_paysan_1": {"maison": "h5"},
+  "hab_paysanne_1": {"maison": "h5"},
+  "hab_chasseur_1": {"maison": "h1"},
+  "hab_chasseresse_1": {"maison": "h1"},
+  "hab_chasseur_2": {"maison": "h4"},
+  "hab_chasseresse_2": {"maison": "h4"}
  }
 }
