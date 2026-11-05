@@ -68,7 +68,13 @@ func _tester() -> void:
 	var brodd := _pnj("forgeron")
 	var grima := _pnj("ancienne")
 	_verif(Marchand.pour_pnj(brodd) == "forgeron" and Marchand.pour_pnj(grima) == "ancienne" and Marchand.pour_pnj(_pnj("chef")) == "", "Brodd et Grima commercent, la cheffe non")
-	_verif(Marchand.heures < 0.1 and Marchand.etats.is_empty(), "nouvelle partie : horloge des marchands à 0, aucun état")
+	# Les étals du village (EtalMarchand, exposition différée après le chargement) lisent Marchand.stock() : l'état d'un marchand est
+	# alors créé paresseusement, à graine fixe. Règle : aucun état entamé = période 0, bourse d'origine, rien d'acheté ni de vendu.
+	var neufs := true
+	for id: String in Marchand.etats:
+		var e: Dictionary = Marchand.etats[id]
+		neufs = neufs and int(e.get("periode", -1)) == 0 and int(e.get("or", -1)) == int(Marchand.fiche(id).get("or", 0)) and Marchand.stock_tire(id, 0) == e.get("stock")
+	_verif(Marchand.heures < 0.1 and neufs, "nouvelle partie : horloge des marchands à 0, états neufs (période 0, bourse et stock d'origine)")
 	# tout objet vendable du jeu est racheté par au moins un marchand
 	var personne: Array = []
 	var catalogue: Array = Inventaire.OBJETS.keys()

@@ -55,6 +55,7 @@
           "id": "arrivee",
           "declencheur": "prologue_vu",
           "objectif": "Parler à Gunnhild, à la longue maison",
+          "carte": "skarnholt",
           "journal": "Je suis arrivé de nuit près d’un feu de camp, dans la neige. Au sud-est, les toits bas de Skarnholt. Sa cheffe, Gunnhild, dispose de la longue maison : c’est elle qu’il faut voir."
         },
         {
@@ -268,6 +269,7 @@
           "id": "signe",
           "declencheur": "fini:anneau_givre",
           "objectif": "Écouter Sigrún, sur la place",
+          "carte": "skarnholt",
           "journal": "Svanhild dort de nouveau, mais Gunnhild m’a glissé en me payant que le ciel avait changé de côté. Elle veut que je voie Sigrún avant de me reposer."
         },
         {

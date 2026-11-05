@@ -40,7 +40,10 @@ func _tester_divers() -> void:
 	var budget: Array = []
 	for oid: String in ids:
 		var c := String(Inventaire.objet(oid).get("modele", ""))
-		if c != "res://assets/modeles/objets/%s.glb" % oid or ObjetMonde.chemin_modele(oid) != c:
+		# Un objet « variante » (champ base : pendentif_mineur, talisman_os) réutilise le glb de son objet de base, qui doit exister.
+		var base := String(Inventaire.objet(oid).get("base", ""))
+		var attendu := "res://assets/modeles/objets/%s.glb" % (base if base != "" and Inventaire.connu(base) else oid)
+		if c != attendu or ObjetMonde.chemin_modele(oid) != c:
 			manque.append(oid)
 			continue
 		var v := ObjetMonde.visuel(oid, "studio")

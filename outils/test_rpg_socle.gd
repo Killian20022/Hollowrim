@@ -10,8 +10,11 @@ const EMPREINTE := "res://outils/donnees_test/butin_empreinte.json"
 ## Identifiants du registre AVANT le lot 0 (ancienne constante Inventaire.OBJETS + data/butin/objets.json) : aucun ne doit
 ## disparaître ni changer de nom / poids / valeur. Lot A RPG : armes allégées (Q5 a) — épées / hache du registre et lame antique
 ## ont un poids neuf (ancien 9 / 7 / 9 / 9 / 7 / 10 / 9, lame 8) ; identifiants et valeurs inchangés.
+## Exception VOULUE (lot quêtes, 2026-11) : amulette_givre devient UNIQUE (cadeau de Gunnhild) : valeur 40 -> 120 (poids inchangé) ; elle
+## quitte les tables de butin, remplacée À LA MÊME POSITION (donc tirages à graine fixe intacts) par SUBSTITUTIONS.
+const SUBSTITUTIONS := {"amulette_givre": ["pendentif_mineur", "talisman_os"]}
 const ANCIENS := {
-	"os_draugr": [0.5, 2], "poussiere_tombe": [0.1, 6], "lame_antique": [4.0, 25], "amulette_givre": [0.3, 40], "anneau_givre": [0.1, 0],
+	"os_draugr": [0.5, 2], "poussiere_tombe": [0.1, 6], "lame_antique": [4.0, 25], "amulette_givre": [0.3, 120], "anneau_givre": [0.1, 0],
 	"amulette_eirik": [0.2, 0], "epee_skarnholt": [6.0, 120], "ecaille_dragon": [2.0, 80], "fragment_sceau_os": [0.6, 0],
 	"fragment_sceau_givre": [0.6, 0], "fragment_sceau_eau": [0.6, 0], "cle_archives": [0.2, 0], "minerai_fer": [3.0, 12],
 	"minerai_argent": [2.5, 45], "cristal_givre": [0.8, 70], "champignon_lumineux": [0.1, 8], "relique_offrande": [1.5, 90],
@@ -102,7 +105,7 @@ func _butin_en_fin() -> void:
 		for i in attendu.size():
 			var e: Dictionary = ent[i] if i < ent.size() else {}
 			var cle := String(e.get("id", "")) if e.has("id") else "table:" + String(e.get("table", ""))
-			if cle != String(attendu[i]):
+			if cle != String(attendu[i]) and not (SUBSTITUTIONS.has(String(attendu[i])) and cle in SUBSTITUTIONS[String(attendu[i])]):
 				fautes.append("%s[%d] %s au lieu de %s" % [nom, i, cle, attendu[i]])
 				break
 	_verif(fautes.is_empty(), "butin : les %d tables commencent par leurs entrées d'origine (ajouts en fin seulement) %s" % [emp.size(), str(fautes)])

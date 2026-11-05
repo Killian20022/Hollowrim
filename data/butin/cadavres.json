@@ -19,6 +19,7 @@
 		]},
 		"cadavre_mage": {"or": [10, 25], "tirages": [1, 2], "garanti": [{"id": "cristal_givre", "n": 1}], "rien": 20, "entrees": [
 			{"id": "potion_mana", "poids": 40, "n": [1, 2]},
+			{"id": "talisman_os", "poids": 15},
 			{"table": "tomes", "poids": 8, "rarete": "rare"},
 			{"id": "capuche_thaumaturge", "poids": 3},
 			{"table": "bijoux_enchantes", "poids": 4}
