@@ -321,6 +321,8 @@ class Murs:
 					nouv.append([b, iv[1]])
 			dico[m] = nouv
 	## Réserve `long` m sur le mur `m` (côté `pref` : -1 début, +1 fin, 0 milieu) ; renvoie {pos (centre au sol), lacet, n} ou {}.
+	## La place doit aussi être libre au SOL (`occupes`) : un meuble déjà posé contre le mur voisin occupe le coin, on glisse le
+	## long du mur (pas de 5 cm, du côté préféré vers l'autre) jusqu'à la première place qui ne le chevauche pas.
 	func poser(m: String, long: float, prof: float, haut := false, pref := 0.0) -> Dictionary:
 		var liste: Array = (libres_hauts if haut else libres)[m]
 		var choix: Array = []
@@ -328,28 +330,47 @@ class Murs:
 		for iv: Array in liste:
 			if iv[1] - iv[0] < long:
 				continue
-			var t: float
+			var lo: float = iv[0] + long * 0.5
+			var hi: float = iv[1] - long * 0.5
+			var t0: float
 			if pref < 0.0:
-				t = iv[0] + long * 0.5
+				t0 = lo
 			elif pref > 0.0:
-				t = iv[1] - long * 0.5
+				t0 = hi
 			else:
-				t = clampf(0.0, iv[0] + long * 0.5, iv[1] - long * 0.5)
-			var cout := absf(t - pref * 9.0)
-			if cout < best:
-				best = cout
-				choix = [t]
+				t0 = clampf(0.0, lo, hi)
+			var cands: Array = [t0]
+			var k := 1
+			while t0 - k * 0.05 >= lo - 0.001 or t0 + k * 0.05 <= hi + 0.001:
+				for t: float in [t0 + k * 0.05, t0 - k * 0.05]:
+					if t >= lo - 0.001 and t <= hi + 0.001:
+						cands.append(clampf(t, lo, hi))
+				k += 1
+			for t: float in cands:
+				var e := _emprise(m, t, long, prof)
+				if not libre(Rect2(e[0].x - e[1].x, e[0].z - e[1].y, e[1].x * 2.0, e[1].y * 2.0)):
+					continue
+				var cout := absf(t - pref * 9.0)
+				if cout < best:
+					best = cout
+					choix = [t]
+				break
 		if choix.is_empty():
 			return {}
 		var t: float = choix[0]
 		retirer(m, t - long * 0.5 - 0.04, t + long * 0.5 + 0.04, true)
 		var n := normale(m)
+		var e := _emprise(m, t, long, prof)
+		occuper(e[0], e[1])
+		return {"pos": e[0], "lacet": atan2(n.x, n.z), "n": n, "t": t}
+	## Centre au sol et demi-emprise (plan xz) d'un meuble de `long` × `prof` posé contre le mur `m` à l'abscisse `t`.
+	func _emprise(m: String, t: float, long: float, prof: float) -> Array:
+		var n := normale(m)
 		var plan := (az if m.ends_with("Z") else ax)
 		var c := Vector3(t, 0, -plan) if m == "-Z" else (Vector3(t, 0, plan) if m == "+Z" else (Vector3(plan, 0, t) if m == "+X" else Vector3(-plan, 0, t)))
 		c = Vector3(c.x, 0, c.z) + n * (prof * 0.5 + 0.03)
 		var demi := Vector2(long * 0.5, prof * 0.5) if m.ends_with("Z") else Vector2(prof * 0.5, long * 0.5)
-		occuper(c, demi)
-		return {"pos": c, "lacet": atan2(n.x, n.z), "n": n, "t": t}
+		return [c, demi]
 	static func normale(m: String) -> Vector3:
 		match m:
 			"-Z": return Vector3.BACK
