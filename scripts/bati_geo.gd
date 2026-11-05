@@ -201,7 +201,13 @@ static func pierre_levee(taille: Vector3, graine: int, plat := false) -> Maillag
 ## Rondin à 8 pans le long de +X (centré), `sag` = affaissement au milieu, rayon (apothème) `r`. Renvoie
 ## [fût, bouts] (deux Maillage : matières « rondins » et « bout_rondin »). `strate` 0..3 = bande de texture,
 ## `u0` = décalage de texture (m). `teinte` : tableau (k de 0..1) multiplié aux couleurs de sommet.
-static func rondin(longueur: float, r: float, graine: int, sag := 0.02, strate := 0, u0 := 0.0, teinte := 1.0) -> Array:
+## `joints_haut_bas` (murs vus de près, intérieurs) : la bande de texture va du DESSUS du rondin (v = 0) au DESSOUS (v = 1)
+## par l'avant, et de même par l'arrière (en miroir) : ses bords assombris tombent sur les deux joints avec les rondins
+## voisins, son milieu clair sur la face qu'on regarde, quel que soit le côté vu, et le relief y descend dans le même sens
+## que la normale du shader (B = −y). Sans lui (défaut, bâti extérieur validé) : la bande fait le tour du rondin depuis
+## l'anneau k = 0 (22,5° au-dessus de l'avant) — son bord sombre barre alors la face avant d'un trait, et les rangs
+## d'un mur vu de près se lisent en rayures qui ondulent (retours exe 5, « les murs font des vagues »).
+static func rondin(longueur: float, r: float, graine: int, sag := 0.02, strate := 0, u0 := 0.0, teinte := 1.0, joints_haut_bas := false) -> Array:
 	var fut := Maillage.new()
 	var bouts := Maillage.new()
 	var rng := RandomNumberGenerator.new()
@@ -221,6 +227,14 @@ static func rondin(longueur: float, r: float, graine: int, sag := 0.02, strate :
 			var jr := 1.0 + (rng.randf() - 0.5) * 0.05
 			ring.append(Vector3(x, dy + sin(a) * rad * jr, dz + cos(a) * rad * jr))
 		anneaux.append(ring)
+	# v (m) de chaque arête k du pourtour (k = 8 : retour à k = 0)
+	var vk := PackedFloat32Array()
+	for k in 9:
+		if joints_haut_bas:
+			var a := PI / 8.0 + TAU * (k % 8) / 8.0
+			vk.append(strate * 1.0 + 0.03 + 0.94 * absf(wrapf(a - PI * 0.5, -PI, PI)) / PI)
+		else:
+			vk.append(strate * 1.0 + 0.93 * k / 8.0)
 	for s in stations - 1:
 		var a: PackedVector3Array = anneaux[s]
 		var b: PackedVector3Array = anneaux[s + 1]
@@ -233,8 +247,8 @@ static func rondin(longueur: float, r: float, graine: int, sag := 0.02, strate :
 			var ao := 0.62 if ny < -0.5 else (0.84 if ny < -0.2 else (0.9 if ny > 0.5 else 1.0))
 			ao *= teinte
 			var c := Color(ao, ao, ao, 1.0)
-			var v0 := strate * 1.0 + 0.93 * k / 8.0
-			var v1 := strate * 1.0 + 0.93 * (k + 1) / 8.0
+			var v0 := vk[k]
+			var v1 := vk[k + 1]
 			var ua := u0 + a[k].x + longueur * 0.5
 			var ub := u0 + b[k].x + longueur * 0.5
 			fut.tri(a[k], b[k], b[k2], c, c, c, cen_a, Vector2(ua, v0), Vector2(ub, v0), Vector2(ub, v1))

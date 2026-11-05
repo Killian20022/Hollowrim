@@ -1004,15 +1004,21 @@ func _rondin(parent: Node3D, pos: Vector3, lacet: float, longueur: float, rayon:
 		_ajouter(parent, (r[0] as BatiGeo.Maillage).arrays(), xf, m_rondins)
 	else:
 		var fut: BatiGeo.Maillage = r[0]
+		# moitié tournée vers la pièce : même rondin (même graine, même géométrie), texture aux joints haut et bas
+		var rr2 := RandomNumberGenerator.new()
+		rr2.seed = graine
+		var fut_int: BatiGeo.Maillage = BatiGeo.rondin(longueur, rayon, graine, sag, rr2.randi_range(0, 3), rr2.randf() * 8.0, teinte, true)[0]
 		var ext := BatiGeo.Maillage.new()
 		var dedans := BatiGeo.Maillage.new()
 		for i in range(0, fut.v.size(), 3):
-			var cible := ext if fut.n[i].z * dehors > -0.3 else dedans
+			var vers_dehors := fut.n[i].z * dehors > -0.3
+			var cible := ext if vers_dehors else dedans
+			var src := fut if vers_dehors else fut_int
 			for k in 3:
-				cible.v.append(fut.v[i + k])
-				cible.n.append(fut.n[i + k])
-				cible.uv.append(fut.uv[i + k])
-				cible.c.append(fut.c[i + k])
+				cible.v.append(src.v[i + k])
+				cible.n.append(src.n[i + k])
+				cible.uv.append(src.uv[i + k])
+				cible.c.append(src.c[i + k])
 		_ajouter(parent, ext.arrays(), xf, m_rondins)
 		_ajouter(interieur.racine, dedans.arrays(), xf, mats_int[["rondin", "rondin_b", "rondin_c", "rondin"][graine % 4]])   # trois bois : murs moins répétitifs
 	_ajouter(parent, (r[1] as BatiGeo.Maillage).arrays(), xf, m_bout)

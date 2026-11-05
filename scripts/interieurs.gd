@@ -212,7 +212,7 @@ func rondin(pos: Vector3, lacet: float, longueur: float, rayon: float, graine: i
 	if longueur <= 1.3 and rayon <= 0.12 and rempl("q_buche"):      # bûche : pièce Quaternius/kitbash étirée à la longueur et au rayon voulus
 		_q_xf("q_buche", Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, pente) * Basis.from_scale(Vector3(longueur / 0.6, rayon / 0.1, rayon / 0.1)), pos), {"bois": mat})
 		return
-	var r := BatiGeo.rondin(longueur, rayon, graine, sag, graine % 4, float(graine % 9), 1.0)
+	var r := BatiGeo.rondin(longueur, rayon, graine, sag, graine % 4, float(graine % 9), 1.0, true)      # vu de près : joints en haut et en bas
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis(Vector3.BACK, pente), pos)
 	if mat == "rondin" and graine % 3 != 0:       # rondins moins répétitifs : trois bois (teinte par la graine)
 		mat = "rondin_b" if graine % 3 == 1 else "rondin_c"
