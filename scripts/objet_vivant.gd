@@ -193,6 +193,10 @@ func _dans_le_decor() -> bool:
 			return true
 	return false
 
+## Facteur de vitesse d'un même élan selon la masse (un couteau part plus vite qu'un seau), borné : rien ne part comme une balle.
+func legerete() -> float:
+	return clampf(1.0 / sqrt(maxf(mass, 0.05)), 0.7, 1.4)
+
 ## Coup de lame (TraceLame, mains._resoudre_impact « cassable ») : l'objet est projeté, la lame continue (vrai).
 func frapper(puissant: bool, origine: Vector3) -> bool:
 	if not reveiller():
@@ -200,7 +204,7 @@ func frapper(puissant: bool, origine: Vector3) -> bool:
 	var d := global_position - origine
 	d.y = 0.0
 	d = d.normalized() if d.length() > 0.01 else Vector3.FORWARD
-	var v := (4.5 if puissant else 2.8) / sqrt(maxf(mass, 0.1))
+	var v := (3.5 if puissant else 2.2) * legerete()
 	elan += (d * v + Vector3.UP * v * 0.45) * mass
 	couple += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * 0.02 * mass
 	Sons.jouer_a(self, ["impactPlate_medium_000", "impactPlate_medium_001"], global_position, -12.0)
@@ -213,7 +217,7 @@ func souffle(de: Vector3, force: float, rayon: float) -> void:
 	if not reveiller():
 		return
 	d = d.normalized() if d.length() > 0.01 else Vector3.UP
-	var v := force * k / sqrt(maxf(mass, 0.1))
+	var v := force * k * legerete()
 	elan += (d + Vector3.UP * 0.6).normalized() * v * mass
 	couple += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * 0.03 * mass
 

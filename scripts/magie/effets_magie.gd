@@ -123,7 +123,7 @@ static func impact(ecole: String, position: Vector3, normale: Vector3, force: fl
 	_compter("impact")
 	SonsMagie.impact(ecole, position, force)
 	if ecole != "soin" and ecole != "protection":      # les petits objets de décor proches sont projetés (ObjetsVivants)
-		ObjetsVivants.souffle_a(position, 0.9 + 0.5 * clampf(force, 0.3, 3.0), 3.5 + 2.5 * clampf(force, 0.3, 3.0))
+		ObjetsVivants.souffle_a(position, 0.9 + 0.5 * clampf(force, 0.3, 3.0), 1.8 + 1.4 * clampf(force, 0.3, 3.0))
 	if muet:
 		return
 	_g().impact(ecole, position, normale, force)
@@ -135,7 +135,7 @@ static func zone(ecole: String, position: Vector3, rayon: float, duree: float) -
 	_compter("zone")
 	SonsMagie.zone(ecole, position, rayon)
 	if ecole != "soin" and ecole != "protection":
-		ObjetsVivants.souffle_a(position, rayon, 7.0)
+		ObjetsVivants.souffle_a(position, rayon, 5.0)
 	if muet:
 		return
 	_lancer_zone(ecole, position)
@@ -159,7 +159,7 @@ static func chaine(ecole: String, points: Array[Vector3]) -> void:
 static func decharge(ecole: String, forme: String, depart: Vector3, fin: Vector3, k: float, normale := Vector3.UP) -> void:
 	_compter("decharge")
 	SonsMagie.decharge(forme, depart, k)
-	ObjetsVivants.souffle_a(fin, 1.2 + k, 4.0 + 3.0 * k)
+	ObjetsVivants.souffle_a(fin, 1.2 + k, 2.5 + 2.0 * k)
 	if muet:
 		return
 	if ecole == "electricite":

@@ -248,8 +248,11 @@ static func _corps(s: Dictionary, morceaux: Array) -> ObjetVivant:
 
 static func exporter() -> Dictionary:
 	var d := {}
-	for ident: String in etats:
-		if (etats[ident] as Dictionary).has("pris"):
+	var vivants := {}
+	for o: ObjetVivant in _vivants():
+		vivants[o.ident] = true
+	for ident: String in etats:      # objets pris, et états d'objets pas encore créés (intérieurs posés après le chargement)
+		if (etats[ident] as Dictionary).has("pris") or not vivants.has(ident):
 			d[ident] = etats[ident]
 	for o: ObjetVivant in _vivants():
 		if o.has_meta("pris"):
@@ -343,7 +346,7 @@ static func eveille(o: ObjetVivant) -> void:
 		_eveilles.append(o)
 
 ## Souffle d'un sort au point `p` : les objets à moins de `rayon` m sont réveillés et projetés.
-static func souffle_a(p: Vector3, rayon := 1.4, force := 5.5) -> int:
+static func souffle_a(p: Vector3, rayon := 1.4, force := 4.0) -> int:
 	var n := 0
 	for o: ObjetVivant in _vivants():
 		if o.has_meta("pris") or not o.is_inside_tree():
@@ -514,7 +517,7 @@ func lancer() -> void:
 	lacher()
 	var cam := _camera()
 	if cam != null and is_instance_valid(o):
-		o.linear_velocity = -cam.global_transform.basis.z * clampf(VITESSE_LANCER / sqrt(maxf(o.mass, 0.1)), 4.0, 14.0) + Vector3.UP * 0.8
+		o.linear_velocity = -cam.global_transform.basis.z * clampf(VITESSE_LANCER / sqrt(maxf(o.mass, 0.1)), 4.0, 10.0) + Vector3.UP * 0.8
 		o.angular_velocity = Vector3(randf_range(-6, 6), randf_range(-3, 3), randf_range(-6, 6))
 		Sons.jouer_a(self, ["cloth1"], o.global_position, -12.0)
 
