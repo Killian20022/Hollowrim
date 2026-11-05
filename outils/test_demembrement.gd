@@ -48,6 +48,9 @@ func _info(d: Node3D, rel: float, dir: Vector3, attaque := "legere", lateral := 
 	vers.y = 0.0
 	vers = vers.normalized()
 	var cote: Vector3 = vers.cross(Vector3.UP)
+	if d is Node3D and (d as Node3D).get("modele") is Node3D:
+		# le côté se mesure sur le CORPS tel qu'il est tourné (lot ennemis : le guerrier ne fait plus toujours face au joueur au bout de 15 images)
+		cote = -((d.modele as Node3D).global_basis.x * Vector3(1, 0, 1)).normalized()
 	return {"type": "tranchant", "point": d.global_position + Vector3(0, 1.8 * rel, 0) + vers * 0.2 + cote * lateral,
 		"direction": dir.normalized(), "normale": vers, "attaque": attaque, "instant": 0.1, "charge": 1.0 if attaque == "chargee_max" else 0.0}
 
