@@ -34,9 +34,7 @@ func _visible(v: Node3D) -> bool:
 	return false
 
 func _ne(n: Node) -> void:
-	if not n.is_in_group("villageois") and not (n is CharacterBody3D and n.get("donnees") != null and n.get("anim") != null):
-		return
-	if n.get("donnees") == null or String(n.donnees.get("id", "")).begins_with("garde"):
+	if not (n is CharacterBody3D) or n.get("donnees") == null or n.get("quetes") == null:
 		return
 	await process_frame   # _ready du villageois joué : position finale
 	nes += 1

@@ -686,7 +686,7 @@ func _villageois() -> void:
 ## Villageois dont la naissance est reportée APRÈS le chargement (écran de chargement : Jeu.chargement_etale) : créer leur corps
 ## coûte 1,5 s (caches chauds) à 6 s (premier lancement) au chargement. Chacun naît dès qu'il est hors de la vue du joueur (trop loin
 ## pour le brouillard, ou hors du champ de la caméra) : jamais d'apparition à l'écran ; au bout de DELAI_PNJ_MAX s tout naît quand même.
-## Un par image au plus, au rythme d'un toutes les 0,15 s (pas de saccade). La sauvegarde et le chargement de partie les voient
+## Un par image au plus, au rythme d'un toutes les 0,15 s (naissances espacées). La sauvegarde et le chargement de partie les voient
 ## (`_tous_les_villageois`).
 const DELAI_PNJ_MAX := 25.0
 var _pnj_differes: Array[CharacterBody3D] = []
@@ -712,7 +712,7 @@ func _naissances_differees(dt: float) -> void:
 		return
 	_pnj_attente += dt
 	_pnj_pause -= dt
-	if _pnj_pause > 0.0 or dt > 0.05:   # image déjà lourde : on attend
+	if _pnj_pause > 0.0:
 		return
 	var tout := _pnj_attente > DELAI_PNJ_MAX
 	for i in _pnj_differes.size():
