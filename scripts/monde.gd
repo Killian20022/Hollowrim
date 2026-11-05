@@ -1191,18 +1191,25 @@ static func script_ia(nom: String) -> Script:
 	assert(SCRIPTS_IA.has(nom), "ennemi à IA inconnu : " + nom)
 	return load(SCRIPTS_IA[nom])
 
+## Draugrs de la surface (faction « draugr », data/factions.json ; leurs postes sont audités par outils/test_factions.gd) :
+## trois gardiens endormis au cercle de pierres, un guerrier debout à l'entrée, un rôdeur dans la forêt entre le feu et le cercle.
+## [type, x, z, endormi, lacet]
+const DRAUGRS_SURFACE := [
+	["guerrier", CERCLE.x + 2.6, CERCLE.z + 1.2, true, 2.0],
+	["sbire", CERCLE.x - 2.2, CERCLE.z + 2.6, true, -0.6],
+	["sbire", CERCLE.x + 0.6, CERCLE.z - 3.0, true, 3.4],
+	["guerrier", CERCLE.x + 9.0, CERCLE.z + 9.0, false, 0.8],
+	["sbire", -16.0, -15.0, false, 0.6],
+]
+
 func _draugrs() -> void:
-	# trois gardiens endormis au cercle de pierres, un guerrier debout à l'entrée
-	_draugr("guerrier", CERCLE.x + 2.6, CERCLE.z + 1.2, true, 2.0)
-	await _souffle()
-	_draugr("sbire", CERCLE.x - 2.2, CERCLE.z + 2.6, true, -0.6)
-	await _souffle()
-	_draugr("sbire", CERCLE.x + 0.6, CERCLE.z - 3.0, true, 3.4)
-	await _souffle()
-	_draugr("guerrier", CERCLE.x + 9.0, CERCLE.z + 9.0, false, 0.8)
-	await _souffle()
-	# un rôdeur dans la forêt, entre le feu et le cercle
-	sbire = _draugr("sbire", -16.0, -15.0, false, 0.6)
+	for i in DRAUGRS_SURFACE.size():
+		var d: Array = DRAUGRS_SURFACE[i]
+		var dr := _draugr(String(d[0]), float(d[1]), float(d[2]), bool(d[3]), float(d[4]))
+		if i == DRAUGRS_SURFACE.size() - 1:
+			sbire = dr          # le rôdeur de la forêt (repris par les scènes de test et les captures)
+		else:
+			await _souffle()
 
 ## Bêtes et faune Quaternius (BeteQuat, persos/quaternius_jeu 2026-11-04) posées à quelques endroits logiques de la surface :
 ## une meute de loups dans la forêt entre le feu et le cercle de pierres, un cerf et deux biches qui broutent au champ nord (F3,

@@ -420,7 +420,7 @@ func _creer_ennemi(a: Dictionary) -> void:
 	var lacet: float = float(a["lacet"]) + g.global_rotation.y
 	var ia: String = e.get("ia", "")
 	if ia != "":            # ennemi à IA propre (EnnemiBase : troll de givre, mage nordique…) : monde.creer_ennemi, mêmes file, gel et sauvegarde
-		var opts_ia := {"ident": id}
+		var opts_ia := {"ident": id, "faction": Factions.de_donnees(e, "grotte")}
 		opts_ia.merge(e.get("options", {}))
 		var en: CharacterBody3D = monde.creer_ennemi(monde.script_ia(ia), pos, lacet, opts_ia)
 		if monde._paisible():
@@ -428,7 +428,8 @@ func _creer_ennemi(a: Dictionary) -> void:
 		ennemis[id] = en
 		return
 	var boss: String = e.get("boss", "")
-	var opts := {"ident": id, "nom_affiche": e.get("nom", "Bandit"), "contourne": true, "apparence": _apparence(e)}
+	var opts := {"ident": id, "nom_affiche": e.get("nom", "Bandit"), "contourne": true, "apparence": _apparence(e),
+		"faction": Factions.de_donnees(e, "grotte")}      # pillards de Hrafn (data/factions.json)
 	if boss == "":
 		opts["vie_imposee"] = ReglagesCombat.vie("bandit")
 	else:

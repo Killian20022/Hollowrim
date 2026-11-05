@@ -244,10 +244,12 @@ static func zones_hrafn() -> Array:
 		{"id": "mine_retour", "branche": "A", "s": [63.5, 74.93], "theme": "mine", "role": "repos", "graine": 205, "densite": 0.8, "n_lum": 2,
 			"params": {"etais": [67.5], "rails": [64.0, 72.0], "chariots": [69.8]},
 			"teinte": [Color(0.38, 0.8, 0.72), Color(1.0, 0.6, 0.28)],
-			# nid d'araignées des cavernes (BeteQuat, persos/quaternius_jeu 2026-11-04) : en embuscade dans la galerie du retour, hors des rails
+			# arrière-garde du camp (retours exe 5, factions) : la galerie du retour débouche sur le camp de Hrafn ; les pillards y tiennent
+			# la porte de derrière (patrouilleur et archer, aux anciens postes des araignées, chassées vers le lac : pillards et araignées ne
+			# cohabitent pas, data/factions.json)
 			"ennemis": [
-				{"id": "araignee_mine_a", "ia": "araignee", "s": 66.0, "lat": 1.7, "face": "entree", "nom": "Araignée des cavernes"},
-				{"id": "araignee_mine_b", "ia": "araignee", "s": 71.0, "lat": 0.0, "face": "entree", "nom": "Araignée des cavernes"},
+				{"id": "bandit_8", "type": "sbire", "s": 66.0, "lat": 1.7, "tenue": 1, "nom": "Bandit", "patrouille": [[66.0, 1.7], [71.0, 0.0], [64.5, 0.0]]},
+				{"id": "bandit_archer_2", "type": "sbire", "archer": true, "s": 71.0, "lat": 0.0, "tenue": 3, "nom": "Archer bandit", "face": "entree"},
 			]},
 		# --- caverne du lac (branche B, à gauche)
 		{"id": "lac_acces", "branche": "B", "s": [0.0, 11.5], "theme": "lac", "role": "transition", "graine": 301, "densite": 0.8, "n_lum": 1,
@@ -260,11 +262,13 @@ static func zones_hrafn() -> Array:
 			"corniches": [
 				{"id": "corniche_lac", "s": 23.0, "lat": 3.4, "longueur": 11.0, "largeur": 2.6, "haut": 2.1, "rampe": "fin"},
 			],
+			# caverne du lac = antre des BÊTES (retours exe 5, factions) : nid d'araignées des cavernes (BeteQuat) en embuscade côté paroi,
+			# troll de givre au fond ; araignées et troll sont neutres entre eux, les pillards (hostiles aux deux) n'y descendent plus.
 			"ennemis": [
-				{"id": "bandit_8", "type": "sbire", "s": 17.0, "lat": 0.5, "tenue": 1, "nom": "Bandit", "patrouille": [[17.0, 0.5], [30.0, 1.5], [41.0, 0.5]]},
-				{"id": "bandit_archer_2", "type": "sbire", "archer": true, "s": 27.5, "lat": 4.6, "sur": "corniche_lac", "tenue": 3, "nom": "Archer bandit", "face": "centre"},
-				# troll de givre (scripts/troll_givre_ia.gd) endormi au fond de la caverne, côté paroi : sol plat (±2 cm sur 1 m), à 1,3 m
-				# de la patrouille de bandit_8 (capsule 0,75 m libre) ; le rivage (lat < 0) est en pente : il y glissait. Réveil à 9 m.
+				{"id": "araignee_mine_a", "ia": "araignee", "s": 25.0, "lat": 1.0, "face": "entree", "nom": "Araignée des cavernes"},
+				{"id": "araignee_mine_b", "ia": "araignee", "s": 31.0, "lat": 0.6, "face": "entree", "nom": "Araignée des cavernes"},
+				# troll de givre (scripts/troll_givre_ia.gd) endormi au fond de la caverne, côté paroi : sol plat (±2 cm sur 1 m) ; le
+				# rivage (lat < 0) est en pente : il y glissait. Réveil à 9 m.
 				{"id": "troll_lac", "ia": "troll_givre", "s": 37.5, "lat": 2.1, "face": "entree", "nom": "Troll de givre", "options": {"dort": true}},
 			],
 			"ressources": [

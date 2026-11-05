@@ -1,0 +1,49 @@
+{
+	"_doc": "Factions des ennemis et de la faune (retours exe 5, 2026-11-05). Lu par scripts/combat/factions.gd. relations : chaque paire de factions DIFFÉRENTES une fois (ordre libre), « allie », « neutre » ou « hostile » ; une faction est toujours alliée à elle-même. Hostile = jamais dans le même repaire ni à moins de distance_min m l'une de l'autre (outils/test_factions.gd), et elles se battent si elles se croisent (Rivalites). ia : faction de chaque nom d'IA ou espèce (données des lieux « ia », BeteQuat.espece) ; types_draugr : faction par défaut d'un ennemi de draugr.gd selon le lieu (les bandits de la grotte sont des pillards).",
+	"distance_min": 15.0,
+	"factions": {
+		"draugr": {"nom": "Draugrs et squelettes", "habitat": "cryptes, tumulus, cercle de pierres"},
+		"araignee": {"nom": "Araignées des cavernes", "habitat": "galeries, tombes à toiles (cohabitent avec les draugrs)"},
+		"pillard": {"nom": "Pillards (bandits de Hrafn)", "habitat": "camp et mine de la grotte"},
+		"troll": {"nom": "Trolls de givre", "habitat": "cavernes humides, au fond du lac"},
+		"mage": {"nom": "Mages nordiques", "habitat": "salle du jarl de la crypte (nécromancien allié des draugrs)"},
+		"loup": {"nom": "Loups", "habitat": "forêt, plaine enneigée"},
+		"faune": {"nom": "Faune paisible et domestiques", "habitat": "prés, lisières, enclos du village"}
+	},
+	"relations": [
+		["draugr", "araignee", "neutre"],
+		["draugr", "pillard", "hostile"],
+		["draugr", "troll", "hostile"],
+		["draugr", "mage", "allie"],
+		["draugr", "loup", "neutre"],
+		["draugr", "faune", "neutre"],
+		["araignee", "pillard", "hostile"],
+		["araignee", "troll", "neutre"],
+		["araignee", "mage", "neutre"],
+		["araignee", "loup", "neutre"],
+		["araignee", "faune", "neutre"],
+		["pillard", "troll", "hostile"],
+		["pillard", "mage", "hostile"],
+		["pillard", "loup", "hostile"],
+		["pillard", "faune", "neutre"],
+		["troll", "mage", "hostile"],
+		["troll", "loup", "neutre"],
+		["troll", "faune", "neutre"],
+		["mage", "loup", "neutre"],
+		["mage", "faune", "neutre"],
+		["loup", "faune", "neutre"]
+	],
+	"ia": {
+		"araignee": "araignee",
+		"loup": "loup",
+		"cerf": "faune", "biche": "faune", "renard": "faune",
+		"cheval": "faune", "cheval_blanc": "faune", "ane": "faune", "vache": "faune", "taureau": "faune", "husky": "faune",
+		"troll_givre": "troll",
+		"mage_nordique": "mage"
+	},
+	"types_draugr": {
+		"grotte": "pillard",
+		"crypte": "draugr",
+		"surface": "draugr"
+	}
+}
