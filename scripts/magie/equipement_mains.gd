@@ -190,7 +190,7 @@ static func _id(r: Resource) -> String:
 		return a.id
 	return "vide"
 
-## Changement venu de l'Equipement lui-même (T : torche, inventaire : épée de Skarnholt) : la logique suit.
+## Changement venu de l'Equipement lui-même (H : torche, inventaire : épée de Skarnholt) : la logique suit.
 func _sur_equipement(main: String) -> void:
 	if _en_pose:
 		return

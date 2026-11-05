@@ -50,7 +50,7 @@ TOUCHES (clavier AZERTY ; manette : menus seulement)
 - Maj : courir                        - Espace : sauter
 - Clic gauche : frapper (maintenir : coup puissant)
 - Clic droit : parer                  - E : parler, ouvrir, ramasser
-- Tab : inventaire et quêtes          - T : torche
+- Tab : inventaire et quêtes          - H : torche
 - V : vue 1re / 3e personne           - F5 / F9 : sauvegarder / charger
 - F11 ou Alt+Entrée : plein écran     - Échap : menu pause (Options, Sauvegarder, Quitter)
 

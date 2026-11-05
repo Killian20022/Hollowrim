@@ -148,7 +148,7 @@ func _interface() -> void:
 	inventaire_ui.hud = hud
 	add_child(inventaire_ui)
 	var aide := Label.new()
-	aide.text = "Clic gauche : coup léger (maintenir : lourd)   Clic droit : garde   T : torche   F3 : débogage"
+	aide.text = "Clic gauche : coup léger (maintenir : lourd)   Clic droit : garde   H : torche   F3 : débogage"
 	aide.add_theme_font_override("font", Palette.police())
 	aide.add_theme_font_size_override("font_size", Palette.TAILLE_POLICE)
 	aide.add_theme_color_override("font_color", Color(0.85, 0.9, 1.0, 0.85))

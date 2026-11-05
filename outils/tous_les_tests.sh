@@ -80,6 +80,7 @@ TESTS=(
 	"test_mage_ia|--nouvelle --test"    # IA du mage nordique (ennemis/troll_mage)
 	"test_persos_tous|--persos-tous"
 	"test_interieurs|--nouvelle"
+	"test_rondins_joints|--nouvelle"
 	"test_primitives|"
 	"test_epees_longues|--nouvelle"   # 5 épées longues : nœuds prise/garde/pointe, repère, échelle, matériaux
 	"test_armes_catalogue|--nouvelle"   # 20 armes du catalogue (hybrides + CC0) : chargement, stats famille x matériau, repères, échelles, bouclier à gauche, butin et forge
