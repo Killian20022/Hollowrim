@@ -4,10 +4,10 @@ extends SceneTree
 ## (fenêtre hors écran via godot_slot.sh). Le loup est mené à la main (course sur une droite, clip Run) : le plan est reproductible.
 ## `--sans-vie` : le village d'avant (les civils ne réagissent pas).
 const SCENE := "res://scenes/foret_test.tscn"
-const CAM := Vector2(47.5, 50.5)
-const VISE := Vector2(38.5, 42.0)
-const DEPART := Vector2(52.0, 62.0)        # le loup arrive par le sud-est de la place
-const ARRIVEE := Vector2(37.0, 40.0)
+const CAM := Vector2(44.0, 50.0)
+const VISE := Vector2(39.5, 38.0)
+const DEPART := Vector2(41.0, 22.0)        # le loup arrive par la porte nord de la place
+const ARRIVEE := Vector2(40.0, 42.0)
 var m: Node3D
 var j: CharacterBody3D
 
@@ -55,7 +55,7 @@ func _go() -> void:
 	var depart := Vector3(DEPART.x, 0, DEPART.y)
 	var arrivee := Vector3(ARRIVEE.x, 0, ARRIVEE.y)
 	var dist := depart.distance_to(arrivee)
-	var vitesse := 5.0
+	var vitesse := 5.5
 	var t_arrivee := dist / vitesse
 	print("FILM début image ", d0)
 	for i in total:
