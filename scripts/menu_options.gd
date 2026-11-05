@@ -1,5 +1,5 @@
 extends PanelContainer
-## Panneau Options (écran titre et menu pause) : affichage, son, commandes, rappel des touches.
+## Panneau Options (écran titre et menu pause) : affichage, graphismes, son, commandes, remappage des touches.
 ## Chaque changement est appliqué et enregistré aussitôt dans user://options.cfg (Jeu.regler).
 ## `joueur` (facultatif, en partie) : reçoit le nouveau champ de vision tout de suite.
 
@@ -10,8 +10,14 @@ var joueur: Node = null
 ## `echelle` (pixels de l'image de référence au lieu de l'écran logique 640x360). Par défaut (menu pause) : thème pixel, ×1.
 var theme_impose: Theme = null
 var echelle := 1.0
+## En partie (menu pause) : panneau de cuir à filet d'or (StyleParchemin.theme_cuir) au lieu du cadre ornementé gris-bleu.
+var cuir := false
 var _premier: Control
 var _touches: Control
+## Remappage : boutons (id, rang) -> Button ; commande en attente d'une touche ([id, rang]) ; ligne de retour d'information.
+var _boutons_touches := {}
+var _attente_touche: Array = []
+var _message_touches: Label
 ## Sous-panneau « Caméra » (balancement de l'arme, mouvement de tête, secousses) : remplace la grille tant qu'il est ouvert
 ## (trois lignes de plus débordaient du panneau de l'écran titre).
 var _camera: Control
@@ -32,27 +38,8 @@ var hauteur_max := 0.0:
 var _defile: ScrollContainer
 var _contenu: VBoxContainer
 
-const TOUCHES := [
-	["ZQSD / flèches", "se déplacer"],
-	["Souris", "regarder"],
-	["Maj", "courir"],
-	["Espace", "sauter"],
-	["Clic gauche", "frapper (maintenir : coup puissant)"],
-	["Clic droit", "parer"],
-	["E", "parler, ouvrir, ramasser"],
-	["I", "inventaire : équiper les deux mains"],
-	["1 - 0", "raccourcis des deux mains"],
-	["Tab", "sac, compétences et quêtes"],
-	["T", "torche"],
-	["V", "vue 1re / 3e personne"],
-	["F5 / F9", "sauvegarder / charger"],
-	["F11, Alt+Entrée", "plein écran"],
-	["Échap", "menu pause"],
-	["F1", "afficher / masquer l'aide des touches"],
-]
-
 func _ready() -> void:
-	theme = theme_impose if theme_impose != null else MenuStyle.theme()
+	theme = theme_impose if theme_impose != null else (StyleParchemin.theme_cuir() if cuir else MenuStyle.theme())
 	custom_minimum_size = Vector2(380, 0) * echelle
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	var pile := VBoxContainer.new()
@@ -88,6 +75,19 @@ func _ready() -> void:
 		if f != null:
 			f.regler_plein_ecran(v))
 	_premier = _case_plein
+	# options graphiques (Graphismes) : taille de la fenêtre (sans effet en plein écran), vsync, limite d'images, portée des ombres
+	_choix(g, "Taille de la fenêtre", Graphismes.noms_resolutions(), int(Jeu.option("affichage", "resolution")), func(v: int) -> void:
+		Jeu.regler("affichage", "resolution", v)
+		Graphismes.appliquer_resolution())
+	_case(g, "Synchronisation verticale", Jeu.option("affichage", "vsync"), func(v: bool) -> void:
+		Jeu.regler("affichage", "vsync", v)
+		Graphismes.appliquer())
+	_choix(g, "Limite d'images / s", Graphismes.noms_limites(), clampi(int(Jeu.option("affichage", "limite_ips")), 0, Graphismes.LIMITES_IPS.size() - 1), func(v: int) -> void:
+		Jeu.regler("affichage", "limite_ips", v)
+		Graphismes.appliquer())
+	_choix(g, "Ombres", Graphismes.OMBRES, int(Jeu.option("affichage", "ombres")), func(v: int) -> void:
+		Jeu.regler("affichage", "ombres", v)
+		Graphismes.appliquer_ombres(get_tree(), v))
 	_curseur(g, "Champ de vision", 60, 90, 1, Jeu.option("affichage", "champ_vision"), "%d°", func(v: float) -> void:
 		Jeu.regler("affichage", "champ_vision", v)
 		Jeu.appliquer_camera(joueur))
@@ -130,8 +130,7 @@ func _ready() -> void:
 	g.add_child(h)
 	g.add_child(Control.new())
 	_secours = MenuStyle.etiquette("", MenuStyle.GRIS)
-	_secours.clip_text = true
-	_secours.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_secours.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART   # le chemin d'un dossier long passe à la ligne au lieu d'être coupé
 	_secours.custom_minimum_size = Vector2(360, 0) * echelle
 	_reglages_bas = _secours
 	pile.add_child(_secours)
@@ -158,17 +157,42 @@ func _ready() -> void:
 	_camera = pc
 	_contenu.add_child(pc)
 
-	# rappel des touches (remplace la grille tant qu'il est ouvert)
-	var t := GridContainer.new()
-	t.columns = 2
-	t.add_theme_constant_override("h_separation", roundi(12 * echelle))
-	t.add_theme_constant_override("v_separation", -2 if theme_impose == null else 0)
-	for l: Array in TOUCHES:
-		t.add_child(MenuStyle.etiquette(l[0], MenuStyle.OR if theme_impose == null else MenuStyle.LUEUR.lerp(MenuStyle.GIVRE, 0.35)))
-		t.add_child(MenuStyle.etiquette(l[1]))
+	# touches : écran de remappage (remplace la grille tant qu'il est ouvert)
+	var t := VBoxContainer.new()
+	t.add_theme_constant_override("separation", 0)
+	var gt := GridContainer.new()
+	gt.columns = 3
+	gt.add_theme_constant_override("h_separation", roundi(8 * echelle))
+	gt.add_theme_constant_override("v_separation", 0)
+	gt.add_child(MenuStyle.etiquette("Commande", MenuStyle.GRIS))
+	gt.add_child(MenuStyle.etiquette("Touche", MenuStyle.GRIS))
+	gt.add_child(MenuStyle.etiquette("Autre touche", MenuStyle.GRIS))
+	for a: Dictionary in Touches.ACTIONS:
+		var id: String = a["id"]
+		gt.add_child(MenuStyle.etiquette(a["nom"]))
+		for rang in 2:
+			var bt := MenuStyle.bouton("", func() -> void: _attendre(id, rang))
+			bt.alignment = HORIZONTAL_ALIGNMENT_CENTER
+			bt.custom_minimum_size = Vector2(70, 0) * echelle
+			bt.tooltip_text = "Cliquer, puis appuyer sur la nouvelle touche (Échap annule%s)." % ("" if rang == 0 else ", Retour arrière efface")
+			_boutons_touches[[id, rang]] = bt
+			gt.add_child(bt)
+	t.add_child(gt)
+	_message_touches = MenuStyle.etiquette("", MenuStyle.RUNE)
+	_message_touches.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_message_touches.custom_minimum_size = Vector2(360, 0) * echelle
+	t.add_child(_message_touches)
+	var fixes := MenuStyle.etiquette("Fixes : souris (clic gauche frapper, clic droit parer), 1 - 0 raccourcis, Échap pause, F11 plein écran.", MenuStyle.GRIS)
+	fixes.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	fixes.custom_minimum_size = Vector2(360, 0) * echelle
+	t.add_child(fixes)
+	t.add_child(MenuStyle.bouton("Rétablir les touches d'origine", func() -> void:
+		Touches.retablir()
+		_maj_touches("Touches d'origine rétablies.")))
 	t.visible = false
 	_touches = t
 	_contenu.add_child(t)
+	_maj_touches()
 
 	var bas := HBoxContainer.new()
 	bas.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -222,6 +246,7 @@ func _fenetre() -> Node:
 func ouvrir() -> void:
 	visible = true
 	_touches.visible = false
+	_attente_touche = []
 	_camera.visible = false
 	_reglages.visible = true
 	_reglages_bas.visible = true
@@ -248,6 +273,7 @@ func _basculer_camera() -> void:
 		_premier.grab_focus.call_deferred()
 
 func _basculer_touches() -> void:
+	_attente_touche = []
 	_touches.visible = not _touches.visible
 	_camera.visible = false
 	_reglages.visible = not _touches.visible
@@ -256,6 +282,57 @@ func _basculer_touches() -> void:
 	_ajuster()
 	if _reglages.visible:
 		_premier.grab_focus.call_deferred()
+	else:
+		_maj_touches()
+		(_boutons_touches[["avant", 0]] as Button).grab_focus.call_deferred()
+
+## Texte des boutons de touche (celle qu'on est en train de régler : « Appuyez… »).
+func _maj_touches(message := "") -> void:
+	for id_rang: Array in _boutons_touches:
+		var bt: Button = _boutons_touches[id_rang]
+		var k: int = int(Touches.touches_de(id_rang[0])[id_rang[1]])
+		bt.text = "Appuyez…" if _attente_touche == id_rang else Touches.nom_touche(k)
+	if _message_touches != null:
+		_message_touches.text = message
+	_ajuster.call_deferred()
+
+func _attendre(id: String, rang: int) -> void:
+	_attente_touche = [id, rang]
+	_maj_touches("Appuyez sur la nouvelle touche (Échap : annuler).")
+
+## Attribue une touche à la commande en attente (appelé par la saisie ; direct dans les tests). Renvoie la commande échangée ("" si aucune).
+func attribuer(id: String, rang: int, k: int) -> String:
+	var autre := Touches.lier(id, rang, k)
+	_attente_touche = []
+	var msg := "Touche enregistrée."
+	if autre != "":
+		for a: Dictionary in Touches.ACTIONS:
+			if a["id"] == autre:
+				msg = "%s utilisait déjà cette touche : elle a pris l'ancienne." % a["nom"]
+	_maj_touches(msg)
+	return autre
+
+## Saisie de la nouvelle touche (avant tout le reste : Échap annule la saisie au lieu de fermer le panneau).
+func _input(e: InputEvent) -> void:
+	if _attente_touche.is_empty() or not visible:
+		return
+	if e is InputEventMouseButton and e.pressed:
+		_attente_touche = []   # un clic ailleurs annule la saisie ; le clic sur un bouton la relance de lui-même
+		_maj_touches()
+		return
+	if not (e is InputEventKey and e.pressed and not e.echo):
+		return
+	get_viewport().set_input_as_handled()
+	var k: int = (e as InputEventKey).physical_keycode
+	if k == KEY_ESCAPE:
+		_attente_touche = []
+		_maj_touches()
+	elif k == KEY_BACKSPACE or k == KEY_DELETE:
+		attribuer(_attente_touche[0], _attente_touche[1], KEY_NONE)
+	elif Touches.attribuable(k):
+		attribuer(_attente_touche[0], _attente_touche[1], k)
+	else:
+		_maj_touches("Cette touche est réservée (menus, plein écran).")
 
 func _maj_secours() -> void:
 	var d: String = Jeu.dossier_secours()

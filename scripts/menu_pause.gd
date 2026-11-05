@@ -12,13 +12,16 @@ var _racine: Control
 var _menu: PanelContainer
 var _boutons: Array = []
 var _options: PanelContainer
+## Choix de l'emplacement de sauvegarde (3 manuels) : Sauvegarder ouvre cette page, qui remplace le menu le temps du choix.
+var _emplacements: Control
+var _boutons_emplacements: Array = []
 var _avis: Label
 
 func _ready() -> void:
 	layer = 50
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_racine = Control.new()
-	_racine.theme = MenuStyle.theme()
+	_racine.theme = StyleParchemin.theme_encre()   # pause en parchemin (encre sur vélin), comme le menu du personnage
 	_racine.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_racine.visible = false
 	add_child(_racine)
@@ -27,32 +30,67 @@ func _ready() -> void:
 	voile.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_racine.add_child(voile)
 
-	_menu = PanelContainer.new()
-	_menu.custom_minimum_size = Vector2(200, 0)
+	var page := StyleParchemin.page()
+	_menu = page[0]
+	_menu.custom_minimum_size = Vector2(220, 0)
 	_racine.add_child(_menu)
 	_centrer(_menu)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
-	_menu.add_child(v)
-	var t := MenuStyle.etiquette("Pause", MenuStyle.OR)
+	(page[1] as PanelContainer).add_child(v)
+	var t := MenuStyle.etiquette("Pause", Parchemin.RUBRIQUE)
+	t.add_theme_font_override("font", MenuStyle.police_gothique(true))   # titre gothique du livre
+	t.add_theme_font_size_override("font_size", Parchemin.TITRE)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(t)
+	var filet := ColorRect.new()
+	filet.color = Color(Parchemin.OR_TERNI, 0.8)
+	filet.custom_minimum_size = Vector2(0, 1)
+	v.add_child(filet)
 	_boutons = [
 		MenuStyle.bouton("Reprendre", fermer),
 		MenuStyle.bouton("Options", _ouvrir_options),
-		MenuStyle.bouton("Sauvegarder", _sauvegarder),
+		MenuStyle.bouton("Sauvegarder", _ouvrir_emplacements),
 		MenuStyle.bouton("Retour au titre", _retour_titre),
 		MenuStyle.bouton("Quitter le jeu", _quitter),
 	]
 	for b: Button in _boutons:
 		v.add_child(b)
-	_avis = MenuStyle.etiquette("", MenuStyle.RUNE)
+	_avis = MenuStyle.etiquette("", Parchemin.PALE)
 	_avis.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(_avis)
 	MenuStyle.chainer(_boutons)
 
+	var page_e := StyleParchemin.page()
+	_emplacements = page_e[0]
+	_emplacements.custom_minimum_size = Vector2(340, 0)
+	_emplacements.visible = false
+	_racine.add_child(_emplacements)
+	_centrer(_emplacements)
+	var ve := VBoxContainer.new()
+	ve.add_theme_constant_override("separation", 2)
+	(page_e[1] as PanelContainer).add_child(ve)
+	var te := MenuStyle.etiquette("Sauvegarder", Parchemin.RUBRIQUE)
+	te.add_theme_font_override("font", MenuStyle.police_gothique(true))
+	te.add_theme_font_size_override("font_size", Parchemin.TITRE)
+	te.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ve.add_child(te)
+	var filet_e := ColorRect.new()
+	filet_e.color = Color(Parchemin.OR_TERNI, 0.8)
+	filet_e.custom_minimum_size = Vector2(0, 1)
+	ve.add_child(filet_e)
+	for e in range(1, Sauvegardes.NB_MANUELS + 1):
+		var be := MenuStyle.bouton("", func() -> void: _sauver_dans(e))
+		_boutons_emplacements.append(be)
+		ve.add_child(be)
+	var retour_e := MenuStyle.bouton("Retour", _menu_principal)
+	_boutons_emplacements.append(retour_e)
+	ve.add_child(retour_e)
+	MenuStyle.chainer(_boutons_emplacements)
+
 	_options = PanelContainer.new()
 	_options.set_script(OPTIONS)
+	_options.cuir = true   # options en partie : panneau de cuir à filet d'or (texte clair), même famille que la pause
 	_options.visible = false
 	_options.ferme.connect(_menu_principal)
 	_racine.add_child(_options)
@@ -95,11 +133,13 @@ func fermer() -> void:
 	ouvert = false
 	_racine.visible = false
 	_options.visible = false
+	_emplacements.visible = false
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _menu_principal() -> void:
 	_options.visible = false
+	_emplacements.visible = false
 	_menu.visible = true
 	_boutons[0].grab_focus.call_deferred()
 
@@ -107,13 +147,35 @@ func _ouvrir_options() -> void:
 	_menu.visible = false
 	_options.ouvrir()
 
-func _sauvegarder() -> void:
+func _ouvrir_emplacements() -> void:
 	var j := _joueur()
 	if j != null and j.get("mort"):
 		_avis.text = "Impossible : vous êtes mort"
 		return
-	monde.sauvegarder()
-	_avis.text = "Partie sauvegardée" + ("" if Jeu.avertissement_secours == "" else " (copie de secours impossible)")
+	for i in Sauvegardes.NB_MANUELS:
+		var r := Sauvegardes.resume(i + 1)
+		(_boutons_emplacements[i] as Button).text = Sauvegardes.ligne(r) + ("  *" if Sauvegardes.actif == i + 1 else "")
+	_menu.visible = false
+	_emplacements.visible = true
+	(_boutons_emplacements[clampi(Sauvegardes.emplacement_rapide() - 1, 0, Sauvegardes.NB_MANUELS - 1)] as Button).grab_focus.call_deferred()
+
+## Écrit la partie dans l'emplacement choisi, puis revient au menu.
+func _sauver_dans(emplacement: int) -> void:
+	_sauvegarder(emplacement)
+	_menu_principal()
+
+## Sauvegarde manuelle (emplacement en cours ou celui de F5 par défaut ; `emplacement` : 1 à 3 pour en imposer un).
+func _sauvegarder(emplacement := -1) -> void:
+	var j := _joueur()
+	if j != null and j.get("mort"):
+		_avis.text = "Impossible : vous êtes mort"
+		return
+	if emplacement < 0:
+		emplacement = Sauvegardes.emplacement_rapide()
+	if not monde.sauvegarder(emplacement):
+		_avis.text = "Sauvegarde impossible"
+		return
+	_avis.text = "Partie sauvegardée (%s)" % Sauvegardes.nom(emplacement).to_lower() + ("" if Jeu.avertissement_secours == "" else " - copie de secours impossible")
 
 ## Sauvegarde automatique en quittant la partie, sauf si le joueur est mort (on garderait une partie perdue).
 func _sauver_en_partant() -> void:
@@ -134,7 +196,10 @@ func _unhandled_input(e: InputEvent) -> void:
 	var bascule: bool = (e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_ESCAPE) \
 		or (e is InputEventJoypadButton and e.pressed and e.button_index == JOY_BUTTON_START)
 	if ouvert:
-		if bascule or (e.is_action_pressed("ui_cancel") and _menu.visible):
+		if _emplacements.visible and (bascule or e.is_action_pressed("ui_cancel")):
+			get_viewport().set_input_as_handled()
+			_menu_principal()   # Échap dans le choix d'un emplacement : retour au menu, pas à la partie
+		elif bascule or (e.is_action_pressed("ui_cancel") and _menu.visible):
 			get_viewport().set_input_as_handled()
 			fermer()
 		return
@@ -151,8 +216,14 @@ func _input(e: InputEvent) -> void:
 	if not ouvert or not (e is InputEventKey):
 		return
 	var k := e as InputEventKey
-	if k.physical_keycode in [KEY_TAB, KEY_E, KEY_F5, KEY_F9, KEY_P, KEY_T, KEY_V]:
+	if k.physical_keycode in [KEY_TAB, KEY_E, KEY_F5, KEY_F9, KEY_P, KEY_T, KEY_V] or _action_du_jeu(e):
 		get_viewport().set_input_as_handled()
+
+func _action_du_jeu(e: InputEvent) -> bool:
+	for a in ["menu", "interagir", "sauvegarde_rapide", "chargement_rapide", "torche", "vue", "inventaire", "competences", "quetes", "carte"]:
+		if e.is_action(a):
+			return true
+	return false
 
 # --- test automatique (outils/test_menus.sh : --test-titre=nouvelle|continuer [--test-titre-sortie=<dossier>]) -------------
 ## nouvelle : pause → captures (pause, options) → Sauvegarder → Quitter.  continuer : vérifie que la partie chargée est celle
@@ -182,6 +253,9 @@ func _test(etape: String) -> void:
 		return
 	print("TEST MENUS : monde chargé (%s), joueur en %s" % [etape, j.global_position])
 	if etape == "nouvelle":
+		for e_suppr: int in Sauvegardes.tous():   # fichiers de TEST d'un essai précédent : on repart de zéro (emplacement 1)
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(Sauvegardes.fichier(e_suppr)))
+		Sauvegardes.actif = 1
 		ouvrir()
 		await get_tree().create_timer(0.6).timeout
 		await _capture(sortie, "pause.png")

@@ -51,10 +51,12 @@ static func test_titre() -> String:
 
 const OPTIONS_DEFAUT := {
 	"affichage": {"plein_ecran": false, "champ_vision": 72.0, "reduire_mouvements": false, "detail_sorts": 2,
-		"balancement_arme": 1.0, "mouvement_tete": 1.0, "secousses": 1.0, "camera_coups": 1.0},   # réduire : tout plafonné au minimum (mal des transports, CameraCorps.facteurs) ; curseurs 0..1 : bras/arme (MouvementsPassifs), tête (balancement, saut, attaques), secousses (impacts, coups reçus), caméra des coups (la vue suit la lame : AccompagnementCoup, 0 = coupée) ; détail des sorts : 2 élevé (défaut), 1 moyen, 0 rétro (scripts/magie/couche_magie.gd)
+		"balancement_arme": 1.0, "mouvement_tete": 1.0, "secousses": 1.0, "camera_coups": 1.0,
+		"resolution": 0, "vsync": true, "limite_ips": 0, "ombres": 2},   # réduire : tout plafonné au minimum (mal des transports, CameraCorps.facteurs) ; curseurs 0..1 : bras/arme (MouvementsPassifs), tête (balancement, saut, attaques), secousses (impacts, coups reçus), caméra des coups (la vue suit la lame : AccompagnementCoup, 0 = coupée) ; détail des sorts : 2 élevé (défaut), 1 moyen, 0 rétro (scripts/magie/couche_magie.gd)
 	"son": {"general": 1.0, "musique": 0.8, "effets": 1.0},
 	"commandes": {"sensibilite": 1.0, "inverser_y": false},
-	"sauvegarde": {"dossier_secours": ""},   # "" = copie de secours désactivée
+	"sauvegarde": {"dossier_secours": "", "emplacement": 1},   # emplacement : dernier emplacement manuel (1 à 3) utilisé par F5 et « Sauvegarder »
+	"touches": {},   # rempli par Touches.options_defaut() (charger_options) : "<action>" et "<action>_2" = touches physiques   # "" = copie de secours désactivée
 	"combat": {"gore": 2, "arret_image": 1, "chiffres_degats": false},   # sang et gore : 2 complet (défaut), 1 réduit, 0 désactivé (scripts/combat/sang.gd) ; arrêt sur image des coups : 0 désactivé, 1 bref (défaut), 2 appuyé (scripts/effets.gd) ; chiffres de dégâts flottants : désactivés par défaut (scripts/combat/chiffres_degats.gd)
 }
 static var options := {}
@@ -67,6 +69,7 @@ static var champ_vision := 72.0
 
 static func charger_options() -> void:
 	options = OPTIONS_DEFAUT.duplicate(true)
+	options["touches"] = Touches.options_defaut()
 	var cfg := ConfigFile.new()
 	if cfg.load(FICHIER_OPTIONS) == OK:
 		for section: String in options:
@@ -84,18 +87,29 @@ static func option(section: String, cle: String) -> Variant:
 		charger_options()
 	return options[section][cle]
 
-static func regler(section: String, cle: String, valeur: Variant) -> void:
+static func regler(section: String, cle: String, valeur: Variant, ecrire := true) -> void:
 	if options.is_empty():
 		charger_options()
 	options[section][cle] = valeur
 	_copier_dans_statiques()
 	appliquer_son()
+	if ecrire:
+		ecrire_options()
+
+## Écrit options.cfg (fichier temporaire puis renommage : jamais d'options à moitié écrites).
+static func ecrire_options() -> void:
 	var cfg := ConfigFile.new()
 	cfg.load(FICHIER_OPTIONS)   # garde les clés inconnues (versions futures)
 	for s: String in options:
 		for c: String in options[s]:
 			cfg.set_value(s, c, options[s][c])
-	cfg.save(FICHIER_OPTIONS)
+	var tmp := FICHIER_OPTIONS + ".tmp"
+	if cfg.save(tmp) == OK:
+		if DirAccess.rename_absolute(tmp, FICHIER_OPTIONS) != OK:
+			DirAccess.remove_absolute(FICHIER_OPTIONS)
+			DirAccess.rename_absolute(tmp, FICHIER_OPTIONS)
+	else:
+		cfg.save(FICHIER_OPTIONS)
 
 static func _copier_dans_statiques() -> void:
 	sensibilite = clampf(float(options["commandes"]["sensibilite"]), 0.2, 3.0)

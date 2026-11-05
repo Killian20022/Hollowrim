@@ -24,7 +24,7 @@ func titre() -> String:
 
 func aide() -> Array:
 	if _attente() > 0:
-		return [["Gauche / Droite", "Choisir"], ["Entrée / A", "Graver le choix"]]
+		return [["Gauche / Droite", "Choisir"], ["Entrée", "Graver le choix"]]
 	return []
 
 func _init() -> void:

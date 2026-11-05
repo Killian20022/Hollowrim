@@ -4,7 +4,7 @@ extends CanvasLayer
 ## enluminé » (maquettes Desktop/Skyrim captures/maquettes_menu/A_parchemin). La COQUILLE dessine le livre, l'en-tête
 ## (« Voyageur · niveau N », poids du sac), les signets des onglets et le pied de page des touches ; chaque page est un
 ## OngletMenu (scripts/menu/onglet_*.gd) qui ne contient aucune règle de jeu.
-##   Ouverture : Tab (dernier onglet), I = Sac, K = Compétences, J = Quêtes, Retour (manette). Jeu en PAUSE, souris visible.
+##   Ouverture : Tab (dernier onglet), I = Sac, K = Compétences, J = Quêtes, M = Carte (touches réglables). Jeu en PAUSE, souris visible.
 ##   Onglets : Tab / Maj+Tab, LB / RB, clic sur un signet. Fermeture : Échap, B (manette), ou la touche de l'onglet affiché.
 ## Onglets du lot D (Compétences, Quêtes, Personnage) : chargés par leur chemin s'ils existent (fusion = simple branchement),
 ## sinon une page « à venir ». L'API des actions (équiper une main, boire, lâcher, raccourcis) est dans InventaireMains
@@ -23,8 +23,8 @@ const ONGLETS := [
 	{"id": "carte", "titre": "Carte", "script": "res://scripts/menu/onglet_carte.gd"},
 	{"id": "personnage", "titre": "Personnage", "script": "res://scripts/menu/onglet_personnage.gd"},
 ]
-## Touches (physiques) qui ouvrent directement un onglet ; Tab rouvre le dernier.
-const TOUCHES_ONGLETS := {KEY_I: "sac", KEY_K: "competences", KEY_J: "quetes", KEY_M: "carte"}
+## Actions (touches réglables : Touches) qui ouvrent directement un onglet ; Tab rouvre le dernier.
+const ACTIONS_ONGLETS := {"inventaire": "sac", "competences": "competences", "quetes": "quetes", "carte": "carte"}
 const DUREE_MESSAGE := 3.5
 const ROUGE_CUIR := Color("#f0806a")
 
@@ -51,11 +51,7 @@ var _souris := Input.MOUSE_MODE_CAPTURED
 func _ready() -> void:
 	layer = 45   # sous le menu pause (50)
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	if not InputMap.has_action("inventaire"):
-		InputMap.add_action("inventaire")
-		var e := InputEventKey.new()
-		e.physical_keycode = KEY_I
-		InputMap.action_add_event("inventaire", e)
+	Touches.installer()   # actions menu / inventaire / competences / quetes / carte
 	_police = Palette.police()
 	_gothique = MenuStyle.police_gothique(true)
 	_vue = Control.new()
@@ -225,13 +221,13 @@ func _unhandled_input(e: InputEvent) -> void:
 		return
 	var id := "-"
 	if e is InputEventKey and e.pressed and not e.echo:
-		var k := (e as InputEventKey).physical_keycode
-		if k == KEY_TAB:
+		if e.is_action_pressed("menu", false):
 			id = ""
-		elif TOUCHES_ONGLETS.has(k):
-			id = TOUCHES_ONGLETS[k]
-		elif e.is_action_pressed("inventaire"):
-			id = "sac"
+		else:
+			for action: String in ACTIONS_ONGLETS:
+				if e.is_action_pressed(action, false):
+					id = ACTIONS_ONGLETS[action]
+					break
 	elif e is InputEventJoypadButton and e.pressed and (e as InputEventJoypadButton).button_index == JOY_BUTTON_BACK:
 		id = ""
 	if id == "-" or not peut_ouvrir():
@@ -261,16 +257,15 @@ func _input(e: InputEvent) -> void:
 		vp.set_input_as_handled()
 		if k.echo:
 			return
-		match k.physical_keycode:
-			KEY_ESCAPE:
-				fermer()
-			KEY_TAB:
-				onglet_voisin(-1 if k.shift_pressed else 1)
-			_:
-				if TOUCHES_ONGLETS.has(k.physical_keycode):
-					basculer(TOUCHES_ONGLETS[k.physical_keycode])
-				elif e.is_action_pressed("inventaire"):
-					basculer("sac")
+		if k.physical_keycode == KEY_ESCAPE:
+			fermer()
+		elif e.is_action_pressed("menu", false):
+			onglet_voisin(-1 if k.shift_pressed else 1)
+		else:
+			for action: String in ACTIONS_ONGLETS:
+				if e.is_action_pressed(action, false):
+					basculer(ACTIONS_ONGLETS[action])
+					break
 	elif e is InputEventJoypadButton and (e as InputEventJoypadButton).pressed:
 		vp.set_input_as_handled()
 		match (e as InputEventJoypadButton).button_index:
@@ -361,7 +356,7 @@ func _dessiner() -> void:
 	var o := onglet_courant()
 	if o != null:
 		touches.append_array(o.aide())
-	for defaut: Array in [["Tab / RB", "Onglet"], ["Échap / B", "Fermer"]]:
+	for defaut: Array in [[Touches.libelle("menu"), "Onglet"], ["Échap", "Fermer"]]:
 		var cle := String(defaut[0]).get_slice(" ", 0)
 		if not touches.any(func(k: Array) -> bool: return String(k[0]).get_slice(" ", 0) == cle):
 			touches.append(defaut)

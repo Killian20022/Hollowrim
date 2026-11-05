@@ -63,12 +63,18 @@ var decouverte_active := false   # posé par monde.gd une fois la partie chargé
 var _decouverte_t := 0.0
 ## Aide des touches : [touche, action] ; affichée AIDE_DUREE s au début de la partie (demarrer()), puis seulement sur F1.
 const AIDE_DUREE := 60.0
+const OR_SOMBRE_OBJ := Color("#a8702a")
 ## Objectif de quête sous la boussole : discret, ravivé OBJECTIF_DUREE s quand il change (quetes.gd → objectif_change()).
 const OBJECTIF_DUREE := 4.0
 var _objectif_t := 0.0
-var aide_lignes: Array = [["ZQSD", "marcher"], ["Maj", "courir"], ["Espace", "sauter"], ["Clic gauche", "frapper"],
-	["Clic droit", "parer"], ["E", "agir"], ["Tab", "menu"], ["I", "sac"], ["1 - 0", "raccourcis"],
-	["T", "torche"], ["V", "vue"], ["Échap", "menu"]]
+var aide_lignes: Array = construire_aide()
+
+## Lignes de l'aide : les touches RÉELLES du joueur (Touches : suivent le remappage et la disposition du clavier).
+static func construire_aide() -> Array:
+	return [[Touches.libelle_deplacement(), "marcher"], [Touches.libelle("course"), "courir"], [Touches.libelle("saut"), "sauter"],
+		["Clic gauche", "frapper"], ["Clic droit", "parer"], [Touches.libelle("interagir"), "agir"], [Touches.libelle("menu"), "menu"],
+		[Touches.libelle("inventaire"), "sac"], ["1 - 0", "raccourcis"], [Touches.libelle("torche"), "torche"],
+		[Touches.libelle("vue"), "vue"], ["Échap", "pause"]]
 var aide_t := 0.0          # secondes d'affichage restantes (fondu sur la dernière)
 var aide_forcee := false   # F1
 ## Menu du personnage (MenuPersonnage, posé par lui-même) : `panneau_ouvert` lit son état ; l'écrire l'ouvre ou le ferme
@@ -176,7 +182,8 @@ func annonce(titre: String, sous_titre := "", couleur := OR) -> void:
 		_annonces.remove_at(1)
 
 func _unhandled_input(e: InputEvent) -> void:
-	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_F1:
+	if e.is_action_pressed("aide", false):
+		aide_lignes = construire_aide()   # touches modifiées depuis l'ouverture de l'aide
 		aide_forcee = not (aide_forcee or aide_t > 0.0)
 		aide_t = 0.0
 		get_viewport().set_input_as_handled()
@@ -274,8 +281,12 @@ func _draw() -> void:
 			var l := _police.get_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
 			var vif := clampf(_objectif_t, 0.0, 1.0)   # ravivé puis fondu vers la teinte discrète
 			var a := lerpf(0.55, 1.0, vif) * (1.0 - a_cible)
-			draw_string(_police, Vector2(roundf(cx - l * 0.5) + 1, 28), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(FOND, 0.85 * a))
-			draw_string(_police, Vector2(roundf(cx - l * 0.5), 27), texte, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(PARCHEMIN, a))
+			# cartouche sombre sous la ligne (liseré d'or fin) : lisible sur la neige comme sur le feuillage clair
+			var cart := Rect2(roundf(cx - l * 0.5) - 5.0, 18.0, ceilf(l) + 10.0, 13.0)
+			draw_rect(cart, Color(FOND, 0.62 * a))
+			draw_rect(Rect2(cart.position, Vector2(cart.size.x, 1)), Color(OR_SOMBRE_OBJ, 0.7 * a))
+			draw_rect(Rect2(cart.position + Vector2(0, cart.size.y - 1), Vector2(cart.size.x, 1)), Color(OR_SOMBRE_OBJ, 0.7 * a))
+			MenuStyle.texte_detoure(self, _police, Vector2(roundf(cx - l * 0.5), 27), texte, TAILLE_POLICE, PARCHEMIN, a, true)
 	_dessiner_annonce(cx)
 	_dessiner_aide()
 
@@ -346,7 +357,7 @@ func _dessiner_aide() -> void:
 		col = maxf(col, _police.get_string_size(l[0], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
 	for l: Array in aide_lignes:
 		larg = maxf(larg, col + 8.0 + _police.get_string_size(l[1], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
-	var pied := "F1 : masquer"
+	var pied := "%s : masquer" % Touches.libelle("aide")
 	larg = maxf(larg, _police.get_string_size(pied, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
 	var t := Vector2(ceilf(larg) + 28.0, 59.0 + 10.0 * aide_lignes.size())
 	var o := Vector2(floorf(size.x - t.x - 6.0), 36.0)
@@ -354,14 +365,24 @@ func _dessiner_aide() -> void:
 		a *= 1.0 - alpha_annonce()
 		if a <= 0.01:
 			return
-	_cadre_alpha(Rect2(o, t), a)
-	MenuStyle.texte_detoure(self, _gothique, o + Vector2(14, 27), "Commandes", MenuStyle.TITRE_GRAND, OR, a)
+	_page_alpha(Rect2(o, t), a)   # page de vélin dans un cadre de cuir, comme le menu du personnage
+	draw_string(_gothique, o + Vector2(14, 27), "Commandes", HORIZONTAL_ALIGNMENT_LEFT, -1, MenuStyle.TITRE_GRAND, Color(Parchemin.RUBRIQUE, a))
+	draw_rect(Rect2(o.x + 12.0, o.y + 31.0, t.x - 24.0, 1), Color(Parchemin.OR_TERNI, 0.8 * a))
 	var y := o.y + 42.0
 	for l: Array in aide_lignes:
-		MenuStyle.texte_detoure(self, _police, Vector2(o.x + 14.0, y), l[0], TAILLE_POLICE, OR, a)
-		MenuStyle.texte_detoure(self, _police, Vector2(o.x + 22.0 + col, y), l[1], TAILLE_POLICE, PARCHEMIN, a)
+		draw_string(_police, Vector2(o.x + 14.0, y), l[0], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(Parchemin.RUBRIQUE, a))
+		draw_string(_police, Vector2(o.x + 22.0 + col, y), l[1], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(Parchemin.ENCRE, a))
 		y += 10.0
-	MenuStyle.texte_detoure(self, _police, Vector2(o.x + 14.0, y + 4.0), pied, TAILLE_POLICE, MenuStyle.GRIS, a)
+	draw_string(_police, Vector2(o.x + 14.0, y + 4.0), pied, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE, Color(Parchemin.PALE, a))
+
+## Page de vélin cerclée de cuir et d'un filet d'or (encart « Commandes »), en fondu.
+func _page_alpha(r: Rect2, a: float) -> void:
+	draw_rect(r, Color(Parchemin.CUIR[0], 0.95 * a))
+	draw_rect(r.grow(-1.0), Color(Parchemin.CUIR[1], a))
+	draw_rect(r.grow(-3.0), Color(Parchemin.OR_TERNI, a))
+	draw_rect(r.grow(-4.0), Color(Parchemin.VELIN[5], a))
+	draw_rect(Rect2(r.position + Vector2(4, 4), Vector2(r.size.x - 8.0, 1)), Color(Parchemin.VELIN[3], a))
+	draw_rect(Rect2(r.position + Vector2(4, r.size.y - 5.0), Vector2(r.size.x - 8.0, 1)), Color(Parchemin.VELIN[3], a))
 
 ## Cadre en fondu (fin de l'aide) : même boîte, modulée.
 func _cadre_alpha(r: Rect2, a: float) -> void:

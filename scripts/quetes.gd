@@ -6,6 +6,8 @@ extends Node
 ## d'Eirik avant qu'Ylva ne la demande), sauf les conversations.
 
 signal change
+## Une quête vient d'être menée à son terme (récompenses données) : autosauvegarde (Monde).
+signal quete_terminee(id: String)
 ## Chaque événement signalé (hors "") : les ennemis en attente (reveil_evt) s'y abonnent.
 signal evenement(evt: String)
 
@@ -138,6 +140,7 @@ func _completer(q: Dictionary, i: int) -> void:
 			joueur.inventaire.ajouter(id, int(r["objets"][id]))
 			hud.avis("+ " + joueur.inventaire.nom(id))
 		Sons.jouer(self, ["sword-unsheathe"], -6.0)
+		quete_terminee.emit(String(q["id"]))
 	elif hud.has_method("objectif_change"):
 		hud.objectif_change()   # l'objectif s'affiche sous la boussole (hud.gd), plus en double en haut à gauche
 	else:

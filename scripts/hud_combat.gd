@@ -59,6 +59,9 @@ const PAIRE_H := 20
 const PAIRE_ECART := 2
 const DUREE_RUBAN := 2.2   # s d'affichage du ruban après un changement de raccourci (style a)
 const MARGE := 16.0
+const LARG_BARRE := 120    # barres de vie, mana et vigueur du joueur
+const H_BARRE := 9
+const PAS_BARRE := 13.0
 const CASE_L := 34        # case de raccourci : 1 px de cadre + icône main gauche 16 + icône main droite 16
 const CASE_H := 29        # + numéro de touche (3x5 agrandi x2) dessous
 const ECART := 1
@@ -322,10 +325,20 @@ func _draw() -> void:
 	nb_dessins += 1
 	var bas := size.y - 14.0
 	# --- barres empilées en bas à gauche ---
-	_ligne_barre(Vector2(MARGE, bas - 20), _v.vie / _v.vie_max, VIE, _a_vie)
-	_ligne_barre(Vector2(MARGE, bas - 10), _v.mana / _v.mana_max, MANA, _a_mana)
+	# pile de trois barres 120x9 (pas de 13 px) sur un fond sombre : lisibles sur la neige, le feuillage et la nuit
+	var fond := Rect2(MARGE - 5.0, bas - 2.0 * PAS_BARRE - 4.0, 12.0 + LARG_BARRE + 10.0, 2.0 * PAS_BARRE + H_BARRE + 8.0)
+	if _a_vie > 0.02:
+		draw_rect(fond, Color(CUIR.NOIR, 0.42 * _a_vie))
+		draw_rect(Rect2(fond.position, Vector2(fond.size.x, 1)), Color(CUIR.OR_TERNI, 0.55 * _a_vie))
+		draw_rect(Rect2(fond.position + Vector2(0, fond.size.y - 1), Vector2(fond.size.x, 1)), Color(CUIR.OR_TERNI, 0.55 * _a_vie))
+	_ligne_barre(Vector2(MARGE, bas - 2.0 * PAS_BARRE), _v.vie / _v.vie_max, VIE, _a_vie)
+	_ligne_barre(Vector2(MARGE, bas - PAS_BARRE), _v.mana / _v.mana_max, MANA, _a_mana)
 	_ligne_barre(Vector2(MARGE, bas), _v.vig / _v.vig_max, ENDURANCE, _a_end)
-	_statuts(Vector2(MARGE + 1, bas - 34))
+	# vie basse (moins du quart) : liseré rouge qui pulse autour de la pile
+	if _a_vie > 0.02 and _v.vie / _v.vie_max < 0.25:
+		var p := 0.45 + 0.4 * sin(_horloge * 6.0)
+		draw_rect(fond, Color(ROUGE_MANQUE, 0.9 * p * _a_vie), false, 1.0)
+	_statuts(Vector2(MARGE + 1, bas - 2.0 * PAS_BARRE - 14.0))
 	# --- raccourcis au centre, mains de part et d'autre ---
 	match CUIR.style():
 		"a":
@@ -364,8 +377,8 @@ func _ligne_barre(pos: Vector2, ratio: float, couleurs: Array, alpha: float) -> 
 	if alpha < 0.02:
 		return
 	if CUIR.style() != "ancienne":   # cuir enluminé : gemme sertie d'or + jauge de cuir à filet d'or
-		CUIR.gemme(self, pos + Vector2(4, 3), couleurs, alpha)
-		CUIR.jauge(self, pos + Vector2(11, 0), ratio, couleurs, alpha)
+		CUIR.gemme(self, pos + Vector2(4, 4), couleurs, alpha)
+		CUIR.jauge(self, pos + Vector2(12, 0), ratio, couleurs, alpha, LARG_BARRE, H_BARRE)
 		return
 	var c := pos + Vector2(4, 3)   # centre du losange (la barre fait 7 px : centre en y+3)
 	for dy in range(-4, 5):
@@ -684,6 +697,7 @@ func _dessin_ruban() -> void:
 	var d := smoothstep(0.0, 1.0, _deploi)
 	var xc := cx - floorf(PAIRE_L * 0.5)
 	_cartouche(Vector2(xc, y), _a_barre * (1.0 - d))
+	_voisines(xc, y, _a_barre * (1.0 - d))
 	if d < 0.01:
 		return
 	var x0 := cx - floorf(_larg_ruban() * 0.5)
@@ -695,6 +709,19 @@ func _dessin_ruban() -> void:
 				continue
 			var xf := x0 + i * (PAIRE_L + PAIRE_ECART)
 			_case_paire(Vector2(roundf(lerpf(xc, xf, d)), y), _preset(i), actif, a)
+
+## Au repos, le cartouche des mains tenues est flanqué des deux raccourcis voisins de chaque côté (5 cases en tout, voisines
+## estompées) : on voit ce que Précédent / Suivant donneront sans attendre le ruban. Les jauges de charge du cartouche (5 px
+## de chaque côté) gardent leur place.
+func _voisines(xc: float, y: float, alpha: float) -> void:
+	if alpha < 0.02:
+		return
+	var c: int = _v.choisi if _v.choisi >= 0 else _dernier_choisi
+	for rang in [2, 1]:
+		for cote in [-1, 1]:
+			var i: int = posmod(c + cote * rang, NB)
+			var x: float = xc + cote * (rang * (PAIRE_L + PAIRE_ECART) + 9.0)
+			_case_paire(Vector2(roundf(x), y), _preset(i), false, alpha * 0.6)
 
 ## Style b : les 10 cases toujours visibles (estompées au repos), jauges des mains aux deux bouts.
 func _dessin_rangee() -> void:

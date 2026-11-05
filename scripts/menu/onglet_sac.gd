@@ -362,13 +362,19 @@ func _draw() -> void:
 		var nom := String(e["nom"])
 		var suffixe := "  x%d" % int(e["n"]) if int(e["n"]) > 1 else ""
 		var lmax := w - 25.0 - 62.0 - (8.0 if _c().est_favori(id) else 0.0)
+		# nom trop long pour sa colonne : la ligne CHOISIE le garde en entier (poids et valeur sont dans la fiche à droite),
+		# les autres sont abrégées par « … »
+		var etale: bool = i == _sel and largeur(nom + suffixe) > lmax
+		if etale:
+			lmax = w - 25.0 - 4.0 - (8.0 if _c().est_favori(id) else 0.0)
 		var ln := texte(x + 25.0, ly + 4.0, nom, Parchemin.ENCRE, false, lmax - largeur(suffixe))
 		if suffixe != "":
 			texte(x + 25.0 + ln, ly + 4.0, suffixe, Parchemin.PALE)
 		if _c().est_favori(id):
 			MenuStyle.etoile(self, x + 25.0 + ln + largeur(suffixe) + 3.0, ly + 5.0)
-		texte(x + w - 30.0, ly + 4.0, "-" if e["hors_sac"] else MenuPersonnage.poids_texte(float(e["poids"]) * int(e["n"])), Parchemin.ENCRE, true)
-		texte(x + w, ly + 4.0, "-" if e["hors_sac"] else str(int(e["valeur"])), Parchemin.RUBRIQUE if i == _sel else Parchemin.OR_TERNI, true)
+		if not etale:
+			texte(x + w - 30.0, ly + 4.0, "-" if e["hors_sac"] else MenuPersonnage.poids_texte(float(e["poids"]) * int(e["n"])), Parchemin.ENCRE, true)
+			texte(x + w, ly + 4.0, "-" if e["hors_sac"] else str(int(e["valeur"])), Parchemin.RUBRIQUE if i == _sel else Parchemin.OR_TERNI, true)
 		Parchemin.regle(self, x, ly + H_LIGNE - 1.0, w)
 	if lignes.size() > _rangs:   # repère de défilement dans la marge du registre
 		var hh := g.end.y - 16.0 - y0

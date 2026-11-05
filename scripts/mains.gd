@@ -742,7 +742,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			entrees.appuyer()
 		else:
 			entrees.relacher()
-	elif e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_T:
+	elif e.is_action_pressed("torche", false):
 		equipement.basculer_gauche()
 	elif e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_F3:
 		basculer_debogage(not debug_combat)
