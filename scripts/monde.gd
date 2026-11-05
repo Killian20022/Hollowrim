@@ -1155,8 +1155,31 @@ const BETE := preload("res://scripts/bete_quat.gd")
 func _animaux_anciens() -> bool:
 	return _arguments().has("animaux-anciens")
 
+## Faune vivante (scripts/faune.gd) : bêtes sauvages par biome et par heure, domestiques qui rentrent le soir et dorment, husky suiveur.
+## `-- --faune-fixe` : retour aux positions fixes BETES / DOMESTIQUES ci-dessus (comparaison avant/après).
+var faune: Faune = null
+
+func _faune_vivante() -> void:
+	faune = Faune.new()
+	faune.monde = self
+	faune.joueur = joueur
+	faune.cycle = cycle
+	faune.registre = draugrs
+	faune.complet = _paisible()
+	faune.hauteur_de = hauteur
+	faune.fabrique = func(espece: String, pos: Vector3, lacet: float, options: Dictionary) -> Node:
+		return creer_ennemi(BETE, pos, lacet, options)
+	faune.accepte = func(x: float, z: float) -> bool:
+		return not Vegetation.exclu_decor(x, z) and Vegetation.pente(self, x, z) < 0.45
+	add_child(faune)
+	faune.demarrer()
+
 func _betes() -> void:
 	if PersosQuat.anciens() or _arguments().has("sans-betes"):
+		return
+	if not _arguments().has("faune-fixe"):
+		_faune_vivante()
+		await _souffle()
 		return
 	for b: Array in BETES:
 		var x: float = b[2]
@@ -1329,6 +1352,7 @@ func sauvegarder() -> void:
 		"magie": joueur.mains.magie.exporter() if joueur.mains.get("magie") != null else {},   # mains, sorts connus, mana (docs/MAGIE.md)
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
+		"faune": faune.exporter() if faune != null else {},   # heures de jeu et territoires dépeuplés (Faune : repeuplement lent)
 		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
 		"marchands": Marchand.exporter(),  # lot L8 : heures de jeu écoulées, stock et bourse de chaque marchand (docs/BUTIN.md §9)
 		"lieux_vus": hud.lieux_vus.keys(),   # lot L7 : lieux déjà annoncés (« Lieu découvert »)
@@ -1404,6 +1428,8 @@ func charger() -> void:
 		if draugrs.has(id):
 			draugrs[id].queue_free()
 			draugrs.erase(id)
+	if faune != null:
+		faune.importer(d.get("faune", {}))
 	for nom in d.get("lieux_vus", []):
 		hud.lieux_vus[String(nom)] = true
 	var parles: Array = d.get("villageois_parles", [])
@@ -1736,6 +1762,8 @@ func _lot_captures(fichier: String) -> void:
 				joueur.tete.rotation.x = deg_to_rad(c[3]) if c.size() > 3 else 0.0
 				joueur.velocity = Vector3.ZERO
 				_brume_locale(0.0, true)
+				if faune != null:
+					faune.actualiser()   # la faune de la nouvelle heure et du nouveau lieu (captures)
 			elif type == "pilote":
 				# guerrier pilote : caméra à c[0] m, azimut c[1]° (0 = de face), visant c[2] m au-dessus de ses pieds (1,0 par défaut)
 				if pilote == null:
