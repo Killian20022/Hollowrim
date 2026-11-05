@@ -2,7 +2,6 @@
   "village": "Skarnholt",
   "note": "Gardes du village (scripts/gardes_village.gd). Coordonnées monde (x est, z sud). type : poste (pos, cap en degrés, 0 = vers +Z/sud), ronde (route, boucle), vigie (beffroi de la tour). Haldor (data/villageois.json, id garde) tient la porte SO avec garde_so.",
   "interpellations": [
-    "Les mains loin de ta lame, voyageur.",
     "Skarnholt dort tranquille tant qu’on veille.",
     "Encore un qui marche sans casque. Ta tête, ton affaire.",
     "Si tu vois un mort qui marche, crie. Fort.",

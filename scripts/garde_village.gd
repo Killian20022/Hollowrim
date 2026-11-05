@@ -460,7 +460,8 @@ func _interactions(dist: float, dt: float) -> void:
 	if dist < DIST_INTERPELLE and _delai_interpelle <= 0.0 and not _en_conversation and etat != ALERTE \
 			and gestion != null and gestion.peut_interpeller():
 		_delai_interpelle = randf_range(45.0, 90.0)
-		dialogue.dire_au_passage(nom_affiche(), gestion.replique("nuit" if gestion.de_nuit() and randf() < 0.6 else "interpellations"))
+		var froid := Disposition.interpellation(self)    # réputation, prime : un garde méfiant le dit (scripts/disposition.gd)
+		dialogue.dire_au_passage(nom_affiche(), froid if froid != "" else gestion.replique("nuit" if gestion.de_nuit() and randf() < 0.6 else "interpellations"))
 	var veut := false
 	var cam: Camera3D = joueur.camera
 	if dist < DIST_PARLER and not _en_conversation and cam != null:
