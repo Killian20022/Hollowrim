@@ -29,6 +29,8 @@ var ecole := "glace"
 var forme := "eclat"
 var phase: int = Phase.REPOS
 var intensite := 1.0
+## Échelle de la charge (ChargeSort.taille ; 1 = tir normal) : multiplie intensite_k (taille de tout l'effet).
+var taille := 1.0
 var double := false
 ## Paumes d'origine (1 ou 2) : nœuds suivis ; point de fusion de la double magie (monde) ou Vector3.INF.
 var mains: Array[Node3D] = []
@@ -75,11 +77,13 @@ static func creer(ecole_: String, forme_ := "") -> LancerEcole:
 
 ## Le visuel d'un PROJECTILE de sort (remplace GestionMagie.projectile_visuel pour ces écoles). Pilotage automatique par
 ## ProjectileSort (`demarrer` au tir, `maintenir` à chaque image, `terminer` à l'impact). Détecte seul la double magie.
-static func projectile(ecole_: String, forme_: String) -> Node3D:
+## `taille_` : échelle de la charge (ChargeSort.taille) : tout le sort lancé grandit (cristaux, fumée, arcs, runes).
+static func projectile(ecole_: String, forme_: String, taille_ := 1.0) -> Node3D:
 	var n := creer(ecole_, forme_)
 	if n == null:
 		return null
 	n.suit_parent = true
+	n.taille = taille_
 	var g := GestionMagie.obtenir()
 	n.double = g != null and bool(g._double.get(ecole_, false))
 	return n
@@ -312,7 +316,7 @@ func _process(dt: float) -> void:
 # ---------------------------------------------------------------- aides
 
 func intensite_k() -> float:
-	return lerpf(0.85, 1.15, clampf(intensite, 0.0, 1.5) / 1.5)
+	return lerpf(0.85, 1.15, clampf(intensite, 0.0, 1.5) / 1.5) * taille
 
 ## Progression 0..1 de la naissance (lissée).
 func naiss() -> float:
@@ -451,11 +455,11 @@ func le_long(f: Callable, pas := PAS_SEMIS) -> void:
 	for k in n:
 		f.call(_prec.lerp(tete, float(k + 1) / n))
 
-## Lumière de la tête (pool de GestionMagie).
+## Lumière de la tête (pool de GestionMagie) ; plus forte pour un sort chargé (`taille`).
 func lumiere(couleur: Color, energie: float, portee := 5.0) -> void:
 	var g := GestionMagie.obtenir()
 	if g != null:
-		g.lumiere("lancer%d" % get_instance_id(), tete, couleur, energie, portee, 3.0)
+		g.lumiere("lancer%d" % get_instance_id(), tete, couleur, energie * taille, portee * sqrt(maxf(taille, 0.1)), 3.0)
 
 ## Position d'une paume (monde), ou `repli` si elle a disparu.
 ## En double magie, c'est la SOURCE (paume + TransitionSort.decalage : là où le noyau de la main a glissé vers le point de fusion),

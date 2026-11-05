@@ -1,6 +1,7 @@
 extends SceneTree
 ## Écrit data/sorts/<id>.tres depuis la table ci-dessous (valeurs de départ, docs/MAGIE.md). Les .tres sont ensuite la
-## source : relancer ce script ÉCRASE les réglages faits à la main.
+## source : relancer ce script ÉCRASE les réglages faits à la main. Projectiles chargés (type CHARGE + PROJECTILE) : temps de
+## charge et parts tap / plein communs, data/magie/charge_sorts.json (ChargeSort) ; `degats` / `cout` = pleine charge.
 ##   godot --headless --path . --script res://outils/generer_sorts.gd
 
 const T := DonneesSort.Type
@@ -13,10 +14,10 @@ func _init() -> void:
 			"degats": 20.0, "type_degats": "feu", "statut": "brulure", "duree_statut": 3.0, "puissance_statut": 4.0, "stagger": 7.0,
 			"portee": 5.5, "largeur": 0.9, "seuil_interruption": 10.0, "traverse": 3, "description": "Flammes continues à courte portée ; enflamme.",
 			"double": {"degats": 2.0, "cout": 2.2, "largeur": 1.8, "portee": 1.25, "puissance_statut": 1.5, "duree_statut": 1.3, "stagger": 1.6}},
-		{"id": "boule_feu", "nom": "Boule de feu", "ecole": "feu", "type": T.CHARGE, "portee_mode": P.PROJECTILE, "cout": 24.0, "temps_charge": 0.8,
-			"recuperation": 0.35, "recharge": 0.5, "degats": 34.0, "degats_charge_min": 0.55, "type_degats": "feu", "statut": "brulure",
+		{"id": "boule_feu", "nom": "Boule de feu", "ecole": "feu", "type": T.CHARGE, "portee_mode": P.PROJECTILE, "cout": 28.0,
+			"recuperation": 0.35, "recharge": 0.5, "degats": 30.0, "type_degats": "feu", "statut": "brulure",
 			"duree_statut": 3.0, "puissance_statut": 4.0, "stagger": 22.0, "rayon": 2.2, "vitesse": 24.0, "forme": "boule", "profil": "poing",
-			"description": "Maintenir pour charger ; explose à l'impact.",
+			"description": "Maintenir pour charger (×2 au maximum) ; explose à l'impact.",
 			"double": {"degats": 2.2, "cout": 2.4, "rayon": 1.6, "stagger": 1.8, "vitesse": 1.1, "duree_statut": 1.4}},
 		{"id": "explosion_incendiaire", "nom": "Explosion incendiaire", "ecole": "feu", "type": T.ZONE, "portee_mode": P.ZONE_VISEE, "cout": 42.0,
 			"cout_charge_min": 1.0, "incantation": 0.2, "temps_charge": 1.0, "recuperation": 0.5, "recharge": 4.0, "degats": 38.0,
@@ -24,15 +25,15 @@ func _init() -> void:
 			"profil": "levee", "description": "Embrase le sol au point visé (charger pour plus de force).",
 			"double": {"degats": 2.0, "cout": 2.3, "rayon": 1.5, "duree_statut": 1.5, "stagger": 1.5}},
 		# --- GLACE : contrôle, lenteur, protection
-		{"id": "eclat_glace", "nom": "Éclat de glace", "ecole": "glace", "type": T.RAPIDE, "portee_mode": P.PROJECTILE, "cout": 8.0,
-			"recuperation": 0.22, "recharge": 0.3, "degats": 8.0, "type_degats": "glace", "statut": "gel", "duree_statut": 2.5,
+		{"id": "eclat_glace", "nom": "Éclat de glace", "ecole": "glace", "type": T.CHARGE, "portee_mode": P.PROJECTILE, "cout": 16.0,
+			"recuperation": 0.22, "recharge": 0.3, "degats": 12.0, "type_degats": "glace", "statut": "gel", "duree_statut": 2.5,
 			"puissance_statut": 0.25, "stagger": 5.0, "vitesse": 34.0, "forme": "eclat", "nombre": 3, "ecart": 4.0,
-			"description": "Trois éclats rapides ; ralentit.",
+			"description": "Trois éclats ; maintenir pour charger (×2 au maximum) ; ralentit.",
 			"double": {"degats": 1.6, "cout": 2.2, "nombre_plus": 3, "puissance_statut": 1.6, "duree_statut": 1.4, "stagger": 1.5}},
-		{"id": "lance_givre", "nom": "Lance de givre", "ecole": "glace", "type": T.CHARGE, "portee_mode": P.PROJECTILE, "cout": 26.0, "temps_charge": 0.9,
-			"recuperation": 0.4, "recharge": 0.8, "degats": 40.0, "type_degats": "glace", "statut": "gel", "duree_statut": 3.0,
+		{"id": "lance_givre", "nom": "Lance de givre", "ecole": "glace", "type": T.CHARGE, "portee_mode": P.PROJECTILE, "cout": 30.0,
+			"recuperation": 0.4, "recharge": 0.8, "degats": 44.0, "type_degats": "glace", "statut": "gel", "duree_statut": 3.0,
 			"puissance_statut": 0.45, "stagger": 26.0, "vitesse": 30.0, "forme": "lance", "traverse": 1, "profil": "poing",
-			"description": "Maintenir pour charger ; transperce une cible.",
+			"description": "Maintenir pour charger (×2 au maximum) ; transperce une cible.",
 			"double": {"degats": 2.1, "cout": 2.4, "traverse_plus": 2, "nombre_plus": 2, "ecart": 1.0, "puissance_statut": 1.5, "duree_statut": 1.4, "stagger": 1.6}},
 		{"id": "souffle_givre", "nom": "Souffle de givre", "ecole": "glace", "type": T.CANALISE, "portee_mode": P.JET, "cout_par_seconde": 12.0,
 			"degats": 16.0, "type_degats": "glace", "statut": "gel", "duree_statut": 2.0, "puissance_statut": 0.35, "stagger": 6.0,
@@ -65,9 +66,9 @@ func _init() -> void:
 			"description": "Champ d'éclairs persistant au point visé.",
 			"double": {"degats": 1.8, "cout": 2.2, "rayon": 1.4, "duree_zone": 1.3}},
 		# --- TÉNÈBRES : vie, corruption, manipulation
-		{"id": "trait_ombre", "nom": "Trait d'ombre", "ecole": "tenebres", "type": T.RAPIDE, "portee_mode": P.PROJECTILE, "cout": 10.0,
-			"recuperation": 0.25, "recharge": 0.35, "degats": 15.0, "type_degats": "tenebres", "statut": "corruption", "duree_statut": 5.0,
-			"puissance_statut": 0.15, "stagger": 8.0, "vitesse": 30.0, "forme": "trait", "description": "Trait rapide qui corrompt.",
+		{"id": "trait_ombre", "nom": "Trait d'ombre", "ecole": "tenebres", "type": T.CHARGE, "portee_mode": P.PROJECTILE, "cout": 18.0,
+			"recuperation": 0.25, "recharge": 0.35, "degats": 40.0, "type_degats": "tenebres", "statut": "corruption", "duree_statut": 5.0,
+			"puissance_statut": 0.15, "stagger": 8.0, "vitesse": 30.0, "forme": "trait", "description": "Trait qui corrompt ; maintenir pour charger (×2 au maximum).",
 			"double": {"degats": 2.1, "cout": 2.3, "duree_statut": 1.6, "puissance_statut": 1.5, "stagger": 1.5}},
 		{"id": "drain_vie", "nom": "Drain de vie", "ecole": "tenebres", "type": T.CANALISE, "portee_mode": P.JET, "cout_par_seconde": 11.0,
 			"degats": 13.0, "type_degats": "tenebres", "statut": "corruption", "duree_statut": 3.0, "puissance_statut": 0.1, "drain": 0.6,

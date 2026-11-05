@@ -28,6 +28,9 @@ const VOL_CHARGE_MAX := -9.0
 const VOL_JET := -3.0
 ## Décharge des sorts à charge (forme du sort -> fichier) : orage runique (éclairs de Force).
 const DECHARGES := {"orage": "magie/electricite_decharge"}
+## Charge pleine (ChargeSort) : « verrou » grave et chaud, joué une fois ; hauteur par école.
+const SON_PLEINE := "magie/charge_pleine"
+const HAUTEUR_PLEINE := {"feu": 0.92, "glace": 1.12, "electricite": 1.04, "tenebres": 0.78, "soin": 1.2, "protection": 1.0}
 const HAUTEUR_DOUBLE := {"feu": 0.85, "glace": 1.15, "electricite": 1.0, "tenebres": 0.7, "soin": 1.2, "protection": 0.95}
 
 ## Compteurs d'appels (tests) ; `joues` = lectures réellement lancées ; `sync` = flux chargés en synchrone (doit rester 0 après precharger()).
@@ -79,6 +82,7 @@ static func tous_les_noms() -> Array:
 	l.append("magie/double")
 	l.append_array(DECHARGES.values())
 	l.append("magie/rayon_neant_lancer")
+	l.append(SON_PLEINE)
 	return l
 
 static func _chemin(nom: String) -> String:
@@ -157,6 +161,12 @@ static func lancement(ecole: String, pos: Vector3, k := 1.0) -> void:
 static func rayon_neant(pos: Vector3, force: float) -> void:
 	_compter("rayon_neant")
 	_coup("magie/rayon_neant_lancer", pos, VOL_LANCER + 2.0 + 3.0 * clampf(force - 1.0, -0.6, 0.0), randf_range(0.97, 1.03), "rayon_neant", 0.3)
+
+## Charge pleine atteinte (EffetsMagie.charge_pleine) : une fois, à la main.
+static func charge_pleine(ecole: String, pos: Vector3) -> void:
+	_compter("charge_pleine")
+	var vol := ChargeSort.reglage("volume_son_plein", -3.0)
+	_coup(SON_PLEINE, pos, vol, float(HAUTEUR_PLEINE.get(ecole_sure(ecole), 1.0)) * randf_range(0.98, 1.02), "charge_pleine", 0.2)
 
 static func impact(ecole: String, pos: Vector3, force: float) -> void:
 	_compter("impact")

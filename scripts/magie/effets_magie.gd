@@ -92,6 +92,22 @@ static func aura_main(main: Node3D, ecole: String, intensite: float) -> void:
 		return
 	_g().aura_main(main, ecole, intensite)
 
+## Couleur franche de chaque école pour le signal « charge pleine » (lumière brève de la main).
+const COULEUR_PLEINE := {"feu": Color(1.0, 0.55, 0.15), "glace": Color(0.5, 0.78, 1.0), "electricite": Color(0.6, 0.6, 1.0),
+	"tenebres": Color(0.62, 0.25, 1.0), "soin": Color(1.0, 0.85, 0.4), "protection": Color(0.7, 0.85, 1.0)}
+
+## Charge PLEINE atteinte (sorts qui se chargent, ChargeSort) : appelé UNE fois au maximum. Son « verrou » de la charge et
+## éclat bref de lumière dans la main ; ensuite l'aura pulse par paliers (intensité donnée par MainSort._intensite).
+static func charge_pleine(main: Node3D, ecole: String) -> void:
+	_compter("charge_pleine")
+	if main == null or not is_instance_valid(main):
+		return
+	SonsMagie.charge_pleine(ecole, main.global_position)
+	if muet:
+		return
+	var c: Color = COULEUR_PLEINE.get(ecole, COULEUR_PLEINE["feu"])
+	_g().lumiere("charge_pleine%d" % main.get_instance_id(), main.global_position, c, 3.2, 3.5, 4.0, 0.22)
+
 ## Sort canalisé : jet de flammes, souffle de givre, arc électrique ramifié, faisceau de drain (ténèbres), flux doré
 ## (soin), bouclier runique devant la main (protection). À appeler CHAQUE IMAGE tant que `actif` ; s'éteint aussi seul
 ## 0,2 s après le dernier appel. Part de `origine` (suivie), vers `direction`, sur `portee` m, `largeur` m au bout.
@@ -107,15 +123,16 @@ static func jet(ecole: String, origine: Node3D, direction: Vector3, portee: floa
 ## Visuel d'un projectile (formes : "boule", "eclat", "lance", "trait", "orbe"). La logique l'ajoute à la scène, le
 ## déplace et le libère (queue_free) à l'impact ; la traînée et la lumière sont gérées ici (elles s'éteignent seules).
 ## Le visuel s'oriente seul dans le sens du déplacement.
-static func projectile_visuel(ecole: String, forme: String) -> Node3D:
+## `taille` : échelle de la charge (ChargeSort.taille ; 1 = tir normal, ~0,8 au tap, ~1,5 à pleine charge).
+static func projectile_visuel(ecole: String, forme: String, taille := 1.0) -> Node3D:
 	_compter("projectile_visuel")
 	if muet:
 		return Node3D.new()
 	# glace, électricité, ténèbres : le sort lancé NAÎT de l'effet au repos (scripts/magie/lancer_ecole.gd)
-	var lancer := LancerEcole.projectile(ecole, forme)
+	var lancer := LancerEcole.projectile(ecole, forme, taille)
 	if lancer != null:
 		return lancer
-	return _g().projectile_visuel(ecole, forme)
+	return _g().projectile_visuel(ecole, forme, taille)
 
 ## Impact : explosion de feu, éclats de glace, onde électrique, éruption obscure, éclat doré, onde runique.
 ## `force` ~1 (0,3 à 3) règle taille et densité.

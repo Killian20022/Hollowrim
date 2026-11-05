@@ -413,6 +413,9 @@ func _physics_process(dt: float) -> void:
 		vitesse *= LENTEUR_SURCHARGE
 	if mains.bloque:
 		vitesse *= 0.5
+	var magie_m: Variant = mains.get("magie")
+	if magie_m != null:
+		vitesse *= magie_m.facteur_vitesse()   # sort qui se charge : on avance plus lentement (ChargeSort)
 	if lenteur > 0.0:
 		lenteur -= dt
 		vitesse *= lenteur_facteur
