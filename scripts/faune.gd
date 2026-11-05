@@ -377,7 +377,7 @@ func _domestiques(h: float, p: Vector3) -> void:
 	var v: Dictionary = fiche["village"]
 	var dv_joueur := Vector2(p.x - float(v["x"]), p.z - float(v["z"])).length()
 	for e: Dictionary in domestiques:
-		var b: Node = e["bete"]
+		var b = e["bete"]   # non typé : la bête peut avoir été libérée (is_instance_valid juste après)
 		if not is_instance_valid(b) or not b.vivant():
 			continue
 		var d: Dictionary = e["def"]

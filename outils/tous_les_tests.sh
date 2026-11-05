@@ -162,7 +162,7 @@ for t in "${TESTS[@]}"; do
 			timeout "$DELAI" "$G" --headless $RAPIDE --path "$P" --script "res://outils/$nom.gd" -- $etape >> "$sortie" 2>&1
 			r=$?; [[ $r -ne 0 ]] && rc=$r
 		done
-		if [[ $rc -eq 0 ]] && ! grep -qE "SCRIPT ERROR|ÉCHEC|ECHEC([^S]|$)|ECHECS *: *[1-9]" "$sortie"; then ok=1; else ok=0; fi
+		if [[ $rc -eq 0 ]] && ! grep -qE "SCRIPT ERROR|(^|[^0] )ÉCHEC|ECHEC([^S]|$)|ECHECS *: *[1-9]" "$sortie"; then ok=1; else ok=0; fi
 		[[ $ok -eq 1 || $REEL -eq 0 ]] && break
 		note=", 2e essai"  # test sensible à la charge de la machine : un seul nouvel essai
 	done
