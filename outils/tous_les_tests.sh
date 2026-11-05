@@ -144,6 +144,11 @@ TESTS=(
 	"test_onglets_rpg|--nouvelle"   # RPG lot D : onglets Compétences / Personnage / Quêtes (OngletMenu, coquille d'essai), arbre lu au mieux, choix d'attribut, annonce de niveau + gains de compétence discrets (EcranNiveau)
 	"test_stockage|--nouvelle"   # RPG lot E : coffre loué chez Grima (fenêtre coffre ↔ sac, quête refusée), achat de la maison, râtelier, forge +1/+2/+3, Sigrún, marchand (catégories, est_quete), sauvegarde
 	"test_onglet_carte|--nouvelle"   # onglet Carte (rpg/carte) : registre Lieux (positions, découverte, cibles de quête), maquette 3D du terrain, zoom, déplacement, centrage, touches de la coquille
+	"test_rythme_joueur|--nouvelle"   # retours exe 5 (2026-11-05) : coups du joueur plus lourds (JOUEUR_LENTEUR), combo strict gardé
+	"test_factions|--nouvelle"   # retours exe 5 : table data/factions.json, aucun repaire hostile à < 15 m, bandit contre araignée, draugr et araignée neutres
+	"test_objets_vivants|--nouvelle"   # retours exe 5 : décor physique (chute, sommeil, lame, sort), prendre / voler, saisir / lancer, sauvegarde, réassort
+	"test_crime|--nouvelle"   # retours exe 5 : témoins, prime, propriétaire, garde solidaire, amende / geôle / résistance, sauvegarde
+	"test_crochetage|--nouvelle --demo-crime"   # retours exe 5 : mini-jeu de crochetage, crochets, verrous 1-4, intrusion vue
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
 TEMPS_REEL="test_ragdoll test_mort_ragdoll"
