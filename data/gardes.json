@@ -53,7 +53,7 @@
     {"id": "vigie", "type": "vigie", "pos": [45.0, 85.5], "beffroi": [0.0, 1.45], "cap": 180, "poil": 4, "peau": 0, "taille": 1.0, "largeur": 1.0,
      "lignes": ["D’ici, on voit jusqu’au lac."]},
     {"id": "ronde_rue", "type": "ronde", "boucle": false, "poil": 2, "peau": 1, "taille": 1.01, "largeur": 1.02,
-     "route": [[44.2, 49.8], [44.2, 57.2], [44.2, 66.8], [44.2, 75.0], [44.2, 83.8], [41.8, 83.8], [40.2, 86.2]],
+     "route": [[44.2, 49.8], [44.2, 57.2], [44.2, 66.8], [44.2, 75.0], [44.0, 82.9], [41.8, 83.6], [40.2, 86.2]],
      "lignes": ["Je monte et je descends cette rue toute la journée. Mes mollets sont les plus solides du hameau.", "La haute rue domine tout. Si quelque chose bouge au sud, on le voit d’ici."]},
     {"id": "ronde_nord", "type": "ronde", "boucle": false, "poil": 0, "peau": 2, "taille": 0.99, "largeur": 1.0,
      "route": [[31.8, 26.8], [39.8, 30.8], [42.2, 29.4], [50.8, 29.4], [52.8, 28.2], [54.2, 18.8]],
