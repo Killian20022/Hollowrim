@@ -893,6 +893,7 @@ func _enchainer_depuis_pose() -> void:
 
 func _preparer_geste(lourd: bool) -> void:
 	_lourd = lourd
+	_coup_touche = false
 	_puissant = lourd
 	_contre = false
 	_geste = GestesDefense.geste(_geste_nom) if GestesDefense.GESTES.has(_geste_nom) else ProfilsAnimation.geste(arme.profil, _geste_nom)
@@ -1003,6 +1004,27 @@ func _valider_coup_leger() -> void:
 	if _lourd or _contre:
 		return
 	_combo = (_combo + 1) % maxi(_profil()["combo"].size(), 1)
+
+## Le coup en cours (ou le dernier) a-t-il touché quelque chose ? (règle d'annulation de l'esquive)
+var _coup_touche := false
+
+## L'esquive est-elle permise maintenant ? Au calme, en garde, et pendant la RÉCUPÉRATION d'un coup : tout de suite si le coup a
+## raté, après ESQUIVE_ANNULE_TOUCHE s s'il a touché. Jamais pendant la préparation / la phase active d'un coup, d'un contre, d'un
+## finisher, ni quand on est déséquilibré (garde brisée, rebond) ou qu'on s'équipe. docs/COMBAT.md, « Esquive ».
+func peut_esquiver() -> bool:
+	match combat.etat:
+		EtatCombat.REPOS, EtatCombat.MOUVEMENT, EtatCombat.GARDE, EtatCombat.PARADE:
+			return true
+		EtatCombat.RECUPERATION:
+			return not _coup_touche or combat.t >= ReglagesCombat.ESQUIVE_ANNULE_TOUCHE
+	return false
+
+## L'esquive démarre (joueur.esquiver) : la récupération ou la garde sont abandonnées, le bras revient au repos. Le compteur de
+## combo ne bouge pas (il a déjà avancé à la fin du coup) : le clic suivant donne le coup n+1, comme sans esquive.
+func esquive_commencee() -> void:
+	if combat.etat in [EtatCombat.RECUPERATION, EtatCombat.GARDE, EtatCombat.PARADE]:
+		combat.forcer(EtatCombat.REPOS)
+		_tenir("repos", 0.1, 0.0)
 
 ## Retour au coup 1 (changement d'arme, rengainage, mort).
 func reinitialiser_combo() -> void:
@@ -1397,6 +1419,7 @@ func _resoudre_impact(e: Dictionary) -> String:
 			if gere and _contre:
 				(cible.get("combat") as CombatEnnemi).fenetre_parade = 0.0   # l'ouverture de la parade est dépensée par la contre-attaque
 			if r == "touche" or r == "tue":
+				_coup_touche = true
 				_mordre()
 				Progression.coup_porte(joueur, cible, arme, degats, r, _lourd or _contre)   # pratique + perks (lot B)
 				if not gere:

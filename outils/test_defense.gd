@@ -183,9 +183,12 @@ func _tester() -> void:
 	print("-- finisher")
 	await _pas(30)
 	d.vie = d.vie_max * 0.4   # équilibrage (ReglagesCombat) : finisher sur posture brisée / au sol seulement à vie ≤ 50 %
-	if d.finisher_possible(j) == "":
+	if d.finisher_possible(j) == "" or d.etat != d.ETOURDI:
+		# pose propre pour la mesure géométrique de la lame (« DANS le torse ») : posture brisée, étourdi. Avec la posture +30 % des
+		# ennemis courants (2026-11-05) la parade + le contre ne la brisent plus à eux seuls : il restait en pleine réaction (torse décalé).
 		d.combat.briser_posture()
 		d._etourdir()
+		await _pas(40)   # retombe en pose d'attente étourdie (Sword_Idle), comme quand la posture cède d'elle-même
 	d.set_physics_process(false)
 	var cat: String = d.finisher_possible(j)
 	_verif(cat != "", "draugr achevable : catégorie « %s »" % cat)

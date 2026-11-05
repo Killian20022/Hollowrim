@@ -14,6 +14,8 @@ Les phases 5 et 6 (variantes, polish) s'appuient sur la même architecture.
 | Scène de test (jouable) | `$G --path "$W" res://scenes/test_combat.tscn -- [--nuit] [--draugr=actif\|fige\|aucun] [--debug-combat]` |
 | Test automatique | `bash outils/tous_les_tests.sh test_combat_epee` (≈ 6 s, sans fenêtre) |
 | Test de la défense | `bash outils/tous_les_tests.sh test_defense` (garde, garde brisée, anti-spam, parade sur vraie attaque de draugr, contre, finisher) |
+| Test de l'esquive | `bash outils/tous_les_tests.sh test_esquive` (pas de côté, invulnérabilité, coût, refus, annulation de la récupération, combo strict, caméra) |
+| Banc « bot » de la menace | `bash outils/tous_les_tests.sh test_menace_bot` (bot qui spamme / garde / pare / esquive contre 1 puis 2 draugrs, SEUILS ; `-- --n=10 --trace`) |
 | Planches défense | `... --script res://outils/captures_defense.gd -- --sortie="$W\captures\combat_defense" [--poses]` |
 | Film défense | idem avec `--write-movie "$W\captures\combat_defense\video\defense_parade_contre_finisher.avi" --fixed-fps 30` et `-- --film` |
 | Planches | `bash /tmp/godot_slot.sh $G --path "$W" --script res://outils/captures_combat_epee.gd -- --sortie="$W\captures\combat_epee\scene"` |
@@ -26,7 +28,7 @@ Les phases 5 et 6 (variantes, polish) s'appuient sur la même architecture.
 | Pose de repos dans le village | `--captures="$W\outils\poses_combat_epee.txt"` (voir SOCLE_TECHNIQUE §6.1) |
 
 En jeu : clic gauche court = coup léger, maintenu = charge puis coup lourd au relâchement ; clic droit = garde ;
-T = torche ; **F3 = débogage** (tracé de lame, état de combat, endurance, charge, rayons).
+**Alt gauche ou C = esquive** (pas de côté, voir « Esquive ») ; T = torche ; **F3 = débogage** (tracé de lame, état de combat, endurance, charge, rayons).
 
 ## Architecture (`scripts/combat/`)
 
@@ -474,6 +476,83 @@ vertical léger 0,06 → 85 % ; estoc 0,06 → 80 % ; lourd 0,08 → 80 %. Un ap
 | estoc (en reculant, dégâts de 25 % à 100 % de la frappe) | 0,11 | 0,04 | 0,10 | 0,05 | 0,30 |
 
 3e personne : seule l'animation `Sword_Attack` existe pour l'épée ; l'estoc joue `Punch_Jab` (poussée droit devant).
+
+## Menace des ennemis courants (nuit 2026-11-05, branche nuit/ennemis)
+
+Constat de l'audit du 2026-11-04 : le bot qui spamme tuait sbire / squelette / draugr en 2-3 s sans être touché (14 essais sur 15 à
+0 dégât). Cause : l'ennemi de 80 PV mourait en ~2,5 s alors que son premier coup arrivait à ~1,8 s, et chaque coup léger reçu le
+faisait tituber 0,3 s (verrou : il n'attaquait jamais). **Ennemis courants** = `draugr.gd` avec `_menace` (ni chef, ni archer) :
+sbire, squelette, draugr, guerrier, bandit. Le troll (modèle) et les chefs (Hrafn, Svanhild, Jarl) ne changent pas. Tous les chiffres
+sont dans `ReglagesCombat` (`MENACE_*`).
+
+| Règle | Valeur | Où |
+|---|---|---|
+| PV (+30 % pour le draugr, les autres suivent) | sbire 60, squelette 65, **draugr 104**, bandit 104, guerrier 135 ; posture +30 % aussi (`ProfilCible`) | `ReglagesCombat.VIE`, `profil_cible.gd` |
+| Premier coup plus tôt | il lance son geste à `PORTEE + 0,8` (2,7 m) avec un pas d'élan de 2,4 m/s ; gestes ×1,3 plus vifs (impact ~0,48 s au lieu de ~0,64 s) ; aucune recharge au premier contact | `AMORCE`, `ELAN`, `MENACE_RYTHME` |
+| Enchaînement | série de 1 à 3 coups (sbire / squelette : 1 à 2), gestes alternés épée / poing / épée, dégâts ×1 / ×1,15 / ×1,3 ; le suivant part à 62 % du geste si le joueur est encore à ≤ 2,8 m | `MENACE_SERIE_*` |
+| Hyper-armure | un coup de série n'est interrompu par un coup moyen que pendant les premiers 35 % de sa préparation (`ENGAGEMENT`), ensuite il est « engagé » ; le geste annoncé n'est interrompu que par un coup lourd ou la posture brisée ; un coup léger ne relance pas un titubement et, juste après un titubement, 0,9 s sans nouveau titubement : plus de verrou | `ENGAGEMENT`, `MENACE_ARMURE`, `recevoir_coup` |
+| Entre deux séries | 0,7-1,4 s où il **tourne autour du joueur** (face à lui) ; une fois sur deux il fait d'abord un pas en arrière de 0,45 s | `MENACE_PAUSE`, `MENACE_REPLI` |
+| Contournement (groupes) | si un autre ennemi courant est déjà au contact du joueur, les autres décrivent un arc de 1,35 rad (~77°) à 2,3 m du joueur pour l'attaquer de côté (au plus 2,8 s), puis foncent | `MENACE_FLANC_*`, `_flanc` |
+
+### Le geste NON PARABLE annoncé (comme le troll)
+
+Un ennemi courant sort **un coup de taille annoncé** : premier au bout de 1,6-2,6 s de combat, puis toutes les 3-5 s.
+- **Lecture** : il se fige face au joueur, arme levée AU RALENTI (0,62 s), éclair blanc, grognement, et un **repère rouge au sol**
+  (anneau net + disque qui se remplit, rayon 1,5 m, centré à 1,5 m devant lui, FIGÉ dès le début), plus un **« ! » rouge** au-dessus
+  de la tête et le corps qui **pulse** (le disque sort du champ en vue FPS quand l'ennemi est au contact : le « ! » reste lisible).
+  Le bleu reste celui du givre (troll, mage). La frappe brusque arrive 0,95 s après le début : il suffit de sortir du disque (un pas de côté) ou d'esquiver.
+- **Effet** : dégâts ×1,6, `imparable` 0,5 (pas de parade parfaite possible, la moitié des dégâts traverse la garde), recul 7.
+- **Contre-jeu** : hyper-armure pendant la préparation (seul un coup lourd ou la posture brisée l'interrompt) ; après l'impact il
+  reste planté ~0,9 s (fenêtre de punition, comme l'écrasement du troll).
+- Repères effacés à l'impact, à l'interruption, à la mort et au gel (disque : `scripts/combat/telegraphe_sol.gd`, sans `class_name` pour
+  éviter un réimport ; « ! » et pulsation : `draugr._marquer_lourd`).
+
+## Esquive du joueur (nuit 2026-11-05)
+
+- **Touche** : **Alt gauche ou C** (action `esquive`, `joueur._actions`). Choix : Alt est libre, proche de la main gauche (ZQSD/WASD),
+  et ne gêne ni Maj (course) ni Espace (saut) ; C en secours (Alt est parfois capturé par le système). Pas de double-appui
+  directionnel : il se confond avec la marche et déclenche des esquives involontaires.
+- **Direction** : gauche / droite si une de ces touches est tenue (même en avançant) ; sinon **en arrière**. « Avant » seule ne
+  fait pas bondir vers l'ennemi.
+- **Valeurs** : 2,7 m visés (2,6 mesurés) en 0,34 s (vitesse décroissante : départ vif, arrivée douce), **invulnérable les 0,2 premières secondes**
+  (`recevoir_coup` renvoie `"esquive"`), coût **20 de vigueur** (la vigueur ne repart qu'après 0,8 s), attente de 0,2 s entre deux
+  esquives. Refusée sans 20 de vigueur.
+- **Quand ?** (`Mains.peut_esquiver`) : au repos, en marche, en garde / parade, et **pendant la RÉCUPÉRATION d'un coup**
+  (l'esquive l'annule) : **tout de suite si le coup a raté**, après 0,2 s s'il a touché (`ESQUIVE_ANNULE_TOUCHE` : on garde le
+  temps de l'arrêt sur image). Jamais pendant la préparation / la frappe d'un coup, un coup lourd (charge comprise), une
+  contre-attaque, un finisher, ni déséquilibré (garde brisée, rebond) ou en train de s'équiper.
+- **Combo strict intact** : le compteur de combo avance à la FIN du coup, avant la récupération ; annuler la récupération
+  ne le touche pas. Après l'esquive, le clic suivant donne le coup n+1 (testé).
+- **Caméra FPS** (suit l'option « Mouvement de tête » et « Réduire les mouvements ») : inclinaison de 0,12 rad vers le côté de
+  l'esquive, décalage latéral de 7 cm et abaissement de 10 cm au plus fort de l'esquive ; en arrière, la vue se relève de
+  0,06 rad. **3e personne** : même déplacement et même roulis de caméra ; pas d'animation de corps dédiée (le corps suit la vitesse).
+- Le son est celui des vêtements (`cloth1/2`). Pas d'effet sur l'eau.
+
+## Banc « bot » (seuils de menace)
+
+`outils/test_menace_bot.gd` (dérivé de la sonde `audit_bot_combat.gd`, qui reste la référence « bot parfait ») : un bot manette
+combat de VRAIS draugrs (104 PV) dans `test_combat.tscn`. Il lit l'état de l'ennemi comme un joueur le verrait (début du geste,
+instant d'impact) ; 4 comportements : **spam** (ne se défend jamais), **garde** (garde levée 0,25 s après le début du geste),
+**parade** (garde pile à l'instant parfait, esquive le geste annoncé), **esquive** (pas de côté ~0,1 s avant chaque impact).
+Seuils vérifiés (échec du test sinon) : voir `_verifier` du script et le tableau de résultats ci-dessous.
+
+Résultats (graine fixe 20261105, 10 essais contre 1 draugr, 5 contre 2 ; PV du joueur perdus ; mesuré le 2026-11-05) :
+
+| Comportement du bot | 1 draugr : PV perdus (moy.) | essais avec dégâts | durée | 2 draugrs : PV perdus |
+|---|---|---|---|---|
+| spam (ne se défend jamais) | **23,5** | **100 %** (avant : 1 essai sur 15) | 3,6 s (avant : 2,5-3,2 s) | **49,9** (5,7 s) |
+| garde levée après avoir vu le geste | 14,8 | 70 % | 5,2 s | — |
+| parade au bon moment (+ esquive du geste annoncé) | 0,0 | 0 % | 3,1 s | 3,3 à 6,4 |
+| esquive au bon moment | 5,0 | 30 % | 5,5 s | 60 (le bot esquive reste timide : informatif) |
+
+Seuils du test : spam ≥ 60 % d'essais touchés et ≥ 12 PV perdus en moyenne ; durée 3-12 s ; garde ≤ 70 %, parade ≤ 50 %, esquive ≤ 60 % des
+dégâts du spam ; à 2 draugrs le spam coûte ≥ 25 PV et ≥ 1,6× un seul, la parade ≤ 60 % du spam ; le joueur finit par gagner (≥ 90 %).
+Lecture : le bot (plafond) tue un draugr en ~3,5 s depuis 5,4 m, avec une moyenne de 2 coups reçus ; **un vrai joueur, moins régulier
+(cadence, visées ratées, approche), combattra plus longtemps — estimation 5-8 s, à confirmer à la manette** ; à 2 draugrs le bot perd
+~50 PV sur 100 en 5,7 s : « dangereux ». La garde seule reste utile (-37 % de dégâts) mais le geste annoncé en laisse passer la moitié.
+
+Le bot est un PLAFOND d'efficacité (il vise toujours, clique à cadence maximale, sur sol plat) : un vrai joueur combat plus longtemps
+et reçoit plus de coups que le bot « spam ».
 
 ## Limites connues / suite
 - Coups animés (passe 5) : quelques clés gardent 20-40° d'écart de lame à cause des butées (armés de B et du revers,
