@@ -4,8 +4,8 @@ extends SceneTree
 ##   godot --path . --write-movie <f.avi> --fixed-fps 30 --resolution 960x540 --script res://outils/film_sommeil.gd -- --nouvelle --sans-mains --paisible
 ## (fenêtre hors écran via godot_slot.sh). Imprime « FILM segment a b » (images à garder) pour le découpage ffmpeg.
 const SCENE := "res://scenes/foret_test.tscn"
-const OEIL := Vector3(2.7, 0.0, 0.9)        # repère de la maison de Sigrún : coin est, vers le lit (ouest) et la porte (+Z)
-const VISE := Vector3(-2.2, 0.75, -0.6)
+const OEIL := Vector3(-3.3, 0.0, 0.55)      # repère de la maison de Sigrún : coin ouest, près du lit (le joueur-caméra ne barre pas le passage)
+const VISE := Vector3(-2.2, 0.45, -1.85)
 var m: Node3D
 var j: CharacterBody3D
 

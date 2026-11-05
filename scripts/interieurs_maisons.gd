@@ -252,7 +252,6 @@ static func _grima(b: Interieurs, xch: float) -> void:
 	b.solide(Vector3(mx, F + 1.0, mz), Vector3(1.55, 2.0, 0.35))
 	# --- lit modeste (sud-ouest), couverture
 	b.lit(Vector3(xw + 1.1, F, zf - 0.97), PI * 0.5, 1.9, 0.95, "peau", 0, "ancienne")      # lot sommeil : pied du mur (le lit procédural fait 1,9 m hors tout)
-	b.lit(Vector3(xw + 1.05, F, -0.05), 0.0, 1.9, 0.95, "peau_claire")      # lot sommeil : couche des fermières (libre), entre le métier et le lit de Grima
 	b.tenture(Vector3(xw + 0.06, 1.65, zf - 0.8), PI * 0.5, 1.2, 1.5, "tenture_v")
 	# --- cuisine au fond (est) : étagères de pots, table de pétrissage, tonneaux
 	b.etagere(Vector3(xch + 1.3, F, zb + 0.18), 0.0, 1.5, 2.0, 4, 0.3)

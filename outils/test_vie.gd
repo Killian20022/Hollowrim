@@ -144,6 +144,9 @@ func _tester() -> void:
 	var dort2 := _nb(func(c: Dictionary) -> bool: return c["n"].est_endormi())
 	_verif(dort2 == 15, "rentrée : 15 civils ont fini par s'endormir à la porte de leur bâtiment (%d)" % dort2)
 	var coince := _nb(func(c: Dictionary) -> bool: return c["n"].etat == 4)
+	for c: Dictionary in vie.civils:
+		if c["n"].etat == 4 or (c["id"] != "garde" and not c["n"].est_endormi()):
+			print("   en route : %s état %d, route %d %s, lit %s, à %s, process %d, vit %.2f, avance %s, v %s, t %.0f" % [c["id"], c["n"].etat, c["n"]._route.size(), str(c["n"]._route), c["n"].lit, str(c["n"].global_position), c["n"].process_mode, c["n"]._vit, c["n"]._avance, str(c["n"].velocity), c["n"]._t])
 	_verif(coince == 0, "rentrée : personne n'est resté en route (%d)" % coince)
 
 	# --- voix à travers la porte (marchands) : on frappe chez le forgeron

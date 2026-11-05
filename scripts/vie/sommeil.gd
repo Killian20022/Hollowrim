@@ -184,6 +184,7 @@ func _noms() -> Dictionary:
 
 ## Lit et place d'un civil : son lit (propriétaire), sinon une place d'un lit libre de son foyer ; [] s'il n'y en a pas (il dort caché).
 func lit_pour(id: String, foyer: String) -> Array:
+	scanner()                    # marqueurs posés depuis le dernier balayage (intérieurs posés par étapes)
 	if _attrib.has(id):
 		var a: Array = _attrib[id]
 		if is_instance_valid(a[0]):

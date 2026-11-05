@@ -196,7 +196,7 @@ func _tester() -> void:
 	vie.tick()
 	var lit_j: Lit = null
 	for l: Lit in sm.lits:
-		if l.libre() and l.place_libre() >= 0 and l.foyer == "grima":
+		if l.libre() and l.place_libre() >= 0 and l.foyer == "chasseurs" and not l.double():
 			lit_j = l
 	if lit_j == null:
 		for l: Lit in sm.lits:

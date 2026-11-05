@@ -99,6 +99,7 @@ func _lits() -> void:
 		return
 	var k := 0
 	for l: Lit in sm.lits:
+		sm._regler_cotes(l)
 		var c: float = l.cotes_libres[0]
 		var xf := l.global_transform
 		var oeil := xf * Vector3(c * (l.largeur * 0.5 + 1.25), 1.45, -l.longueur * 0.5 - 0.6)
@@ -136,6 +137,7 @@ func _fenetre() -> void:
 	for x: Lit in sm.lits:
 		if x.foyer == "sigrun":
 			l = x
+	sm._regler_cotes(l)
 	cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 	cam.fov = 62.0
 	var xf := l.global_transform

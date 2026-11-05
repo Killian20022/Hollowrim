@@ -102,6 +102,8 @@ var _delai_activite := 0.0
 var _en_conversation := false
 var _debut_conversation := 0.0
 var _bloque := 0.0
+var _prog_t := 0.0               # RENTRE : temps depuis la dernière mesure d'approche
+var _prog_d := INF               # RENTRE : distance au point visé à cette mesure
 var _invite := false
 var _var := 1.0  # variation personnelle de rythme (animations de repos)
 var _marche := MARCHE  # vitesse de marche personnelle
@@ -604,6 +606,8 @@ func rentrer(but: Vector3, entre: bool, via: Array = [], vite := false, poste_jo
 	etat = RENTRE
 	_t = 0.0
 	_bloque = 0.0
+	_prog_t = 0.0
+	_prog_d = INF
 	_variete_fin = 0.0
 	_autour = 0.0
 
@@ -627,10 +631,19 @@ func _vers_but(dt: float) -> Vector3:
 	d.y = 0.0
 	var vitesse_reelle := Vector2(velocity.x, velocity.z).length()
 	_bloque = _bloque + dt if (_t > 1.0 and _avance and vitesse_reelle < 0.2) else 0.0
+	# lot sommeil : pietine sans approcher (il glisse contre un autre corps, ou tourne sur place) : coincé aussi
+	_prog_t += dt
+	var pietine := false
+	if _prog_t > 5.0:
+		pietine = _prog_d - d.length() < 0.3
+		_prog_t = 0.0
+		_prog_d = d.length()
 	var dernier := _route.size() == 1
-	if d.length() < (0.45 if dernier else 0.8) or _bloque > 3.0 or _t > 120.0:
-		var coince := _bloque > 3.0 or _t > 120.0
+	if d.length() < (0.45 if dernier else 0.8) or _bloque > 3.0 or pietine or _t > 120.0:
+		var coince := _bloque > 3.0 or pietine or _t > 120.0
 		_bloque = 0.0
+		_prog_t = 0.0
+		_prog_d = INF
 		if coince:
 			global_position = Vector3(p.x, global_position.y + 0.05, p.z)   # coincé : il se pose au point visé plutôt que de rester planté
 		_route.pop_front()
@@ -770,9 +783,10 @@ func _portes_en_route() -> void:
 	for e: Dictionary in _portes_route:
 		var ip: Interieur = e["ip"]
 		var c: Vector3 = e["p"]
-		if is_instance_valid(ip) and not ip.ouverte and Vector2(c.x - p.x, c.z - p.z).length() < 1.9:
-			ip.basculer(true)
-			_porte_ouverte = ip
+		if is_instance_valid(ip) and Vector2(c.x - p.x, c.z - p.z).length() < 1.9:
+			if not ip.ouverte:
+				ip.basculer(true)
+			_porte_ouverte = ip           # ouverte par lui ou trouvée ouverte : il la refermera derrière lui
 			_porte_p = c
 	_refermer_porte()
 
@@ -788,6 +802,10 @@ func _refermer_porte() -> void:
 		return
 	if joueur != null and is_instance_valid(joueur) and Vector2(_porte_p.x - joueur.global_position.x, _porte_p.z - joueur.global_position.z).length() < 2.2:
 		return
+	for v: Node in get_tree().get_nodes_in_group("villageois"):
+		var v3 := v as Node3D
+		if v3 != self and v3.visible and v3.get("etat") == RENTRE and Vector2(_porte_p.x - v3.global_position.x, _porte_p.z - v3.global_position.z).length() < 2.6:
+			return          # un autre arrive ou sort : il laisse la porte ouverte (le dernier la refermera)
 	_porte_ouverte.basculer(false)
 	_porte_ouverte = null
 	_portes_route = _portes_route.filter(func(e: Dictionary) -> bool: return Vector2(e["p"].x - p.x, e["p"].z - p.z).length() < 6.0)
