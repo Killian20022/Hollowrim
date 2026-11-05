@@ -1,0 +1,124 @@
+{
+	"discards": {
+		"outils/lookdev_ps1.gdshader": 1.0,
+		"shaders/crypte.gdshader": 1.0,
+		"shaders/crypte_flamme.gdshader": 1.0,
+		"shaders/eau.gdshader": 1.0,
+		"shaders/feu_chaleur.gdshader": 1.0,
+		"shaders/feu_halo_sol.gdshader": 1.0,
+		"shaders/feu_lit_braises.gdshader": 2.0,
+		"shaders/flamme_fixe.gdshader": 2.0,
+		"shaders/flamme_pixels.gdshader": 2.0,
+		"shaders/flamme_sprite.gdshader": 1.0,
+		"shaders/gerbe_pixels.gdshaderinc": 1.0,
+		"shaders/grotte.gdshader": 1.0,
+		"shaders/mage_orbe.gdshader": 1.0,
+		"shaders/magie_aura.gdshader": 17.0,
+		"shaders/magie_bouffee.gdshader": 5.0,
+		"shaders/magie_coeur.gdshaderinc": 1.0,
+		"shaders/magie_corps.gdshader": 2.0,
+		"shaders/magie_corps_arcs.gdshader": 2.0,
+		"shaders/magie_corps_coque.gdshader": 3.0,
+		"shaders/magie_corps_coque_ecoles.gdshader": 5.0,
+		"shaders/magie_cristal.gdshader": 3.0,
+		"shaders/magie_decharge.gdshader": 4.0,
+		"shaders/magie_faisceau.gdshader": 2.0,
+		"shaders/magie_flux.gdshader": 3.0,
+		"shaders/magie_givre.gdshader": 6.0,
+		"shaders/magie_noyau_ecole.gdshader": 4.0,
+		"shaders/magie_part.gdshaderinc": 2.0,
+		"shaders/magie_sol.gdshaderinc": 3.0,
+		"shaders/magie_trait.gdshader": 2.0,
+		"shaders/magie_vague.gdshader": 4.0,
+		"shaders/magie_voile.gdshader": 1.0,
+		"shaders/plans_peints.gdshader": 1.0,
+		"shaders/ps1.gdshader": 1.0,
+		"shaders/ps1_draugr.gdshader": 1.0,
+		"shaders/ps1_herbe.gdshader": 1.0,
+		"shaders/ps1_perso.gdshader": 1.0,
+		"shaders/ps1_rameau.gdshader": 1.0,
+		"shaders/rayon_neant_cercle.gdshader": 2.0,
+		"shaders/rayon_neant_faisceau.gdshader": 4.0,
+		"shaders/rayon_neant_tache.gdshader": 2.0,
+		"shaders/trainee_lame.gdshader": 1.0
+	},
+	"version": 1,
+	"date": "2026-11-05T03:59:32",
+	"moteur": "4.7.2-stable (official)",
+	"autres_godot_max_pendant_la_mesure": 0,
+	"annotation_gpu": "GPU INDICATIF : mesuré la nuit du 2026-11-05 sur une machine partagée (autres agents, iGPU commune) ; aucun autre Godot vu au moment des échantillons mais dispersion entre répétitions jusqu'à 26 %. A rétablir au calme (docs/BANC_PERF.md). Appels et primitives : valeurs exactes (médiane de 3).",
+	"lieux": {
+		"temoin_jour": {
+			"gpu_med": 9.65,
+			"gpu_p95": 11.7,
+			"appels": 755,
+			"prims": 815993
+		},
+		"temoin_nuit": {
+			"gpu_med": 9.5,
+			"gpu_p95": 11.34,
+			"appels": 512,
+			"prims": 551524
+		},
+		"place_jour": {
+			"gpu_med": 10.3,
+			"gpu_p95": 11.97,
+			"appels": 601,
+			"prims": 1083444
+		},
+		"place_nuit": {
+			"gpu_med": 13.11,
+			"gpu_p95": 15.56,
+			"appels": 766,
+			"prims": 1216048
+		},
+		"foret_jour": {
+			"gpu_med": 6.33,
+			"gpu_p95": 6.67,
+			"appels": 261,
+			"prims": 282394
+		},
+		"foret_nuit": {
+			"gpu_med": 6.24,
+			"gpu_p95": 6.76,
+			"appels": 193,
+			"prims": 249908
+		},
+		"grotte_jour": {
+			"gpu_med": 3.33,
+			"gpu_p95": 3.38,
+			"appels": 338,
+			"prims": 105353
+		},
+		"grotte_nuit": {
+			"gpu_med": 3.33,
+			"gpu_p95": 3.38,
+			"appels": 338,
+			"prims": 105353
+		},
+		"crypte_jour": {
+			"gpu_med": 2.89,
+			"gpu_p95": 2.95,
+			"appels": 245,
+			"prims": 74285
+		},
+		"crypte_nuit": {
+			"gpu_med": 2.88,
+			"gpu_p95": 2.95,
+			"appels": 246,
+			"prims": 74403
+		},
+		"combat_jour": {
+			"gpu_med": 5.47,
+			"gpu_p95": 6.09,
+			"appels": 436,
+			"prims": 272165
+		},
+		"combat_nuit": {
+			"gpu_med": 5.3,
+			"gpu_p95": 6.3,
+			"appels": 401,
+			"prims": 230783
+		}
+	}
+}

@@ -3,6 +3,7 @@
 #   bash outils/tous_les_tests.sh [motif]      ex. bash outils/tous_les_tests.sh dragon   (seulement test_*dragon*)
 #   Variables : GODOT (exécutable), TEMPS_MAX (secondes par test, défaut 240), AVEC_FENETRE=1 (ajoute les tests qui exigent
 #   une fenêtre : test_biome comparer, test_menus, test_gel_cache_persos), JOURNAUX=<dossier> (défaut captures/tests : un .log par test).
+#   AVEC_BANC=1 : ajoute le banc de perf à seuils (fenêtre hors écran, ~1 h 15 à 2 h ; outils/banc_perf.sh + banc_perf.gd, docs/BANC_PERF.md).
 # Verdict : code de sortie 0, aucune « SCRIPT ERROR » et aucun « ÉCHEC » (ni « ECHECS : n » avec n>0) dans la sortie.
 # --fixed-fps 60 : la simulation tourne aussi vite que possible (au lieu du temps réel : test_degats_sanctuaire > 240 s → ~55 s).
 # Tous les lancements portent des arguments (« -- … ») : le jeu écrit alors user://sauvegarde_test_<dossier>.json (un par worktree), jamais la vraie partie.
@@ -24,6 +25,7 @@ garder_journal_moteur() {   # $1 = nom du test
 TESTS=(
 	"test_filet|--nouvelle"
 	"test_terrain_sans_discard|--nouvelle"   # le sol n'a aucun discard (early-Z : ×1,9 de GPU dehors sinon)
+	"test_shaders_sans_discard|--nouvelle"   # idem généralisé : aucun shader ne gagne de discard (liste dans banc_perf_reference.json)
 	"test_quetes|--nouvelle"
 	"test_prologue|--nouvelle --prologue --aides"   # accueil (arrivée, premier objectif, bulles d'aide), quêtes qui se répondent, répliques « après », fin du chapitre
 	"test_archer|--nouvelle"
@@ -186,6 +188,15 @@ if [[ -n "${AVEC_FENETRE:-}" && ( -z "$MOTIF" || "test_gel_cache_persos" == *"$M
 	done
 	if [[ $ok -eq 1 ]] && [[ $(grep -c "^ECHECS : 0" "$sortie") -eq 2 ]] && ! grep -qE "SCRIPT ERROR|^ECHEC " "$sortie"; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); garder_journal_moteur test_gel_cache_persos; fi
 	RES+=("$s test_gel_cache_persos (fenêtre, $((SECONDS-d0)) s)")
+fi
+if [[ -n "${AVEC_BANC:-}" && ( -z "$MOTIF" || "banc_perf" == *"$MOTIF"* ) ]]; then
+	# banc de perf (docs/BANC_PERF.md) : 6 lieux x jour/nuit x 3 répétitions en fenêtre hors écran (~25-35 min), à part du reste : AVEC_BANC=1.
+	# Échec = appels/primitives hors tolérance ou GPU > +25 % sur machine CALME ; machine chargée = GPU « non concluant », pas d'échec.
+	d0=$SECONDS; sortie="$LOGS/banc_perf.log"; : > "$sortie"
+	bash "$ICI/outils/banc_perf.sh" "$LOGS/banc_perf_journaux" >> "$sortie" 2>&1
+	timeout 120 "$G" --headless --path "$P" --script res://outils/banc_perf.gd -- --logs="$(wslpath -w "$LOGS/banc_perf_journaux")" >> "$sortie" 2>&1
+	if [[ $? -eq 0 ]] && ! grep -qE "SCRIPT ERROR|ECHECS *: *[1-9]" "$sortie"; then s="OK    "; nok=$((nok+1)); else s="ÉCHEC "; nko=$((nko+1)); garder_journal_moteur banc_perf; fi
+	RES+=("$s banc_perf (fenêtre, $((SECONDS-d0)) s)")
 fi
 echo "== Résumé des tests sans fenêtre"
 printf '%s\n' "${RES[@]}"
