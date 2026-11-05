@@ -1,0 +1,5 @@
+# Lot vie_pnj : la place du village à 12 h, 20 h, 23 h. Lancer avec --sans-mains --sans-hud --attente=150 --attente-suite=150 (+ --sans-vie pour « avant »).
+# Vue du sud-est vers le brasero et la longue maison.
+place_12h monde 46,49,41.6,-6 heure=12
+place_20h monde 46,49,41.6,-6 heure=20
+place_23h monde 46,49,41.6,-6 heure=23

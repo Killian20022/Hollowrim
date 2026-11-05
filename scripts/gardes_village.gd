@@ -34,6 +34,8 @@ var _textes := {}
 var _t_lod := 0.0
 var _t_alerte := 0.0
 var _t_parole := 0.0
+var _bus := {}                     # id d'ennemi -> {"n": ennemi, "t": date} : dangers annoncés par Vie (bus d'événements, lot vie_pnj)
+const MEMOIRE_BUS := 6.0           # s pendant lesquelles un danger annoncé compte comme menace
 static var _mats := {}
 static var _bases := {}   # bouclier -> Gardien de référence (hors arbre, jamais affiché)
 static var _cache_donnees := {}
@@ -233,6 +235,13 @@ func _process(dt: float) -> void:
 		_t_alerte = PAS_ALERTE
 		_alertes()
 
+## Bus d'événements de Vie (« danger », « combat », « alarme ») : l'ennemi source reste une menace MEMOIRE_BUS s, même sans être « en combat »
+## (un loup qui rôde fait fuir les civils avant d'attaquer ; les gardes lui font face dès l'alarme).
+func sur_evenement(type: String, _pos: Vector3, _rayon: float, source: Node) -> void:
+	if source == null or not (type in ["danger", "combat", "alarme"]):
+		return
+	_bus[source.get_instance_id()] = {"n": source, "t": Time.get_ticks_msec() / 1000.0}
+
 ## Ennemis en combat dans l'enceinte (ou à ses abords) : chaque garde éveillé à moins de DIST_ALERTE de l'un d'eux lui fait face.
 func _alertes() -> void:
 	var menaces: Array = []
@@ -245,6 +254,14 @@ func _alertes() -> void:
 		var p := n3.global_position
 		if ReliefVillage.dans_enceinte(p.x, p.z, 6.0):
 			menaces.append(n3)
+	var maintenant := Time.get_ticks_msec() / 1000.0
+	for id in _bus.keys():
+		var b: Dictionary = _bus[id]
+		var e: Node3D = b["n"] as Node3D if is_instance_valid(b["n"]) else null
+		if e == null or maintenant - float(b["t"]) > MEMOIRE_BUS or not e.is_inside_tree() or (e.has_method("vivant") and not e.vivant()):
+			_bus.erase(id)
+		elif not menaces.has(e) and ReliefVillage.dans_enceinte(e.global_position.x, e.global_position.z, 6.0):
+			menaces.append(e)
 	for g: Node3D in gardes:
 		if not is_instance_valid(g):
 			continue

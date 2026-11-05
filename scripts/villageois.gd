@@ -4,7 +4,9 @@ extends CharacterBody3D
 ## interpelle le joueur qui passe et lui parle quand on le regarde (touche E).
 ## Propriétés à poser AVANT add_child : donnees, joueur, dialogue, points.
 
-enum { POSTE, ALLER, PAUSE, RETOUR }
+## RENTRE / DORT (lot vie_pnj) : RENTRE = il rejoint un but donné par `Vie` (maison, abri, feu du soir, poste du matin) ; DORT = il est
+## entré dans un bâtiment (caché, sans collision, process coupé) jusqu'à ce que `Vie` le réveille.
+enum { POSTE, ALLER, PAUSE, RETOUR, RENTRE, DORT }
 
 const GRAVITE := 13.0
 const MARCHE := 1.1
@@ -16,6 +18,8 @@ const DOT_PARLER := 0.85
 ## outils/mesure_pas.gd : pied d'appui, 1,03 m/s en médiane). anim.speed_scale = vitesse réelle / REF_MARCHE
 ## évite que les pieds glissent.
 const REF_MARCHE := 1.03
+const COURSE := 3.6  # m/s, fuite devant un danger (RENTRE « vite »)
+const REF_COURSE := 3.2  # vitesse que suppose le clip Jog_Fwd à speed_scale 1 (estimation : pas de mesure dédiée)
 const ACCEL := 3.0  # m/s², départ et arrêt progressifs
 const ROT_MAX := 3.5  # rad/s, vitesse de rotation maximale du corps
 const ECART_DEPART := 0.5  # il ne part que presque aligné (rad) ; il continue jusqu'à ECART_MAX
@@ -85,6 +89,7 @@ var dialogue: Control
 var points: Array = []  # de Vector3
 var deja_parle := false
 var quetes: Node = null  # posé par le monde
+var vie: Node = null     # Vie (posé par Vie.peupler) : répliques contextuelles, horloge du village
 
 var etat := POSTE
 var modele: Node3D
@@ -110,6 +115,14 @@ var _autour_lacet := 0.0
 var _autour_duree := 4.0
 var _parle := false  # conversation : Idle_Talking (vrai) ou Idle
 var _delai_parole := 0.0
+var lod := 0                     # 0 complet ; 1 allégé (ni IK des pieds, ni suivi de tête, ni ombre) ; 2 endormi (caché, gelé) — réglé par Vie
+var _forme: CollisionShape3D
+var _route: Array = []           # RENTRE : points à suivre (le dernier est le but)
+var _entre := false              # RENTRE : à l'arrivée, il entre dans le bâtiment (DORT)
+var _vite := false               # RENTRE : il court
+var _poste_vie: Variant = null   # Vector3 : poste du moment fixé par Vie (feu du soir), null = son poste de jour
+var _act_vie := ""               # activité du poste du moment (soirée)
+var _cap_arrivee := NAN
 var _pieds: PiedsAuSol  # pieds posés sur le terrain (coupé à genoux, assis ou allongé)
 ## Animations où le corps est près du sol ou assis : l'IK des jambes les déformerait.
 const SANS_PIEDS := ["Fixing_Kneeling"]
@@ -171,6 +184,7 @@ func _ready() -> void:
 	forme.shape = capsule
 	forme.position.y = 0.9
 	add_child(forme)
+	_forme = forme
 
 	var id: String = donnees.get("id", "")
 	# corps Humain (Quaternius) par défaut ; --persos-kit : personnage de base unifié (PersoDefs)
@@ -245,6 +259,10 @@ func parler() -> Array:
 		lignes = donnees.get("apres", [])
 	if lignes.is_empty():
 		lignes = donnees.get("lignes", ["…"])
+	# lot vie_pnj P3 : une réplique selon le contexte (danger récent, soirée, retour d'un abri) en tête de la conversation
+	var ctx: String = vie.replique_contextuelle(self) if vie != null and vie.has_method("replique_contextuelle") else ""
+	if ctx != "":
+		lignes = [ctx] + lignes
 	deja_parle = true
 	_en_conversation = true
 	_debut_conversation = 0.0
@@ -274,6 +292,8 @@ func _jouer(nom: String, fondu := 0.2) -> void:
 
 ## Activité du poste : « activite » des données (habitants) sinon celle du lieu.
 func _act() -> String:
+	if _act_vie != "":
+		return _act_vie
 	return String(donnees.get("activite", ACTIVITES.get(donnees.get("lieu", ""), "Idle")))
 
 ## Animation d'activité du poste (PickUp : ponctuelle, entre deux Idle).
@@ -285,6 +305,8 @@ func _activite(immediat := false) -> void:
 	_jouer(nom, 0.0 if immediat else 0.3)
 
 func _physics_process(dt: float) -> void:
+	if etat == DORT:
+		return
 	_t += dt
 	_images_physique += 1
 	if not _points_filtres and _images_physique >= 3:
@@ -323,7 +345,9 @@ func _physics_process(dt: float) -> void:
 					etat = RETOUR
 					_t = 0.0
 			RETOUR:
-				cap = _vers_point(points[0], dt)
+				cap = _vers_point(poste(), dt)
+			RENTRE:
+				cap = _vers_but(dt)
 		if cap == Vector3.ZERO and etat == POSTE and anim != null and _anim == "Idle" \
 				and _act() == "PickUp_Table":
 			_delai_activite -= dt
@@ -349,16 +373,21 @@ func _physics_process(dt: float) -> void:
 
 	# il ne part que lorsqu'il est à peu près tourné vers sa destination (demi-tour sur place)
 	_avance = cap != Vector3.ZERO and ecart_cap < (ECART_MAX if _vit > 0.05 else ECART_DEPART)
-	_vit = move_toward(_vit, _marche if _avance else 0.0, ACCEL * dt) if cap != Vector3.ZERO else 0.0
+	var v_max := (COURSE if _vite else _marche) if etat == RENTRE else _marche
+	_vit = move_toward(_vit, v_max if _avance else 0.0, (ACCEL * 2.0 if _vite else ACCEL) * dt) if cap != Vector3.ZERO else 0.0
 	velocity.x = cap.x * _vit
 	velocity.z = cap.z * _vit
 	move_and_slide()
 
 	if cap != Vector3.ZERO:  # en déplacement : Walk si ça avance, Idle si demi-tour
-		if etat in [ALLER, RETOUR]:
+		if etat in [ALLER, RETOUR, RENTRE]:
 			if _vit > 0.1:
-				_jouer("Walk", 0.3)
-				anim.speed_scale = clampf(_vit / REF_MARCHE, 0.5, 1.6)
+				if _vite and anim.has_animation("Jog_Fwd"):
+					_jouer("Jog_Fwd", 0.2)
+					anim.speed_scale = clampf(_vit / REF_COURSE, 0.6, 1.5)
+				else:
+					_jouer("Walk", 0.3)
+					anim.speed_scale = clampf(_vit / REF_MARCHE, 0.5, 1.6)
 			elif not _avance:
 				_jouer("Idle", 0.3)
 	_regard_tete(dist)
@@ -405,6 +434,10 @@ var _capsule_promenade: CapsuleShape3D
 
 ## Un point est libre si une capsule de 0,35 x 1,8 m y tient (hors autres corps vivants).
 func _libre(p: Vector3) -> bool:
+	if _capsule_promenade == null:
+		_capsule_promenade = CapsuleShape3D.new()
+		_capsule_promenade.radius = 0.35
+		_capsule_promenade.height = 1.8
 	var monde := get_parent()
 	var y: float = float(monde.hauteur(p.x, p.z)) if monde != null and monde.has_method("hauteur") else p.y
 	var qs := PhysicsShapeQueryParameters3D.new()
@@ -441,7 +474,7 @@ func _filtrer_points() -> void:
 	points = gardes
 
 func _t_poste(_dt: float) -> void:
-	if _t >= _prochaine_promenade and points.size() > 1:
+	if _t >= _prochaine_promenade and points.size() > 1 and _poste_vie == null:
 		etat = ALLER
 		_t = 0.0
 		_bloque = 0.0
@@ -520,3 +553,124 @@ func _interactions(dist: float, dt: float) -> void:
 	elif not veut and _invite:
 		_invite = false
 		dialogue.retirer_invite(self)
+
+# --- lot vie_pnj : rentrée, sommeil, abri (pilotés par Vie) ---------------------------------------------------------
+
+## Poste du moment : celui que Vie a fixé (feu du soir), sinon son poste de jour.
+func poste() -> Vector3:
+	return (_poste_vie as Vector3) if _poste_vie is Vector3 else points[0]
+
+func est_endormi() -> bool:
+	return etat == DORT
+
+func occupe() -> bool:
+	return _en_conversation
+
+## Le trajet en ligne droite de a à b est-il libre (capsule de 0,35 x 1,8 m) ? Réservé à Vie.
+func chemin_libre(a: Vector3, b: Vector3) -> bool:
+	return _segment_libre(a, b)
+
+## Va à `but` en suivant `via` ; arrivé, il entre dans le bâtiment (`entre`, DORT) ou se pose là : poste du moment avec `activite` et `cap`
+## (radians, NAN = inchangé). `poste_jour` : le but est son poste habituel. Refusé pendant une conversation.
+func rentrer(but: Vector3, entre: bool, via: Array = [], vite := false, poste_jour := false, activite := "", cap := NAN) -> void:
+	if _en_conversation:
+		return
+	_route = via.duplicate()
+	_route.append(but)
+	_entre = entre
+	_vite = vite
+	_poste_vie = null if poste_jour else but
+	_act_vie = "" if poste_jour else activite
+	_cap_arrivee = deg_to_rad(float(donnees["cap"])) if poste_jour and donnees.has("cap") else cap
+	etat = RENTRE
+	_t = 0.0
+	_bloque = 0.0
+	_variete_fin = 0.0
+	_autour = 0.0
+
+## Instantané (heure sautée, hors de vue) : il est déjà arrivé.
+func installer(but: Vector3, entre: bool, poste_jour := false, activite := "", cap := NAN) -> void:
+	rentrer(but, entre, [], false, poste_jour, activite, cap)
+	_en_conversation = false
+	global_position = but + Vector3(0, 0.05, 0)
+	_arrive()
+
+func _vers_but(dt: float) -> Vector3:
+	if _route.is_empty():
+		_arrive()
+		return Vector3.ZERO
+	var p: Vector3 = _route[0]
+	var d := p - global_position
+	d.y = 0.0
+	var vitesse_reelle := Vector2(velocity.x, velocity.z).length()
+	_bloque = _bloque + dt if (_t > 1.0 and _avance and vitesse_reelle < 0.2) else 0.0
+	var dernier := _route.size() == 1
+	if d.length() < (0.45 if dernier else 0.8) or _bloque > 3.0 or _t > 120.0:
+		var coince := _bloque > 3.0 or _t > 120.0
+		_bloque = 0.0
+		if coince:
+			global_position = Vector3(p.x, global_position.y + 0.05, p.z)   # coincé : il se pose au point visé plutôt que de rester planté
+		_route.pop_front()
+		if dernier:
+			_arrive()
+		return Vector3.ZERO
+	return d.normalized()
+
+func _arrive() -> void:
+	_vite = false
+	_vit = 0.0
+	velocity = Vector3(0, velocity.y, 0)
+	if _entre:
+		coucher()
+		return
+	etat = POSTE
+	_t = 0.0
+	_prochaine_promenade = randf_range(15.0, 40.0)
+	if not is_nan(_cap_arrivee):
+		rotation.y = _cap_arrivee
+	_jouer("Idle", 0.0)
+	_activite()
+
+## Entre dans le bâtiment : caché, sans collision, process coupé (Vie le réveille).
+func coucher() -> void:
+	etat = DORT
+	_route.clear()
+	_en_conversation = false
+	if _invite and dialogue != null and is_instance_valid(dialogue):
+		_invite = false
+		dialogue.retirer_invite(self)
+	visible = false
+	if _forme != null:
+		_forme.set_deferred("disabled", true)
+	process_mode = Node.PROCESS_MODE_DISABLED
+
+## Sort devant la porte `pos` : visible, solide, et il repart (RETOUR vers son poste du moment tant que Vie ne lui donne pas autre chose).
+func reveiller(pos: Vector3) -> void:
+	global_position = pos + Vector3(0, 0.05, 0)
+	velocity = Vector3.ZERO
+	visible = true
+	if _forme != null:
+		_forme.set_deferred("disabled", false)
+	process_mode = Node.PROCESS_MODE_INHERIT
+	lod = 0
+	etat = POSTE
+	_entre = false
+	_anim = ""
+	_t = 0.0
+	_jouer("Idle", 0.0)
+
+## Niveau de détail (comme les gardes) : 2 = caché et gelé loin du joueur. Sans effet sur un dormeur.
+func regler_lod(n: int) -> void:
+	if n == lod or etat == DORT:
+		return
+	lod = n
+	if _pieds != null:
+		_pieds.actif = n == 0 and not (_anim in SANS_PIEDS)
+	if _tete != null:
+		(_tete as SkeletonModifier3D).active = n == 0
+	for mi: GeometryInstance3D in modele.find_children("*", "GeometryInstance3D", true, false):
+		if not mi.has_meta("ombre0"):
+			mi.set_meta("ombre0", mi.cast_shadow)
+		mi.cast_shadow = mi.get_meta("ombre0") if n == 0 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	visible = n < 2
+	process_mode = Node.PROCESS_MODE_DISABLED if n == 2 else Node.PROCESS_MODE_INHERIT

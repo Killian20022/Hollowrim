@@ -50,6 +50,7 @@ TESTS=(
 	"test_villageois|--nouvelle"
 	"test_pnj_village|--nouvelle"
 	"test_gardes_village|--nouvelle --paisible"
+	"test_vie|--nouvelle --paisible"   # lot vie_pnj : planning jour/nuit, rentrée, sommeil, fuite, répliques, sauvegarde `vie`
 	"test_persos_base|--nouvelle"
 	"test_guerrier|--nouvelle"
 	"test_mage|--nouvelle"

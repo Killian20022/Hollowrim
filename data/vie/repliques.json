@@ -1,0 +1,67 @@
+{
+ "note": "Répliques contextuelles des civils (lot vie_pnj, P3). Contextes : « danger » (un loup, un draugr ou un combat est passé à moins de 3 min), « nuit » (soirée, 18 h 30 – 6 h 30), « jour », « retour » (il revient d'un abri), « porte » (la nuit, on s'approche de sa porte : il parle de l'intérieur). Recherche : id du PNJ, puis type d'habitant, puis communes. Une seule réplique est ajoutée (en tête de la conversation) ; les lignes de présentation, de quête et « apres » de villageois.json / habitants.json ne changent pas.",
+ "communes": {
+  "danger": ["Tu as vu ? Ça rôdait tout près. Reste près des feux.", "J'ai couru comme un lièvre. Pas de honte à ça.", "Les gardes ont intérêt à ouvrir l'œil."],
+  "nuit": ["La nuit tombe. On ne devrait pas traîner dehors.", "Le feu est bon ce soir. Approche, mais sans bousculer.", "Les ombres bougent, par ici. Rentre bientôt."],
+  "jour": ["Il fait jour, profitons-en."],
+  "retour": ["Ouf. C'est fini ? Alors reprenons le travail.", "Je ne suis pas peureux. Juste prudent."],
+  "porte": ["Qui frappe à cette heure ? Reviens à l'aube."]
+ },
+ "types": {
+  "paysan": {
+   "danger": ["Les bêtes sont descendues jusqu'ici. Ce n'est pas normal."],
+   "nuit": ["Mes bœufs dorment mieux que moi, ces temps-ci."],
+   "porte": ["On dort, étranger. L'orge ne se récolte pas dans le noir."]
+  },
+  "paysanne": {
+   "danger": ["Mes poules ! Elles sont rentrées toutes seules, elles."],
+   "nuit": ["La soupe est froide, le feu est chaud. Choisis."],
+   "porte": ["Chut, les petits dorment ! Reviens demain."]
+  },
+  "chasseur": {
+   "danger": ["Un loup en plein village. Je le dirai à Ylva : la forêt déborde."],
+   "nuit": ["Je préfère la forêt de nuit à la place pleine de curieux. Presque."],
+   "porte": ["Je ne chasse pas à cette heure-ci. Reviens au jour."]
+  },
+  "chasseresse": {
+   "danger": ["J'ai repéré les traces avant l'alerte. Personne ne m'écoute."],
+   "nuit": ["Les cerfs ont quitté la lisière. Mauvais signe pour la nuit."],
+   "porte": ["Pas de visiteurs la nuit. Ce sont nos règles."]
+  }
+ },
+ "pnj": {
+  "chef": {
+   "danger": ["Je veux un rapport de la garde, tout de suite. Et que personne ne panique."],
+   "nuit": ["Le hameau dort, et moi je compte les vivants. Une habitude de cheffe."],
+   "retour": ["Bien. Le hameau tient. Il tiendra encore."],
+   "porte": ["La halle est close, étranger. Si c'est grave, crie ; sinon, à l'aube."]
+  },
+  "forgeron": {
+   "danger": ["Mon marteau est plus près que mon épée. Le loup a eu de la chance."],
+   "nuit": ["Le feu de forge baisse. Reviens demain si tu veux du fer."],
+   "retour": ["On rallume le feu. Le fer n'attend pas."],
+   "porte": ["Forge fermée ! Reviens à l'aube, le fer sera chaud."]
+  },
+  "chasseuse": {
+   "danger": ["Si ça rôde jusqu'ici, c'est que la forêt a peur de quelque chose de plus gros."],
+   "nuit": ["Je veille au bord du feu. Les bêtes savent déjà que tu es là."],
+   "porte": ["Ma porte est close et mon arc est tendu. Reviens à l'aube."]
+  },
+  "volva": {
+   "danger": ["Les runes l'avaient dit : quelque chose viendrait. Pas de panique. Pas encore."],
+   "nuit": ["Les nuits montrent mieux que les jours. Regarde le sud, étranger."],
+   "retour": ["Les runes se taisent. Bon signe, ou le pire."],
+   "porte": ["Les runes disent : dors. Reviens quand le ciel pâlit."]
+  },
+  "garde": {
+   "danger": ["Sonne la cloche si tu veux, mais l'ennemi est déjà dans la rue."],
+   "nuit": ["Je tiens la porte. La nuit, elle est plus lourde."]
+  },
+  "ancienne": {
+   "danger": ["Le puits a tremblé avant que le loup n'arrive. L'eau sait."],
+   "nuit": ["L'eau dort, comme tout le monde. Presque."],
+   "retour": ["Tire-moi un seau, petit. Mes jambes tremblent encore."],
+   "porte": ["Mon coffre et ma porte sont fermés. Reviens au jour, petit."]
+  }
+ }
+}

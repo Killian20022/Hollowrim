@@ -47,6 +47,7 @@ var arriere_plan: Node3D  # montagnes/château lointains (ArrierePlan), masqués
 var calque: CanvasLayer
 var dialogue: Control
 var quetes: Node
+var vie: Vie            # lot vie_pnj : horloge du village (planning, fuite, répliques)
 var tertre: Node3D
 var chemins: Chemins
 var arbres: Array = []  # transforms de tous les arbres (pour Sol)
@@ -679,6 +680,8 @@ func _villageois() -> void:
 		_chrono("  villageois : PNJ")
 		GardesVillage.peupler(self)
 		_chrono("  villageois : gardes")
+	vie = Vie.peupler(self)     # lot vie_pnj : planning jour/nuit, fuite, répliques (data/vie/) ; --sans-vie : A/B
+	_chrono("  villageois : vie")
 
 # --- guerrier pilote (refonte des personnages) ------------------------------------
 
@@ -1329,6 +1332,7 @@ func sauvegarder() -> void:
 		"magie": joueur.mains.magie.exporter() if joueur.mains.get("magie") != null else {},   # mains, sorts connus, mana (docs/MAGIE.md)
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
+		"vie": vie.exporter() if vie != null else {},   # lot vie_pnj : l'emploi du temps recalcule tout depuis l'heure ; seul le compteur d'alarmes est gardé
 		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
 		"marchands": Marchand.exporter(),  # lot L8 : heures de jeu écoulées, stock et bourse de chaque marchand (docs/BUTIN.md §9)
 		"lieux_vus": hud.lieux_vus.keys(),   # lot L7 : lieux déjà annoncés (« Lieu découvert »)
@@ -1406,6 +1410,8 @@ func charger() -> void:
 			draugrs.erase(id)
 	for nom in d.get("lieux_vus", []):
 		hud.lieux_vus[String(nom)] = true
+	if vie != null and d.get("vie") is Dictionary:
+		vie.restaurer(d["vie"])
 	var parles: Array = d.get("villageois_parles", [])
 	for v in get_tree().get_nodes_in_group("villageois"):
 		if v.donnees.get("id", "") in parles:
