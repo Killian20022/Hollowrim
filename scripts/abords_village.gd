@@ -862,12 +862,25 @@ func _finaliser() -> void:
 	_mat_flaque.disable_receive_shadows = true
 	_mesh(_flaques, _mat_flaque, false, "Flaques")
 	var mr := TexturesBati.m_rondins_e(Color(0.95, 0.88, 0.8))
-	_mesh(_bois, mr, true, "Bois")
-	_mesh(_bouts, TexturesBati.m_bout_rondin(), true, "Bouts")
-	_mesh(_fer, TexturesBati.m_fer_e(Color(0.7, 0.7, 0.75)), true, "Fer")
+	var groupe: Array[MeshInstance3D] = []
+	groupe.append(_mesh(_bois, mr, true, "Bois"))
+	groupe.append(_mesh(_bouts, TexturesBati.m_bout_rondin(), true, "Bouts"))
+	groupe.append(_mesh(_fer, TexturesBati.m_fer_e(Color(0.7, 0.7, 0.75)), true, "Fer"))
 	var mv := TexturesBati.m_fenetre()
 	mv.set_shader_parameter("emission", Color(VITRE_LANTERNE.r * 1.6, VITRE_LANTERNE.g * 1.6, VITRE_LANTERNE.b * 1.6))
-	_mesh(_verre, mv, false, "Verre")
+	groupe.append(_mesh(_verre, mv, false, "Verre"))
+	# Retours exe 5 (« d'un certain angle, des choses suspendues ») : poteaux (Bois), potences (Bouts), cages (Fer) et verres des
+	# lanternes sont quatre maillages, chacun masqué à PORTEE du centre de SA boîte ; ces centres étant éloignés, de loin la
+	# lanterne restait allumée en l'air quand son poteau avait déjà disparu. Une même boîte pour les quatre : ils partent ensemble.
+	var boite := AABB()
+	var premier := true
+	for mi in groupe:
+		if mi != null:
+			boite = mi.mesh.get_aabb() if premier else boite.merge(mi.mesh.get_aabb())
+			premier = false
+	for mi in groupe:
+		if mi != null:
+			mi.custom_aabb = boite
 	var mb := SousBois.materiau_herbe(texture_buisson(rng.randi() % 10000), Color(1.05, 1.0, 1.0))
 	_buissons = PosesDecor.filtrer(monde, _buissons, "buisson")   # passe D : règles de pose (après les tirages)
 	_touffes = PosesDecor.filtrer(monde, _touffes, "touffe_haute")   # grandes touffes givrées (≈ 1 m) : hors de la bande du sentier

@@ -307,7 +307,8 @@ static func col(ao: float, masque := 0.0) -> Color:
 
 # ------------------------------------------------------------------ concrétions et rochers
 ## Solide de révolution irrégulier. profil : Vector2(rayon, y) de la base vers la pointe (y négatif = stalactite).
-func revolution(nom: String, base: Vector3, profil: Array, cotes: int, graine: int, jit: float, masque: float, ao_base := 0.6, ao_tete := 1.0, tuile := 2.0) -> void:
+## `deforme` (facultatif) : Vector3 -> Vector3 appliqué à chaque sommet (congère drapée sur la pente, voir `congere`).
+func revolution(nom: String, base: Vector3, profil: Array, cotes: int, graine: int, jit: float, masque: float, ao_base := 0.6, ao_tete := 1.0, tuile := 2.0, deforme := Callable()) -> void:
 	var r := RandomNumberGenerator.new()
 	r.seed = graine
 	var a0 := r.randf() * TAU
@@ -323,8 +324,13 @@ func revolution(nom: String, base: Vector3, profil: Array, cotes: int, graine: i
 			var a := a0 + TAU * (float(i) + (r.randf() - 0.5) * 0.45) / cotes
 			var rr := p.x * (1.0 + (r.randf() - 0.5) * jit)
 			ring.append(base + Vector3(cos(a) * rr, p.y + (r.randf() - 0.5) * jit * 0.25 * absf(haut) / profil.size(), sin(a) * rr))
+		if deforme.is_valid():
+			for i in ring.size():
+				ring[i] = deforme.call(ring[i])
 		anneaux.append(ring)
 	var axe := base + Vector3(0, haut * 0.5, 0)
+	if deforme.is_valid():
+		axe = deforme.call(axe)
 	for k in profil.size() - 1:
 		var t0 := float(k) / (profil.size() - 1)
 		var t1 := float(k + 1) / (profil.size() - 1)
@@ -393,11 +399,126 @@ func rocher(nom: String, base: Vector3, r: float, h: float, graine: int, masque 
 	objet_fin()
 
 ## Congère : monticule bas de neige soufflée (crête de vent), sans collision (haut ≤ 0,5 m : on le traverse comme une neige molle).
-func congere(base: Vector3, r: float, h: float, graine: int) -> void:
+## Retours exe 5 (« droits alors qu'ils sont dans une pente ») : la congère est DRAPÉE sur le sol réel — chaque sommet garde sa hauteur
+## de neige au-dessus du sol sous lui (la neige se tasse à la verticale, elle ne penche pas comme un objet rigide), l'anneau du bas est
+## enterré, et sur une pente le tas s'aplatit et s'étire vers l'aval. Pente trop raide, sol absent ou marche sous le disque : pas de
+## tas (`plan_neige`). `sol` : Callable(x, z) -> hauteur du sol (repère du décor) ; par défaut le sol de la grotte (`sol_objet`).
+## Renvoie false si la neige ne tient pas là (rien n'est posé).
+var neige_bases: Array = []        # anneaux du bas des congères posées (repère du décor) : test_neige_pente
+var neige_refus := 0               # congères non posées (pente trop raide, marche ou vide sous le disque)
+func congere(base: Vector3, r: float, h: float, graine: int, sol := Callable()) -> bool:
+	if not sol.is_valid():
+		var g := _g()
+		if g == null:
+			sol = func(_x: float, _z: float) -> float: return base.y
+		else:
+			var y_ref := base.y + r * tan(deg_to_rad(PENTE_NEIGE)) + 0.3
+			sol = func(x: float, z: float) -> float: return g.sol_objet(x, z, y_ref)
+	var pl := plan_neige(sol, base, r * 1.15)
+	if pl.is_empty():
+		neige_refus += 1
+		var k_r := "congère r < 0,5" if r < 0.5 else "congère r ≥ 0,5"
+		refus_neige[k_r] = int(refus_neige.get(k_r, 0)) + 1
+		return false
 	objet_debut("congere")
+	var k: float = pl["k"]
+	var hh := h * lerpf(1.0, 0.75, k)                          # pente : neige tassée, plus basse
+	var aval: Vector2 = pl["aval"]
+	var c0 := base + Vector3(aval.x, 0.0, aval.y) * (0.12 * k * r)   # le tas glisse un peu vers l'aval
+	var etire := 1.0 + 0.35 * k
+	var y_plan: float = pl["y"]
+	var grad: Vector2 = pl["grad"]
+	var drape := func(v: Vector3) -> Vector3:
+		var d := Vector2(v.x - base.x, v.z - base.z)
+		var t := d.dot(aval)
+		if t > 0.0:
+			d += aval * t * (etire - 1.0)                       # côté aval : étiré
+		var x := c0.x + d.x
+		var z := c0.z + d.y
+		var ys: float = sol.call(x, z)
+		var yp := y_plan + grad.x * (x - base.x) + grad.y * (z - base.z)
+		if ys < -1e8:
+			ys = yp                                              # dans la roche (au-delà de la paroi) : le plan du sol, caché
+		ys = minf(ys, yp + 0.3)                                  # pied de paroi qui remonte : le bord entre dans la roche, la neige ne grimpe pas au mur
+		var dy := v.y - base.y
+		return Vector3(x, ys + (dy - 0.04 if dy < 0.0 else dy * hh / maxf(h, 0.001)), z)
 	var profil := [Vector2(r, -0.06), Vector2(r * 0.93, h * 0.42), Vector2(r * 0.66, h * 0.82), Vector2(r * 0.3, h), Vector2(0.0, h * 1.02)]
-	revolution("c_sol_neige", base, profil, 9, graine, 0.34, 1.6, 0.8, 1.0, 4.0)
+	revolution("c_sol_neige", base, profil, 9, graine, 0.34, 1.6, 0.8, 1.0, 4.0, drape)
+	var bas := PackedVector3Array()
+	for i in 18:                                                 # contrôle (test) : 18 points de l'anneau du bas
+		var a := TAU * i / 18.0
+		bas.append(drape.call(base + Vector3(cos(a) * r, -0.06, sin(a) * r)))
+	neige_bases.append(bas)
 	objet_fin()
+	return true
+
+static var refus_neige := {}       # motif -> nombre de tas refusés par plan_neige (diagnostic, test_neige_pente)
+## Pente maximale (degrés) où un tas de neige tient : au-delà, la neige glisse (pas de tas).
+const PENTE_NEIGE := 34.0
+## Plan du sol sous un disque de neige (centre c, rayon r) : 9 échantillons (centre + 8 au bord) de `sol` (Callable(x, z) -> y).
+## Un échantillon SANS sol (aucune surface tournée vers le haut sous lui : il est dans la roche, au-delà de la paroi) est ignoré — la
+## congère s'appuie contre la paroi, son bord y est caché ; il en faut au moins 5 dont le centre. {} si la neige ne tient pas : centre
+## sans sol, pente > PENTE_NEIGE, ou une marche (rebord, dalle, trou) sous le disque. Sinon {"y": plan au centre, "grad":
+## Vector2(dy/dx, dy/dz), "pente": degrés, "k": 0..1 (raideur relative), "aval": direction horizontale vers le bas, "creux": plus grand
+## écart plan - sol (≥ 0) sur les échantillons, "bosse": plus grand écart sol - plan}.
+static func plan_neige(sol: Callable, c: Vector3, r: float) -> Dictionary:
+	var ds: Array[Vector2] = [Vector2.ZERO]
+	for k in 8:
+		var a := TAU * k / 8.0
+		ds.append(Vector2(cos(a), sin(a)) * r)
+	var pts: Array[Vector3] = []          # (dx, y, dz) des échantillons qui ont un sol
+	for i in ds.size():
+		var y: float = sol.call(c.x + ds[i].x, c.z + ds[i].y)
+		if y < -1e8 or y > 1e8:
+			if i == 0:
+				refus_neige["sans sol"] = int(refus_neige.get("sans sol", 0)) + 1
+				return {}
+			continue
+		pts.append(Vector3(ds[i].x, y, ds[i].y))
+	if pts.size() < 5:
+		refus_neige["sans sol"] = int(refus_neige.get("sans sol", 0)) + 1
+		return {}
+	# moindres carrés y = y0 + gx·dx + gz·dz (équations normales 3 x 3)
+	var n := float(pts.size())
+	var sx := 0.0
+	var sz := 0.0
+	var sxx := 0.0
+	var szz := 0.0
+	var sxz := 0.0
+	var sy := 0.0
+	var sxy := 0.0
+	var szy := 0.0
+	for p in pts:
+		sx += p.x
+		sz += p.z
+		sxx += p.x * p.x
+		szz += p.z * p.z
+		sxz += p.x * p.z
+		sy += p.y
+		sxy += p.x * p.y
+		szy += p.z * p.y
+	var M := Basis(Vector3(n, sx, sz), Vector3(sx, sxx, sxz), Vector3(sz, sxz, szz))   # colonnes (matrice symétrique)
+	if absf(M.determinant()) < 1e-9:
+		refus_neige["sans sol"] = int(refus_neige.get("sans sol", 0)) + 1
+		return {}
+	var sol3 := M.inverse() * Vector3(sy, sxy, szy)
+	var y0 := sol3.x
+	var grad := Vector2(sol3.y, sol3.z)
+	var pente := rad_to_deg(atan(grad.length()))
+	if pente > PENTE_NEIGE:
+		refus_neige["pente"] = int(refus_neige.get("pente", 0)) + 1
+		return {}
+	var creux := 0.0
+	var bosse := 0.0
+	for p in pts:
+		var e := y0 + grad.x * p.x + grad.y * p.z - p.y
+		creux = maxf(creux, e)
+		bosse = maxf(bosse, -e)
+	if creux > 0.1 + 0.15 * r or bosse > 0.1 + 0.15 * r:        # marche, rebord de corniche, trou : pas un sol où la neige s'étale
+		refus_neige["marche"] = int(refus_neige.get("marche", 0)) + 1
+		return {}
+	var aval := -grad.normalized() if grad.length() > 1e-4 else Vector2.ZERO
+	return {"y": y0, "grad": grad, "pente": pente, "k": smoothstep(8.0, PENTE_NEIGE, pente), "aval": aval, "creux": creux, "bosse": bosse}
 
 ## Caillou : pyramide irrégulière à 4 faces (micro-détail du sol, 4 triangles).
 func caillou(nom: String, base: Vector3, r: float, h: float, graine: int, masque := 0.0) -> void:

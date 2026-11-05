@@ -1,0 +1,6 @@
+b_sud monde 36,52,0,4 heure=12 sans-mains
+b_nord monde 36.2,40.5,180,4 heure=12 sans-mains
+b_est monde 41.5,46,90,4 heure=12 sans-mains
+b_ouest monde 31,45.5,-90,4 heure=12 sans-mains
+b_34 monde 40,51,35,4 heure=12 sans-mains
+b_34_nuit monde 40,51,35,4 heure=22 sans-mains

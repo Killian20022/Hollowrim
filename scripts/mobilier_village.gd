@@ -8,6 +8,10 @@ extends Node3D
 
 const DAT := "res://assets/modeles/mobilier_village.dat"
 const ACCROCHE_TISSU := Vector3(0.55, 3.72, 0.0)   # haut du tissu dans le repère du mât (rapport Blender)
+## Bannière Quaternius (substitut) : axe de la hampe (montant de Banner_1 : x -0,737 du modèle x 1,116), diamètre, haut (sous la traverse).
+const HAMPE_X := -0.822
+const HAMPE_D := 0.19
+const HAMPE_HAUT := 3.72
 const BRAISES_Y := 1.05
 const PORTEE := 55.0
 
@@ -189,7 +193,16 @@ static func substitut(mod: String) -> Array:
 			for sx in [-0.78, 0.78]:
 				r.append(["q_etal", _fit("q_etal", Vector3(sx, 0, -0.45), 0.0, Vector3(1.55, 2.4, 1.1)), {"bois": "planches_l4", "lin": "lin_l4"} if PropsQuaternius.lot4 else {}])
 		"banniere":
-			r = [["q_banniere", _fit("q_banniere", Vector3.ZERO, 0.0, Vector3(1.8, 3.95, 0.4)), {}]]
+			# Retours exe 5 (« des poteaux suspendus dans les airs ») : Banner_1 est une potence MURALE — son montant commence à 0,75 m
+			# du modèle (1,23 m une fois mis à l'échelle) et sa toile est une seule face « fer ». Posée seule au milieu de la place, le
+			# montant pendait en l'air. KITBASH : une hampe ronde du sol jusque sous la traverse, à la place du montant ; la toile est
+			# celle de Banner_1_Cloth (le nœud Tissu, deux faces, balancée) ; la plaque « fer » (toile d'une seule face, sans support) et
+			# les clous sont retirés.
+			r = [["q_banniere", _fit("q_banniere", Vector3.ZERO, 0.0, Vector3(1.8, 3.95, 0.21)), {"fer": ""}]]      # profondeur 0,21 (était 0,4 : montant 0,28 m d'épais) : la hampe le couvre
+			if PropsQuaternius.existe("q_poutre_ronde"):
+				var d := HAMPE_D
+				r.append(["q_poutre_ronde", Transform3D(Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(HAMPE_HAUT + 0.2, d / 0.1568, d / 0.1568)),
+					Vector3(HAMPE_X + d * 0.5, (HAMPE_HAUT - 0.2) * 0.5, 0.0)), {}])
 		"puits":      # KITBASH : margelle = 8 dalles de bordure Quaternius debout + chapiteaux de briques, 4 poteaux et poutres rondes, toit de planches, seau et corde
 			for i in 8:
 				var a := i * TAU / 8.0
@@ -393,10 +406,23 @@ static func poser_dans(v, parent: Node3D, mod: String, xf: Transform3D, mats := 
 	if mod == "enclos_lisse" and not sub.is_empty():      # barrière Quaternius en tronçons de ~2 m (poteaux non étirés)
 		var l := xf.basis.get_scale().x
 		var nseg := maxi(1, roundi(l / 2.0))
+		xf = Transform3D(xf.basis.orthonormalized(), Vector3(xf.origin.x, 0.0, xf.origin.z))
+		# Retours exe 5 (« des poteaux suspendus dans les airs ») : chaque tronçon suit le relief sous SES deux poteaux (cisaillement :
+		# poteaux verticaux, lisses parallèles à la pente) au lieu de rester à la hauteur du centre de l'enclos.
+		var vers_l := Transform3D.IDENTITY
+		var suit: bool = v is Node3D and v.has_method("h_sol") and (v as Node3D).is_inside_tree()
+		if suit:
+			vers_l = ((v as Node3D).global_transform * parent.transform * xf).affine_inverse()
 		ents = []
 		for i in nseg:
-			ents.append(["q_barriere_bois", _fit("q_barriere_bois", Vector3((i + 0.5) * l / nseg - l * 0.5, 0.0, 0.0), 0.0, Vector3(l / nseg, 1.0, 0.14)), {}])
-		xf = Transform3D(xf.basis.orthonormalized(), Vector3(xf.origin.x, 0.0, xf.origin.z))
+			var xa := i * l / nseg - l * 0.5
+			var xb := xa + l / nseg
+			var cis := Transform3D.IDENTITY
+			if suit:
+				var ya := _sol_local(v, vers_l, xa)
+				var yb := _sol_local(v, vers_l, xb)
+				cis = Transform3D(Basis(Vector3(1, (yb - ya) / (xb - xa), 0), Vector3.UP, Vector3.BACK), Vector3(0, (ya + yb) * 0.5 - 0.04 - (xa + xb) * 0.5 * (yb - ya) / (xb - xa), 0))
+			ents.append(["q_barriere_bois", cis * _fit("q_barriere_bois", Vector3((i + 0.5) * l / nseg - l * 0.5, 0.0, 0.0), 0.0, Vector3(l / nseg, 1.0, 0.14)), {}])
 	for e: Array in ents:
 		if e[0] == "" or not PropsQuaternius.existe(e[0]):
 			continue
@@ -411,6 +437,11 @@ static func poser_dans(v, parent: Node3D, mod: String, xf: Transform3D, mats := 
 			if not sub.is_empty() and not (nom.substr(pre.length()) in garde):
 				continue
 			v._ajouter(parent, arrays_de(nom), xf, mats[nom.substr(pre.length())])
+
+## Hauteur du sol (relief du village) sous le point (x, 0, 0) d'un repère de lisse, dans ce repère (`vers_l` : monde -> repère).
+static func _sol_local(v, vers_l: Transform3D, x: float) -> float:
+	var w := vers_l.affine_inverse() * Vector3(x, 0, 0)
+	return (vers_l * Vector3(w.x, v.h_sol(w.x, w.z), w.z)).y
 
 ## Nœud autonome (hors du village : feu de camp du cercle) : poses [module, Transform3D] fusionnées par matière, matières C7a.
 static func noeud_modules(poses: Array, nom_noeud: String) -> Node3D:
@@ -496,23 +527,37 @@ func _construire() -> void:
 		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])).scaled(Vector3.ONE * s), Vector3(x, _sol_bas(x, z, r_emprise), z))
 		var sub := substitut(mod)
 		var garde: Array = SUBST_GARDE.get(mod, [])
+		# Retours exe 5 (« des drapeaux suspendus, d'un certain angle ») : le mât d'une bannière n'est plus fondu dans le maillage de
+		# TOUT le mobilier. Ce maillage unique est masqué à PORTEE de SON centre (le milieu du village) alors que chaque tissu l'est à
+		# PORTEE de sa propre hampe : vus du bord du village, les mâts disparaissaient et les tissus restaient en l'air. Mât et tissu
+		# ont maintenant le même centre, donc la même portée (le tissu part un peu avant).
+		var cible := fusion if mod != "banniere" else {}
 		if not sub.is_empty():
-			tris += _poser_sub(fusion, sub, xf, mod)
+			tris += _poser_sub(cible, sub, xf, mod)
 		for nom: String in donnees:
 			var morceaux := nom.split("/")
 			if morceaux[0] != mod:
 				continue
 			if not sub.is_empty() and not (morceaux[1] in garde):
 				continue
-			if not fusion.has(morceaux[1]):
+			if not cible.has(morceaux[1]):
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
-				fusion[morceaux[1]] = st
-			_ajouter(fusion[morceaux[1]], donnees[nom], xf)
+				cible[morceaux[1]] = st
+			_ajouter(cible[morceaux[1]], donnees[nom], xf)
 			tris += (donnees[nom][0] as PackedVector3Array).size() / 3
 		if mod == "banniere":
+			for mat: String in cible:
+				var stm: SurfaceTool = cible[mat]
+				stm.generate_normals()
+				var mm := MeshInstance3D.new()
+				mm.name = "Mat_%s_%d" % [mat, num]
+				mm.mesh = stm.commit()
+				mm.material_override = _materiau(mat)
+				mm.visibility_range_end = PORTEE
+				add_child(mm)
 			var piv := Node3D.new()
-			piv.name = "Tissu"
+			piv.name = "Tissu_%d" % num      # nom unique : test_props_village associe chaque tissu à son mât
 			piv.transform = xf * Transform3D(Basis(), ACCROCHE_TISSU)
 			add_child(piv)
 			if not sub.is_empty() and PropsQuaternius.existe("q_banniere_toile"):      # tissu Quaternius (Banner_1_Cloth) : même balancement
@@ -522,12 +567,14 @@ func _construire() -> void:
 					var stq := SurfaceTool.new()
 					stq.begin(Mesh.PRIMITIVE_TRIANGLES)
 					stq.append_from(PropsQuaternius.maillage_brut("q_banniere_toile", t[0]), 0, Transform3D(xt.basis, Vector3(0, -3.7, 0.0)))
-					stq.append_from(PropsQuaternius.maillage_brut("q_banniere_toile", t[0]), 0, Transform3D(xt.basis * Basis.from_scale(Vector3(1, 1, -1)), Vector3(0, -3.7, 0.0)))
+					# seconde face : DEMI-TOUR autour de la verticale. Le miroir (z -1) d'avant gardait l'ordre des sommets, donc la même
+					# face visible : vue de dos, la bannière n'avait pas de toile (« d'un certain angle… »).
+					stq.append_from(PropsQuaternius.maillage_brut("q_banniere_toile", t[0]), 0, Transform3D(Basis(Vector3.UP, PI) * xt.basis, Vector3(0, -3.7, -0.01)))
 					stq.generate_normals()
 					var mq := MeshInstance3D.new()
 					mq.mesh = stq.commit()
 					mq.material_override = _materiau("tenture_rouge")
-					mq.visibility_range_end = PORTEE
+					mq.visibility_range_end = PORTEE - 2.0
 					piv.add_child(mq)
 					tris += (t[1] as PackedVector3Array).size() / 3
 				_tissus.append([piv, randf() * TAU, piv.rotation])
@@ -540,7 +587,7 @@ func _construire() -> void:
 					var mi := MeshInstance3D.new()
 					mi.mesh = st.commit()
 					mi.material_override = _materiau(nom.split("/")[1])
-					mi.visibility_range_end = PORTEE
+					mi.visibility_range_end = PORTEE - 2.0
 					piv.add_child(mi)
 					tris += (donnees[nom][0] as PackedVector3Array).size() / 3
 			if sub.is_empty():
@@ -562,6 +609,8 @@ func _construire() -> void:
 				add_child(l)
 				_lumieres.append([l, l.light_energy, x])
 		var cols: Array = COLLISIONS.get(mod, [])
+		if mod == "banniere" and not sub.is_empty():      # la hampe du substitut est au montant de Banner_1, pas au centre
+			cols = [["cyl", 0.12, 4.0, Vector3(HAMPE_X, 2.0, 0)]]
 		if mod == "etal" and not sub.is_empty():      # deux étals Quaternius : un seul volume plein (comptoirs et poteaux)
 			cols = [["boite", Vector3(3.1, 1.0, 1.15), Vector3(0, 0.5, -0.45)]]
 		for c: Array in cols:
@@ -603,6 +652,8 @@ func _poser_sub(fusion: Dictionary, sub: Array, xf: Transform3D, _mod: String) -
 		PropsQuaternius.compter("village_marche")
 		for t: Array in PropsQuaternius.triangles(e[0]):
 			var mat: String = (e[2] as Dictionary).get(t[0], MATS_Q.get(t[0], "planches_h"))
+			if mat == "":
+				continue      # matière retirée de ce substitut
 			if not fusion.has(mat):
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
