@@ -1,0 +1,1 @@
+nuit_torche monde 2,-2,60,2 heure=22 sans-mains temps_ciel=0

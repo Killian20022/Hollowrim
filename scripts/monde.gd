@@ -17,6 +17,7 @@ const VILLAGE := Vector3(44.0, 0.0, 40.0)   # Skarnholt
 
 const CIEL := preload("res://shaders/ciel_nuit.gdshader")
 const POST := preload("res://shaders/ps1_post.gdshader")
+const FLOCON := preload("res://shaders/ps1_flocon.gdshader")
 const JOUEUR := preload("res://scripts/joueur.gd")
 const DRAUGR := preload("res://scripts/draugr.gd")
 const HUD := preload("res://scripts/hud.gd")
@@ -1303,8 +1304,20 @@ func _neige() -> void:
 	pm.scale_min = 0.6
 	pm.scale_max = 1.6
 	neige.process_material = pm
+	if _arguments().has("graine-neige"):   # captures A/B : mêmes flocons aux mêmes places d'un lancement à l'autre
+		neige.use_fixed_seed = true
+		neige.seed = int(_arguments()["graine-neige"])
 	var q := QuadMesh.new()
 	q.size = Vector2(0.05, 0.05)
+	if String(_arguments().get("neige-psx", "1")) != "0":
+		# flocons en carrés de pixels entiers du monde (shaders/ps1_flocon.gdshader) : plus de scintillement sous le pixel au loin
+		var mf := ShaderMaterial.new()
+		mf.shader = FLOCON
+		q.material = mf
+		neige.draw_pass_1 = q
+		add_child(neige)
+		neige.global_position = joueur.global_position + Vector3(0, 10, 0)
+		return
 	var mq := StandardMaterial3D.new()
 	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
@@ -1330,6 +1343,7 @@ func _interface() -> void:
 	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	post = ShaderMaterial.new()
 	post.shader = POST
+	post.set_shader_parameter("fondu_psx", String(_arguments().get("fondu-psx", "1")) != "0")   # --fondu-psx=0 : ancien fondu multiplicatif
 	rect.material = post
 	calque.add_child(rect)
 	hud = Control.new()   # aide des touches : cartouche du HUD (lot L7, 60 s puis F1 ; hud.demarrer en fin de chargement)
@@ -2056,6 +2070,9 @@ func _lot_captures(fichier: String) -> void:
 		joueur.mains.visible = not (mains_globales or opt.has("sans-mains"))
 		if opt.has("mains"):     # mains=repos|armer|frappe|garde|… : pose figée de l'épée à la 1re personne (comme --mains=)
 			joueur.mains._pose_figee = String(opt["mains"])
+		# fondu=0..1 : fondu au noir figé (planches du fondu de la mort) ; fondu_psx=0 : l'ancien fondu multiplicatif
+		post.set_shader_parameter("fondu", float(opt.get("fondu", "0")))
+		post.set_shader_parameter("fondu_psx", String(opt.get("fondu_psx", _arguments().get("fondu-psx", "1"))) != "0")
 		if opt.has("vue"):       # vue=3 : troisième personne, vue=1 : première
 			joueur.basculer_vue(String(opt["vue"]) == "3")
 		# 1re vue : attente complète (compilation des shaders, stabilisation) ; les suivantes : --attente-suite (20 images)

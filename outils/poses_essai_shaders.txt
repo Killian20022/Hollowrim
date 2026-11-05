@@ -1,5 +1,5 @@
-village_jour monde 32,30,-125,0 heure=12 sans-mains
-foret_loin monde 70,97,28,-12 heure=12 sans-mains
-foret_loin2 monde 2,-2,60,2 heure=10 sans-mains
-nuit_torche monde 2,-2,60,2 heure=22
-grotte_salle grotte 213,0.5,40,3 sans-mains
+village_jour monde 32,30,-125,0 heure=12 sans-mains temps_ciel=0
+foret_loin monde 70,97,28,-12 heure=12 sans-mains temps_ciel=0
+foret_loin2 monde 2,-2,60,2 heure=10 sans-mains temps_ciel=0
+nuit_torche monde 2,-2,60,2 heure=22 temps_ciel=0
+grotte_salle grotte 213,0.5,40,3 sans-mains temps_ciel=0
