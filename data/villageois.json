@@ -14,7 +14,7 @@
         "Tu es le bienvenu. Tant que tu ne voles pas nos réserves de bière.",
         "Ces dernières nuits, des lueurs bougent au cercle de pierres, au nord-ouest.",
         "Les anciens disent que les morts y dorment. Ils dorment moins bien, depuis peu.",
-        "Un anneau a disparu de la tombe de Svanhild. Je veux savoir qui l’a pris."
+        "Un anneau a disparu de la tombe de Svanhild. Eirik, un gamin du hameau, et ses quatre têtes brûlées s’en vantaient, avant de disparaître tous."
       ],
       "apres": [
         "Parle aux gens du hameau. Ils en savent plus qu’ils n’en disent.",
@@ -34,9 +34,9 @@
         "Brodd. Forgeron. Ne touche pas aux lames, elles sont plus polies que moi.",
         "Haches, pelles, clous. Un hameau sans fer, c’est un tas de bois qui gèle.",
         "Hé, tu as le regard d’un type qui marche beaucoup. Tes bottes diront le reste.",
-        "Il y a trois jours, Eirik m’a montré un anneau gris. Il glaçait mes doigts.",
-        "J’ai refusé de le chauffer. Il est parti avec, content comme un gamin.",
-        "Depuis, personne ne l’a revu. Et les morts du cercle remuent. Un hasard ?"
+        "Il y a trois jours, Eirik m’a montré un anneau gris, devant ses quatre compagnons. Il glaçait mes doigts.",
+        "J’ai refusé de le chauffer. Ils sont repartis avec, contents comme des gamins.",
+        "Depuis, personne n’a revu la bande. Et les morts du cercle remuent. Un hasard ?"
       ],
       "apres": [
         "Mon marteau est lourd. Ma conscience aussi, pour l’anneau.",
@@ -56,12 +56,12 @@
         "Les cerfs ont fui vers le sud. Les loups aussi. Ça ne leur ressemble pas.",
         "Ils évitent le cercle de pierres. Moi, j’y suis allée hier, de loin.",
         "J’ai vu des silhouettes en armure bouger. Raides. Silencieuses. Vivantes ? Non.",
-        "Mon frère Eirik est parti là-bas une nuit. Il n’est pas revenu.",
+        "Mon frère Eirik est parti là-bas une nuit, avec quatre têtes brûlées. Aucun n’est revenu.",
         "Retrouve-le, étranger. Je te devrai une peau de loup. Et plus encore."
       ],
       "apres": [
         "Les traces d’Eirik s’arrêtent près des pierres. Je n’y vais pas seule.",
-        "Garde ton arc bandé. Ces choses-là n’ont pas peur.",
+        "Garde ta lame haute. Ces choses-là n’ont pas peur.",
         "Si tu le retrouves, ramène-le. Même en morceaux."
       ]
     },
@@ -97,14 +97,14 @@
         "Halte. Haldor, garde de la porte. Rassure-moi, tu n’es pas un mort ?",
         "Non ? Bien. Le dernier visiteur nocturne n’avait plus de visage.",
         "Quatre-Yeux, c’est pour mes lunettes de neige. Pas pour le ridicule.",
-        "Je veille depuis une semaine. Des lueurs vertes montent du nord-ouest.",
-        "Eirik est passé en courant, la nuit dernière. Un truc brillait dans sa main.",
-        "Il a filé vers le cercle. Moi, je tiens la porte. Toi, tu as des jambes."
+        "Je veille depuis une semaine. Des lueurs vertes montent du nord-ouest, et sur la route de l’est, des bandits dépouillent les convois.",
+        "Eirik est passé en courant, la nuit dernière. Les quatre autres étaient partis avant lui. Un truc brillait dans sa main.",
+        "Il ne m’a rien demandé, je ne lui ai rien dit. Il a filé vers le cercle. Moi, je tiens la porte. Toi, tu as des jambes."
       ],
       "apres": [
         "Je garde la porte. Rien d’autre. Ne me demande pas de courir.",
         "Les loups hurlent moins. C’est pire que s’ils hurlaient.",
-        "Les convois se font détrousser sur la route. Un certain Hrafn, paraît-il. Si tu as du cran, reparle-m’en.",
+        "Les convois se font détrousser sur la route de l’est. Un certain Hrafn, paraît-il, dans la vieille mine. Si tu as du cran, reparle-m’en.",
         "Reviens vivant, étranger. Je déteste la paperasse des deuils."
       ]
     },

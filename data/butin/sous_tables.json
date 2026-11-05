@@ -14,7 +14,7 @@
 		"valeurs": {"tirages": 1, "entrees": [
 			{"id": "anneau_cuivre", "poids": 40},
 			{"id": "coupe_argent", "poids": 25},
-			{"id": "amulette_givre", "poids": 12},
+			{"id": "pendentif_mineur", "poids": 12},
 			{"id": "collier_or", "poids": 10},
 			{"id": "relique_offrande", "poids": 4},
 			{"table": "bijoux_enchantes", "poids": 3, "rarete": "rare"}

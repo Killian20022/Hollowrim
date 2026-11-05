@@ -201,6 +201,10 @@ func dire_au_passage(nom: String, texte: String) -> void:
 	_sous_titre_t = DUREE_SOUS_TITRE
 	_sous_titre.modulate.a = 1.0
 
+## Objet ou villageois proposé par l'invite « E » en ce moment (null : aucun, ou boîte de dialogue ouverte).
+func invite_courante() -> Node3D:
+	return null if _ouvert else _plus_proche()
+
 func _plus_proche() -> Node3D:
 	var meilleur: Node3D = null
 	var d_min := INF

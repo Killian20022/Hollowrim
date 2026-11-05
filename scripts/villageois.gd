@@ -242,7 +242,9 @@ func parler() -> Array:
 	if not de_quete.is_empty():
 		lignes += de_quete
 	elif deja_parle:
-		lignes = donnees.get("apres", [])
+		# « après » selon l'état du monde (data/quetes.json "apres" : anneau rendu, Hrafn mort, choix moral, maison…), sinon les fixes
+		var selon_etat: Array = quetes.apres(donnees.get("id", "")) if quetes != null else []
+		lignes = selon_etat if not selon_etat.is_empty() else donnees.get("apres", [])
 	if lignes.is_empty():
 		lignes = donnees.get("lignes", ["…"])
 	deja_parle = true

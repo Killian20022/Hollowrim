@@ -47,9 +47,9 @@ func _tester() -> void:
 			gerbe = b
 	_verif(gerbe != null and gerbe.pieces_visibles() >= 4, "coffre camp_a : gerbe de pièces (%d pièces visibles)" % (gerbe.pieces_visibles() if gerbe else 0))
 	var fb: FenetreButin = m.fenetre_butin
-	_verif(fb.ouvert and fb.lignes.size() >= 1 and not j.inventaire.a("amulette_givre"), "coffre camp_a : fenêtre de butin (%d objet(s)), rien pris d'office" % fb.lignes.size())
+	_verif(fb.ouvert and fb.lignes.size() >= 1 and not j.inventaire.a("pendentif_mineur"), "coffre camp_a : fenêtre de butin (%d objet(s)), rien pris d'office" % fb.lignes.size())
 	fb.tout_prendre()
-	_verif(j.inventaire.pieces >= pieces0 + 90 and j.inventaire.a("amulette_givre"), "coffre camp_a : butin reçu (pièces %d → %d, amulette de givre)" % [pieces0, j.inventaire.pieces])
+	_verif(j.inventaire.pieces >= pieces0 + 90 and j.inventaire.a("pendentif_mineur"), "coffre camp_a : butin reçu (pièces %d → %d, pendentif de mineur)" % [pieces0, j.inventaire.pieces])
 	if gerbe != null:
 		j.global_position = gerbe.global_position + Vector3(0, 0.1, 0)      # le joueur reste devant le coffre (comme avant L2)
 	await _attendre(3.0)

@@ -117,6 +117,9 @@ func _ready() -> void:
 	# chiffres de dégâts flottants au-dessus des ennemis touchés (ChiffresDegats) : désactivés par défaut (esprit Skyrim)
 	_case(g, "Chiffres de dégâts", Jeu.option("combat", "chiffres_degats"), func(v: bool) -> void:
 		Jeu.regler("combat", "chiffres_degats", v))
+	# bulles d'aide contextuelles (premier ennemi, sort, coffre, menu) : une seule fois chacune, désactivables ici
+	_case(g, "Bulles d'aide", Jeu.option("jeu", "aides"), func(v: bool) -> void:
+		Jeu.regler("jeu", "aides", v))
 	# copie de secours de la sauvegarde dans un dossier choisi (Google Drive, OneDrive…)
 	g.add_child(MenuStyle.etiquette("Copie de secours"))
 	var h := HBoxContainer.new()

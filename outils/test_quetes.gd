@@ -78,7 +78,7 @@ func _tester() -> void:
 	await process_frame
 	print("   quêtes : ", _etat(), " | pièces=", inv.pieces, " objets=", inv.objets)
 	var ok: bool = sur_ratelier and m.quetes.etat.get("anneau_givre", 0) == 6 and m.quetes.etat.get("frere_ylva", 0) == 3 and m.quetes.etat.get("lames_brodd", 0) == 4
-	ok = ok and inv.a("amulette_givre") and inv.a("epee_skarnholt") and inv.pieces == 210 and not inv.a("anneau_givre") and not inv.a("lame_antique") and not inv.a("amulette_eirik")
+	ok = ok and inv.a("amulette_givre") and inv.a("manteau_loup_ylva") and inv.a("epee_skarnholt") and inv.pieces == 210 and not inv.a("anneau_givre") and not inv.a("lame_antique") and not inv.a("amulette_eirik")
 	print("TEST QUÊTES : ", "OK" if ok else "ÉCHEC")
 	ok = await _tester_donjons() and ok
 	print("TEST QUÊTES DONJONS : ", "OK" if ok else "ÉCHEC")

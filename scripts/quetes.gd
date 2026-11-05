@@ -122,10 +122,11 @@ func _completer(q: Dictionary, i: int) -> void:
 	var etapes: Array = q["etapes"]
 	etat[q["id"]] = i + 1
 	journal.append(etapes[i]["journal"])
-	if i == 0:
+	if i == 0 and not q.get("discrete", false):
 		hud.avis("Nouvelle quête : " + q["titre"])
 	if i + 1 >= etapes.size():
-		hud.avis("Quête terminée : " + q["titre"])
+		if not q.get("discrete", false):
+			hud.avis("Quête terminée : " + q["titre"])
 		var remis: Dictionary = REMIS.get(q["id"], {})
 		for id in remis:
 			joueur.inventaire.retirer(id, remis[id])
@@ -137,7 +138,11 @@ func _completer(q: Dictionary, i: int) -> void:
 		for id in r.get("objets", {}):
 			joueur.inventaire.ajouter(id, int(r["objets"][id]))
 			hud.avis("+ " + joueur.inventaire.nom(id))
-		Sons.jouer(self, ["sword-unsheathe"], -6.0)
+		if not q.get("discrete", false):
+			Sons.jouer(self, ["sword-unsheathe"], -6.0)
+		change.emit()
+		signaler("fini:" + q["id"])   # une quête peut en lancer une autre (premier déclencheur « fini:<id> ») : la suite de l'histoire
+		return
 	elif hud.has_method("objectif_change"):
 		hud.objectif_change()   # l'objectif s'affiche sous la boussole (hud.gd), plus en double en haut à gauche
 	else:
@@ -149,16 +154,26 @@ func _completer(q: Dictionary, i: int) -> void:
 func repliques(villageois: String) -> Array:
 	var dialogues: Dictionary = donnees.get("dialogues", {}).get(villageois, {})
 	var evt := "parle:" + villageois
+	# Une conversation peut faire avancer plusieurs quêtes à la fois (Sigrún : sceaux brisés ET lueur du sud) : toutes leurs
+	# répliques sont dites, la plus avancée dans le récit d'abord.
+	var cles: Array = []
 	for q in donnees["quetes"]:
 		var etapes: Array = q["etapes"]
 		var n: int = etat.get(q["id"], -1)
 		var prochaine := 0 if n == -1 else n
-		if prochaine < etapes.size() and etapes[prochaine]["declencheur"] == evt:
-			var lignes: Array = dialogues.get("%s:%s" % [q["id"], etapes[prochaine]["id"]], [])
-			signaler(evt)
-			if not lignes.is_empty():
-				return lignes
-	for q in donnees["quetes"]:
+		if prochaine < etapes.size() and _egal(etapes[prochaine]["declencheur"], evt):
+			cles.append("%s:%s" % [q["id"], etapes[prochaine]["id"]])
+	if not cles.is_empty():
+		signaler(evt)
+		cles.reverse()
+		var dites: Array = []
+		for cle: String in cles:
+			dites.append_array(dialogues.get(cle, []))
+		if not dites.is_empty():
+			return dites
+	var recentes: Array = donnees["quetes"].duplicate()
+	recentes.reverse()   # la quête la plus avancée dans le récit parle en premier (Sigrún : les sceaux avant l'anneau)
+	for q in recentes:
 		if en_cours(q["id"]):
 			# L9 : réplique propre à l'étape en cours (« <quête>:pendant_<étape> »), sinon la réplique générale
 			var n: int = etat.get(q["id"], -1)
@@ -169,6 +184,52 @@ func repliques(villageois: String) -> Array:
 			if not lignes.is_empty():
 				return lignes
 	return []
+
+## Réplique « après » d'un villageois selon l'état du monde (data/quetes.json, "apres": {pnj: [{"si": cond, "lignes": [...]}]}).
+## La PREMIÈRE entrée dont la condition est vraie l'emporte (de la plus avancée à la plus générale) ; [] si aucune (le villageois
+## retombe alors sur ses « apres » fixes de villageois.json). Condition = termes séparés par « & » : « fini:<quête> »,
+## « en_cours:<quête> », « etape:<quête>:<étape> » (étape déjà franchie), « vu:<événement> », « maison » (achetée),
+## « choix » (choix moral fait) ; un « ! » devant un terme le nie.
+func apres(villageois: String) -> Array:
+	for entree: Dictionary in donnees.get("apres", {}).get(villageois, []):
+		var ok := true
+		for terme in String(entree.get("si", "")).split("&", false):
+			if not _terme(terme.strip_edges()):
+				ok = false
+				break
+		if ok:
+			return entree.get("lignes", [])
+	return []
+
+func _terme(t: String) -> bool:
+	if t.begins_with("!"):
+		return not _terme(t.substr(1))
+	if t.begins_with("fini:"):
+		return fini(t.substr(5))
+	if t.begins_with("en_cours:"):
+		return en_cours(t.substr(9))
+	if t.begins_with("etape:"):
+		var p := t.substr(6).split(":")
+		return p.size() == 2 and faite(p[0], p[1])
+	if t.begins_with("vu:"):
+		return vus.has(t.substr(3))
+	if t == "maison":
+		return Stockage.maison_achetee
+	if t == "choix":
+		return choix_fait() != ""
+	return false
+
+func fini(id: String) -> bool:
+	return etat.has(id) and etat[id] >= _quete(id).get("etapes", []).size()
+
+## Quêtes lancées par la fin d'une autre (premier déclencheur « fini:<id> ») : à rattraper pour une partie chargée dont la
+## quête-mère est déjà terminée (sauvegarde d'avant l'ajout de la suite).
+func _rattraper() -> void:
+	for q in donnees["quetes"]:
+		var d: String = q["etapes"][0]["declencheur"]
+		if d.begins_with("fini:") and not etat.has(q["id"]) and fini(d.substr(5)):
+			vus[d] = true
+			_completer(q, 0)
 
 ## Choix moral dans le tombeau : renvoie false si un choix a déjà été fait (définitif). `choix` = "piller_offrandes" | "respecter_offrandes".
 ## Respecter : Bénédiction des ancêtres (+10 vie max, sauvegardée). Piller : pièces + reliques d'offrande, et l'événement
@@ -213,4 +274,5 @@ func importer(d: Dictionary) -> void:
 	journal = d.get("journal", [])
 	_sac = joueur.inventaire.objets.duplicate()
 	joueur.regler_benediction(benediction())  # ancienne sauvegarde : pas de choix → 100 de vie max
+	_rattraper()
 	change.emit()

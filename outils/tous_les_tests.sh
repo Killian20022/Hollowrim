@@ -18,6 +18,7 @@ TESTS=(
 	"test_filet|--nouvelle"
 	"test_terrain_sans_discard|--nouvelle"   # le sol n'a aucun discard (early-Z : ×1,9 de GPU dehors sinon)
 	"test_quetes|--nouvelle"
+	"test_prologue|--nouvelle --prologue --aides"   # accueil (arrivée, premier objectif, bulles d'aide), quêtes qui se répondent, répliques « après », fin du chapitre
 	"test_archer|--nouvelle"
 	"test_patrouille|--nouvelle"
 	"test_boss_phases|--nouvelle"
