@@ -125,11 +125,16 @@ static func bonus_prix() -> float:
 	var p := Progression.courante()
 	return clampf(p.bonus("prix"), 0.0, 0.5) if p != null else 0.0
 
+## Part en faveur du joueur chez le marchand `id` : bonus « prix » (bijoux, perks) + disposition du marchand (réputation, prime,
+## mémoire : Disposition.mod_prix, ±15 %), bornée à -0,5..0,6.
+static func faveur(id: String) -> float:
+	return clampf(bonus_prix() + Disposition.mod_prix(id), -0.5, 0.6)
+
 static func prix_achat(id: String, oid: String) -> int:
-	return maxi(1, ceili(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("achat", 1.1)) * (1.0 - bonus_prix()) - 0.0001))
+	return maxi(1, ceili(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("achat", 1.1)) * (1.0 - faveur(id)) - 0.0001))
 
 static func prix_vente(id: String, oid: String) -> int:
-	return maxi(1, floori(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("vente", 0.4)) * (1.0 + bonus_prix()) + 0.0001))
+	return maxi(1, floori(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("vente", 0.4)) * (1.0 + faveur(id)) + 0.0001))
 
 ## Objet de quête (jamais vendable) : Inventaire.est_quete (drapeau du registre), valeur 0, liste `invendables`, objet demandé
 ## par une quête en cours.
@@ -620,7 +625,7 @@ func _dessiner(L: LivreParchemin) -> void:
 	if onglet == 0:
 		L.texte(19, H - 42, "Stock limité, réassort dans %s." % duree_texte(heures_avant_reassort(id_marchand)), LivreParchemin.PALE)
 	else:
-		L.texte(19, H - 42, "Rachat à %d %% de la valeur." % roundi(float(fiche(id_marchand).get("vente", 0.4)) * (1.0 + bonus_prix()) * 100.0), LivreParchemin.PALE)
+		L.texte(19, H - 42, "Rachat à %d %% de la valeur." % roundi(float(fiche(id_marchand).get("vente", 0.4)) * (1.0 + faveur(id_marchand)) * 100.0), LivreParchemin.PALE)
 	# --- page droite : fiche de l'objet choisi, bourse du marchand
 	var X2 := m + 12.0
 	var LD := W - 17.0 - X2

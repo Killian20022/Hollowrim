@@ -322,7 +322,16 @@ func engager(pnj: Node3D) -> bool:
 	return _ouvert
 
 func _ouvrir(pnj: Node3D) -> void:
-	_lignes = pnj.parler()
+	# disposition (scripts/disposition.gd) : un PNJ hostile au joueur (prime forte, réputation ruinée) refuse de parler ; froid ou
+	# chaleureux, il salue en conséquence avant ses répliques habituelles (neutre : rien d'ajouté)
+	var accueil := Disposition.accueil_de(pnj)
+	var refus := bool(accueil.get("refus", false)) and String(accueil.get("salut", "")) != ""
+	if refus:
+		_lignes = [String(accueil["salut"])]
+	else:
+		_lignes = pnj.parler()
+		if not _lignes.is_empty() and String(accueil.get("salut", "")) != "":
+			_lignes = [String(accueil["salut"])] + _lignes
 	if _lignes.is_empty():
 		return
 	_pnj = pnj
@@ -332,13 +341,13 @@ func _ouvrir(pnj: Node3D) -> void:
 	_sous_titre.modulate.a = 0.0
 	_sous_titre_t = 0.0
 	_nom.text = String(pnj.nom_affiche()) if pnj.has_method("nom_affiche") else String(pnj.get("nom_affiche"))   # combattant (crime.gd) : propriété
-	_marchand = Marchand.pour_pnj(pnj)
+	_marchand = Marchand.pour_pnj(pnj) if not refus else ""
 	_options = []
 	if _marchand != "":
 		_options.append({"texte": "Commercer"})
 	var services := ServicesPnj.trouver(self)
 	var d_pnj: Variant = pnj.get("donnees")
-	if services != null and d_pnj is Dictionary:
+	if services != null and d_pnj is Dictionary and not refus:
 		_options.append_array(services.options(String((d_pnj as Dictionary).get("id", ""))))
 	if pnj.has_method("options_dialogue"):   # crime.gd : arrestation (amende / geôle / résister), choix « seul » sans Au revoir
 		_options.append_array(pnj.options_dialogue())

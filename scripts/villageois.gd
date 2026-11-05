@@ -553,7 +553,8 @@ func _interactions(dist: float, dt: float) -> void:
 	var phrases: Array = donnees.get("interpellations", [])
 	if dist < DIST_INTERPELLE and _delai_interpelle <= 0.0 and not phrases.is_empty() and not _en_conversation:
 		_delai_interpelle = 40.0
-		dialogue.dire_au_passage(nom_affiche(), phrases.pick_random())
+		var selon := Disposition.interpellation(self)    # froid, chaleureux ou fermé selon la réputation (scripts/disposition.gd)
+		dialogue.dire_au_passage(nom_affiche(), selon if selon != "" else phrases.pick_random())
 	# invite « E Parler » si le joueur est proche et regarde ce villageois
 	var veut := false
 	var cam: Camera3D = joueur.camera

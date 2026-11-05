@@ -15,7 +15,12 @@ extends Node
 ## (ou résister, ou tuer devant témoin) rend TOUS les gardes de la juridiction hostiles : ceux qui entendent l'alerte (R_VOIX) tout de
 ## suite, les autres DELAI_LOIN s plus tard ; ils accourent. Un coup isolé sur un PNJ (frappe perdue) = avertissement, pas une agression.
 ## Un PNJ frappé devient un PnjCombat (scripts/pnj_combat.gd : socle EnnemiBase, mêmes dégâts, sang et mort que les ennemis) qui rend
-## son corps au PNJ d'origine une fois calmé. Sauvegarde : clé « crime » (primes, réputation, hostilité, objets volés, PNJ tués).
+## son corps au PNJ d'origine une fois calmé. Sauvegarde : clé « crime » (primes, réputation, hostilité, objets volés, PNJ tués,
+## mémoire des PNJ). DISPOSITION (scripts/disposition.gd, enfant de ce nœud) : la réputation et la prime colorent l'accueil, les prix,
+## la méfiance des gardes ; arme brandie dans le village = remarques, avertissements, puis crime « menace ».
+## RÉPUTATION LÉGALE (data/disposition.json) : la prime d'un nouveau crime grandit chez le récidiviste (réputation basse) ; régler sa
+## dette rend une part de la réputation perdue (geôle 1/2, amende 1/4) ; elle remonte d'un point par jour vers 50. La prime, elle,
+## continue de baisser de 4 %/h (décision utilisateur). PLAIDER à l'arrestation : jet selon réputation, niveau et prime.
 
 signal prime_change(juridiction: String, prime: float)
 signal crime_commis(type: String, juridiction: String, temoins: int)
@@ -25,9 +30,9 @@ const GROUPE := "crime"
 const DONNEES := "res://data/crime.json"
 const JURIDICTION := "skarnholt"
 const NOM_JURIDICTION := "Skarnholt"
-const PRIMES := {"vol": 5.0, "intrusion": 5.0, "crochetage": 5.0, "agression": 40.0, "meurtre": 1000.0}
+const PRIMES := {"vol": 5.0, "intrusion": 5.0, "crochetage": 5.0, "agression": 40.0, "meurtre": 1000.0, "menace": 15.0}
 const PART_VALEUR := 0.5            # vol : prime = max(5, valeur × 0,5)
-const PERTE_REPUTATION := {"vol": 2.0, "intrusion": 1.0, "crochetage": 1.0, "agression": 8.0, "meurtre": 30.0}
+const PERTE_REPUTATION := {"vol": 2.0, "intrusion": 1.0, "crochetage": 1.0, "agression": 8.0, "meurtre": 30.0, "menace": 2.0}
 const R_VUE := 20.0                 # m : un PNJ voit le joueur jusqu'à 20 m de jour
 const NUIT_VUE := 0.5               # de nuit, sans torche allumée : moitié
 const ACCROUPI_VUE := 0.5           # joueur accroupi (s'il le peut) : moitié
@@ -61,6 +66,10 @@ var avertissements := 0
 var crimes_vus := 0
 var derniere_vue_bloquee: Node = null   # ce qui a caché le joueur au dernier regard bloqué (débogage)
 var crochetage: Crochetage
+var disposition: Disposition
+var perdue := {}                    # juridiction -> réputation perdue depuis la dernière dette réglée (en partie rendue au règlement)
+var plaide := false                 # plaidoyer déjà tenté pendant cette arrestation (une seule fois)
+var _ligne_plaidoyer := ""          # réplique du garde après un plaidoyer raté (en tête du dialogue rouvert)
 var treve := false                  # dialogue d'arrestation ouvert : les combattants suspendent leurs coups
 var arrestation: Node = null        # PnjCombat qui propose l'arrestation
 var _textes := {}
@@ -101,6 +110,10 @@ func _ready() -> void:
 	crochetage.crime = self
 	crochetage.joueur = joueur
 	add_child(crochetage)
+	disposition = Disposition.new()
+	disposition.name = "Disposition"
+	disposition.crime = self
+	add_child(disposition)
 	DemoCrime.poser(self)       # coffres verrouillés du village (et, avec --demo-crime, une porte verrouillée)
 	if joueur != null and joueur.has_signal("deces"):
 		joueur.deces.connect(apaiser_tous)    # mort du joueur : chacun retourne à sa place (la prime et l'hostilité restent)
@@ -128,6 +141,7 @@ func signaler_vol(objet: Node3D, proprietaire: String, position: Vector3) -> boo
 	var proprio := _pnj_par_id(proprietaire)
 	var gardes_vus: Array = []
 	for t: Node3D in temoins:
+		disposition.noter(t, "vol_victime" if t == proprio else "vol_vu")
 		if est_garde(t):
 			gardes_vus.append(t)
 		elif t == proprio:
@@ -168,10 +182,12 @@ func signaler_agression(victime: Node) -> String:
 	if not en_service and _horloge - float(_avert.get(iid, -1.0e9)) > MEMOIRE_AVERT:
 		_avert[iid] = _horloge
 		avertissements += 1
+		disposition.noter(cible, "avertissement")
 		_dire(cible, "avertissement")
 		dernier = {"type": "avertissement", "temoins": 0, "prime": 0.0}
 		return "avertissement"
 	_agresses[iid] = _horloge
+	disposition.noter(cible, "coup")
 	var temoins := temoins_de(cible.global_position)
 	if not temoins.has(cible):
 		temoins.append(cible)
@@ -275,8 +291,11 @@ func ajouter_prime(p: float, juridiction := JURIDICTION) -> void:
 ## Prime + réputation + compte rendu du crime (vu par `temoins`).
 func _commettre(type: String, p: float, temoins: Array) -> void:
 	crimes_vus += 1
+	p = ceilf(p * facteur_recidive())
 	ajouter_prime(p)
-	reputation[JURIDICTION] = clampf(reputation_de() - float(PERTE_REPUTATION.get(type, 2.0)), 0.0, 100.0)
+	var r0 := reputation_de()
+	reputation[JURIDICTION] = clampf(r0 - float(PERTE_REPUTATION.get(type, 2.0)), 0.0, 100.0)
+	perdue[JURIDICTION] = float(perdue.get(JURIDICTION, 0.0)) + r0 - reputation_de()
 	_noter(type, temoins.size(), p)
 	_avis("%s vu : prime de %d pièces à %s" % [_nom_crime(type), roundi(prime()), NOM_JURIDICTION])
 	crime_commis.emit(type, JURIDICTION, temoins.size())
@@ -288,7 +307,40 @@ func _noter(type: String, n: int, p: float) -> void:
 	dernier = {"type": type, "temoins": n, "prime": p}
 
 func _nom_crime(type: String) -> String:
-	return {"vol": "Vol", "intrusion": "Intrusion", "crochetage": "Crochetage", "agression": "Agression", "meurtre": "Meurtre"}.get(type, type)
+	return {"vol": "Vol", "intrusion": "Intrusion", "crochetage": "Crochetage", "agression": "Agression", "meurtre": "Meurtre", "menace": "Menace"}.get(type, type)
+
+## Récidive : la prime d'un nouveau crime × facteur selon la réputation (0 → « bas », 50 → 1, 100 → « haut »). Idée et bornes inspirées
+## de Daggerfall Unity (DaggerfallCourtWindow, PenaltyPerLegalRepPoint ; MIT, Interkarma), transposées.
+func facteur_recidive() -> float:
+	var r: Dictionary = disposition.d.get("recidive", {}) if disposition != null else {}
+	var rep := reputation_de()
+	if rep < 50.0:
+		return lerpf(float(r.get("bas", 1.5)), 1.0, rep / 50.0)
+	return lerpf(1.0, float(r.get("haut", 0.75)), (rep - 50.0) / 50.0)
+
+## Méfiance des gardes : distance à laquelle ils reconnaissent le joueur recherché (×1 à 50 de réputation, plus loin en dessous).
+func facteur_mefiance() -> float:
+	var mx := disposition._sous("gardes_mefiants", "max", 1.5) if disposition != null else 1.0
+	return lerpf(mx, 1.0, clampf(reputation_de() / 50.0, 0.0, 1.0))
+
+## Dette réglée (geôle, amende) : la part `cle` de la réputation perdue revient (Daggerfall Unity, PlayerEntity
+## RaiseReputationForDoingSentence ; MIT, Interkarma : la moitié pour une peine purgée).
+func _rendre_reputation(cle: String) -> void:
+	var part := disposition._sous("retour_reputation", cle, 0.5) if disposition != null else 0.0
+	var p := float(perdue.get(JURIDICTION, 0.0))
+	reputation[JURIDICTION] = clampf(reputation_de() + p * part, 0.0, 100.0)
+	perdue[JURIDICTION] = 0.0
+
+## Un garde a averti deux fois le joueur qui brandit son arme près de lui (Disposition) : crime « menace », il attaque.
+func menace_persistante(g: Node3D) -> void:
+	if g == null or not is_instance_valid(g):
+		return
+	var temoins := temoins_de(joueur.global_position)
+	if not temoins.has(g):
+		temoins.append(g)
+	_commettre("menace", PRIMES["menace"], temoins)
+	_dernier_coup = _horloge
+	convertir(g, "hostile")
 
 func _intrusion(lieu: Node3D, proprietaire: String, type: String) -> bool:
 	var temoins := temoins_de(joueur.global_position)
@@ -579,6 +631,8 @@ func proposer_arrestation(g: PnjCombat) -> bool:
 		return false
 	arrestation = g
 	treve = true
+	plaide = false
+	_ligne_plaidoyer = ""
 	if dialogue.has_method("engager") and dialogue.engager(g):
 		return true
 	arrestation = null
@@ -589,6 +643,9 @@ func lignes_arrestation(rends_toi := false) -> Array:
 	var l: Array = (_textes.get("rends_toi" if rends_toi else "arrestation", []) as Array).duplicate()
 	if l.is_empty():
 		l = ["Halte ! Ta prime s'élève à %p pièces."]
+	if _ligne_plaidoyer != "":
+		l = [_ligne_plaidoyer, l[l.size() - 1]]     # après un plaidoyer raté : la réponse du garde, puis le choix
+		_ligne_plaidoyer = ""
 	for i in l.size():
 		l[i] = String(l[i]).replace("%p", str(roundi(prime())))
 	return l
@@ -601,6 +658,8 @@ func options_arrestation() -> Array:
 		o.append({"texte": "Payer l'amende (%d pièces)" % p, "action": payer_amende, "seul": true})
 	else:
 		o.append({"texte": "Payer l'amende (%d pièces) : trop pauvre" % p, "action": _trop_pauvre, "seul": true})
+	if not plaide:
+		o.append({"texte": String(disposition.texte("plaider_choix")) % roundi(chance_plaider()), "action": plaider, "seul": true})
 	o.append({"texte": "Aller en geôle", "action": aller_en_prison, "seul": true})
 	o.append({"texte": "Résister", "action": resister, "seul": true})
 	return o
@@ -611,8 +670,42 @@ func _trop_pauvre() -> void:
 
 ## Le dialogue d'arrestation s'est fermé sans choix (Échap, joueur parti) : c'est une résistance.
 func arrestation_interrompue(g: PnjCombat) -> void:
-	if arrestation == g:
+	if arrestation == g and not joueur.en_dialogue:     # dialogue rouvert après un plaidoyer raté : ce n'est pas une fuite
 		resister()
+
+## Chance (%) de convaincre le garde. Transposé de Daggerfall Unity (DaggerfallCourtWindow.GuiltyNotGuilty_OnButtonClick ; MIT,
+## Interkarma) : chanceToGoFree = LegalRep + (Etiquette + Personality) / 2, borné 5-95. Ici : (réputation − 50) + base + niveau du
+## joueur (plafonné) − prime / diviseur (pas d'éloquence dans Hollowrim : le niveau en tient lieu ; la prime rend l'innocence moins
+## crédible).
+func chance_plaider() -> float:
+	var c: Dictionary = disposition.d.get("plaider", {}) if disposition != null else {}
+	var prog: Progression = joueur.get("progression")
+	var niv := minf(float(prog.niveau) if prog != null else 1.0, float(c.get("niveau_max", 20.0)))
+	var ch := (reputation_de() - 50.0) + float(c.get("base", 40.0)) + niv - prime() / maxf(1.0, float(c.get("prime_div", 10.0)))
+	return clampf(ch, 5.0, 95.0)
+
+## Plaider sa cause (une fois par arrestation). `jet` 0-100 (tests), sinon tiré au hasard. Réussite : relâché, prime levée (les objets
+## volés restent dans le sac : rien n'est prouvé). Échec : prime majorée (× double si le jet < 25, sinon × echec ; Daggerfall Unity
+## double l'amende sous 25 et la réduit au-dessus de 75 : ici un échec coûte toujours), puis retour aux autres choix. Vrai = relâché.
+func plaider(jet := -1.0) -> bool:
+	var g := arrestation
+	plaide = true
+	var de := jet if jet >= 0.0 else randf_range(0.0, 100.0)
+	var c: Dictionary = disposition.d.get("plaider", {})
+	if de < chance_plaider():
+		if g != null and is_instance_valid(g):
+			disposition._dire(g, "plaider_reussi")
+		_gracier()
+		_avis("Ta plaidoirie a convaincu le garde : prime levée.")
+		return true
+	var k := float(c.get("double", 2.0)) if de < 25.0 else float(c.get("echec", 1.5))
+	primes[JURIDICTION] = ceilf(prime() * k)
+	prime_change.emit(JURIDICTION, prime())
+	_ligne_plaidoyer = disposition.texte("plaider_echec")
+	_avis("Plaidoirie rejetée : prime de %d pièces." % roundi(prime()))
+	if g != null and is_instance_valid(g) and dialogue != null and not dialogue.engager(g):
+		resister()
+	return false
 
 func payer_amende() -> bool:
 	var p := ceili(prime())
@@ -621,6 +714,7 @@ func payer_amende() -> bool:
 	joueur.inventaire.retirer("pieces", p)
 	var n := _confisquer()
 	_dire(arrestation, "amende")
+	_rendre_reputation("amende")
 	_gracier()
 	_avis("Amende payée : %d pièces.%s" % [p, (" %d objets volés saisis." % n) if n > 0 else ""])
 	return true
@@ -638,6 +732,7 @@ func aller_en_prison() -> float:
 			prog.competences.experience[k] = float(prog.competences.experience[k]) * 0.6
 		prog.change.emit()
 	_dire(arrestation, "prison")
+	_rendre_reputation("geole")
 	_gracier()
 	var c: Node = monde.get("cycle")
 	if c != null:
@@ -722,6 +817,16 @@ func _temps_de_jeu() -> void:
 	if ecart <= 0.0 or ecart > 23.0:
 		return
 	baisser_prime(ecart)
+	normaliser_reputation(ecart)
+
+## La réputation basse remonte lentement vers 50 (Daggerfall Unity, PlayerEntity.NormalizeReputations ; MIT) : `par_jour` points par
+## jour de jeu. Une bonne réputation ne s'use pas.
+func normaliser_reputation(heures: float) -> void:
+	var pj := disposition._sous("retour_reputation", "par_jour", 1.0) if disposition != null else 1.0
+	for j: String in reputation.keys():
+		var r := float(reputation[j])
+		if r < 50.0:
+			reputation[j] = minf(50.0, r + pj * heures / 24.0)
 
 ## La prime perd BAISSE_HEURE par heure de jeu (au moins BAISSE_MIN pièce par heure) ; éteinte, la garde oublie.
 func baisser_prime(heures: float) -> void:
@@ -758,10 +863,11 @@ func _ronde() -> void:
 		for g: Node3D in gardes():
 			if g is PnjCombat or not _peut_combattre(g):
 				continue
-			if g.global_position.distance_to(pj) < (portee_vue() if est_hostile() else DIST_VUE_ARRET) and voit(g, pj):
+			if g.global_position.distance_to(pj) < (portee_vue() if est_hostile() else DIST_VUE_ARRET * facteur_mefiance()) and voit(g, pj):
 				convertir(g, "hostile" if est_hostile() else "arrete")
-	# se rendre : plus aucun coup porté depuis SE_RENDRE s, un garde hostile tout près propose l'arrestation
-	if est_hostile() and arrestation == null and not joueur.en_dialogue and _horloge - _dernier_coup > SE_RENDRE \
+	# se rendre : plus aucun coup porté depuis SE_RENDRE s, un garde hostile tout près propose l'arrestation (garde de la juridiction
+	# hostile, ou garde seul qui attaque après une menace : Disposition)
+	if arrestation == null and not joueur.en_dialogue and _horloge - _dernier_coup > SE_RENDRE \
 			and _horloge - _derniere_resistance > 20.0:
 		var best: PnjCombat = null
 		var dmin := 3.2
@@ -846,7 +952,8 @@ func _avis(t: String) -> void:
 
 func exporter() -> Dictionary:
 	return {"v": 1, "primes": primes.duplicate(), "reputation": reputation.duplicate(), "hostile": hostile.duplicate(),
-		"voles": voles.duplicate(), "morts": morts.duplicate()}
+		"voles": voles.duplicate(), "morts": morts.duplicate(), "perdue": perdue.duplicate(),
+		"disposition": disposition.exporter() if disposition != null else {}}
 
 func restaurer(d: Dictionary) -> void:
 	apaiser_tous()
@@ -858,4 +965,7 @@ func restaurer(d: Dictionary) -> void:
 		for id in d["voles"]:
 			voles[String(id)] = int(d["voles"][id])
 	morts = (d.get("morts", []) as Array).duplicate() if d.get("morts") is Array else []
+	perdue = (d.get("perdue", {}) as Dictionary).duplicate() if d.get("perdue") is Dictionary else {}
+	if disposition != null:
+		disposition.restaurer(d.get("disposition", {}))
 	_heure_prec = -1.0

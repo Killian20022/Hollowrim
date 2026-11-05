@@ -5,7 +5,7 @@ extends SceneTree
 ##   - un coup isolé sur un garde = avertissement ; le 2e = agression : TOUS les gardes (hors vigie) deviennent hostiles, ceux de loin
 ##     prévenus en retard, et ils accourent vers le joueur ;
 ##   - arrestation : un garde vient au contact, le dialogue propose amende / geôle / résister ; amende (pièces, objets volés saisis,
-##     gardes rendus à leur service) ; geôle (heures qui passent, XP en baisse, prime effacée) ; résister (garde hostile) ;
+##     gardes rendus à leur service) ; plaider (choix présent : test_disposition) ; geôle (heures qui passent, XP en baisse, prime effacée) ; résister (garde hostile) ;
 ##   - la prime baisse avec les heures de jeu, puis s'éteint (la garde oublie) ; meurtre vu : prime de 1000, PNJ noté mort ;
 ##   - sauvegarde « crime » : exporter / restaurer.
 ##   godot --headless --fixed-fps 60 --path . --script res://outils/test_crime.gd -- --nouvelle --paisible
@@ -181,7 +181,7 @@ func _tester() -> void:
 	var ok_d := await _arreter(g)
 	_verif(ok_d, "un garde vient au contact et ouvre le dialogue d'arrestation")
 	var opts: Array = m.dialogue._options
-	_verif(opts.size() == 3 and String(opts[0]["texte"]).begins_with("Payer"), "choix : %s" % " / ".join(opts.map(func(o): return String(o["texte"]))))
+	_verif(opts.size() == 4 and String(opts[0]["texte"]).begins_with("Payer") and String(opts[1]["texte"]).begins_with("Plaider"), "choix : %s" % " / ".join(opts.map(func(o): return String(o["texte"]))))
 	await _choisir(0)
 	_verif(cr.prime() == 0.0 and j.inventaire.pieces == 70, "amende payée : prime 0, 120 → %d pièces" % j.inventaire.pieces)
 	_verif(j.inventaire.nombre("coupe_argent") == 0, "objet volé confisqué")
@@ -197,7 +197,7 @@ func _tester() -> void:
 	ok_d = await _arreter(g)
 	var h0: float = m.cycle.heure
 	_verif(ok_d, "arrestation (prime 300) : dialogue ouvert")
-	await _choisir(1)
+	await _choisir(2)   # Payer / Plaider / Geôle / Résister
 	var ecart := fposmod(float(m.cycle.heure) - h0, 24.0)
 	_verif(cr.prime() == 0.0 and absf(ecart - fposmod(84.0, 24.0)) < 0.5, "geôle (prime 300) : prime effacée, 12 + 72 = 84 h passent (heure %.1f → %.1f)" % [h0, m.cycle.heure])
 	_verif(j.progression.xp_niveau < 80.0, "geôle : XP en baisse (80 → %.0f)" % j.progression.xp_niveau)
@@ -210,7 +210,7 @@ func _tester() -> void:
 	j.global_position = Vector3(place.x, m.hauteur(place.x, place.z) + 0.1, place.z)
 	g.global_position = Vector3(place.x + 6.0, m.hauteur(place.x + 6.0, place.z) + 0.1, place.z)
 	ok_d = await _arreter(g)
-	await _choisir(2)
+	await _choisir(3)
 	await _attendre(0.5)
 	_verif(ok_d and cr.est_hostile() and _hostiles() >= 1, "résister : garde hostile (%d gardes armés)" % _hostiles())
 	await _reset()

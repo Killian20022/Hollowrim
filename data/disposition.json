@@ -1,0 +1,35 @@
+{
+	"_doc": "Disposition des PNJ de Skarnholt envers le joueur (scripts/disposition.gd, lue par dialogue.gd, marchand.gd, crime.gd). Score d'un PNJ = réputation (0-100) − min(prime_malus_max, prime × prime_k) + mémoire du PNJ (vol vu, coup reçu, aide) − menace (arme brandie). Paliers : chaleureux ≥ 65, neutre ≥ 35, froid ≥ 15, refus en dessous (ou prime ≥ prime_refus). Neutre = répliques habituelles, sans salut ajouté.",
+	"paliers": {"chaleureux": 65.0, "neutre": 35.0, "froid": 15.0},
+	"prime_k": 0.4,
+	"prime_malus_max": 45.0,
+	"prime_refus": 40.0,
+	"malus_menace": 10.0,
+	"memoire": {"vol_vu": -8.0, "vol_victime": -25.0, "coup": -30.0, "avertissement": -5.0, "aide": 15.0, "min": -60.0, "max": 30.0},
+	"prix": {"_doc": "±max selon le score : 50 = prix de la fiche, 100 = 15 % en faveur du joueur, 0 = 15 % contre lui.", "max": 0.15},
+	"recidive": {"_doc": "Prime d'un nouveau crime × facteur : réputation 0 → ×1,5 (récidiviste), 50 → ×1, 100 → ×0,75. Inspiré de Daggerfall Unity (MIT).", "bas": 1.5, "haut": 0.75},
+	"retour_reputation": {"_doc": "Part de la réputation perdue rendue en réglant sa dette (Daggerfall Unity, RaiseReputationForDoingSentence, MIT) ; remontée lente vers 50 par jour de jeu.", "geole": 0.5, "amende": 0.25, "par_jour": 1.0},
+	"gardes_mefiants": {"_doc": "Sous 50 de réputation, un garde reconnaît le joueur recherché de plus loin (×1 à 50, ×1,5 à 0).", "max": 1.5},
+	"plaider": {"_doc": "Chance (%) = (réputation − 50) + base + niveau (au plus niveau_max) − prime / prime_div, bornée 5-95 (Daggerfall Unity, DaggerfallCourtWindow, MIT). Échec : prime × double si le jet < 25, sinon × echec.", "base": 40.0, "niveau_max": 20.0, "prime_div": 10.0, "double": 2.0, "echec": 1.5},
+	"menace": {"_doc": "Arme brandie (garde levée, coup armé ou chargé) ou sort en charge dans le village, hors combat. Civils à portée de vue : une remarque (les frêles s'éloignent). Garde : avertissement, dernier avertissement, puis il attaque (crime « menace »).", "portee_civil": 7.0, "portee_garde": 10.0, "avert_2": 4.0, "hostile": 8.0, "oubli": 6.0, "delai_remarque": 14.0},
+	"salut": {
+		"chaleureux": ["Ah, te voilà. Content de te voir, ami.", "Skarnholt n'oublie pas ceux qui l'aident. Approche.", "Le feu est chaud pour toi, ce soir.", "Toi, je t'écoute toujours."],
+		"froid": ["Encore toi. Fais vite.", "Je n'ai pas oublié ce que tu as fait.", "Parle, et va-t'en.", "Garde tes mains où je les vois."],
+		"refus": ["Je ne parle pas aux voleurs.", "Va-t'en. Je n'ai rien à te dire.", "Disparais, avant que j'appelle la garde.", "Paie ta dette à la garde. Ensuite, peut-être."]
+	},
+	"salut_garde": {
+		"chaleureux": ["Salut à toi. Le jarl dit du bien de toi.", "Toi, on te laisse passer sans questions."],
+		"froid": ["Je t'ai à l'œil. Pas gentiment.", "Un faux pas, et c'est la geôle.", "On connaît ta figure, ici."],
+		"refus": ["Je n'ai rien à dire à un hors-la-loi.", "Règle ta prime. Après, on causera."]
+	},
+	"refus_commerce": ["Mon étal n'est pas pour toi.", "Je ne vends rien aux voleurs."],
+	"arme_civil": ["Range ça.", "Pourquoi tu tires ta lame ?", "Hé ! Range ton arme, tu fais peur aux gens.", "Pas de fer nu chez nous."],
+	"arme_civil_sort": ["Éteins ça. Pas de sorcellerie ici.", "Par Ymir, garde ta magie pour les morts."],
+	"arme_garde_1": ["Range ton arme. Maintenant.", "Lame au fourreau, voyageur.", "On ne brandit pas le fer dans Skarnholt."],
+	"arme_garde_2": ["Dernier avertissement. Range ça.", "Je ne le dirai pas une troisième fois."],
+	"arme_garde_hostile": ["Tu l'auras voulu.", "Assez. En garde !"],
+	"arme_garde_merci": ["Bien. Reste calme.", "Voilà. C'est mieux comme ça."],
+	"plaider_choix": "Plaider ta cause (%d %%)",
+	"plaider_reussi": ["Hm. Ta parole a du poids, ici. Va. Et que je ne t'y reprenne pas.", "Soit. Le doute te profite. Ta prime est levée."],
+	"plaider_echec": ["Tu me prends pour un idiot ? Ta prime monte à %p pièces.", "Mensonges. Ça te coûtera plus cher : %p pièces."]
+}
