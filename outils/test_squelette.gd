@@ -41,7 +41,7 @@ func _tester() -> void:
 		await process_frame
 	m.joueur.global_position = Vector3(60, m.hauteur(60, 60) + 1.0, 60)  # loin : ils restent calmes
 	# --- apparition
-	var epee := _creer("squelette", 4.0, -4.0)
+	var epee := _creer("squelette", 4.0, -4.0, {"variante": "epee"})   # sans variante imposée, l'arme est tirée de l'ident (« squelette_<nb de draugrs> », variable) : épée ou hache
 	var archer := _creer("squelette_archer", 4.0, 4.0)
 	for i in 30:
 		await physics_frame
