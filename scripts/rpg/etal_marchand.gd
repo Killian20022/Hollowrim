@@ -7,9 +7,14 @@ extends Node3D
 ##   - Grima (ancienne) : petite table près du puits, à côté de son poste ; fioles, livres, vivres.
 ## Le choix suit Marchand.stock(id) (réassort tous les 2 jours) : relu toutes les PERIODE s, reconstruit seulement s'il change ;
 ## au plus MAX_PIECES, variées (une par famille avant d'en doubler une), ordre stable. Hook : Monde._uniques_village → poser_village.
+## EXPOSITION DIFFÉRÉE (chargement) : décoder les glb des pièces (armes, armures : ~0,5 s chacun) coûtait ~5 s au chargement. Avec
+## `differe`, la table se construit tout de suite mais les pièces arrivent APRÈS la fin du chargement du monde : leurs modèles sont
+## lus en fil de fond (ResourceLoader.load_threaded_request), puis exposés dès qu'ils sont prêts et que le joueur ne peut pas le voir
+## (au-delà de ObjetMonde.PORTEE, où les pièces sont de toute façon invisibles, ou hors du champ de la caméra ; sinon au bout de DELAI_MAX s).
 
 const PERIODE := 3.0
 const MAX_PIECES := 5
+const DELAI_MAX := 20.0   # s après la fin du chargement : exposer même sous les yeux du joueur
 ## id du marchand -> pose : « forge » = repère du nœud Forge (local), « monde » = coordonnées monde (x, z ; sol relu) ; table [largeur, profondeur, hauteur].
 const ETALS := {
 	"forgeron": {"repere": "forge", "pos": Vector3(-1.2, 0.0, 4.3), "lacet": 0.0, "table": Vector3(1.7, 0.62, 1.0)},
@@ -21,9 +26,13 @@ var table := Vector3(1.4, 0.6, 0.75)
 var _plateau: Node3D
 var _vu := "?"
 var _t := 0.0
+var monde: Node = null          # pour savoir quand le chargement est fini (exposition différée)
+var differe := false
+var _chemins: Array[String] = []
+var _attente := 0.0
 
 ## Pose les étals des marchands connus dans le village (après le bâti). Renvoie les étals posés.
-static func poser_village(village: Node3D, monde: Node = null) -> Array[EtalMarchand]:
+static func poser_village(village: Node3D, monde: Node = null, differe := false) -> Array[EtalMarchand]:
 	var res: Array[EtalMarchand] = []
 	if village == null:
 		return res
@@ -40,6 +49,8 @@ static func poser_village(village: Node3D, monde: Node = null) -> Array[EtalMarc
 		et.name = "Etal_" + mid
 		et.id_marchand = mid
 		et.table = e["table"]
+		et.monde = monde
+		et.differe = differe and monde != null
 		parent.add_child(et)
 		var p: Vector3 = e["pos"]
 		if parent == village:                      # coordonnées MONDE (comme Village.lieux) : sol relu au point
@@ -53,9 +64,48 @@ static func poser_village(village: Node3D, monde: Node = null) -> Array[EtalMarc
 
 func _ready() -> void:
 	_construire_table()
-	actualiser()
+	if differe:
+		_precharger()
+	else:
+		actualiser()
+
+## Lance la lecture en fil de fond des modèles des pièces du stock du moment (rien en --headless : le serveur de rendu factice ne
+## supporte pas un fil qui crée des maillages, voir Prechargement).
+func _precharger() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	for oid in pieces():
+		var c := ObjetMonde.chemin_modele(oid)
+		if c != "" and not _chemins.has(c):
+			_chemins.append(c)
+			ResourceLoader.load_threaded_request(c)
+
+func _modeles_prets() -> bool:
+	for c in _chemins:
+		if ResourceLoader.load_threaded_get_status(c) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			return false
+	return true
+
+## Le joueur ne peut-il pas voir les pièces ? (trop loin pour la portée de visibilité, ou hors du champ de la caméra)
+func _hors_de_vue() -> bool:
+	var j: Node3D = monde.get("joueur")
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	if j == null or cam == null:
+		return true
+	if j.global_position.distance_to(global_position) > ObjetMonde.PORTEE + 2.0:
+		return true
+	return not cam.is_position_in_frustum(global_position + Vector3(0, table.y, 0))
 
 func _process(dt: float) -> void:
+	if differe:
+		if monde.get("pret") != true:
+			return
+		_attente += dt
+		if not _modeles_prets() or (not _hors_de_vue() and _attente < DELAI_MAX):
+			return
+		differe = false
+		actualiser()
+		return
 	_t += dt
 	if _t >= PERIODE:
 		_t = 0.0

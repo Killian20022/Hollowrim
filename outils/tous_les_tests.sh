@@ -112,6 +112,8 @@ TESTS=(
 	"test_potions|--nouvelle"   # potions à effet progressif (durée, délai par famille, HUD) et poids du sac limité (surcharge, butin, marchands, anciennes sauvegardes)
 	"test_lacher|--nouvelle"   # Lâcher dans l inventaire (L, Maj+L, boutons) : sac au sol sauvegardé, uniques et quête refusés
 	"test_icones_objets|--nouvelle"   # icônes dessinées depuis les modèles 3D (atlas complet, pixels nets, replis) + aperçu 3D tournant des fiches Sac / Équipement
+	"test_chargement|--nouvelle"   # caches signés à jour (rues, carte de sol), grille des arbres, étals différés
+	"test_chargement|--nouvelle --etale"   # villageois nés après le chargement (écran de chargement)
 	"test_objets_monde|--nouvelle"   # objets physiques dans le monde : bijoux 3D, arme couchée, repli sacoche, tas, objet lâché visible, étals de Brodd et Grima
 	"test_rpg_socle|--nouvelle"   # RPG lot 0 (docs/RPG.md) : registre data/objets/, catégories, Conteneur / Stockage, EquipementCorps, Progression, butin ajouté en fin de table
 	"test_rpg_objets|--nouvelle"   # RPG lot A : armures / bijoux (données, icônes), EquipementCorps, formule d armure, sac 150, hache de Kolbeinn tenue, butin, Brodd

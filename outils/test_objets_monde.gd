@@ -176,8 +176,13 @@ func _tester() -> void:
 	_verif(inv.nombre("anneau_adepte") == avant + 1 and not is_instance_valid(om), "objet posé ramassé : au sac, retiré du monde")
 	var etals := s.find_children("Etal_*", "Node3D", true, false)
 	var pieces := 0
-	for e in etals:
-		pieces += e.get_node("Pieces").get_child_count() if e.has_node("Pieces") else 0
+	for essai in 900:   # pièces exposées APRÈS le chargement (EtalMarchand différé : modèles lus en fil de fond)
+		pieces = 0
+		for e in etals:
+			pieces += e.get_node("Pieces").get_child_count() if e.has_node("Pieces") else 0
+		if pieces >= 4:
+			break
+		await _images(1)
 	_verif(etals.size() == 2 and pieces >= 4, "étals de Brodd et Grima posés au village (%d étals, %d pièces exposées)" % [etals.size(), pieces])
 	print("ECHECS : %d" % (0 if _ok else 1))
 	print("RESULTAT ", "OK" if _ok else "ECHEC", " (%d vérifications)" % _n)
