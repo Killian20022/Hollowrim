@@ -913,10 +913,11 @@ func _preparer_geste(lourd: bool) -> void:
 	# durées du geste = instants du clip (marqueurs, s à vitesse 1) divisés par la vitesse de l'arme
 	_clip = String(_geste["clip"])
 	_m = anim.marqueurs(_clip)
-	var v := maxf(arme.vitesse, 0.1)
+	var v := maxf(arme.vitesse, 0.1) / ReglagesCombat.JOUEUR_LENTEUR
+	var v_frappe := maxf(arme.vitesse, 0.1) / ReglagesCombat.JOUEUR_LENTEUR_FRAPPE
 	_duree_prep = maxf(float(_m["arme"]), 1e-3) / v
 	_duree_tenue = (float(_m["frappe"]) - float(_m["arme"])) / v
-	_duree_active = (float(_m["fin_frappe"]) - float(_m["frappe"])) / v
+	_duree_active = (float(_m["fin_frappe"]) - float(_m["frappe"])) / v_frappe
 	_duree_suivi = (float(_m["suivi"]) - float(_m["fin_frappe"])) / v
 	_duree_recup = (float(_m["fin"]) - float(_m["fin_frappe"])) / v
 	# profil de l'arme (docs/COMBAT.md, « Profils des 5 épées ») : préparation et récupération propres, en plus de la vitesse
@@ -1137,7 +1138,10 @@ func avancer(dt: float) -> void:
 					var ti := t0 + (t1 - t0) * float(i + 1) / float(nb)
 					_echantillon_trainee(_couche() * anim.pose_arme(_clip, _t_recup(ti)), combat.t - ti)
 			var fen: Array = _geste.get("enchainement", [DELAI_COMBO, 1.0])
-			if combat.t >= float(fen[0]) and entrees.consommer():
+			# le coup suivant s'ouvre un peu plus tard dans la récupération (JOUEUR_ENCHAINEMENT : l'enchaînement pèse) ; le clic reste
+			# gardé en tampon, donc le combo strict (clic n -> coup n) ne change pas
+			var ouverture := maxf(float(fen[0]), ReglagesCombat.JOUEUR_ENCHAINEMENT * _duree_recup)
+			if combat.t >= ouverture and entrees.consommer():
 				_commencer_attaque(combat.t <= float(fen[1]) * _duree_recup)
 				_reponse_immediate(dt)
 			elif veut_garde and combat.t > 0.12:

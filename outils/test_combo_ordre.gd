@@ -116,7 +116,7 @@ func _tester() -> void:
 		await _clic(0.04)
 		await _attendre(0.08)
 	await _attendre(1.0)
-	_verif(_vus.size() >= 5 and _vus == _attendu(_vus.size()), "spam : %d coups lancés pour 12 clics, ordre exact %s" % [_vus.size(), _vus])
+	_verif(_vus.size() >= 3 and _vus == _attendu(_vus.size()), "spam (cadence plus posée depuis le lot rythme : >= 3 coups) : %d coups lancés pour 12 clics, ordre exact %s" % [_vus.size(), _vus])
 
 	# clic pendant le coup : 2 clics rapprochés (0,15 s, pendant la préparation / la frappe) = 2 coups, aucun perdu ni doublé
 	await _loin()
@@ -253,7 +253,7 @@ func _tester() -> void:
 	mains.combat.forcer(EtatCombat.RECUPERATION)
 	mains._geste = ProfilsAnimation.geste(mains.arme.profil, "diag_dg6")
 	mains.entrees.appuyer()
-	for i in 6:
+	for i in 14:   # le coup suivant s'ouvre à JOUEUR_ENCHAINEMENT de la récupération (~0,14 s)
 		_pas()
 	mains.entrees.relacher()
 	_verif(mains._geste_nom == "revers_gd6", "coup 2 = revers_gd6 sans miroir quel que soit le côté de fin (%s)" % mains._geste_nom)

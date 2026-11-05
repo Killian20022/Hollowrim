@@ -17,18 +17,27 @@ var mains: Node3D
 var n := 10
 var type := "draugr"
 var film := ""
+var etiq := ""      # texte de l'étiquette du film (sinon APRES / AVANT exe 4)
 var trace := false
 var ancien := false   # film « avant » : reproduit le comportement de l'exe 4 (80 PV, posture 55, pas de série ni de geste annoncé)
 var nb_film := 2
 var etiquette: Label
 var _ok := true
 var _seuils := {}
+## Cadence ennemie mesurée (tous essais) : préavis (début du geste → impact), écarts entre coups d'une série et entre séries.
+var _pre_n: Array = []      # coups normaux
+var _pre_l: Array = []      # gestes annoncés (imparables)
+var _ecart_serie: Array = []
+var _ecart_entre: Array = []
+var _hits := 0
+var _tmps := 0.0            # secondes de combat x ennemis
 
 func _init() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--n="): n = int(a.substr(4))
 		elif a.begins_with("--type="): type = a.substr(7)
 		elif a.begins_with("--film="): film = a.substr(7)
+		elif a.begins_with("--etiq="): etiq = a.substr(7)
 		elif a == "--trace": trace = true
 		elif a == "--ancien": ancien = true
 		elif a.begins_with("--nb="): nb_film = int(a.substr(5))
@@ -88,7 +97,7 @@ func _go() -> void:
 		etiquette.add_theme_color_override("font_outline_color", Color.BLACK)
 		etiquette.add_theme_constant_override("outline_size", 6)
 		cl.add_child(etiquette)
-		etiquette.text = "%s - %s (%d x %s)" % ["AVANT (exe 4)" if ancien else "APRES", film, nb_film, type]
+		etiquette.text = "%s - %s (%d x %s)" % [etiq if etiq != "" else ("AVANT (exe 4)" if ancien else "APRES"), film, nb_film, type]
 		await _essai(film, type, nb_film, 0)
 		quit()
 		return
@@ -96,6 +105,9 @@ func _go() -> void:
 		await _essai("spam", type, 1, 0)
 		quit()
 		return
+	res["passif_1"] = []
+	for e in 4:
+		res["passif_1"].append(await _essai("passif", type, 1, e))
 	for mode in ["spam", "garde", "parade", "esquive"]:
 		res[mode + "_1"] = []
 		for e in n:
@@ -124,11 +136,25 @@ func _frac(l: Array, cle: String) -> float:
 func _verifier(res: Dictionary) -> void:
 	for k in res:
 		var l: Array = res[k]
+		if k == "passif_1":
+			print("BILAN passif_1  n=%d  dégâts moy=%.1f  durée moy=%.1fs (joueur mort : %.0f %%)" % [l.size(), _moy(l, "degats"), _moy(l, "duree"), (1.0 - _moy(l, "tues")) * 100.0])
+			continue
 		print("BILAN %-9s n=%d  dégâts moy=%.1f  essais avec dégâts=%.0f %%  durée moy=%.1fs  coups reçus moy=%.1f  ennemis tués=%.0f %%" % [k, l.size(), _moy(l, "degats"), _frac(l, "degats") * 100.0, _moy(l, "duree"), _moy(l, "coups"), _moy(l, "tues") * 100.0 / (2.0 if k.ends_with("_2") else 1.0)])
+	var moy := func(l: Array) -> float:
+		var t := 0.0
+		for v in l: t += float(v)
+		return t / maxf(l.size(), 1)
+	print("CADENCE préavis coup normal moy=%.2f s (min %.2f, n=%d) | geste annoncé moy=%.2f s (min %.2f, n=%d) | écart dans une série moy=%.2f s | écart entre séries moy=%.2f s | coups/s/ennemi = %.2f" % [
+		moy.call(_pre_n), (_pre_n.min() if not _pre_n.is_empty() else 0.0), _pre_n.size(), moy.call(_pre_l), (_pre_l.min() if not _pre_l.is_empty() else 0.0), _pre_l.size(), moy.call(_ecart_serie), moy.call(_ecart_entre), _hits / maxf(_tmps, 1.0)])
 	var spam: Array = res["spam_1"]
 	_verif(_frac(spam, "degats") >= 0.6, "un draugr face au bot qui spamme inflige des dégâts dans ≥ 60 %% des essais (%.0f %%)" % (_frac(spam, "degats") * 100.0))
 	_verif(_moy(spam, "duree") >= 3.0 and _moy(spam, "duree") <= 12.0, "combat contre un draugr seul : 3 à 12 s pour le bot qui ne se défend pas (plafond ; un vrai joueur : plus long) (%.1f s ; avant : 2,5-3,2 s)" % _moy(spam, "duree"))
-	_verif(_moy(spam, "degats") >= 12.0, "le spam coûte au moins 12 PV en moyenne (%.1f)" % _moy(spam, "degats"))
+	_verif(_moy(spam, "degats") >= 6.0, "le spam coûte au moins 6 PV en moyenne (%.1f ; avant le ralentissement : 19)" % _moy(spam, "degats"))
+	# un joueur PASSIF (ni coup, ni garde, ni esquive) doit toujours pouvoir être tué par un seul draugr : la menace reste réelle
+	var pas: Array = res["passif_1"]
+	_verif(_moy(pas, "tues") == 0.0 and _frac(pas, "degats") == 1.0 and _moy(pas, "duree") <= 30.0, "un draugr tue un joueur passif en ≤ 30 s (%.1f s, %.0f PV perdus en moyenne)" % [_moy(pas, "duree"), _moy(pas, "degats")])
+	_verif(_pre_n.is_empty() or _pre_n.min() >= 0.4, "anticipation de tout coup normal ≥ 0,4 s (min %.2f s)" % (_pre_n.min() if not _pre_n.is_empty() else 0.0))
+	_verif(_pre_l.is_empty() or _pre_l.min() >= 1.0, "anticipation du geste imparable annoncé ≥ 1,0 s (min %.2f s)" % (_pre_l.min() if not _pre_l.is_empty() else 0.0))
 	_verif(_moy(res["garde_1"], "degats") <= _moy(spam, "degats") * 0.7, "garder après avoir vu le geste : ≤ 70 %% des dégâts du spam (%.1f contre %.1f)" % [_moy(res["garde_1"], "degats"), _moy(spam, "degats")])
 	_verif(_moy(res["parade_1"], "degats") <= _moy(spam, "degats") * 0.5, "parer au bon moment : ≤ 50 %% des dégâts du spam (%.1f contre %.1f)" % [_moy(res["parade_1"], "degats"), _moy(spam, "degats")])
 	_verif(_moy(res["esquive_1"], "degats") <= _moy(spam, "degats") * 0.6, "esquiver au bon moment : ≤ 60 %% des dégâts du spam (%.1f contre %.1f)" % [_moy(res["esquive_1"], "degats"), _moy(spam, "degats")])
@@ -142,6 +168,8 @@ func _verifier(res: Dictionary) -> void:
 ## Un essai : `nb` ennemis du type `t` (2 = en flanc), renvoie les mesures.
 func _essai(mode: String, t: String, nb: int, idx: int) -> Dictionary:
 	s.placer_joueur(Vector3.ZERO, 0.0)
+	if j.mort:
+		j.ressusciter(Vector3.ZERO, 0.0)   # mort à l'essai précédent (joueur passif) : sans cela plus rien ne l'atteint
 	j.vie = j.vie_max
 	j.vigueur = j.vigueur_max
 	mains.combat.forcer(EtatCombat.REPOS)
@@ -178,6 +206,8 @@ func _essai(mode: String, t: String, nb: int, idx: int) -> Dictionary:
 	var vie_prec: float = j.vie
 	var t_esquive := -1.0
 	var vus := {}
+	var cad_prec := {}
+	var cad_dernier := {}
 	while t_ < 40.0 and not _vivants(liste).is_empty() and j.vie > 0.0:
 		var cible: Node3D = null
 		var dmin := 1e9
@@ -214,6 +244,16 @@ func _essai(mode: String, t: String, nb: int, idx: int) -> Dictionary:
 			for d in _vivants(liste):
 				ds.append("%s/%.2f/pv%.0f/arm%.1f/rech%.1f" % [["DORT", "REVEIL", "GARDE", "TRAQUE", "ATTAQUE", "TITUBE", "MORT", "PATROUILLE", "VISE", "APPEL", "ANNONCE", "SOUFFLE", "ETOURDI", "CHUTE"][d.etat], d._t, d.vie, d._armure, d._recharge])
 			print("TRACE t=%.2f dist=%.1f joueur=%s %s" % [t_, dist, mains.combat.nom(), str(ds)])
+		for d in _vivants(liste):
+			var did: int = d.get_instance_id()
+			var vu_donne: bool = d.etat == d.ATTAQUE and d._coup_donne
+			if vu_donne and not bool(cad_prec.get(did, false)):
+				(_pre_l if d._lourd else _pre_n).append(d._t)
+				_hits += 1
+				if cad_dernier.has(did):
+					(_ecart_serie if d._serie > 1 else _ecart_entre).append(t_ - float(cad_dernier[did]))
+				cad_dernier[did] = t_
+			cad_prec[did] = vu_donne
 		var lourd_vu := false
 		for d in _vivants(liste):
 			if d.etat == d.ATTAQUE and d._lourd and not d._coup_donne:
@@ -253,9 +293,9 @@ func _essai(mode: String, t: String, nb: int, idx: int) -> Dictionary:
 		else:
 			mains.entrees.forcer_garde(0.0)
 		# clics : le bot « spam » ne se défend jamais ; les autres ne frappent pas quand ils gardent
-		var peut_cliquer: bool = garde_t <= 0.0 and j.esquive_t < 0.0
+		var peut_cliquer: bool = garde_t <= 0.0 and j.esquive_t < 0.0 and mode != "passif"
 		if mode == "esquive" or mode == "parade":
-			peut_cliquer = peut_cliquer and not (menace_proche and impact_dans < 0.5)   # un coup lancé ne s'annule pas : on le finit AVANT l'impact ennemi
+			peut_cliquer = peut_cliquer and not (menace_proche and impact_dans < 0.8)   # un coup lancé ne s'annule pas : on le finit AVANT l'impact ennemi
 		if peut_cliquer and dist < 2.4 and t_ - t_clic > 0.30:
 			mains.entrees.appuyer()
 			t_clic = t_
@@ -272,6 +312,7 @@ func _essai(mode: String, t: String, nb: int, idx: int) -> Dictionary:
 	for d in liste:
 		if not is_instance_valid(d) or d.etat == d.MORT:
 			tues += 1
+	_tmps += t_ * nb
 	var r := {"mode": mode, "nb": nb, "duree": t_, "degats": vie0 - j.vie, "coups": coups, "tues": tues}
 	print("ESSAI mode=%s ennemis=%d essai=%d durée=%.1fs dégâts=%.0f coups=%d tués=%d/%d esquives=%d" % [mode, nb, idx, t_, vie0 - j.vie, coups, tues, nb, j.esquives])
 	for d in liste:

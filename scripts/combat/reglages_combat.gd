@@ -50,13 +50,14 @@ const DEGATS := {
 ## Ennemis « courants » (sbire, squelette, draugr, guerrier, bandit ; ni chef, ni archer) : draugr.gd, `_menace`. Modèle : le troll.
 ## Coups légers : geste accéléré (premier coup ~0,5 s après l'arrivée au contact au lieu de ~0,65 s) ; enchaînement de 1 à
 ## MENACE_SERIE_MAX coups (dégâts × MENACE_SERIE_MULT[n]), le suivant part dès la fin de l'impact du précédent s'il est encore à portée.
-const MENACE_RYTHME := 1.3
+## (2026-11-05, retour exe 5 « ils attaquent trop vite » : 1,3 -> 0,95 = gestes ~37 % plus lents, anticipation du coup normal >= 0,4 s)
+const MENACE_RYTHME := 0.95
 const MENACE_SERIE_MAX := {"sbire": 2, "squelette": 2, "draugr": 3, "bandit": 3, "guerrier": 3}
 const MENACE_SERIE_MULT := [1.0, 1.15, 1.3]
 ## Part du geste (0..1) à laquelle le coup suivant de la série démarre.
-const MENACE_SERIE_DEPART := 0.62
+const MENACE_SERIE_DEPART := 0.72
 ## Pause entre deux séries (s), pendant laquelle l'ennemi tourne autour du joueur au lieu de rester planté.
-const MENACE_PAUSE := Vector2(0.7, 1.4)
+const MENACE_PAUSE := Vector2(1.2, 2.1)
 ## Une fois sur deux, il fait d'abord un pas en arrière de cette durée (s) : le joueur doit le suivre, le coup suivant arrive de plus loin.
 const MENACE_REPLI := 0.45
 ## Hyper-armure : après chaque titubement, les coups légers et moyens ne le font plus tituber pendant ce temps (sinon un joueur
@@ -65,15 +66,15 @@ const MENACE_ARMURE := 0.9
 ## Geste NON PARABLE annoncé (coup de taille) : préparation lente lisible (MENACE_LOURD_PREPARATION s, repère rouge au sol, éclair),
 ## puis frappe en MENACE_LOURD_ANNONCE - préparation s. Pas de parade parfaite, MENACE_LOURD_IMPARABLE des dégâts traversent la
 ## garde. Seul le pas de côté / l'esquive l'évite (ou un coup lourd qui l'interrompt). Il reste planté ensuite (punition).
-const MENACE_LOURD_ANNONCE := 0.95
-const MENACE_LOURD_PREPARATION := 0.62
+const MENACE_LOURD_ANNONCE := 1.35
+const MENACE_LOURD_PREPARATION := 0.95
 const MENACE_LOURD_DEGATS := 1.6
 const MENACE_LOURD_IMPARABLE := 0.5
 const MENACE_LOURD_RAYON := 1.5
 const MENACE_LOURD_AVANCE := 1.5
 ## Attente avant le premier geste annoncé (s) et entre deux (tirage), et part de séries qui deviennent un geste annoncé.
-const MENACE_LOURD_PREMIER := Vector2(1.6, 2.6)
-const MENACE_LOURD_ENTRE := Vector2(3.0, 5.0)
+const MENACE_LOURD_PREMIER := Vector2(2.4, 3.6)
+const MENACE_LOURD_ENTRE := Vector2(4.2, 6.5)
 ## Contournement : quand plusieurs ennemis courants sont sur le joueur, ceux qui ne sont pas au contact passent sur le flanc.
 const MENACE_FLANC_ANGLE := 1.35
 const MENACE_FLANC_RAYON := 2.3
@@ -97,6 +98,15 @@ static func degats(sorte: String, defaut := 11.0) -> float:
 	return float(DEGATS.get(sorte, defaut))
 
 # ------------------------------------------------------------------ coups du joueur
+
+## Poids des coups du joueur (retour exe 5 : « j'attaque moins vite »). Diviseur de la vitesse de l'arme appliqué à TOUT le geste
+## (armement, tenue, récupération ; la fenêtre d'enchaînement est une part de la récupération : elle suit), un peu moins sur la
+## phase active (la frappe reste vive, c'est l'armement et le retour qui pèsent : lourd, pas ralenti). Sons, tracé de lame et
+## impacts sont calés sur ces mêmes durées. Le combo strict (clic n -> coup n) et PAUSE_COMBO ne sont pas touchés.
+const JOUEUR_LENTEUR := 1.4
+const JOUEUR_LENTEUR_FRAPPE := 1.2
+## Part de la récupération (0..1) après laquelle le clic suivant peut lancer le coup suivant (avant : 0,04 s fixes, soit ~4 %).
+const JOUEUR_ENCHAINEMENT := 0.35
 
 ## Multiplicateur selon l'attaque (après les dégâts de l'arme : le coup puissant a sa propre base, degats_lourd ≈ 2 × léger,
 ## et la pleine charge multiplie par bonus_charge_max ≈ 1,2-1,3 — plus de ×1,25 en plus : c'était un empilement).

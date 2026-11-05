@@ -83,7 +83,7 @@ func _tester() -> void:
 	# --- 2. vraie pause (>= PAUSE_COMBO = 2 s, combo strict) : le 2e clic repart du coup 1
 	print("-- clic trop lent")
 	await _reset()
-	var a := await _clic(2.3)
+	var a := await _clic(2.7)   # > PAUSE_COMBO (2 s) après la FIN du coup (qui dure plus longtemps depuis le lot « rythme »)
 	var b := await _clic(0.6)
 	_verif(a == CoupsUneMain.COMBO[0] and b == CoupsUneMain.COMBO[0] and mains.combat.etat in [EtatCombat.REPOS, EtatCombat.MOUVEMENT, EtatCombat.RECUPERATION], "clic après le repos : le combo repart au coup 1 (%s, %s)" % [a, b])
 

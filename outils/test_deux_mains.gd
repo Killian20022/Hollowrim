@@ -243,7 +243,7 @@ func _tester() -> void:
 		var st_h := Statuts.de(s.mannequin, false)
 		var statut_h := "" if st_h == null else ",".join(st_h.actifs.keys())
 		var m: Dictionary = mains.anim.marqueurs("coup_a")
-		var attendu := float(m["frappe"]) / a.vitesse * a.preparation
+		var attendu := float(m["frappe"]) / (a.vitesse / ReglagesCombat.JOUEUR_LENTEUR) * a.preparation   # + le poids des coups du joueur
 		if id == "epee_metal":
 			ref_prep = prep
 		_verif(absf(prep - attendu) < 1e-3, "%s : préparation du coup A = clip / vitesse × préparation (%.3f s, attendu %.3f)" % [id, prep, attendu])
