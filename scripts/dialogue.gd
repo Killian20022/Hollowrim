@@ -214,6 +214,8 @@ func _plus_proche() -> Node3D:
 		if not is_instance_valid(p) or not p.is_inside_tree() or not p.can_process():
 			_invites.erase(p)
 			continue
+		if p.has_method("prioritaire") and p.prioritaire():      # objet VISÉ au réticule (ObjetsVivants) : passe avant le plus proche
+			return p
 		var d := joueur.global_position.distance_squared_to(p.global_position)
 		if d < d_min:
 			d_min = d
@@ -407,6 +409,8 @@ func _process(dt: float) -> void:
 	if p != null:
 		# un objet peut proposer son propre verbe (« Fouiller le corps », « Entrer »…)
 		_invite_texte.text = p.texte_action() if p.has_method("texte_action") else "Parler à %s" % p.nom_affiche()
+		# couleur propre à l'invite (« Voler » en rouge : objet possédé, ObjetsVivants), sinon le parchemin
+		_invite_texte.add_theme_color_override("font_color", p.couleur_invite() if p.has_method("couleur_invite") else PARCHEMIN)
 		var l := ceilf(_police.get_string_size(_invite_texte.text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
 		var icone: Texture2D = _icone_touche()
 		var larg_icone := 11.0 if icone != null else _police.get_string_size("[%s] " % Touches.libelle("interagir"), HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x

@@ -1,0 +1,371 @@
+{
+	"_doc": "Petits objets de DÉCOR rendus vivants (ObjetsVivants, scripts/objets_vivants.gd) : vaisselle, vivres, outils posés dans les intérieurs et sur les étals. prop_q = prop Quaternius du décor (PropsQuaternius), mats_q = matières des intérieurs (Interieurs.materiaux) ; ObjetMonde.visuel les dessine depuis ce même prop (aucun modèle en double). Les vivres (consommable) se mangent ou se boivent depuis le sac (petits soins, vigueur). Nouvel objet = nouvel identifiant, jamais de renommage.",
+	"objets": {
+		"chope": {
+			"nom": "Chope de bois",
+			"poids": 0.4,
+			"valeur": 2,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_chope"
+		},
+		"assiette_etain": {
+			"nom": "Assiette d’étain",
+			"poids": 0.4,
+			"valeur": 3,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_assiette",
+			"mats_q": {
+				"fer": "etain"
+			}
+		},
+		"ecuelle": {
+			"nom": "Écuelle de bois",
+			"poids": 0.25,
+			"valeur": 1,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_ecuelle",
+			"mats_q": {
+				"bois": "bois_clair"
+			}
+		},
+		"pot_argile": {
+			"nom": "Pot d’argile",
+			"poids": 0.8,
+			"valeur": 2,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_marmite",
+			"mats_q": {
+				"fer": "argile"
+			}
+		},
+		"cruche": {
+			"nom": "Cruche d’argile",
+			"poids": 1.2,
+			"valeur": 3,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_vase_2",
+			"mats_q": {
+				"fer": "argile"
+			}
+		},
+		"couteau_table": {
+			"nom": "Couteau de table",
+			"poids": 0.15,
+			"valeur": 2,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_couteau_f"
+		},
+		"fourchette": {
+			"nom": "Fourchette",
+			"poids": 0.08,
+			"valeur": 1,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_fourchette_f"
+		},
+		"cuillere_bois": {
+			"nom": "Cuillère de bois",
+			"poids": 0.05,
+			"valeur": 1,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_cuillere_bois",
+			"mats_q": {
+				"bois": "bois_clair"
+			}
+		},
+		"livre_relie": {
+			"nom": "Livre relié",
+			"poids": 0.9,
+			"valeur": 12,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_livre_7",
+			"mats_q": {
+				"fer": "cuir"
+			}
+		},
+		"parchemin": {
+			"nom": "Parchemin",
+			"poids": 0.05,
+			"valeur": 2,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_parchemin",
+			"mats_q": {
+				"fer": "bois"
+			}
+		},
+		"seau_bois": {
+			"nom": "Seau de bois",
+			"poids": 1.5,
+			"valeur": 3,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_seau_bois"
+		},
+		"seau_fer": {
+			"nom": "Seau de fer",
+			"poids": 2.0,
+			"valeur": 5,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_seau_fer"
+		},
+		"pierre_aiguiser": {
+			"nom": "Pierre à aiguiser",
+			"poids": 0.5,
+			"valeur": 4,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_pierre_aiguiser"
+		},
+		"chandelier": {
+			"nom": "Chandelier d’étain",
+			"poids": 1.0,
+			"valeur": 8,
+			"rarete": "commun",
+			"categorie": "divers",
+			"prop_q": "q_chandelier_table",
+			"mats_q": {
+				"fer": "etain"
+			}
+		},
+		"pomme": {
+			"nom": "Pomme",
+			"poids": 0.1,
+			"valeur": 1,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_pomme",
+			"mats_q": {
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 3,
+				"vigueur": 6,
+				"duree": 6,
+				"famille": "nourriture"
+			}
+		},
+		"chou": {
+			"nom": "Chou",
+			"poids": 0.5,
+			"valeur": 2,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_chou",
+			"effets": {
+				"vie": 5,
+				"duree": 8,
+				"famille": "nourriture"
+			}
+		},
+		"navet": {
+			"nom": "Navet",
+			"poids": 0.2,
+			"valeur": 1,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_navet",
+			"mats_q": {
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 3,
+				"duree": 6,
+				"famille": "nourriture"
+			}
+		},
+		"carotte": {
+			"nom": "Carotte",
+			"poids": 0.1,
+			"valeur": 1,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_carotte",
+			"mats_q": {
+				"fer": "argile"
+			},
+			"effets": {
+				"vie": 2,
+				"vigueur": 4,
+				"duree": 5,
+				"famille": "nourriture"
+			}
+		},
+		"tranche_pain": {
+			"nom": "Tranche de pain",
+			"poids": 0.05,
+			"valeur": 1,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_tranche_pain",
+			"mats_q": {
+				"bois": "pain_q",
+				"jute": "mie_q",
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 3,
+				"vigueur": 8,
+				"duree": 6,
+				"famille": "nourriture"
+			}
+		},
+		"cuisse_rotie": {
+			"nom": "Cuisse rôtie",
+			"poids": 0.5,
+			"valeur": 6,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_cuisse",
+			"mats_q": {
+				"argile": "roti_q",
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 14,
+				"vigueur": 10,
+				"duree": 12,
+				"famille": "nourriture"
+			}
+		},
+		"viande_crue": {
+			"nom": "Viande crue",
+			"poids": 0.6,
+			"valeur": 3,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_viande",
+			"mats_q": {
+				"lin": "viande_q",
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 4,
+				"duree": 8,
+				"famille": "nourriture"
+			}
+		},
+		"lard": {
+			"nom": "Lard fumé",
+			"poids": 0.4,
+			"valeur": 4,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_lard",
+			"mats_q": {
+				"lin": "viande_q",
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 8,
+				"vigueur": 8,
+				"duree": 10,
+				"famille": "nourriture"
+			}
+		},
+		"saucisse": {
+			"nom": "Saucisse",
+			"poids": 0.2,
+			"valeur": 3,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_saucisse",
+			"mats_q": {
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 6,
+				"vigueur": 6,
+				"duree": 8,
+				"famille": "nourriture"
+			}
+		},
+		"poisson": {
+			"nom": "Poisson du lac",
+			"poids": 0.5,
+			"valeur": 3,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_poisson",
+			"mats_q": {
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 8,
+				"duree": 10,
+				"famille": "nourriture"
+			}
+		},
+		"oeuf": {
+			"nom": "Œuf",
+			"poids": 0.05,
+			"valeur": 1,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_oeuf",
+			"mats_q": {
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 2,
+				"duree": 4,
+				"famille": "nourriture"
+			}
+		},
+		"champignon": {
+			"nom": "Champignon des bois",
+			"poids": 0.05,
+			"valeur": 1,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_champignon",
+			"mats_q": {
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 2,
+				"duree": 4,
+				"famille": "nourriture"
+			}
+		},
+		"fromage": {
+			"nom": "Meule de fromage",
+			"poids": 1.0,
+			"valeur": 8,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"effets": {
+				"vie": 10,
+				"vigueur": 6,
+				"duree": 12,
+				"famille": "nourriture"
+			}
+		},
+		"hydromel": {
+			"nom": "Bouteille d’hydromel",
+			"poids": 0.8,
+			"valeur": 6,
+			"rarete": "commun",
+			"categorie": "consommable",
+			"prop_q": "q_bouteille_1",
+			"mats_q": {
+				"laine": "laine_q"
+			},
+			"effets": {
+				"vie": 3,
+				"vigueur": 25,
+				"duree": 8,
+				"famille": "nourriture"
+			}
+		}
+	}
+}

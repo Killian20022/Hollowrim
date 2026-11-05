@@ -233,6 +233,7 @@ func _ready() -> void:
 	ButinTables.reinitialiser()   # nouvelle partie : aucun contenant pillé (charger() relit l'état de la sauvegarde)
 	Marchand.reinitialiser()      # lot L8 : stocks et bourses des marchands neufs, horloge à 0
 	Stockage.reinitialiser()      # RPG : coffres sûrs vides
+	ObjetsVivants.reinitialiser()  # objets de décor vivants : rien de pris ni de déplacé
 	if not _arguments().has("capture") and not _arguments().has("nouvelle") and not _arguments().has("persos-tous") and not Jeu.nouvelle_partie:
 		charger()
 	_test_butin()
@@ -682,6 +683,7 @@ func _villageois() -> void:
 		ip.porte_actionnee.connect(func(_ouverte: bool) -> void: demander_autosauvegarde("maison", 1.5))
 	quetes.quete_terminee.connect(func(_id: String) -> void: demander_autosauvegarde("quête", 1.0))
 	services.poser(village, dialogue)              # lot E RPG : coffre loué chez Grima, coffre et râtelier de la maison
+	objets_vivants = ObjetsVivants.creer(self)     # petits objets de décor vivants : viser, prendre / voler, saisir, lancer
 	_uniques_village()
 	EtalMarchand.poser_village(village, self, not _arguments().has("capture"))   # pièces exposées après le chargement (EtalMarchand : exposition différée) ; objets monde : étals de Brodd et de Grima (stock du moment en 3D)
 	var promenade: Array = village.promenade
@@ -1322,6 +1324,7 @@ var inventaire_ui: InventaireMains
 var fenetre_butin: FenetreButin
 var marchand: Marchand
 var services: ServicesPnj
+var objets_vivants: ObjetsVivants
 func _interface() -> void:
 	calque = CanvasLayer.new()
 	add_child(calque)
@@ -1498,6 +1501,7 @@ func sauvegarder(emplacement := -1) -> bool:
 		"faune": faune.exporter() if faune != null else {},   # heures de jeu et territoires dépeuplés (Faune : repeuplement lent)
 		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
 		"marchands": Marchand.exporter(),  # lot L8 : heures de jeu écoulées, stock et bourse de chaque marchand (docs/BUTIN.md §9)
+		"objets_vivants": ObjetsVivants.exporter(),   # petits objets de décor : pris (heure de jeu) et déplacés (position)
 		"lieux_vus": hud.lieux_vus.keys(),   # lot L7 : lieux déjà annoncés (« Lieu découvert »)
 		"menu": inventaire_ui.exporter_menu() if inventaire_ui != null else {},   # favoris du Sac (menu du personnage)
 	}
@@ -1561,6 +1565,7 @@ func charger() -> void:
 	ButinTables.importer(d.get("butin", {}))
 	preload("res://scripts/butin.gd").restaurer(self, joueur, hud)      # corps fouillables d'ennemis tués (objets laissés)
 	Marchand.importer(d.get("marchands", {}))
+	ObjetsVivants.importer(d.get("objets_vivants", {}))   # après l'horloge des marchands (réassort des étals)
 	if marchand != null:
 		marchand.recaler_horloge()
 	if joueur.mains.get("magie") != null:

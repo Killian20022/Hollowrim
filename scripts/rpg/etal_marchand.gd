@@ -63,6 +63,7 @@ static func poser_village(village: Node3D, monde: Node = null, differe := false)
 	return res
 
 func _ready() -> void:
+	set_meta("proprietaire", id_marchand)      # pièces exposées : prendre = voler (ObjetsVivants)
 	_construire_table()
 	if differe:
 		_precharger()
@@ -168,7 +169,10 @@ func actualiser() -> void:
 	_plateau.name = "Pieces"
 	_plateau.position = Vector3(0, table.y, 0)
 	add_child(_plateau)
-	ObjetMonde.exposer(_plateau, ex, table.x - 0.12, table.z - 0.1, "etal")
+	var poses := ObjetMonde.exposer(_plateau, ex, table.x - 0.12, table.z - 0.1, "etal")
+	if ObjetsVivants.actif:      # chaque pièce exposée se vole (E : « Voler … », propriétaire = le marchand) et tombe si on la frappe
+		for v in poses:
+			ObjetsVivants.piece_d_etal(v, id_marchand)
 
 ## Table à tréteaux : plateau de planches, deux tréteaux en X, traverse ; matériaux bois du shader_matiere.
 func _construire_table() -> void:

@@ -1,6 +1,6 @@
 extends SceneTree
 ## Audit perf 2026-11-04 : mesure d'UN lieu, de jour ou de nuit (fenêtre nécessaire, vsync coupé) :
-##   godot --path . --disable-vsync --script res://outils/audit_mesure_lieu.gd -- --nouvelle --paisible --lieu=temoin|place|foret|crypte|grotte|combat [--heure=12] [--duree=20]
+##   godot --path . --disable-vsync --script res://outils/audit_mesure_lieu.gd -- --nouvelle --paisible --lieu=temoin|place|foret|halle|crypte|grotte|combat [--heure=12] [--duree=20]
 ## --capture=<fichier.png> : enregistre aussi une image du rendu (après la mesure), pour les planches avant|après.
 ## 10 s de stabilisation puis --duree s de mesure. Imprime une ligne « LIEU … » : gpu_med, gpu_p95, gpu_max, dt (temps réel par image) med/p95/p99/max,
 ## images > 16,7 ms et > 33 ms, appels de dessin, primitives, objets, mémoire (statique, vidéo, textures, tampons), nœuds, charge de la machine.
@@ -56,6 +56,17 @@ func _go() -> void:
 			pass   # --pose passé au jeu
 		"foret":
 			_vers_foret()
+		"halle":      # intérieur le plus chargé (halle de Gunnhild : tables servies) ; A/B des objets vivants : -- --sans-objets-vivants
+			var th := Time.get_ticks_msec()
+			while m.village.get("prets") != true and Time.get_ticks_msec() - th < 90000:
+				await process_frame
+			var ip: Interieur = m.village.interieur("halle")
+			j.global_position = ip.to_global(Vector3(3.4, ip.sol_y + 0.05, 0.9))
+			j.velocity = Vector3.ZERO
+			j.rotation.y = ip.global_rotation.y + deg_to_rad(25.0)      # vers la table servie côté +X et le foyer
+			j.tete.rotation.x = deg_to_rad(-14.0)
+			for k in 30:
+				await process_frame
 		"crypte", "combat":
 			var tt := Time.get_ticks_msec()
 			while not m.tertre._donjon_pret() and Time.get_ticks_msec() - tt < 90000:

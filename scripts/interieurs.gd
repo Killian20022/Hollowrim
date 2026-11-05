@@ -32,6 +32,8 @@ var _flammes: Array = []          # [pos, échelle, phase]
 var _halos: Array = []            # [centre, normale, w, h, couleur]
 var _mats_statiques := {}
 var _froids := 0                  # lumières froides de fenêtre déjà posées
+## Petits objets VIVANTS (ObjetsVivants : vaisselle, vivres…) rangés au lieu d'être fondus : specs créées par le village à la pose.
+var vivants: Array = []
 
 ## Lot L6 : modules Blender du mobilier (sources_blender/scripts/mobilier_interieur.py → .dat, lu en bytes_to_var : aucun .glb,
 ## aucun matériau neuf dans le fil). {module: [[matière, arrays], …]} ; chargé une fois, au premier intérieur bâti.
@@ -345,6 +347,8 @@ func q(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}, solide_ :=
 		push_error("Interieurs : prop %s absent de %s" % [nom, PropsQuaternius.DAT])
 		return
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(Vector3.ONE * e), pos)
+	if not solide_ and _vivant(nom, xf, mats):
+		return
 	for m: Array in PropsQuaternius.morceaux(nom):
 		var cible: String = mats.get(m[0], MATS_Q.get(m[0], "bois"))
 		v._ajouter(_p(), m[1], xf, M[cible])
@@ -372,11 +376,20 @@ func qf(nom: String, pos: Vector3, lacet: float, taille: Vector3, mats := {}, so
 	pos = _sol(pos)
 	PropsQuaternius.compter("interieurs")
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(sc), pos)
+	if not solide_ and _vivant(nom, xf, mats):
+		return
 	for m: Array in PropsQuaternius.morceaux(nom):
 		var cible: String = mats.get(m[0], MATS_Q.get(m[0], "bois"))
 		v._ajouter(_p(), m[1], xf, M[cible])
 	if solide_:
 		solide(pos + Basis(Vector3.UP, lacet) * (bb.get_center() * sc), bb.size * sc, lacet)
+
+## Petit objet du décor rendu VIVANT (ObjetsVivants.capte) : rangé dans `vivants` (mêmes matières que le lot) au lieu d'être fondu.
+func _vivant(nom: String, xf: Transform3D, mats: Dictionary) -> bool:
+	if not ObjetsVivants.capte(nom):
+		return false
+	vivants.append(ObjetsVivants.spec(nom, xf, ObjetsVivants.morceaux_q(nom, func(m: String) -> Material: return M[mats.get(m, MATS_Q.get(m, "bois"))])))
+	return true
 
 ## Prop posé par une transformation complète (repère de la pièce), sans recalage au sol.
 func _q_xf(nom: String, xf: Transform3D, mats := {}, double_ := Vector3.ONE) -> void:
@@ -420,6 +433,9 @@ func nappe(pos: Vector3, taille: Vector2, lacet := 0.0, planche := false) -> voi
 ## Lot 4 v3 : meule de fromage crème entamée (meule + quartier).
 func fromage(pos: Vector3, lacet := 0.0) -> void:
 	if not PropsQuaternius.lot4:
+		return
+	if ObjetsVivants.capte("fromage"):      # meule vivante (même géométrie : ObjetsVivants.morceaux_fromage)
+		vivants.append(ObjetsVivants.spec("fromage", Transform3D(Basis(Vector3.UP, lacet), _sol(pos)), ObjetsVivants.morceaux_fromage(M["fromage_q"])))
 		return
 	cyl(pos + Vector3(0, 0.045, 0), 0.11, 0.09, "fromage_q", 8)
 	bx(pos + Basis(Vector3.UP, lacet) * Vector3(0.17, 0.03, 0.02), Vector3(0.09, 0.06, 0.06), "fromage_q", lacet + 0.5)

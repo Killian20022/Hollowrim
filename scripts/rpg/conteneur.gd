@@ -8,6 +8,9 @@ signal change
 
 var pieces := 0
 var objets := {}
+## Exemplaires VOLÉS par identifiant (objets possédés pris par ObjetsVivants) : id -> nombre, jamais plus que `objets[id]`. Le conteneur
+## porte aussi le meta « vole » = true dès qu'il en contient un (marque lue par le lot crime / marchands).
+var voles := {}
 
 func nombre(id: String) -> int:
 	return pieces if id == "pieces" else int(objets.get(id, 0))
@@ -27,7 +30,20 @@ func retirer(id: String, nombre := 1) -> void:
 	objets[id] = objets.get(id, 0) - nombre
 	if objets[id] <= 0:
 		objets.erase(id)
+	if voles.has(id):
+		voles[id] = mini(int(voles[id]), int(objets.get(id, 0)))
+		if int(voles[id]) <= 0:
+			voles.erase(id)
+		set_meta("vole", not voles.is_empty())
 	change.emit()
+
+## Note `nombre` exemplaires de `id` (déjà au conteneur) comme volés.
+func noter_vol(id: String, nombre := 1) -> void:
+	voles[id] = mini(int(voles.get(id, 0)) + nombre, int(objets.get(id, 0)))
+	set_meta("vole", true)
+
+func est_vole(id: String) -> bool:
+	return int(voles.get(id, 0)) > 0
 
 func a(id: String) -> bool:
 	return objets.get(id, 0) > 0
@@ -64,7 +80,10 @@ func vide() -> bool:
 	return objets.is_empty() and pieces == 0
 
 func exporter() -> Dictionary:
-	return {"pieces": pieces, "objets": objets.duplicate()}
+	var d := {"pieces": pieces, "objets": objets.duplicate()}
+	if not voles.is_empty():
+		d["voles"] = voles.duplicate()
+	return d
 
 ## Relit {pieces, objets} : identifiants renommés traduits (Inventaire.ALIAS), inconnus ignorés (jamais de plantage).
 func importer(d: Dictionary) -> void:
@@ -76,4 +95,12 @@ func importer(d: Dictionary) -> void:
 			var vrai := Inventaire.alias(String(id))
 			if Inventaire.connu(vrai):
 				objets[vrai] = int(objets.get(vrai, 0)) + int(o[id])
+	voles = {}
+	var vo: Variant = d.get("voles", {})
+	if vo is Dictionary:
+		for id in vo:
+			var vrai := Inventaire.alias(String(id))
+			if objets.has(vrai):
+				voles[vrai] = mini(int(vo[id]), int(objets[vrai]))
+	set_meta("vole", not voles.is_empty())
 	change.emit()

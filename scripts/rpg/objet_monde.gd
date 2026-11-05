@@ -64,7 +64,24 @@ static func chemin_modele(oid: String) -> String:
 	return ""
 
 static func a_modele(oid: String) -> bool:
-	return chemin_modele(oid) != "" or a_accessoire(oid)
+	return chemin_modele(oid) != "" or a_accessoire(oid) or a_prop(oid)
+
+## Petit objet de décor (data/objets/decor.json : champ prop_q, ou la meule de fromage) : dessiné depuis le prop du décor (ObjetsVivants).
+static func a_prop(oid: String) -> bool:
+	return oid == "fromage" or String(Inventaire.objet(oid).get("prop_q", "")) != ""
+
+## Prop du décor d'un objet (même maillage, mêmes matières que l'objet vivant), pivot au sol.
+static func prop(oid: String) -> Node3D:
+	var n := Node3D.new()
+	n.name = "Prop"
+	var mo := ObjetsVivants.morceaux_objet(oid)
+	if mo.is_empty():
+		return n
+	var mi := MeshInstance3D.new()
+	mi.mesh = ObjetsVivants.maillage("objet:" + oid, mo)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	n.add_child(mi)
+	return n
 
 static func a_accessoire(oid: String) -> bool:
 	return oid.begins_with("potion_") or oid.begins_with("tome_") or oid in ["pain_seigle", "viande_sechee"]
@@ -84,12 +101,20 @@ static func _arme(oid: String) -> DonneesArme:
 static func visuel(oid: String, pose := "sol", graine := 0) -> Node3D:
 	var racine := Node3D.new()
 	racine.name = "Visuel_" + oid
+	racine.set_meta("oid", oid)
 	var chemin := chemin_modele(oid)
 	var m: Node3D = null
 	if chemin != "":
 		var sc: Variant = load(chemin)
 		if sc is PackedScene:
 			m = (sc as PackedScene).instantiate() as Node3D
+	if m == null and a_prop(oid) and not ObjetsVivants.morceaux_objet(oid).is_empty():
+		m = prop(oid)
+		racine.add_child(m)
+		_lacet(racine, m, graine)
+		for g in racine.find_children("*", "GeometryInstance3D", true, false):
+			(g as GeometryInstance3D).visibility_range_end = PORTEE if pose != "studio" else 0.0
+		return racine
 	if m == null and a_accessoire(oid):
 		m = accessoire(oid)
 		racine.add_child(m)

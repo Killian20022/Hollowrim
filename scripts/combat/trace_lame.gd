@@ -72,11 +72,16 @@ func commencer() -> void:
 	debug_segments.clear()
 	debug_impacts.clear()
 
+## Cible « cassable » : objet du décor qui cède sous la lame (urne, tonneau, mur fragile : groupe « cassables » ; petit objet de décor
+## vivant, ObjetVivant : groupe « objets_vivants », projeté par frapper()).
+static func cassable(n: Node) -> bool:
+	return n.is_in_group("cassables") or n.is_in_group("objets_vivants")
+
 ## Nœud qui reçoit le coup pour un collider touché, ou null (décor).
 static func cible_de(objet: Object) -> Node:
 	var n := objet as Node
 	while n != null:
-		if n.is_in_group("ennemis") or n.is_in_group("cassables") or n.is_in_group("cibles_combat"):
+		if n.is_in_group("ennemis") or cassable(n) or n.is_in_group("cibles_combat"):
 			return n
 		n = n.get_parent()
 	return null
@@ -140,7 +145,7 @@ func echantillonner(espace: PhysicsDirectSpaceState3D, points: PackedVector3Arra
 		var cible := cible_de(r["collider"])
 		var point: Vector3 = r["position"]
 		var mouvement := (b - a).normalized()
-		if cible == null or cible.is_in_group("cassables"):
+		if cible == null or cassable(cible):
 			# sol (surface tournée vers le haut) : la lame s'y arrête sans rebond ; mur / décor : rebond
 			var type := "cassable" if cible != null else ("sol" if (r["normal"] as Vector3).y > SOL_NORMALE else "mur")
 			evts.append({"type": type, "point": point, "normale": r["normal"], "objet": cible if cible else r["collider"], "collider": r["collider"], "direction": mouvement, "indice": i})
@@ -265,14 +270,14 @@ func _rayon(espace: PhysicsDirectSpaceState3D, o: Vector3, p: Vector3, max_cible
 			if r.is_empty():
 				return {}
 			cible = cible_de(r["collider"])
-		if cible.is_in_group("cassables"):
+		if cassable(cible):
 			# brisé au passage, la lame continue (exclu des rayons suivants de ce coup)
 			_exclus_cass.append(r["rid"])
 			var ex: Array[RID] = _q.exclude
 			ex.append(r["rid"])
 			_q.exclude = ex
 			return {"type": "cassable", "point": r["position"], "normale": r["normal"], "objet": cible, "collider": r["collider"], "direction": mouvement, "indice": indice}
-	if cible == null or cible.is_in_group("cassables"):
+	if cible == null or cassable(cible):
 		var type := "cassable" if cible != null else ("sol" if (r["normal"] as Vector3).y > SOL_NORMALE else "mur")
 		arretee = true
 		return {"type": type, "point": r["position"], "normale": r["normal"], "objet": cible if cible else r["collider"], "collider": r["collider"], "direction": mouvement, "indice": indice}
@@ -304,7 +309,7 @@ func _volume_cible(espace: PhysicsDirectSpaceState3D, sommets: Array, exclus: Ar
 	requetes += 1
 	for h in espace.intersect_shape(_requete_volume, 8):
 		var c := cible_de(h["collider"])
-		if c != null and not c.is_in_group("cassables") and not touches.has(c.get_instance_id()):
+		if c != null and not cassable(c) and not touches.has(c.get_instance_id()):
 			return true   # cible pas encore touchée par ce coup
 	return false
 
