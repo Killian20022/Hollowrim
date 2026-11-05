@@ -38,7 +38,7 @@ func _ready() -> void:
 	for nom: String in AMBIANCES:
 		var f := _flux(AMBIANCES[nom][0], true)
 		if f != null:
-			_ambiances.append(_lecteur(f, &"Effets", AMBIANCES[nom][1]))
+			_ambiances.append(_lecteur(f, &"Ambiance", AMBIANCES[nom][1]))
 
 ## Tout démarre en silence puis monte en `fondu` secondes (la musique un peu après les ambiances).
 func demarrer(fondu := 2.5) -> void:
@@ -74,7 +74,7 @@ func jouer(nom: String) -> void:
 		return
 	var a := AudioStreamPlayer.new()
 	a.stream = f
-	a.bus = &"Effets"
+	a.bus = &"Interface" if AudioServer.get_bus_index(&"Interface") != -1 else &"Effets"
 	a.volume_db = SONS[nom][1]
 	a.pitch_scale = randf_range(0.97, 1.03) if nom == "survol" else 1.0
 	a.process_mode = Node.PROCESS_MODE_ALWAYS

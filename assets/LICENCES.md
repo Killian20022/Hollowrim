@@ -7,6 +7,11 @@ Toutes en CC0 1.0 (domaine public, usage commercial libre, aucune attribution ex
 | modeles/squelettes | KayKit Character Pack: Skeletons 1.0 (github.com/KayKit-Game-Assets) | Kay Lousberg | CC0 |
 | sons/footstep_*, impact*, knifeSlice*, chop | Kenney Impact Sounds + RPG Audio (kenney.nl) | Kenney | CC0 |
 | sons/swing*, sword-unsheathe, giant*, mnstr* | RPG Sound Pack (opengameart.org/content/rpg-sound-pack) | artisticdude | CC0 |
+| sons/pas_terre_*, saut_*, ui_potion | Fantasy Sound Effects (Tinysized SFX) : mud-steps, soil-steps, bottle-glass-uncork, water-drop ; Fantasy Weapons and Apparel SFX Library : boots-leather-jump (opengameart.org/content/fantasy-sound-effects-tinysized-sfx, …/fantasy-weapons-and-apparel-sfx-library) ; pas isolés par outils/generer_sons_nuit.py | Vehicle | CC0 |
+| sons/pas_pierre_*, pas_bois_* | semelle de cuir boots-leather-step (Fantasy Weapons and Apparel SFX Library, Vehicle) mêlée à stones_* / wood_* (80 CC0 RPG SFX, opengameart.org/content/80-cc0-rpg-sfx, rubberduck) | Vehicle, rubberduck | CC0 |
+| sons/pas_eau_* | splash_01/02 (100 CC0 SFX, opengameart.org/content/100-cc0-sfx, rubberduck), tranchés et ré-échantillonnés | rubberduck | CC0 |
+| sons/ui_menu_ouvre, ui_menu_ferme | book_01 / book_02 (80 CC0 RPG SFX, rubberduck), tranchés | rubberduck | CC0 |
+| sons/ui_niveau, ui_quete_debut, ui_quete_fin, ui_ramasse | cloches synthétisées par outils/generer_sons_nuit.py (sinusoïdes, aucune source externe) | propriété du projet | — |
 | modeles/villageois | KayKit Character Pack: Adventurers 1.0 (github.com/KayKit-Game-Assets) | Kay Lousberg | CC0 |
 | polices | Kenney Fonts (kenney.nl) | Kenney | CC0 |
 | modeles/joueur | Modélisés pour le jeu (Blender, sources dans sources_blender/) | — | propriété du projet |

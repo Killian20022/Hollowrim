@@ -16,18 +16,27 @@ static func flux(nom: String) -> AudioStream:
 		_cache[nom] = trouve
 	return _cache[nom]
 
-## Son « dans la tête » du joueur (non spatialisé).
-static func jouer(parent: Node, noms: Array, volume_db := 0.0, variation := 0.08) -> void:
+## Son « dans la tête » du joueur (non spatialisé). `bus` vide = routage automatique (Lancement) ; `hauteur` = hauteur de base.
+static func jouer(parent: Node, noms: Array, volume_db := 0.0, variation := 0.08, bus := &"", hauteur := 1.0) -> AudioStreamPlayer:
 	var s := flux(noms.pick_random())
 	if s == null or not parent.is_inside_tree():
-		return
+		return null
 	var a := AudioStreamPlayer.new()
 	a.stream = s
 	a.volume_db = volume_db
-	a.pitch_scale = randf_range(1.0 - variation, 1.0 + variation)
+	a.pitch_scale = hauteur * randf_range(1.0 - variation, 1.0 + variation)
+	if bus != &"" and AudioServer.get_bus_index(bus) != -1:
+		a.bus = bus
 	parent.add_child(a)
 	a.play()
 	a.finished.connect(a.queue_free)
+	return a
+
+## Son d'interface (montée de niveau, quête, objet, potion, menu) : bus « Interface », jamais de reverb, joué même en pause.
+static func interface(parent: Node, noms: Array, volume_db := 0.0) -> void:
+	var a := jouer(parent, noms, volume_db, 0.0, Mixage.INTERFACE)
+	if a != null:
+		a.process_mode = Node.PROCESS_MODE_ALWAYS
 
 ## Son placé dans le monde.
 static func jouer_a(parent: Node, noms: Array, position: Vector3, volume_db := 0.0, variation := 0.08) -> void:

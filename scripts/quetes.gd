@@ -124,6 +124,8 @@ func _completer(q: Dictionary, i: int) -> void:
 	journal.append(etapes[i]["journal"])
 	if i == 0 and not q.get("discrete", false):
 		hud.avis("Nouvelle quête : " + q["titre"])
+		if etapes.size() > 1:
+			Sons.interface(self, ["ui_quete_debut"], -7.0)
 	if i + 1 >= etapes.size():
 		if not q.get("discrete", false):
 			hud.avis("Quête terminée : " + q["titre"])
@@ -139,7 +141,7 @@ func _completer(q: Dictionary, i: int) -> void:
 			joueur.inventaire.ajouter(id, int(r["objets"][id]))
 			hud.avis("+ " + joueur.inventaire.nom(id))
 		if not q.get("discrete", false):
-			Sons.jouer(self, ["sword-unsheathe"], -6.0)
+			Sons.interface(self, ["ui_quete_fin"], -6.0)
 		change.emit()
 		signaler("fini:" + q["id"])   # une quête peut en lancer une autre (premier déclencheur « fini:<id> ») : la suite de l'histoire
 		return

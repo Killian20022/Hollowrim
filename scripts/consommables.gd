@@ -91,5 +91,8 @@ static func utiliser(joueur: Node, id: String) -> String:
 		eq.sorts_connus.append(String(e["apprendre"]))
 		eq.sorts_connus.sort()
 	(joueur.inventaire as Inventaire).retirer(id)
-	Sons.jouer(joueur, ["cloth1", "cloth2"], -10.0)
+	if e.has("apprendre"):
+		Sons.jouer(joueur, ["cloth1", "cloth2"], -10.0)   # tome : bruit de page
+	else:
+		Sons.interface(joueur, ["ui_potion"], -8.0)       # bouchon et gorgées (nourriture comprise : on avale)
 	return ""

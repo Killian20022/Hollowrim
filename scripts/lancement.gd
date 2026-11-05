@@ -3,8 +3,6 @@ extends Node
 ## (volumes par bus, sensibilité, champ de vision) et routage des sons vers les bus « Musique » / « Effets ».
 ## En mode outil (tests, captures : voir Jeu.mode_outil) rien n'est migré ni appliqué : sons et images restent comparables.
 
-const MUSIQUE := preload("res://scripts/musique.gd")
-
 func _init() -> void:
 	if Jeu.mode_outil():
 		return
@@ -24,14 +22,15 @@ func _ready() -> void:
 	Jeu.appliquer_son()
 	get_tree().node_added.connect(_noeud_ajoute)
 
-## Chaque lecteur audio qui entre dans l'arbre : musique (lecteurs du nœud Musique) → bus Musique ; le reste → Effets.
+## Chaque lecteur audio qui entre dans l'arbre (bus resté sur Master) : lecteurs du nœud Musique → Musique ; vent, feu et
+## ambiances (générateurs, fichiers « ambiance_* ») → Ambiance ; sons d'interface (fichiers « ui_* ») → Interface ; le reste → Effets.
+## Les sons qui choisissent déjà leur bus (combat, magie, pas) ne sont pas touchés.
 func _noeud_ajoute(n: Node) -> void:
 	if not (n is AudioStreamPlayer or n is AudioStreamPlayer3D or n is AudioStreamPlayer2D):
 		return
 	if n.get("bus") != &"Master":
 		return
-	var p := n.get_parent()
-	n.set("bus", &"Musique" if p != null and p.get_script() == MUSIQUE else &"Effets")
+	n.set("bus", Mixage.bus_de(n))
 
 ## Fermeture de la fenêtre (jeu exporté) : la notification atteint aussi le monde, qui sauvegarde ; on sort ensuite.
 func _notification(quoi: int) -> void:

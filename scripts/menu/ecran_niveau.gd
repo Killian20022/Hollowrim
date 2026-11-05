@@ -42,7 +42,7 @@ func annoncer_niveau(n: int) -> void:
 	_niveaux.append([n, 0.0])
 	if _niveaux.size() > 3:
 		_niveaux.remove_at(1)
-	Sons.jouer(self, ["sword-unsheathe"], -6.0)
+	Sons.interface(self, ["ui_niveau"], -6.0)   # arpège de cloches (assets/sons/ui_niveau.wav)
 	queue_redraw()
 
 ## Une compétence montée (Progression.niveau_competence, nom canonique ; un nom interne « epee » est accepté).
