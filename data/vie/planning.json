@@ -1,0 +1,26 @@
+{
+ "note": "Planning jour/nuit des civils (scripts/vie/vie.gd + emploi_du_temps.gd). Heures de jeu (cycle.heure, 0-24, 1 h = 100 s). Trois modes : « poste » (travail), « soir » (feu, longue maison, au poste pour les services), « maison » (il rentre, puis dort caché dans le bâtiment). Fenêtre `poste` = [reveil, debut_soir[ ; `soir` = [debut_soir, rentree[ (la clé `soir` d'un PNJ est le LIEU de la soirée : feu, longue_maison, puits, poste) ; `maison` = [rentree, reveil[ (passe minuit). `etalement` = décalage maximal (h) dérivé de l'id, pour qu'ils ne bougent pas tous à la même minute. Bâtiments : halle, sigrun, chasseurs, grima, forge (village.interieur) ; lieux du village : place, longue_maison, puits, enclos, porte, forge. Marchands (profil « service ») : ouverts jusqu'au coucher tardif, la nuit on entend leur voix à travers la porte (repliques.json, section « porte »).",
+ "etalement": 0.25,
+ "lieux_extra": {"feu": [36.0, 39.0]},
+ "profils": {
+  "travailleur": {"reveil": 6.5, "debut_soir": 18.5, "rentree": 21.5},
+  "service": {"reveil": 6.0, "debut_soir": 19.5, "rentree": 22.3},
+  "veilleur": {"toujours": "poste"}
+ },
+ "types": {
+  "paysan": {"profil": "travailleur", "maison": "halle", "soir": "feu"},
+  "paysanne": {"profil": "travailleur", "maison": "grima", "soir": "feu"},
+  "chasseur": {"profil": "travailleur", "maison": "chasseurs", "soir": "feu"},
+  "chasseresse": {"profil": "travailleur", "maison": "chasseurs", "soir": "feu"}
+ },
+ "pnj": {
+  "chef": {"profil": "travailleur", "maison": "halle", "soir": "longue_maison"},
+  "forgeron": {"profil": "service", "maison": "forge", "soir": "poste"},
+  "chasseuse": {"profil": "travailleur", "maison": "chasseurs", "soir": "feu"},
+  "volva": {"profil": "travailleur", "maison": "sigrun", "soir": "poste"},
+  "garde": {"profil": "veilleur", "maison": "halle"},
+  "ancienne": {"profil": "service", "maison": "grima", "soir": "poste"},
+  "hab_paysanne_2": {"soir": "puits"},
+  "hab_paysanne_3": {"soir": "poste"}
+ }
+}
