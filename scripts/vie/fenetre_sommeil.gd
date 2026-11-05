@@ -148,7 +148,7 @@ func regler(h: int) -> void:
 	_valeur.text = "1 heure" if heures == 1 else "%d heures" % heures
 	var fin := fposmod(heure + heures, 24.0)
 	var jour := "" if heure + heures < 24.0 else " (demain)"
-	_reveil.text = "%s vers %d h %02d%s" % ["Réveil" if mode == "dormir" else "Jusqu'à", int(fin), int(fmod(fin, 1.0) * 60.0), jour]
+	_reveil.text = "%s %d h %02d%s" % ["Réveil vers" if mode == "dormir" else "Jusqu'à", int(fin), int(fmod(fin, 1.0) * 60.0), jour]
 
 func _input(e: InputEvent) -> void:
 	if not ouvert:
