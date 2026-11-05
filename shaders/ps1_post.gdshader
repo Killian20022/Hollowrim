@@ -8,7 +8,11 @@ uniform float niveaux = 32.0;
 uniform float tramage = 1.0;
 uniform float vignette = 0.35;
 uniform float degat = 0.0;  // voile rouge quand le joueur est touché
-uniform float fondu = 0.0;  // fondu au noir (mort)
+uniform float fondu = 0.0;  // fondu au noir (mort, entrées de la crypte et de la grotte)
+// fondu « PS1 » : soustraction en 32 pas (le GPU PS1 assombrit par soustraction : les ombres partent au noir d'abord, les
+// lumières tiennent jusqu'au bout) ; false = l'ancien fondu multiplicatif. D'après AnalogFeelings/godot-psx
+// (Shaders/psx_fade.gdshader), MIT, Copyright (c) 2022 Analog Feelings — voir THIRD_PARTY.md.
+uniform bool fondu_psx = true;
 uniform float eclat_rouge = 0.0;  // voile rouge bref plein écran : gros coups, morts brutales, finishers (scripts/combat/retour_impact.gd)
 // Lot 2 : étalonnage fixé par cycle.gd selon l'heure (sous terre, monde.gd baisse `etal_mix`)
 uniform vec3 etal_ombre = vec3(0.88, 0.96, 1.14);
@@ -49,7 +53,11 @@ void fragment() {
 	// éclat rouge : l'image vire au sang (les clairs gardent leur lecture), bords plus marqués
 	float lum = dot(c, vec3(0.3, 0.55, 0.15));
 	c = mix(c, vec3(lum * 1.25 + 0.08, lum * 0.18, lum * 0.14), eclat_rouge * (0.55 + 0.45 * smoothstep(0.0, 0.5, dot(v, v) * 2.0)));
-	c *= 1.0 - fondu;
+	if (fondu_psx) {
+		c = max(c - vec3(floor(fondu * 32.0 + 0.001) / 32.0), vec3(0.0));
+	} else {
+		c *= 1.0 - fondu;
+	}
 	if (actif) {
 		// Lot 7 : le tramage 15 bits reste (il casse les bandes des dégradés : brume, ciel), mais il s'efface sur
 		// les arêtes franches (bords d'arbres, silhouettes sur l'aurore) où le grain crépitait.
