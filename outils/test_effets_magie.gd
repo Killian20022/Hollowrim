@@ -71,7 +71,7 @@ func _cible(pos: Vector3) -> Node3D:
 func _lancer() -> void:
 	print("test_effets_magie")
 	# --- contrat : signatures présentes
-	var attendu := {"aura_main": 3, "jet": 6, "projectile_visuel": 2, "impact": 4, "zone": 4, "chaine": 2, "statut_cible": 3,
+	var attendu := {"aura_main": 3, "jet": 6, "projectile_visuel": 3, "impact": 4, "zone": 4, "chaine": 2, "statut_cible": 3,
 		"enchant_arme": 3, "reaction": 3, "double": 2}
 	var methodes := {}
 	for m in (load("res://scripts/magie/effets_magie.gd") as Script).get_script_method_list():

@@ -323,8 +323,11 @@ func _process(dt: float) -> void:
 	var nais := sin(_naiss * PI * 0.5)
 	# charge : x1,3 en hauteur et x1,15 en largeur au plus (comme la flamme) ; les départs resserrent le noyau
 	var ech := ECH
-	var haut_k := (1.0 + 0.3 * ch) * (1.0 - 0.35 * conv) * taille_k * nais * ech
-	var larg_k := (1.0 + 0.15 * ch) * (1.0 - 0.3 * conv) * taille_k * nais
+	# charge commune (ChargeSort, « croissance_main ») : l'énergie tenue grossit nettement en chargeant (glace, ténèbres, électricité),
+	# comme la flamme du feu
+	var gr := 1.0 + ChargeSort.reglage("croissance_main", 0.4) * ch
+	var haut_k := (1.0 + 0.3 * ch) * (1.0 - 0.35 * conv) * taille_k * nais * ech * gr
+	var larg_k := (1.0 + 0.15 * ch) * (1.0 - 0.3 * conv) * taille_k * nais * gr
 	# transition au lancer (TransitionSort, docs/MAGIE_TRANSITIONS.md) : le noyau se resserre en jet (l'énergie part dans le sort), gonfle
 	# à l'instant du départ, et en double magie la suiveuse se fond dans le noyau de la meneuse. Valeur par défaut, à affiner par école.
 	var tr := runes.transition

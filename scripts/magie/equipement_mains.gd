@@ -342,7 +342,7 @@ func fiche(id: String) -> Dictionary:
 		if s.recharge > 0.0:
 			l.append("Recharge : %s s" % str(snappedf(s.recharge, 0.1)))
 		if s.se_charge():
-			l.append("Maintenir pour charger (%s s)" % str(snappedf(s.temps_charge, 0.1)))
+			l.append("Maintenir pour charger (%s s)" % str(snappedf(ChargeSort.temps_plein(s) + s.incantation, 0.1)))
 		if not s.double.is_empty() and s.type != DonneesSort.Type.ENCHANT:
 			l.append("Dans les deux mains : double incantation")
 	elif r is DonneesArme:

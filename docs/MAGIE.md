@@ -22,7 +22,7 @@ et l'interface sont faits sur `magie/effets` (contrat `EffetsMagie` plus bas) ; 
 |---|---|---|
 | `main_droite` | clic gauche | main droite : coup d'épée (comme avant) ou sort |
 | `main_gauche` | clic droit | main gauche : sort ; **GARDE** si la règle « garde » s'applique (voir plus bas) |
-| maintenir | — | charger (boule, lance, zones) / canaliser (jet, arc, drain, soin, protection) |
+| maintenir | — | charger (boule, éclat, lance, trait, orage, rayon, zones) / canaliser (jet, arc, drain, soin, protection) |
 | relâcher | — | sort chargé (coût et dégâts selon la charge) ; fin de canalisation |
 | les deux boutons | fenêtre 0,15 s | **double incantation** si les deux mains tiennent LE MÊME sort |
 | `raccourci_1` … `raccourci_0` | touches 1-0 | équipe les deux mains (data/magie/raccourcis.json) |
@@ -98,25 +98,48 @@ Test : `bash outils/tous_les_tests.sh test_inventaire_mains`.
 4 s sans lancer de sort (`Joueur.REGEN_MANA_CALME`, `DELAI_CALME_MANA` : le réservoir passe de ~14 s à ~6 s de remplissage quand
 on a fini de se battre ; le mage qui temporise en plein combat ne le gagne qu'après 4 s sans dépenser) ; plein à la résurrection ;
 sauvegardé. Potion de mana : +50 sur 4 s (`data/objets/consommables.json`, délai de réutilisation 3 s).
-Coûts payés : RAPIDE / ZONE / ENCHANT au départ ; CHARGE au relâchement (`cout × lerp(cout_charge_min, 1, charge)` ; si le
-mana manque, la charge est réduite à ce qui est payable) ; CANALISE par seconde (arrêt « Mana épuisé »).
+Coûts payés : RAPIDE / ZONE / ENCHANT au départ ; CHARGE au relâchement (`cout × ChargeSort.facteur_cout(s, charge)` ; la
+charge cesse de monter quand le mana ne paierait plus davantage) ; CANALISE par seconde (arrêt « Mana épuisé »).
+
+### Sorts lancés chargés (charge commune, 2026-11-05)
+
+Retour joueur : « lorsqu'on reste appuyé, qu'il se charge et fasse plus de dégâts au maximum ; ça permet aussi de viser ».
+UN mécanisme pour tous : `scripts/magie/charge_sort.gd` (`ChargeSort`), réglages `data/magie/charge_sorts.json`. Famille
+« projectile chargé » = tout sort `type CHARGE` + `portée PROJECTILE` (boule de feu, éclat de glace, lance de givre, trait
+d'ombre) : leurs `temps_charge` / `degats_charge_min` / `cout_charge_min` de .tres sont ignorés, `degats` et `cout` y sont les
+valeurs à PLEINE charge.
+- Appui : incantation (0,16 s) puis charge ; 1,2 s de charge (`temps_plein`) → maximum à ~1,35 s de l'appui. Pendant
+  l'incantation et la charge (tous les sorts qui se chargent) le joueur avance à ×0,65 (`vitesse_joueur`), l'énergie de la main
+  monte (aura 0,6 → 1, son de charge qui monte) ; on vise au réticule.
+- Relâcher : tir vers le centre de l'écran. Tap (relâché avant la fin de l'incantation) = petit tir : 50 % des dégâts, 50 %
+  du coût, projectile ×0,8. Juste avant le maximum : 72 %, ×1,12. AU maximum : palier à 100 % (×2 du tap), projectile ×1,5
+  (lumière plus forte, touche un peu plus large), signal unique `EffetsMagie.charge_pleine` (son `pleine_charge.wav`, hauteur par
+  école ; éclat de lumière dans la main) puis pulsation de l'aura par paliers francs. Maintenir plus longtemps ne surcharge pas.
+- Main : l'énergie tenue grossit de +40 % à pleine charge (`croissance_main`, noyaux glace / ténèbres / électricité ; la flamme
+  du feu grandit déjà) ; un tap sur un sort à charge joue l'entrée puis le départ du geste « charge » (comme
+  une boule de feu non chargée avant) ; en DOUBLE, ce tap saute encore d'environ 12 cm entre l'entrée et le départ (capture
+  double_charge, défaut antérieur, non corrigé : le parcours accéléré de la tenue tordait le poignet). Une boule de feu chargée naît à taille normale contre l'œil et
+  prend sa pleine taille dans le premier mètre et demi.
+- Restent à part : rayon du néant, orage runique, zones chargées (leurs propres temps et parts, mais même ralenti, signal et
+  pulsation) ; instantanés : chaîne d'éclairs, enchantements ; canalisés : jets, arc, drain, soin, protection.
+- Test : `outils/test_sorts_charges.gd` ; preuves : `outils/film_sorts_charges.gd` (film tap / charge pleine, gros plans de la main).
 
 ## Les sorts (`data/sorts/*.tres` = LA source : 21 sorts ; équilibrage du 2026-11-05, voir « Équilibrage » plus bas)
 
 | Sort | École | Type | Coût | Dégâts | Statut | Portée / rayon | Recharge | Double (principaux ×) |
 |---|---|---|---|---|---|---|---|---|
 | Jet de flammes | feu | canalisé, jet (traverse 3) | 13 /s | 15 /s | brûlure 4 /s, 3 s | 9 m, largeur 0,9 | — | dégâts 2, coût 2,2, largeur 1,8, portée 1,25 |
-| Boule de feu | feu | chargé 0,8 s, projectile 24 m/s | 24 (×0,6 sans charge) | 24 (×0,55 sans charge) + explosion | brûlure 4 /s, 3 s | rayon 2,2 | 0,5 s | dégâts 2,2, coût 2,4, rayon 1,6 |
+| Boule de feu | feu | chargé 1,2 s (commun), projectile 24 m/s | 28 (×0,5 au tap) | 30 (×0,5 au tap, ×0,72 avant le max) + explosion | brûlure 4 /s, 3 s | rayon 2,2 | 0,5 s | dégâts 2,2, coût 2,4, rayon 1,6 |
 | Explosion incendiaire | feu | zone visée, chargée 1 s | 42 | 38 | brûlure 6 /s, 4 s | 14 m, rayon 3 | 4 s | dégâts 2, coût 2,3, rayon 1,5 |
-| Éclat de glace | glace | rapide, 3 éclats 34 m/s | 8 | 6 ×3 | gel 0,25, 2,5 s | — | 0,3 s | 6 éclats, dégâts 1,6, coût 2,2 |
-| Lance de givre | glace | chargé 0,9 s, traverse 1 | 26 | 38 | gel 0,45, 3 s | — | 0,8 s | lance + 2 cristaux, traverse 3, dégâts 2,1 |
+| Éclat de glace | glace | chargé 1,2 s (commun), 3 éclats 34 m/s | 16 (×0,5 au tap) | 12 ×3 (×0,5 au tap) | gel 0,25, 2,5 s | — | 0,3 s | 6 éclats, dégâts 1,6, coût 2,2 |
+| Lance de givre | glace | chargé 1,2 s (commun), traverse 1 | 30 (×0,5 au tap) | 44 (×0,5 au tap) | gel 0,45, 3 s | — | 0,8 s | lance + 2 cristaux, traverse 3, dégâts 2,1 |
 | Souffle de givre | glace | canalisé, jet (traverse 3) | 12 /s | 16 /s | gel 0,35, 2 s | 8 m, largeur 0,9 | — | dégâts 2, coût 2,2, largeur 1,6, portée 1,2 |
 | Nova gelée | glace | zone autour de soi | 40 | 24 | gel 0,55, 4 s | rayon 4,5 | 5 s | rayon 1,5, gel 1,4 |
 | Arc électrique | électricité | canalisé, jet (1 cible) | 14 /s | 24 /s | choc 0,45 s | 9 m | — | portée 1,3, +2 rebonds (propagation) |
 | Chaîne d'éclairs | électricité | rapide, chaîne | 22 | 24, ×0,75 par rebond, 3 rebonds | choc 0,4 s | 20 m, rebond 6,5 m | 1 s | +3 rebonds, dégâts 1,9 |
 | Tempête statique | électricité | zone visée persistante 5 s | 52 | 9 par tic de 0,5 s | choc 0,3 s | 16 m, rayon 4 | 9 s | rayon 1,4, durée 1,3 |
 | Orage runique | électricité | chargé 1 s, foudre visée | 30 | 38 (×0,5 sans charge) | choc 0,5 (0,6 s) | 22 m, rayon 3 | 1 s | dégâts 2,1, coût 2,4, rayon 1,4 |
-| Trait d'ombre | ténèbres | rapide, projectile 30 m/s | 9 | 20 | corruption +15 %, 5 s | — | 0,35 s | dégâts 2,1, corruption 1,6 |
+| Trait d'ombre | ténèbres | chargé 1,2 s (commun), projectile 30 m/s | 18 (×0,5 au tap) | 40 (×0,5 au tap) | corruption +15 %, 5 s | — | 0,35 s | dégâts 2,1, corruption 1,6 |
 | Drain de vie | ténèbres | canalisé, jet | 11 /s | 18 /s, rend 60 % | corruption +10 %, 3 s | 8 m | — | dégâts 1,9, drain 1,3, +1 cible |
 | Explosion obscure | ténèbres | zone visée chargée 1 s, vortex | 48 | 34 | corruption +20 %, 6 s | 14 m, rayon 3,5 | 6 s | rayon 1,5, attraction 1,5 |
 | Rayon du néant | ténèbres | chargé 1,4 s, rayon qui traverse 3 | 52 (×0,55 sans charge) | 78 (×0,4 sans charge) | corruption +20 %, 6 s | 32 m | 3 s | dégâts 2, largeur 1,4 |

@@ -25,7 +25,9 @@ enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI, DECHARGE }
 @export_multiline var description := ""
 
 @export_group("Coûts et rythme")
-## Mana payé au lancement (RAPIDE, CHARGE à pleine charge, ZONE, ENCHANT).
+## Mana payé au lancement (RAPIDE, CHARGE à pleine charge, ZONE, ENCHANT). Charge commune des projectiles chargés
+## (type CHARGE + portée PROJECTILE) : ChargeSort, data/magie/charge_sorts.json — leurs temps_charge, cout_charge_min et
+## degats_charge_min sont ignorés.
 @export var cout := 10.0
 ## Mana par seconde (CANALISE).
 @export var cout_par_seconde := 0.0

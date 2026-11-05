@@ -355,6 +355,24 @@ func definir_paumes_effets(gauche: Node3D, droite: Node3D) -> void:
 			r.queue_free()
 		_runes[m] = null
 
+## Charge la plus haute que le mana permet de payer au relâchement (1 = pas de limite).
+func _charge_payable(s: DonneesSort, dbl: bool) -> float:
+	var fc := Progression.facteur_cout_sort(s.ecole, dbl)
+	var c0 := LanceurSorts.cout(s, 0.0) * fc
+	var c1 := LanceurSorts.cout(s, 1.0) * fc
+	if joueur.mana + 0.001 >= c1 or c1 - c0 < 0.01:
+		return 1.0
+	return clampf((joueur.mana - c0) / (c1 - c0), 0.0, 1.0)
+
+## Vitesse de déplacement du joueur (×, lu par joueur._physics_process) : ralentie pendant l'incantation et la charge d'un
+## sort qui se charge (ChargeSort.vitesse_joueur) ; 1 sinon.
+func facteur_vitesse() -> float:
+	for m in MAINS:
+		var i: Incantation = inc[m]
+		if i.sort != null and i.sort.se_charge() and i.etat in [Incantation.INCANTE, Incantation.CHARGE]:
+			return ChargeSort.vitesse_joueur()
+	return 1.0
+
 func charge(main: String) -> float:
 	var i: Incantation = inc[main]
 	if i.etat == Incantation.CHARGE:
@@ -472,8 +490,14 @@ func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 				else:
 					_lancer(m, sd, 1.0)
 		Incantation.CHARGE:
-			var tc := maxf(s.temps_charge, 0.01)
-			i.charge = clampf(i.t / tc, 0.0, 1.0)
+			# charge commune (ChargeSort, data/magie/charge_sorts.json) : monte jusqu'au maximum, sans dépasser ce que le
+			# mana permet de payer au relâchement ; au maximum, un signal (son, éclat) puis la pulsation (_intensite)
+			var c := clampf(i.t / ChargeSort.temps_plein(s), 0.0, 1.0)
+			i.charge = minf(c, _charge_payable(sd, i.double))
+			if i.pleine_t < 0.0 and ChargeSort.pleine(i.charge):
+				i.pleine_t = i.t
+				EffetsMagie.charge_pleine(_p(m), s.ecole)
+				_noter("charge pleine %s %s" % [m, s.id])
 			if not i.tenu:
 				_lancer(m, sd, i.charge)
 		Incantation.CANALISE:
@@ -531,6 +555,9 @@ func _intensite(i: Incantation, s: DonneesSort) -> float:
 			k = 0.35 + 0.4 * clampf(i.t / maxf(s.incantation, 0.01), 0.0, 1.0)
 		Incantation.CHARGE:
 			k = 0.6 + 0.4 * i.charge
+			if i.pleine_t >= 0.0:
+				# charge pleine : l'énergie de la main pulse par paliers francs (ChargeSort.pulsation)
+				k += ChargeSort.reglage("pulsation_amplitude", 0.28) * ChargeSort.pulsation(i.t - i.pleine_t)
 		Incantation.CANALISE:
 			k = 1.0
 		Incantation.RECUPERATION:

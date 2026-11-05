@@ -57,14 +57,13 @@ static func version_double(s: DonneesSort) -> DonneesSort:
 	_doubles[s.id] = [s, d]
 	return d
 
-## Coût de lancement (mana) selon la charge.
+## Coût de lancement (mana) selon la charge (charge commune : ChargeSort).
 static func cout(s: DonneesSort, charge := 1.0) -> float:
-	if s.se_charge():
-		return s.cout * lerpf(s.cout_charge_min, 1.0, clampf(charge, 0.0, 1.0))
-	return s.cout
+	return s.cout * ChargeSort.facteur_cout(s, charge)
 
+## Part des dégâts selon la charge (charge commune : ChargeSort ; projectile chargé : ×2 entre le tap et le maximum).
 static func facteur_charge(s: DonneesSort, charge: float) -> float:
-	return lerpf(s.degats_charge_min, 1.0, clampf(charge, 0.0, 1.0)) if s.se_charge() else 1.0
+	return ChargeSort.facteur_degats(s, charge)
 
 # ------------------------------------------------------------------ visée
 
@@ -192,7 +191,7 @@ func lancer(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, charge
 	SonsMagie.lancement(s.ecole, depart, k)
 	match s.portee_mode:
 		DonneesSort.Portee.PROJECTILE:
-			return _projectiles(s, depart, oeil, avant, k)
+			return _projectiles(s, depart, oeil, avant, k, ChargeSort.taille(s, charge))
 		DonneesSort.Portee.CHAINE:
 			return _chaine(s, depart, oeil, avant, k, s.rebonds)
 		DonneesSort.Portee.DECHARGE:
@@ -211,7 +210,8 @@ func lancer(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, charge
 			return {"genre": "soi"}
 	return {}
 
-func _projectiles(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k: float) -> Dictionary:
+## `taille` : échelle du visuel (ChargeSort.taille : petit au tap, gros et plus lumineux à pleine charge).
+func _projectiles(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k: float, taille := 1.0) -> Dictionary:
 	var v := viser(oeil, avant, PORTEE_PROJECTILE)
 	var dir: Vector3 = (Vector3(v["point"]) - depart).normalized()
 	var parent := lanceur.get_parent()
@@ -223,15 +223,15 @@ func _projectiles(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3
 			# éventail horizontal (éclats), plus un léger décalage vertical alterné
 			var ang := deg_to_rad(s.ecart) * (float(i) - float(n - 1) * 0.5)
 			d = dir.rotated(Vector3.UP, ang).rotated(dir.cross(Vector3.UP).normalized(), deg_to_rad(s.ecart * 0.3) * (1.0 if i % 2 == 0 else -1.0))
-		var visuel := EffetsMagie.projectile_visuel(s.ecole, s.forme)
+		var visuel := EffetsMagie.projectile_visuel(s.ecole, s.forme, taille)
 		var rappel := func(cible: Node, point: Vector3, normale: Vector3) -> void: _impact_projectile(s, k, cible, point, normale, d)
 		var exclus: Array = [lanceur] if vise == "ennemis" else [lanceur]
-		var p := ProjectileSort.tirer_sort(parent, depart, d, s.vitesse, visuel, rappel, exclus, s.traverse)
+		var p := ProjectileSort.tirer_sort(parent, depart, d, s.vitesse, visuel, rappel, exclus, s.traverse, taille)
 		p.genre = {"glace": "givre", "feu": "feu", "electricite": "foudre", "tenebres": "ombre"}.get(s.ecole, "sort")
 		p.vise = vise
 		p.cible_joueur = cible_joueur
 		tirs.append(p)
-	return {"genre": "projectile", "projectiles": tirs, "point": v["point"]}
+	return {"genre": "projectile", "projectiles": tirs, "point": v["point"], "direction": dir, "taille": taille, "facteur": k}
 
 ## RAYON DU NÉANT (sort à charge, portée JET) : traverse jusqu'à 1 + `traverse` cibles dans le couloir de visée, derrière
 ## aucun mur ; les dégâts croissent avec la charge (`k`). Le faisceau (RayonNeant) part du centre du cercle runique et finit

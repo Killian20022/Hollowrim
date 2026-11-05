@@ -15,6 +15,8 @@ var traverse := 0
 var vise := "ennemis"
 var cible_joueur: Node3D
 var _touches: Array = []
+## Échelle de la charge (1 = tir normal).
+var taille := 1.0
 var _exclus: Array[RID] = []
 ## Lancer d'école (glace, électricité, ténèbres) : le visuel naît de la main (LancerEcole) ; le projectile accélère depuis la paume
 ## pendant la naissance (au lieu de partir à pleine vitesse : on voit le sort se détacher de la main).
@@ -23,8 +25,10 @@ var _age_vol := 0.0
 const DEPART_K := 0.4       # fraction de la vitesse au départ
 const DUREE_DEPART := 0.16  # s pour atteindre la pleine vitesse
 
-static func tirer_sort(parent: Node, depart: Vector3, direction: Vector3, vitesse_: float, visuel: Node3D, rappel_: Callable, exclus: Array = [], traverse_ := 0) -> ProjectileSort:
+## `taille_` : échelle de la charge (ChargeSort.taille) : un sort chargé à fond touche aussi un peu plus large (RAYON_TOUCHE).
+static func tirer_sort(parent: Node, depart: Vector3, direction: Vector3, vitesse_: float, visuel: Node3D, rappel_: Callable, exclus: Array = [], traverse_ := 0, taille_ := 1.0) -> ProjectileSort:
 	var p := ProjectileSort.new()
+	p.taille = taille_
 	p.genre = "sort"
 	p.gravite = 0.0
 	p.rappel = rappel_
@@ -70,7 +74,7 @@ func _physics_process(dt: float) -> void:
 			continue
 		var centre: Vector3 = Elements._centre(c) if vise == "ennemis" else c.global_position + Vector3(0, 1.1, 0)
 		var proche := Geometry3D.get_closest_point_to_segment(centre, de, vers)
-		var rayon := RAYON_TOUCHE + (0.15 if vise == "ennemis" else 0.0)
+		var rayon := RAYON_TOUCHE * maxf(taille, 1.0) + (0.15 if vise == "ennemis" else 0.0)
 		if proche.distance_to(centre) <= rayon or _dans_hauteur(c, proche):
 			if _mur_entre(de, proche):
 				break

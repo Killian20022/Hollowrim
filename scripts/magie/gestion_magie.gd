@@ -2570,7 +2570,8 @@ func _runes_projectile(racine: Node3D, ecole: String, k: float) -> void:
 	racine.add_child(r)
 
 
-func projectile_visuel(ecole: String, forme: String) -> Node3D:
+## `taille` : échelle de la charge (ChargeSort.taille ; 1 = tir normal) : boule et cristaux plus gros, lumière plus forte.
+func projectile_visuel(ecole: String, forme: String, taille := 1.0) -> Node3D:
 	ecole = _ecole_ok(ecole)
 	var racine := Node3D.new()
 	racine.name = "ProjectileMagie"
@@ -2579,7 +2580,7 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 	racine.add_child(visuel)
 	var pal: Array = PresetsMagie.R[PresetsMagie.de(ecole, "trainee")].rampe
 	var dbl: bool = _double.get(ecole, false)
-	var k := 1.4 if dbl else 1.0
+	var k := (1.4 if dbl else 1.0) * taille
 	var coeur: Array = []
 	var aura_proj: MeshInstance3D = null
 	match forme:
@@ -2638,7 +2639,7 @@ func projectile_visuel(ecole: String, forme: String) -> Node3D:
 	if _projectiles.size() >= MAX_PROJECTILES:
 		refus += 1
 	else:
-		var e := {"noeud": racine, "visuel": visuel, "ecole": ecole, "forme": forme, "emit": [], "coeur": coeur, "prec": null, "entre": false, "eclair": {}, "dbl": dbl, "aura": aura_proj}
+		var e := {"noeud": racine, "visuel": visuel, "ecole": ecole, "forme": forme, "emit": [], "coeur": coeur, "prec": null, "entre": false, "eclair": {}, "dbl": dbl, "aura": aura_proj, "taille": taille, "rayon_aura": PROJ_RAYON * k}
 		if forme in ["eclat", "lance"]:
 			# cristal : sa queue dépasse de 0,25 × sa longueur DERRIÈRE le point de départ. Né dans la paume (~0,5 m de
 			# l'œil), l'éclat (0,43 m de queue) ou la lance (1 m) traversait le plan proche de la caméra pendant la
@@ -2708,6 +2709,16 @@ func _maj_projectiles() -> void:
 				if is_instance_valid(p):
 					p.position = pos
 			var ech := _cristal_echelle(e, pos)
+			var tl := float(e.get("taille", 1.0))
+			if tl > 1.0 and not e.has("queue"):
+				# sort chargé (ChargeSort.taille > 1) : né à la taille normale contre l'œil, il prend sa pleine taille dans le premier
+				# mètre et demi (une boule ×1,5 couvrait le tiers de l'écran l'image du départ)
+				var cam_p := get_viewport().get_camera_3d()
+				if cam_p != null:
+					var pres := lerpf(1.0 / tl, 1.0, clampf((cam_p.global_position.distance_to(pos) - 0.6) / 1.4, 0.0, 1.0))
+					ech *= pres
+					if e.get("aura") != null and is_instance_valid(e.aura):   # boule runique : rayon du shader, pas l'échelle du nœud
+						(e.aura as MeshInstance3D).set_instance_shader_parameter("rayon", float(e.rayon_aura) * pres)
 			if e.prec != null:
 				var v: Vector3 = pos - (e.prec as Vector3)
 				if v.length() > 0.0005:
@@ -2719,7 +2730,7 @@ func _maj_projectiles() -> void:
 				(e.aura as MeshInstance3D).set_instance_shader_parameter("trace", -(pos - (e.prec as Vector3)).normalized())
 			e.prec = pos
 			var c: Color = LUMIERE[e.ecole]
-			lumiere("proj%d" % (n as Node).get_instance_id(), pos, c, 3.6 if e.forme in ["boule", "orbe", "trait"] else 2.2, 6.0, 3.0)
+			lumiere("proj%d" % (n as Node).get_instance_id(), pos, c, (3.6 if e.forme in ["boule", "orbe", "trait"] else 2.2) * float(e.get("taille", 1.0)), 6.0 * sqrt(float(e.get("taille", 1.0))), 3.0)
 		elif not vivant or e.entre:
 			for p in e.emit + e.coeur:
 				arreter(p)

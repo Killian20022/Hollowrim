@@ -252,7 +252,7 @@ func _essai(nom: String, nb: int, idx: int) -> Dictionary:
 	var ctx := {"rel": 0}
 	var t_esquive := -1.0
 	var cout_min := float(sort.double.get("cout", 1.0)) if double else 1.0   # facteur de la double incantation
-	cout_min *= maxf(sort.cout * sort.cout_charge_min if sort.type == DonneesSort.Type.CHARGE else sort.cout, sort.cout_par_seconde * 0.5)
+	cout_min *= maxf(LanceurSorts.cout(sort, 0.0), sort.cout_par_seconde * 0.5)
 	var attend_mana := false   # hystérésis : après un manque, on ne retire qu'avec de quoi lancer plusieurs sorts
 	while t_ < DUREE_MAX and not _vivants(liste).is_empty() and j.vie > 0.0:
 		var cible: Node3D = null
