@@ -153,6 +153,7 @@ TESTS=(
 	"test_sommeil|--nouvelle --paisible"   # retours exe 5 : lits, PNJ qui se couchent et se lèvent, joueur qui dort / attend, intrusion vue
 	"test_crime_sommeil|--nouvelle --paisible"   # crime x sommeil : PNJ couché frappé -> debout, combattant, corps rendu, lit libéré
 	"test_disposition|--nouvelle --paisible"   # disposition : accueil et prix selon réputation / prime, arme brandie (remarque, avertissements, garde hostile), plaider, récidive
+	"test_shaders_tiers|--nouvelle"   # reprises de shaders PS1 libres : neige en carrés de pixels (ps1_flocon), fondu au noir soustractif en 32 pas, licences MIT
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
 TEMPS_REEL="test_ragdoll test_mort_ragdoll"
@@ -163,6 +164,7 @@ for t in "${TESTS[@]}"; do
 	d0=$SECONDS; sortie="$LOGS/$nom.log"; note=""
 	DELAI="${TEMPS_MAX:-240}"; [[ "$nom" == "test_degats_sanctuaire" && -z "${TEMPS_MAX:-}" ]] && DELAI=600   # ~245 s seul, davantage sur machine chargee
 	[[ ( "$nom" == "test_menace_bot" || "$nom" == "test_mage_bot" ) && -z "${TEMPS_MAX:-}" ]] && DELAI=900   # banc de 7 séries de combats (~2-4 min seul)
+	[[ "$nom" == "test_interieurs" && -z "${TEMPS_MAX:-}" ]] && DELAI=600   # 18 bâtiments ouverts parcourus un à un (~315 s seul)
 	RAPIDE="--fixed-fps 60"; REEL=0; [[ " $TEMPS_REEL " == *" $nom "* ]] && { RAPIDE=""; REEL=1; }
 	for essai in 1 2; do
 		: > "$sortie"; rc=0
