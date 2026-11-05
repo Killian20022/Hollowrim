@@ -253,6 +253,11 @@ var _corps: StaticBody3D
 var _tissus: Array = []      # [Node3D, phase]
 var _lumieres: Array = []    # [OmniLight3D, énergie, phase]
 var _t := 0.0
+## Denrées VIVANTES des trois étals du marché (ObjetsVivants) : étal -> [specs] ; propriétaires et réassort ci-dessous.
+var _vivants := {}
+const PROPRIETAIRES_ETALS := ["etal_maraicher", "etal_boucher", "etal_poissonnier"]
+const REASSORT_JOURS := 3.0
+static var _mats_cache := {}
 
 static func creer(monde_: Node) -> MobilierVillage:
 	var m := MobilierVillage.new()
@@ -562,8 +567,8 @@ func _construire() -> void:
 				add_child(l)
 				_lumieres.append([l, l.light_energy, x])
 		var cols: Array = COLLISIONS.get(mod, [])
-		if mod == "etal" and not sub.is_empty():      # deux étals Quaternius : un seul volume plein (comptoirs et poteaux)
-			cols = [["boite", Vector3(3.1, 1.0, 1.15), Vector3(0, 0.5, -0.45)]]
+		if mod == "etal" and not sub.is_empty():      # deux étals Quaternius : un seul volume plein, dessus = le comptoir (0,8 m : les denrées vivantes y reposent)
+			cols = [["boite", Vector3(3.1, 0.8, 1.15), Vector3(0, 0.4, -0.45)]]
 		for c: Array in cols:
 			var forme := CollisionShape3D.new()
 			forme.set_meta("objet", "%s#%d" % [mod, num])   # audit_interpenetrations : pièces d'un même module
@@ -590,6 +595,13 @@ func _construire() -> void:
 		mi.material_override = _materiau(mat)
 		mi.visibility_range_end = PORTEE
 		add_child(mi)
+	for i: int in _vivants:      # un nœud par étal : meta « proprietaire » (prendre = voler) et « reassort_jours » (les denrées reviennent)
+		var etal := Node3D.new()
+		etal.name = "EtalVivant_%d" % i
+		etal.set_meta("proprietaire", PROPRIETAIRES_ETALS[i] if i < PROPRIETAIRES_ETALS.size() else "marche")
+		etal.set_meta("reassort_jours", REASSORT_JOURS)
+		add_child(etal)
+		ObjetsVivants.peupler(etal, _vivants[i], "marche_%d" % i)
 	print("MobilierVillage : %d props Quaternius (%d triangles)" % [nq.y, nq.x])
 	print("PropsQuaternius : remplacements ", PropsQuaternius.compte)
 	print("MobilierVillage : %d poses, %d triangles, %d matières, %d tissus, %d collisions, %d ms" % [POSES.size(), tris, fusion.size(), _tissus.size(), _corps.get_child_count(), Time.get_ticks_msec() - t0])
@@ -651,12 +663,13 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 			if e.size() > 7:      # pose suspendue : rotation propre à la pièce (os en haut…) et échelle avant le x1,3
 				xf.basis = xf.basis * (e[6] as Basis) * Basis.from_scale(e[7] as Vector3)
 			xf.basis = xf.basis.scaled(Vector3.ONE * 1.3)      # lot 4 : nourriture des étals un peu plus grosse (lisible en vue de jeu)
+		if e[1] >= 0 and not e[4] and e.size() <= 7 and ObjetsVivants.capte(nom):      # denrée posée sur un étal : objet vivant (pas les pièces pendues)
+			if not _vivants.has(e[1]):
+				_vivants[e[1]] = []
+			(_vivants[e[1]] as Array).append(ObjetsVivants.spec(nom, xf, ObjetsVivants.morceaux_q(nom, func(m: String) -> Material: return _mat_cache(_mat_q(nom, m, est_l4, e)))))
+			continue
 		for t: Array in PropsQuaternius.triangles(nom):
-			var mat: String = "argile" if t[0] == "fer" and nom in PRIMEURS else MATS_Q.get(t[0], "planches_h")
-			if est_l4:
-				mat = MATS_L4.get(t[0], mat)
-				if e.size() > 5:      # matière imposée par la pose (ex. {"argile": "cuir"} : viande fumée, pas de terre cuite orangée)
-					mat = (e[5] as Dictionary).get(t[0], mat)
+			var mat := _mat_q(nom, String(t[0]), est_l4, e)
 			if not fusion.has(mat):
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -673,6 +686,20 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 			forme.transform = Transform3D(xf.basis, xf * bb.get_center())
 			_corps.add_child(forme)
 	return Vector2i(tris, num)
+
+## Matière du mobilier pour la matière `m` d'un prop du marché (primeurs en terre cuite, lot 4, matière imposée par la pose).
+static func _mat_q(nom: String, m: String, est_l4: bool, e: Array) -> String:
+	var mat: String = "argile" if m == "fer" and nom in PRIMEURS else MATS_Q.get(m, "planches_h")
+	if est_l4:
+		mat = MATS_L4.get(m, mat)
+		if e.size() > 5:      # matière imposée par la pose (ex. {"argile": "cuir"} : viande fumée, pas de terre cuite orangée)
+			mat = (e[5] as Dictionary).get(m, mat)
+	return mat
+
+static func _mat_cache(nom: String) -> Material:
+	if not _mats_cache.has(nom):
+		_mats_cache[nom] = _materiau(nom)
+	return _mats_cache[nom]
 
 func _ajouter(st: SurfaceTool, d: Array, xf: Transform3D) -> void:
 	var pos: PackedVector3Array = d[0]

@@ -389,7 +389,7 @@ func _construire_interieurs() -> void:
 		_finaliser()
 		ib.ip = reel
 		_mutex.lock()
-		_faits.append([reel, t, _coll_fil])
+		_faits.append([reel, t, _coll_fil, ib.vivants])
 		_mutex.unlock()
 	FilVerrou.rendre()
 
@@ -402,7 +402,7 @@ func _poser_interieurs() -> void:
 			_mutex.unlock()
 			if f == null:
 				break
-			_planifier_pose(f[0], f[1], f[2])
+			_planifier_pose(f[0], f[1], f[2], f[3])
 		else:
 			_a_poser.pop_front().call()
 		if Time.get_ticks_usec() - debut > BUDGET_INT_US:
@@ -416,7 +416,7 @@ func _poser_interieurs() -> void:
 		interieurs_prets.emit()
 
 ## Découpe la pose d'un intérieur construit en fil : un enfant du contenu par tâche, collisions par paquets de 24.
-func _planifier_pose(reel: Interieur, t: Interieur, colls: Array) -> void:
+func _planifier_pose(reel: Interieur, t: Interieur, colls: Array, vivants: Array = []) -> void:
 	for c in t.racine.get_children():
 		_a_poser.append(func() -> void:
 			t.racine.remove_child(c)
@@ -434,6 +434,9 @@ func _planifier_pose(reel: Interieur, t: Interieur, colls: Array) -> void:
 				cs.shape = c[1]
 				corps.add_child(cs)
 				cs.transform = corps.global_transform.affine_inverse() * parent.global_transform * (c[2] as Transform3D))
+	if not vivants.is_empty():      # petits objets vivants (ObjetsVivants) : après les collisions de la pièce (tables, étagères)
+		_a_poser.append(func() -> void:
+			ObjetsVivants.peupler(reel.racine, vivants, String(reel.get_meta("lieu", reel.nom))))
 	_a_poser.append(func() -> void:
 		t.free()
 		_nb_poses += 1)
@@ -1397,6 +1400,9 @@ const NOMS_BATIMENTS := {
 	"forge": "Forge de Brodd",
 }
 
+## Propriétaire de chaque bâtiment (id de villageois, data/villageois.json) : meta « proprietaire » de son Interieur.
+const PROPRIETAIRES := {"halle": "chef", "sigrun": "volva", "chasseurs": "chasseuse", "grima": "ancienne", "forge": "forgeron"}
+
 ## Abscisses des fenêtres (sur les deux longs pans) d'une maison de longueur L.
 func _fenetres_de(longueur: float) -> Array:
 	return [-longueur * 0.26, longueur * 0.26]
@@ -1418,6 +1424,8 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 	var ip := Interieur.new()
 	ip.name = "Interieur"
 	ip.nom = NOMS_BATIMENTS[id]
+	ip.set_meta("lieu", id)
+	ip.set_meta("proprietaire", PROPRIETAIRES.get(id, ""))      # objets vivants de la pièce : prendre = voler (ObjetsVivants)
 	ip.demi = Vector2(longueur * 0.5 - 0.15, largeur * 0.5 - 0.15)
 	ip.porte_locale = Vector3(0, 1.4, largeur * 0.5 + 0.05)
 	p.add_child(ip)
@@ -1881,6 +1889,8 @@ func _forge(centre: Vector3, lacet := PI * 0.5) -> Node3D:
 	var ip := Interieur.new()
 	ip.name = "Interieur"
 	ip.nom = NOMS_BATIMENTS["forge"]
+	ip.set_meta("lieu", "forge")
+	ip.set_meta("proprietaire", PROPRIETAIRES["forge"])
 	ip.demi = Vector2(2.1, 1.7)
 	ip.porte_locale = Vector3(1.35, 1.3, 1.85)
 	ip.sol_y = 0.04
