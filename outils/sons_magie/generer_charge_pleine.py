@@ -1,4 +1,4 @@
-"""Son « charge pleine » des sorts lancés (assets/sons/magie/charge_pleine.wav, ChargeSort / SonsMagie.charge_pleine) : joué
+"""Son « charge pleine » des sorts lancés (assets/sons/magie/pleine_charge.wav, ChargeSort / SonsMagie.charge_pleine) : joué
 UNE fois quand la charge atteint le maximum. 100 % synthétisé (bibliothèque standard) : un coup sourd (le « verrou » de
 l'énergie, 70 → 48 Hz) et une note runique chaude en quinte (196 + 294 Hz, harmoniques douces) qui résonne ~0,6 s, avec un
 léger battement ; passe-bas doux, rien au-dessus de ~2,5 kHz (les sinus aigus « font mal aux oreilles », retour du
@@ -41,7 +41,7 @@ for i in range(N):
     out[i] *= min(1.0, (DUREE - t) / 0.2)
 pic = max(abs(x) for x in out)
 gain = (10 ** (-3.0 / 20.0)) / pic
-chemin = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "sons", "magie", "charge_pleine.wav")
+chemin = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "assets", "sons", "magie", "pleine_charge.wav")
 with wave.open(os.path.normpath(chemin), "wb") as w:
     w.setnchannels(1)
     w.setsampwidth(2)

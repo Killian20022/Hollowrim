@@ -82,14 +82,15 @@ func _tester() -> void:
 	for i in 20:
 		await process_frame
 	var cas := [
-		["lance", "eclat_glace", "epee", [[0.3, "appui"], [0.35, "relache"]], 1.8, ["l"]],
+		["lance", "chaine_eclairs", "epee", [[0.3, "appui"], [0.35, "relache"]], 1.8, ["l"]],
+		["tap chargé", "eclat_glace", "epee", [[0.3, "appui"], [0.35, "relache"]], 1.8, ["l"]],
 		["charge", "boule_feu", "epee", [[0.3, "appui"], [1.5, "relache"]], 2.8, ["l"]],
 		["jet", "jet_flammes", "epee", [[0.3, "appui"], [1.8, "relache"]], 3.2, ["l"]],
 		["zone", "explosion_obscure", "epee", [[0.3, "appui"], [1.6, "relache"]], 2.9, ["l"]],
 		["zone main droite", "vide", "explosion_obscure", [[0.3, "appui"], [1.6, "relache"]], 2.9, ["r"]],
 		["nova", "nova_gelee", "epee", [[0.3, "appui"], [0.35, "relache"]], 2.0, ["l"]],
-		["main droite", "vide", "eclat_glace", [[0.3, "appui"], [0.35, "relache"]], 2.4, ["r"]],
-		["double", "eclat_glace", "eclat_glace", [[0.3, "appui2"], [0.35, "relache2"]], 2.4, ["l", "r"]],
+		["main droite", "vide", "chaine_eclairs", [[0.3, "appui"], [0.35, "relache"]], 2.4, ["r"]],
+		["double", "chaine_eclairs", "chaine_eclairs", [[0.3, "appui2"], [0.35, "relache2"]], 2.4, ["l", "r"]],
 		["double charge", "boule_feu", "boule_feu", [[0.3, "appui2"], [1.5, "relache2"]], 3.2, ["l", "r"]],
 		["double jet", "jet_flammes", "jet_flammes", [[0.3, "appui2"], [1.6, "relache2"]], 3.4, ["l", "r"]],
 	]

@@ -113,8 +113,13 @@ valeurs à PLEINE charge.
   monte (aura 0,6 → 1, son de charge qui monte) ; on vise au réticule.
 - Relâcher : tir vers le centre de l'écran. Tap (relâché avant la fin de l'incantation) = petit tir : 50 % des dégâts, 50 %
   du coût, projectile ×0,8. Juste avant le maximum : 72 %, ×1,12. AU maximum : palier à 100 % (×2 du tap), projectile ×1,5
-  (lumière plus forte, touche un peu plus large), signal unique `EffetsMagie.charge_pleine` (son `charge_pleine.wav`, hauteur par
+  (lumière plus forte, touche un peu plus large), signal unique `EffetsMagie.charge_pleine` (son `pleine_charge.wav`, hauteur par
   école ; éclat de lumière dans la main) puis pulsation de l'aura par paliers francs. Maintenir plus longtemps ne surcharge pas.
+- Main : l'énergie tenue grossit de +40 % à pleine charge (`croissance_main`, noyaux glace / ténèbres / électricité ; la flamme
+  du feu grandit déjà) ; un tap sur un sort à charge joue l'entrée puis le départ du geste « charge » (comme
+  une boule de feu non chargée avant) ; en DOUBLE, ce tap saute encore d'environ 12 cm entre l'entrée et le départ (capture
+  double_charge, défaut antérieur, non corrigé : le parcours accéléré de la tenue tordait le poignet). Une boule de feu chargée naît à taille normale contre l'œil et
+  prend sa pleine taille dans le premier mètre et demi.
 - Restent à part : rayon du néant, orage runique, zones chargées (leurs propres temps et parts, mais même ralenti, signal et
   pulsation) ; instantanés : chaîne d'éclairs, enchantements ; canalisés : jets, arc, drain, soin, protection.
 - Test : `outils/test_sorts_charges.gd` ; preuves : `outils/film_sorts_charges.gd` (film tap / charge pleine, gros plans de la main).

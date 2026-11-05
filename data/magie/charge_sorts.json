@@ -11,13 +11,15 @@
 	"taille_avant_plein": 1.12,
 	"taille_plein": 1.5,
 	"_taille": "échelle du projectile (visuel) : tap 0,8, juste avant le maximum 1,12, au maximum 1,5.",
+	"croissance_main": 0.4,
+	"_croissance_main": "l'énergie tenue (noyau glace / ténèbres / électricité) grossit de +40 % à pleine charge, en plus de son propre étirement.",
 	"vitesse_joueur": 0.65,
 	"_vitesse_joueur": "vitesse de déplacement pendant l'incantation et la charge d'un sort qui se charge (×).",
 	"pulsation_hz": 3.0,
 	"pulsation_amplitude": 0.28,
 	"pulsation_paliers": 3,
 	"_pulsation": "à pleine charge, l'énergie de la main pulse par paliers francs (pas de sinus lisse) : intensité de l'aura 1 → 1 + amplitude.",
-	"son_plein": "magie/charge_pleine",
+	"son_plein": "magie/pleine_charge",
 	"volume_son_plein": -3.0,
 	"_son_plein": "joué UNE fois quand la charge atteint le maximum (hauteur par école) ; outils/sons_magie/generer_charge_pleine.py."
 }

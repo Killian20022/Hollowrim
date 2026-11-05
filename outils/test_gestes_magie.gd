@@ -137,14 +137,15 @@ func _jouer(gauche: String, droite: String, actions: Array, duree: float, main :
 
 func _en_jeu() -> void:
 	var cas := [
-		["lance", "eclat_glace", "epee", [[0.1, "appui"], [0.15, "relache"]], 1.3, "gauche", ["lance:entree", "lance:depart"]],
+		["lance", "chaine_eclairs", "epee", [[0.1, "appui"], [0.15, "relache"]], 1.3, "gauche", ["lance:entree", "lance:depart"]],
+		["tap d'un sort à charge", "eclat_glace", "epee", [[0.1, "appui"], [0.15, "relache"]], 1.3, "gauche", ["charge:entree", "charge:depart"]],
 		["charge", "boule_feu", "epee", [[0.1, "appui"], [1.3, "relache"]], 2.3, "gauche", ["charge:entree"]],   # flamme runique v5 : pendant la charge d'un sort « poing », la paume reste ouverte (le geste capturé est oublié)
 		["jet", "jet_flammes", "epee", [[0.1, "appui"], [1.6, "relache"]], 2.4, "gauche", ["jet:entree", "jet:boucle", "jet:fin"]],
 		["zone", "explosion_obscure", "epee", [[0.1, "appui"], [1.4, "relache"]], 2.4, "gauche", ["zone:entree", "zone:tenue", "zone:depart"]],
 		["nova (zone sans charge)", "nova_gelee", "epee", [[0.1, "appui"], [0.15, "relache"]], 1.5, "gauche", ["zone:entree", "zone:depart"]],
-		["main droite", "vide", "eclat_glace", [[0.1, "appui"], [0.15, "relache"]], 1.3, "droite", ["lance:entree", "lance:depart"]],
-		["double (gauche)", "eclat_glace", "eclat_glace", [[0.1, "appui2"], [0.15, "relache2"]], 1.5, "gauche", ["double:entree", "double:depart"]],
-		["double (droite)", "eclat_glace", "eclat_glace", [[0.1, "appui2"], [0.15, "relache2"]], 1.5, "droite", ["double:entree", "double:depart"]],
+		["main droite", "vide", "chaine_eclairs", [[0.1, "appui"], [0.15, "relache"]], 1.3, "droite", ["lance:entree", "lance:depart"]],
+		["double (gauche)", "chaine_eclairs", "chaine_eclairs", [[0.1, "appui2"], [0.15, "relache2"]], 1.5, "gauche", ["double:entree", "double:depart"]],
+		["double (droite)", "chaine_eclairs", "chaine_eclairs", [[0.1, "appui2"], [0.15, "relache2"]], 1.5, "droite", ["double:entree", "double:depart"]],
 		["double jet", "jet_flammes", "jet_flammes", [[0.1, "appui2"], [1.4, "relache2"]], 2.3, "gauche", ["double_jet:entree", "double_jet:boucle", "double_jet:fin"]],
 		["double charge", "boule_feu", "boule_feu", [[0.1, "appui2"], [1.3, "relache2"]], 2.3, "droite", ["double_charge:entree"]],
 		["interruption pendant la charge", "boule_feu", "epee", [[0.1, "appui"], [0.6, "coup"], [0.7, "relache"]], 1.4, "gauche", ["charge:entree"]],

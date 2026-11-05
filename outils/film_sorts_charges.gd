@@ -8,6 +8,7 @@ extends "res://outils/captures_sorts_vfx.gd"
 ##            → <dossier>/main_<sort>_<debut|mi|max>.png : gros plan de la main pendant la charge.
 
 var _legende: Label
+var _degats: Label
 
 func _go() -> void:
 	sortie = _arg("sortie", "user://film_charges")
@@ -22,11 +23,27 @@ func _go() -> void:
 	_legende.add_theme_color_override("font_color", Color(1.0, 0.92, 0.7))
 	_legende.add_theme_color_override("font_outline_color", Color(0.06, 0.04, 0.03))
 	_legende.add_theme_constant_override("outline_size", 8)
-	_legende.position = Vector2(24, root.size.y - 64)
+	_legende.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	_legende.offset_top = -70.0
+	_legende.offset_left = 20.0
 	cl.add_child(_legende)
+	# dégâts réellement reçus par le mannequin (Mannequin.touche → dernier, après CalculDegats), en gros à droite
+	_degats = Label.new()
+	_degats.add_theme_font_override("font", Palette.police())
+	_degats.add_theme_font_size_override("font_size", 40)
+	_degats.add_theme_color_override("font_color", Color(1.0, 0.6, 0.25))
+	_degats.add_theme_color_override("font_outline_color", Color(0.06, 0.04, 0.03))
+	_degats.add_theme_constant_override("outline_size", 10)
+	_degats.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	_degats.offset_top = 16.0
+	_degats.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	cl.add_child(_degats)
+	s.mannequin.touche.connect(func(_q: float, _p: bool) -> void:
+		_degats.text = "Dégâts sur le mannequin : %d" % roundi(float(s.mannequin.dernier)))
 	var sorts := _arg("sorts", "boule_feu,trait_ombre").split(",", false)
 	if _arg("mode", "film") == "main":
 		_legende.visible = false
+		_degats.visible = false
 		for id in sorts:
 			await _main(id)
 	else:
@@ -39,7 +56,7 @@ func _go() -> void:
 func _viser(cible: Node3D) -> void:
 	var c := Elements._centre(cible)
 	for k in 3:
-		var d := c - j.camera.global_position
+		var d: Vector3 = c - j.camera.global_position
 		j.rotation.y = atan2(-d.x, -d.z)
 		j.tete.rotation.x = atan2(d.y, Vector2(d.x, d.z).length())
 		await process_frame
@@ -50,17 +67,19 @@ func _film(id: String, n: int) -> int:
 	m.equiper("gauche", "")
 	m.equiper("droite", id)
 	var mq: Node3D = s.mannequin
-	s.placer_joueur(Vector3(0.6, 0, 4.2), 0.0)
+	s.placer_joueur(Vector3(0.5, 0, 3.0), 0.0)
 	await _viser(mq)
 	j.camera.current = true
 	var nom: String = m.eq.sort_par_id(id).nom
 	await _attendre(40)
+	_degats.text = ""
 	_legende.text = "%s : tir NON chargé (appui bref)" % nom
 	n = await _filmer(30, n)
 	m.appuyer("droite")
 	n = await _filmer(1, n)
 	m.relacher("droite")
 	n = await _filmer(95, n)
+	_degats.text = ""
 	_legende.text = "%s : maintenir = charge…" % nom
 	m.appuyer("droite")
 	var plein := false

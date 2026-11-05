@@ -246,4 +246,4 @@ func _hors_famille() -> void:
 	await _sim(0.4)
 	var sd: DonneesSort = magie.eq.sort_par_id("rayon_neant")
 	_verif(not ChargeSort.projectile(sd) and absf(ChargeSort.temps_plein(sd) - sd.temps_charge) < 0.001, "rayon du néant : sort à charge à part (garde ses %.1f s et ses dégâts)" % sd.temps_charge)
-	_verif(FileAccess.file_exists("res://assets/sons/magie/charge_pleine.wav") and SonsMagie.flux(SonsMagie.SON_PLEINE) != null, "son « charge pleine » présent et lisible")
+	_verif(FileAccess.file_exists("res://assets/sons/magie/pleine_charge.wav") and SonsMagie.flux(SonsMagie.SON_PLEINE) != null, "son « charge pleine » présent et lisible")

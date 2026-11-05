@@ -29,7 +29,7 @@ const VOL_JET := -3.0
 ## Décharge des sorts à charge (forme du sort -> fichier) : orage runique (éclairs de Force).
 const DECHARGES := {"orage": "magie/electricite_decharge"}
 ## Charge pleine (ChargeSort) : « verrou » grave et chaud, joué une fois ; hauteur par école.
-const SON_PLEINE := "magie/charge_pleine"
+const SON_PLEINE := "magie/pleine_charge"
 const HAUTEUR_PLEINE := {"feu": 0.92, "glace": 1.12, "electricite": 1.04, "tenebres": 0.78, "soin": 1.2, "protection": 1.0}
 const HAUTEUR_DOUBLE := {"feu": 0.85, "glace": 1.15, "electricite": 1.0, "tenebres": 0.7, "soin": 1.2, "protection": 0.95}
 
