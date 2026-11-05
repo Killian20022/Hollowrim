@@ -123,6 +123,7 @@ var _vite := false               # RENTRE : il court
 var _poste_vie: Variant = null   # Vector3 : poste du moment fixé par Vie (feu du soir), null = son poste de jour
 var _act_vie := ""               # activité du poste du moment (soirée)
 var _cap_arrivee := NAN
+var remplace: Node = null  # PnjCombat (crime.gd) qui a pris son corps : il dort tant que celui-ci se bat, fuit ou se calme
 var _pieds: PiedsAuSol  # pieds posés sur le terrain (coupé à genoux, assis ou allongé)
 ## Animations où le corps est près du sol ou assis : l'IK des jambes les déformerait.
 const SANS_PIEDS := ["Fixing_Kneeling"]
@@ -176,6 +177,7 @@ static func habitants() -> Array:
 
 func _ready() -> void:
 	add_to_group("villageois")
+	add_to_group("cibles_combat")    # la lame et les sorts du joueur le touchent (Crime : avertissement, puis agression)
 	floor_snap_length = 0.4
 	var forme := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
@@ -568,7 +570,7 @@ func est_endormi() -> bool:
 	return etat == DORT
 
 func occupe() -> bool:
-	return _en_conversation
+	return _en_conversation or remplace != null
 
 ## Le trajet en ligne droite de a à b est-il libre (capsule de 0,35 x 1,8 m) ? Réservé à Vie.
 func chemin_libre(a: Vector3, b: Vector3) -> bool:
@@ -665,7 +667,7 @@ func reveiller(pos: Vector3) -> void:
 
 ## Niveau de détail (comme les gardes) : 2 = caché et gelé loin du joueur. Sans effet sur un dormeur.
 func regler_lod(n: int) -> void:
-	if n == lod or etat == DORT:
+	if n == lod or etat == DORT or remplace != null:
 		return
 	lod = n
 	if _pieds != null:
@@ -678,3 +680,55 @@ func regler_lod(n: int) -> void:
 		mi.cast_shadow = mi.get_meta("ombre0") if n == 0 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	visible = n < 2
 	process_mode = Node.PROCESS_MODE_DISABLED if n == 2 else Node.PROCESS_MODE_INHERIT
+
+# --- crime (scripts/crime.gd) -------------------------------------------------------------------------------------------
+
+## Coup de la lame ou d'un sort du joueur : Crime décide (avertissement, agression : il se défend ou fuit, la garde accourt).
+func recevoir_coup(degats: float, origine: Vector3, puissant := false, info: Dictionary = {}) -> String:
+	var cr := Crime.trouver(self)
+	return cr.coup_sur_pnj(self, degats, origine, puissant, info) if cr != null else ""
+
+## Un PnjCombat prend son corps : caché, sans collision, process coupé (Vie le laisse : occupe()).
+func remplacer(c: Node) -> void:
+	remplace = c
+	_en_conversation = false
+	_route.clear()
+	if _invite and dialogue != null and is_instance_valid(dialogue):
+		_invite = false
+		dialogue.retirer_invite(self)
+	if _tete != null:
+		(_tete as SkeletonModifier3D).active = false
+	visible = false
+	if _forme != null:
+		_forme.set_deferred("disabled", true)
+	process_mode = Node.PROCESS_MODE_DISABLED
+
+## Le combattant rend le corps : il reprend sa vie là où il est (Vie le replanifie au tick suivant).
+func restaurer(mod: Node3D, pos: Vector3, lacet: float) -> void:
+	remplace = null
+	if mod.get_parent() != self:
+		add_child(mod)
+	modele = mod
+	global_position = pos + Vector3(0, 0.05, 0)
+	rotation.y = lacet
+	velocity = Vector3.ZERO
+	visible = true
+	if _forme != null:
+		_forme.set_deferred("disabled", false)
+	if _pieds != null:
+		_pieds.corps = self
+		_pieds.actif = true
+	if _tete != null:
+		(_tete as SkeletonModifier3D).active = true
+	lod = 0
+	etat = POSTE
+	_entre = false
+	_anim = ""
+	_t = 0.0
+	_jouer("Idle", 0.2)
+	set_deferred("process_mode", Node.PROCESS_MODE_INHERIT)
+	if vie != null and vie.has_method("civil"):
+		var c: Dictionary = vie.civil(String(donnees.get("id", "")))
+		if not c.is_empty():
+			c["mode"] = ""       # replanifié au prochain tick de Vie (retour au poste du moment)
+			c["fuit"] = false

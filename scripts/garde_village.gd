@@ -11,7 +11,7 @@ extends CharacterBody3D
 ## Il parle (touche E) : répliques de garde tirées de data/gardes.json, et interpelle parfois le joueur qui passe.
 ## Propriétés à poser AVANT add_child : donnees, modele, joueur, dialogue, route (Array de Vector3), gestion (GardesVillage).
 
-enum { POSTE, MARCHE, HALTE, ALERTE, ECART }
+enum { POSTE, MARCHE, HALTE, ALERTE, ECART, RETOUR }   # RETOUR : regagne son poste (après un combat, crime.gd)
 
 const GRAVITE := 13.0
 const MARCHE_V := 1.0           # m/s : pas de ronde, un peu plus posé que les villageois
@@ -75,12 +75,15 @@ var _ecart_t := 0.0
 var _apres_ecart := MARCHE
 var _torche: Node3D             # de nuit, les gardes de ronde portent une torche (main gauche, bouclier au dos)
 var _torche_calee := false
+var remplace: Node = null       # PnjCombat (crime.gd) qui a pris son corps : il dort tant que celui-ci se bat, arrête ou poursuit
+var _forme: CollisionShape3D
 
 const SuiviTete := preload("res://scripts/villageois.gd").SuiviTete
 
 func _ready() -> void:
 	add_to_group("villageois")       # gel sous terre (monde._geler_exterieur), caméra qui ne bute pas dessus
 	add_to_group("gardes_village")
+	add_to_group("cibles_combat")    # la lame et les sorts du joueur le touchent (Crime : avertissement, puis agression)
 	service = donnees.get("type", "poste")
 	boucle = donnees.get("boucle", true)
 	cap = deg_to_rad(float(donnees.get("cap", 0.0)))
@@ -94,6 +97,7 @@ func _ready() -> void:
 	forme.position.y = 0.9
 	forme.disabled = service == "vigie"   # la vigie est posée dans la boîte de collision de la tour
 	add_child(forme)
+	_forme = forme
 	if modele == null:
 		modele = GardesVillage.creer_modele(donnees)
 	add_child(modele)
@@ -148,6 +152,8 @@ func fin_conversation() -> void:
 
 ## Un ennemi en combat est entré près de lui (GardesVillage) : il lui fait face, lance pointée. null = fin de l'alerte.
 func alerter(e: Node3D) -> void:
+	if remplace != null:
+		return
 	if _ennemi != null and not is_instance_valid(_ennemi):
 		_ennemi = null      # ennemi libéré (mort, déchargé) : comparer à un objet libéré ne vaut pas null
 	if e == _ennemi and not (e == null and etat == ALERTE):
@@ -168,7 +174,7 @@ func alerter(e: Node3D) -> void:
 
 ## Niveau de détail (GardesVillage, toutes les 0,25 s, selon la distance au joueur).
 func regler_lod(n: int) -> void:
-	if n == lod:
+	if n == lod or remplace != null:
 		return
 	lod = n
 	if _pieds != null:
@@ -186,7 +192,7 @@ func regler_lod(n: int) -> void:
 ## Torche de nuit (GardesVillage, toutes les 0,25 s) : seulement les rondes ; construite à la première nuit, puis montrée / cachée.
 ## Lumière vacillante coupée au-delà de 30 m (fondu natif de Godot), aucune ombre.
 func regler_torche(nuit: bool) -> void:
-	var veut := nuit and service == "ronde" and lod < 2
+	var veut := nuit and service == "ronde" and lod < 2 and remplace == null
 	if _torche == null:
 		if not veut:
 			return
@@ -258,6 +264,18 @@ func _physics_process(dt: float) -> void:
 				else:
 					dir_cap = _vers_point(dt)
 					vise = dir_cap
+			RETOUR:
+				_ecart_t += dt
+				var d: Vector3 = (route[0] as Vector3) - global_position
+				d.y = 0.0
+				if d.length() < ARRIVEE or _ecart_t > 40.0:
+					if d.length() >= ARRIVEE:
+						global_position = route[0] + Vector3(0, 0.05, 0)   # coincé : il reprend sa place
+					etat = POSTE
+					_jouer("Idle", 0.3)
+				else:
+					dir_cap = d.normalized()
+					vise = dir_cap
 			ECART:
 				_ecart_t += dt
 				var d := _ecart_but - global_position
@@ -286,7 +304,7 @@ func _physics_process(dt: float) -> void:
 	pas.y = 0.0
 	parcouru += pas.length()
 	_pos_prec = global_position
-	if etat == MARCHE or etat == ECART:
+	if etat == MARCHE or etat == ECART or etat == RETOUR:
 		if _vit > 0.1:
 			_jouer("Walk", 0.3)
 			anim.speed_scale = clampf(_vit / REF_MARCHE, 0.5, 1.6)
@@ -455,3 +473,56 @@ func _interactions(dist: float, dt: float) -> void:
 	elif not veut and _invite:
 		_invite = false
 		dialogue.retirer_invite(self)
+
+# ======================================================================================================== crime (scripts/crime.gd)
+## Coup de la lame ou d'un sort du joueur : Crime décide (avertissement, agression : il prend les armes, avec toute la garde).
+func recevoir_coup(degats: float, origine: Vector3, puissant := false, info: Dictionary = {}) -> String:
+	var cr := Crime.trouver(self)
+	return cr.coup_sur_pnj(self, degats, origine, puissant, info) if cr != null else ""
+
+## Un PnjCombat prend son corps : caché, sans collision, process coupé (son modèle part avec lui).
+func remplacer(c: Node) -> void:
+	remplace = c
+	_en_conversation = false
+	if _invite and dialogue != null and is_instance_valid(dialogue):
+		_invite = false
+		dialogue.retirer_invite(self)
+	if _tete != null:
+		(_tete as SkeletonModifier3D).active = false
+	if _torche != null:
+		_torche.visible = false
+	visible = false
+	if _forme != null:
+		_forme.set_deferred("disabled", true)
+	process_mode = Node.PROCESS_MODE_DISABLED
+
+## Le combattant rend le corps (amende payée, prime éteinte) : il reprend sa ronde ou son poste depuis là où il est.
+func restaurer(mod: Node3D, pos: Vector3, lacet: float) -> void:
+	remplace = null
+	if mod.get_parent() != self:
+		add_child(mod)
+	modele = mod
+	global_position = pos + Vector3(0, 0.05, 0)
+	rotation.y = lacet
+	velocity = Vector3.ZERO
+	visible = true
+	if _forme != null:
+		_forme.set_deferred("disabled", service == "vigie")
+	if _pieds != null:
+		_pieds.corps = self
+		_pieds.actif = true
+	if _tete != null:
+		(_tete as SkeletonModifier3D).active = true
+	lod = 0
+	_ennemi = null
+	_anim = ""
+	_vit = 0.0
+	_t = 0.0
+	_bloque = 0.0
+	etat = HALTE if service == "ronde" and route.size() > 1 else POSTE
+	if etat == POSTE and not route.is_empty() and (route[0] as Vector3).distance_to(global_position) > 0.8:
+		etat = RETOUR
+		_ecart_t = 0.0
+	_halte = 2.0
+	_jouer("Idle", 0.3)
+	set_deferred("process_mode", Node.PROCESS_MODE_INHERIT)

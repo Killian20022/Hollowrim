@@ -1,0 +1,6 @@
+{
+	"_doc": "Outils de crochetage (scripts/crime.gd, scripts/crochetage.gd). Format commun : docs/RPG.md §2.",
+	"objets": {
+		"crochet": {"nom": "Crochet", "poids": 0.0, "valeur": 2, "categorie": "divers", "rarete": "commun", "description": "Fine tige de fer recourbée. Se brise si on force la serrure."}
+	}
+}

@@ -200,9 +200,13 @@ func _process(dt: float) -> void:
 	if joueur == null:
 		return
 	if joueur.ennemi_vise != null:
-		_cible = joueur.ennemi_vise
+		var ev: Node = joueur.ennemi_vise
 		joueur.ennemi_vise = null
-		_a_cible = 4.0
+		if is_instance_valid(ev) and ev.get("remplace") is Node and is_instance_valid(ev.remplace):
+			ev = ev.remplace          # PNJ du village qui a pris les armes (crime.gd : PnjCombat) : sa barre de vie
+		if is_instance_valid(ev) and "vie_max" in ev:   # un PNJ seulement averti n'a pas de barre (villageois.vie = horloge Vie)
+			_cible = ev
+			_a_cible = 4.0
 	_a_cible -= dt
 	_visee_t -= dt
 	if _visee_t <= 0.0:

@@ -50,6 +50,7 @@ var quetes: Node
 var aides: Aides
 var narration: Narration
 var vie: Vie            # lot vie_pnj : horloge du village (planning, fuite, répliques)
+var crime: Crime        # crime et justice (témoins, primes, garde, crochetage) : scripts/crime.gd
 var tertre: Node3D
 var chemins: Chemins
 var arbres: Array = []  # transforms de tous les arbres (pour Sol)
@@ -718,6 +719,7 @@ func _villageois() -> void:
 		_chrono("  villageois : gardes")
 	vie = Vie.peupler(self)     # lot vie_pnj : planning jour/nuit, fuite, répliques (data/vie/) ; --sans-vie : A/B
 	_chrono("  villageois : vie")
+	crime = Crime.peupler(self)   # crime et justice : témoins, primes, garde hostile, arrestation, crochetage (scripts/crime.gd)
 
 ## Villageois dont la naissance est reportée APRÈS le chargement (écran de chargement : Jeu.chargement_etale) : créer leur corps
 ## coûte 1,5 s (caches chauds) à 6 s (premier lancement) au chargement. Chacun naît dès qu'il est hors de la vue du joueur (trop loin
@@ -1504,7 +1506,8 @@ func sauvegarder(emplacement := -1) -> bool:
 		"magie": joueur.mains.magie.exporter() if joueur.mains.get("magie") != null else {},   # mains, sorts connus, mana (docs/MAGIE.md)
 		"draugrs_morts": morts,
 		"villageois_parles": parles,
-		"vie": vie.exporter() if vie != null else {},   # lot vie_pnj : l'emploi du temps recalcule tout depuis l'heure ; seul le compteur d'alarmes est gardé
+		"vie": vie.exporter() if vie != null else {},
+		"crime": crime.exporter() if crime != null else {},   # primes, réputation, hostilité de la garde, objets volés, PNJ tués   # lot vie_pnj : l'emploi du temps recalcule tout depuis l'heure ; seul le compteur d'alarmes est gardé
 		"faune": faune.exporter() if faune != null else {},   # heures de jeu et territoires dépeuplés (Faune : repeuplement lent)
 		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
 		"marchands": Marchand.exporter(),  # lot L8 : heures de jeu écoulées, stock et bourse de chaque marchand (docs/BUTIN.md §9)
@@ -1598,6 +1601,8 @@ func charger() -> void:
 		hud.lieux_vus[String(nom)] = true
 	if vie != null and d.get("vie") is Dictionary:
 		vie.restaurer(d["vie"])
+	if crime != null:
+		crime.restaurer(d["crime"] if d.get("crime") is Dictionary else {})
 	var parles: Array = d.get("villageois_parles", [])
 	for v in _tous_les_villageois():
 		if v.donnees.get("id", "") in parles:
