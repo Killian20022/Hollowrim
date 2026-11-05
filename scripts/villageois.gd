@@ -379,6 +379,8 @@ func _physics_process(dt: float) -> void:
 	_vit = move_toward(_vit, v_max if _avance else 0.0, (ACCEL * 2.0 if _vite else ACCEL) * dt) if cap != Vector3.ZERO else 0.0
 	velocity.x = cap.x * _vit
 	velocity.z = cap.z * _vit
+	if etat == DORT:
+		return      # il vient d'entrer (coucher() coupe le process, donc retire le corps de l'espace) : plus de move_and_slide dans cette image
 	move_and_slide()
 
 	if cap != Vector3.ZERO:  # en déplacement : Walk si ça avance, Idle si demi-tour
@@ -653,7 +655,7 @@ func reveiller(pos: Vector3) -> void:
 	visible = true
 	if _forme != null:
 		_forme.set_deferred("disabled", false)
-	process_mode = Node.PROCESS_MODE_INHERIT
+	set_deferred("process_mode", Node.PROCESS_MODE_INHERIT)   # APRÈS la réactivation (différée) de la forme : un corps sans forme active n'est dans aucun espace (Jolt : « Parameter "space" is null » en move_and_slide)
 	lod = 0
 	etat = POSTE
 	_entre = false

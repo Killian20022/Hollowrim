@@ -197,6 +197,7 @@ func _tester_visibilite(v: Node3D) -> void:
 ## Le forgeron vit dans sa forge : il y reste (jamais coincé dans un mur, ni sous le sol) ; les autres villageois
 ## ne sont dans aucun bâtiment.
 func _tester_pnj(v: Node3D) -> void:
+	m.cycle.heure = 12.0    # lot vie_pnj : la nuit le forgeron dort (caché) devant sa porte ; le test vise sa place de jour, dans la forge
 	for i in 240:
 		await physics_frame
 	var forge: Interieur = v.interieur("forge")
