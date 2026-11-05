@@ -370,8 +370,9 @@ void s2_sol(vec2 p, float trace, out int ton, out int rampe, out int niv, out ve
 // Empreintes, neige fondue (terre sombre ou mouillée, flaque), brûlures et taches d'ombre lues dans le masque. Tout s'efface
 // par texels (seuil bruité par amas + grain), jamais en fondu lisse ni en damier.
 // ---------------------------------------------------------------------------------------------
-// RELIEF DE LA NEIGE (scripts/couche_neige.gd) : variantes « terrain » (RELIEF_TERRAIN : troue le sol là où la couche est plus
-// bas) et « couche » (RELIEF_COUCHE : grille fine de 6 cm posée sur le sol, creusée dans le vertex shader). Le champ de
+// RELIEF DE LA NEIGE (scripts/couche_neige.gd) : variante « couche » (RELIEF_COUCHE : grille fine de 6 cm posée sur le sol,
+// creusée dans le vertex shader, dessinée PAR-DESSUS le terrain avec une profondeur ramenée au niveau du sol). Le terrain garde
+// le shader commun, sans `discard` (voir Palette.shader_couche). Le champ de
 // profondeur D (m, > 0 creux, < 0 bourrelet) vient de relief_masque (R amplitude, G fin) et de la fonte du feu (effets_masque).
 // ---------------------------------------------------------------------------------------------
 global uniform sampler2D relief_masque : filter_nearest;
@@ -500,13 +501,16 @@ void effets_sol(inout vec3 albedo, vec2 pm) {
 
 void vertex() {
 #ifdef RELIEF_COUCHE
+	float rel_creux = 0.0;   // profondeur (m) du sommet sous le sol, > 0 seulement dans un creux
 	{
 		vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 		float h;
 		vec3 nm;
 		rel_maillage(wp.xz, h, nm);
-		VERTEX.y = h - relief_texel(ivec2(floor(wp.xz * 16.0)));
+		float dd = relief_texel(ivec2(floor(wp.xz * 16.0)));
+		VERTEX.y = h - dd;
 		NORMAL = nm;
+		rel_creux = max(dd, 0.0) * nm.y;   // distance au plan du sol, mesurée sur la normale
 	}
 #endif
 	VERTEX += NORMAL * gonfle;
@@ -526,6 +530,16 @@ void vertex() {
 		clip.xy = round(clip.xy / clip.w * g) / g * clip.w;
 	}
 #ifdef RELIEF_COUCHE
+	if (rel_creux > 0.0) {
+		// Le terrain n'est PAS troué (un `discard` dans son shader coûte le test de profondeur précoce : +5,6 ms GPU en forêt/au feu) :
+		// le creux doit donc passer devant lui. Le sommet est ramené, pour la PROFONDEUR seule, sur le plan du sol le long de son
+		// rayon de vue (+ 1 cm) : l'image est celle d'un sol réellement creusé, mais le creux reste derrière tout ce qui est devant le sol.
+		vec3 vp = (MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		vec3 rv = normalize(vp);
+		float cosv = max(-dot(rv, normalize((MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz)), 0.12);
+		vec4 cb = PROJECTION_MATRIX * vec4(vp - rv * (rel_creux / cosv + 0.01), 1.0);
+		clip.z = cb.z / cb.w * clip.w;
+	}
 	if (relief_zone.w < 0.5) {
 		clip = vec4(2.0, 2.0, 2.0, 1.0);   // couche au repos : tous les sommets au même point, rien n'est dessiné
 	}
@@ -537,15 +551,10 @@ void vertex() {
 }
 
 void fragment() {
-#ifdef RELIEF_TERRAIN
-	if (sol_carte && relief_zone.w > 0.5 && relief_champ(pos_monde).x > 0.012) {
-		discard;   // la couche de neige est plus bas ici : elle dessine le creux
-	}
-#endif
 #ifdef RELIEF_COUCHE
 	vec3 rc = relief_champ(pos_monde);
-	if (abs(rc.x) < 0.002) {
-		discard;   // couche au niveau du sol : le terrain s'en charge
+	if (abs(rc.x) < 0.002 || (rc.x > 0.0 && rc.x <= 0.012)) {
+		discard;   // couche au niveau du sol (ou creux de moins de 1,2 cm) : le terrain s'en charge
 	}
 #endif
 	vec2 uv = uv_aff.xy / uv_aff.z;

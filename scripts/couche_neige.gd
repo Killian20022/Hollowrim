@@ -4,7 +4,9 @@ extends MeshInstance3D
 ## d'EffetsSol), posée à la hauteur EXACTE du maillage du terrain. Le vertex shader (variante « couche » de ps1.gdshader)
 ## l'enfonce de la profondeur lue dans le masque (empreintes de bottes, trou du feu) et la relève en bourrelet sur le pourtour ;
 ## le fragment shader recalcule la normale depuis la pente de la profondeur (parois ombrées, rebord éclairé).
-## Le terrain (variante « terrain ») est troué là où la couche passe en dessous : aucune coupure, aucun double rendu.
+## Le terrain n'est pas troué (un `discard` dans son shader coûtait ×1,9 de GPU dehors) : la couche est dessinée par-dessus, et la
+## profondeur de ses sommets creusés est ramenée au niveau du sol (vertex shader), donc le creux passe devant le sol sans rien
+## cacher de ce qui est devant.
 ## La grille ne bouge que par cases entières (EffetsSol la recentre sur le joueur) : rien ne glisse. Au repos : invisible, coût nul.
 
 const COTE := 192                   # cases par côté (12 m)

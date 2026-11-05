@@ -16,6 +16,7 @@ MOTIF="${1:-}"
 # nom_du_test|arguments après « -- » (toujours au moins un, voir plus haut)
 TESTS=(
 	"test_filet|--nouvelle"
+	"test_terrain_sans_discard|--nouvelle"   # le sol n'a aucun discard (early-Z : ×1,9 de GPU dehors sinon)
 	"test_quetes|--nouvelle"
 	"test_archer|--nouvelle"
 	"test_patrouille|--nouvelle"
