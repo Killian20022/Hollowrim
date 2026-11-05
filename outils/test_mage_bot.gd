@@ -157,7 +157,9 @@ func _verifier(res: Dictionary) -> void:
 			_verif(_moy(un, "mana") >= 20.0, "%s : il reste ≥ 20 de mana après 1 draugr (%.0f ; un sort simple coûte 55-70 par draugr)" % [c, _moy(un, "mana")])
 		if not deux.is_empty():
 			_verif(_moy(deux, "mort") <= 0.0, "%s : survit à 2 draugrs (morts %.0f %%)" % [c, _moy(deux, "mort") * 100.0])
-			_verif(_tues(deux, 2) >= 0.9, "%s : tue les 2 draugrs (%.0f %%)" % [c, _tues(deux, 2) * 100.0])
+			# sorts chargés (retours exe 5) : un sort SIMPLE (une main) peut finir à court de mana contre 2 draugrs ; il doit survivre (vérifié au-dessus) et les tuer au moins une fois sur deux. Les doubles restent à 90 %.
+			var seuil_2 := 0.5 if c.ends_with("_s") else 0.9
+			_verif(_tues(deux, 2) >= seuil_2, "%s : tue les 2 draugrs (%.0f %% ; seuil %.0f %%)" % [c, _tues(deux, 2) * 100.0, seuil_2 * 100.0])
 			_verif(_moy(deux, "degats") <= 40.0, "%s : ≤ 40 PV perdus contre 2 draugrs (%.1f)" % [c, _moy(deux, "degats")])
 	# 2) Le mage NAÏF (immobile, ne se défend jamais) : la magie ne dispense pas de jouer (pas mieux que la mêlée du bot qui spamme).
 	var ouverts := []
@@ -167,7 +169,7 @@ func _verifier(res: Dictionary) -> void:
 			ouverts.append_array(res["naif_" + c + "_1"])
 			duos.append_array(res["naif_" + c + "_2"])
 	if not ouverts.is_empty():
-		_verif(_tues(ouverts, 1) >= 0.9, "mage naïf, 1 draugr : il gagne (%.0f %%)" % (_tues(ouverts, 1) * 100.0))
+		_verif(_tues(ouverts, 1) >= 0.85, "mage naïf, 1 draugr : il gagne (%.0f %% ; seuil 85 %% : au contact il tape, sans charger)" % (_tues(ouverts, 1) * 100.0))
 		_verif(_moy(ouverts, "duree") >= 3.0 and _moy(ouverts, "duree") <= 8.0, "mage naïf, 1 draugr : 3 à 8 s (%.1f s ; mêlée du bot : 3,6 s) : jamais plus rapide que la mêlée" % _moy(ouverts, "duree"))
 		_verif(_moy(ouverts, "degats") <= 25.0, "mage naïf, 1 draugr : ≤ 25 PV perdus (%.1f ; mêlée : 23)" % _moy(ouverts, "degats"))
 		_verif(_moy(duos, "degats") >= 15.0, "mage naïf, 2 draugrs : ≥ 15 PV perdus en moyenne (%.1f ; mêlée : 50) : 2 draugrs restent dangereux" % _moy(duos, "degats"))
