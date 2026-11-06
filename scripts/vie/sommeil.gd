@@ -390,7 +390,7 @@ func passer_temps(heures: int, mode: String, lit: Lit = null) -> Dictionary:
 		if crime != null and crime.has_method("signaler_intrusion"):
 			crime.signaler_intrusion(lit, lit.proprietaire if lit.proprietaire != "joueur" else "chef")
 	if c != null:
-		c.heure = h1
+		c.avancer_a(h1)
 		c._process(0.0)                  # éclairage de la nouvelle heure tout de suite (cycle gelé à l'intérieur)
 	_h_prec = h1
 	# marchands : heures écoulées (réassort) ; l'horloge du marchand repart de la nouvelle heure

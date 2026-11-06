@@ -1500,6 +1500,7 @@ func sauvegarder(emplacement := -1) -> bool:
 			"lacet": joueur.rotation.y, "vie": joueur.vie, "vigueur": joueur.vigueur,
 		},
 		"heure": cycle.heure,
+		"jour": cycle.jour,
 		"progression": joueur.progression.exporter(),   # niveau, points, attributs, perks, compétences (noms canoniques)
 		"equipement_corps": joueur.equipement_corps.exporter(),
 		"stockage": Stockage.exporter(),   # coffres sûrs (Grima, maison) : lot E
@@ -1572,6 +1573,7 @@ func charger() -> void:
 	joueur.vie = float(j.get("vie", joueur.vie_max))
 	joueur.vigueur = float(j.get("vigueur", joueur.vigueur_max))
 	cycle.heure = float(d.get("heure", cycle.heure))
+	cycle.jour = maxi(1, int(d.get("jour", 1)))   # ancienne sauvegarde : jour 1
 	joueur.progression.importer(d.get("progression", {}))
 	joueur.inventaire.importer(d.get("inventaire", {}))
 	_test_butin_fait = bool(d.get("test_butin_fait", false))

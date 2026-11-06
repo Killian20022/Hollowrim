@@ -13,6 +13,8 @@ extends Node
 const SECONDES_PAR_HEURE := 100.0
 
 var heure := 21.0
+## Jour de jeu (1 = le premier) : change à minuit ; daté dans le journal des quêtes. Sauvegardé (monde.gd).
+var jour := 1
 var env: Environment
 var lumiere: DirectionalLight3D
 var ciel: ShaderMaterial
@@ -80,6 +82,13 @@ func _lueur_a(h: float) -> float:
 	var matin := 0.6 * smoothstep(7.2, 8.3, h) * (1.0 - smoothstep(9.0, 10.3, h))
 	return maxf(soir, matin)
 
+## Saute à l'heure `h` en avançant (attente, sommeil, geôle) : un passage de minuit change de jour.
+func avancer_a(h: float) -> void:
+	h = fposmod(h, 24.0)
+	if h < heure:
+		jour += 1
+	heure = h
+
 func texte_heure() -> String:
 	return "%02dh%02d" % [int(heure), int(fmod(heure, 1.0) * 60.0)]
 
@@ -117,7 +126,10 @@ func orienter_brume(avant: Vector3) -> void:
 # --- cycle ----------------------------------------------------------------------
 
 func _process(_dt: float) -> void:
+	var avant := heure
 	heure = fmod(heure + _dt / SECONDES_PAR_HEURE, 24.0)
+	if heure < avant:
+		jour += 1
 	var h := heure
 	var j := _clarte_a(h)
 	var crep := _lueur_a(h)

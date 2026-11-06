@@ -94,10 +94,11 @@ func accueil(n: Node) -> Dictionary:
 	var p := palier(n)
 	if p == "neutre":
 		return {"palier": p, "refus": false, "salut": ""}
-	var l: Array = (d.get("salut_garde" if crime.est_garde(n) else "salut", {}) as Dictionary).get(p, [])
-	if p == "refus" and Marchand.pour_pnj(n) != "" and not (d.get("refus_commerce", []) as Array).is_empty():
-		l = d["refus_commerce"]
-	return {"palier": p, "refus": p == "refus", "salut": String(l.pick_random()) if not l.is_empty() else ""}
+	# saluts : sujet « salut » de data/dialogue/repliques.json (première réplique valide : disposition, garde, marchand refusé…)
+	var ctx := RepliquesFiltrees.contexte(n, crime.monde.get("quetes"))
+	var l := RepliquesFiltrees.lignes(RepliquesFiltrees.choisir("salut", ctx))
+	var salut := String(l[0]) if not l.is_empty() else ""
+	return {"palier": p, "refus": p == "refus", "salut": salut}
 
 static func accueil_de(n: Node) -> Dictionary:
 	return courante.accueil(n) if courante != null and is_instance_valid(courante) else {}

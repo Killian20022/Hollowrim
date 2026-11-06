@@ -736,7 +736,7 @@ func aller_en_prison() -> float:
 	_gracier()
 	var c: Node = monde.get("cycle")
 	if c != null:
-		c.heure = fposmod(float(c.heure) + heures, 24.0)
+		c.avancer_a(float(c.heure) + heures)
 	var sortie := sortie_geole()
 	joueur.global_position = sortie
 	joueur.velocity = Vector3.ZERO

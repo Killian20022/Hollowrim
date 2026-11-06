@@ -12,17 +12,7 @@
 	"gardes_mefiants": {"_doc": "Sous 50 de réputation, un garde reconnaît le joueur recherché de plus loin (×1 à 50, ×1,5 à 0).", "max": 1.5},
 	"plaider": {"_doc": "Chance (%) = (réputation − 50) + base + niveau (au plus niveau_max) − prime / prime_div, bornée 5-95 (Daggerfall Unity, DaggerfallCourtWindow, MIT). Échec : prime × double si le jet < 25, sinon × echec.", "base": 40.0, "niveau_max": 20.0, "prime_div": 10.0, "double": 2.0, "echec": 1.5},
 	"menace": {"_doc": "Arme brandie (garde levée, coup armé ou chargé) ou sort en charge dans le village, hors combat. Civils à portée de vue : une remarque (les frêles s'éloignent). Garde : avertissement, dernier avertissement, puis il attaque (crime « menace »).", "portee_civil": 7.0, "portee_garde": 10.0, "avert_2": 4.0, "hostile": 8.0, "oubli": 6.0, "delai_remarque": 14.0},
-	"salut": {
-		"chaleureux": ["Ah, te voilà. Content de te voir, ami.", "Skarnholt n'oublie pas ceux qui l'aident. Approche.", "Le feu est chaud pour toi, ce soir.", "Toi, je t'écoute toujours."],
-		"froid": ["Encore toi. Fais vite.", "Je n'ai pas oublié ce que tu as fait.", "Parle, et va-t'en.", "Garde tes mains où je les vois."],
-		"refus": ["Je ne parle pas aux voleurs.", "Va-t'en. Je n'ai rien à te dire.", "Disparais, avant que j'appelle la garde.", "Paie ta dette à la garde. Ensuite, peut-être."]
-	},
-	"salut_garde": {
-		"chaleureux": ["Salut à toi. Le jarl dit du bien de toi.", "Toi, on te laisse passer sans questions."],
-		"froid": ["Je t'ai à l'œil. Pas gentiment.", "Un faux pas, et c'est la geôle.", "On connaît ta figure, ici."],
-		"refus": ["Je n'ai rien à dire à un hors-la-loi.", "Règle ta prime. Après, on causera."]
-	},
-	"refus_commerce": ["Mon étal n'est pas pour toi.", "Je ne vends rien aux voleurs."],
+	"salut": {"_doc": "Les saluts (chaleureux / froid / refus, civils et gardes) et le refus de commerce sont dans data/dialogue/repliques.json, sujet « salut »."},
 	"arme_civil": ["Range ça.", "Pourquoi tu tires ta lame ?", "Hé ! Range ton arme, tu fais peur aux gens.", "Pas de fer nu chez nous."],
 	"arme_civil_sort": ["Éteins ça. Pas de sorcellerie ici.", "Par Ymir, garde ta magie pour les morts."],
 	"arme_garde_1": ["Range ton arme. Maintenant.", "Lame au fourreau, voyageur.", "On ne brandit pas le fer dans Skarnholt."],

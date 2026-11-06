@@ -258,12 +258,12 @@ func parler() -> Array:
 		return _parler_reveille()
 	# la première fois il se présente ; ses répliques de quête viennent ensuite
 	var lignes: Array = [] if deja_parle else donnees.get("lignes", []).duplicate()
-	var de_quete: Array = quetes.repliques(donnees.get("id", "")) if quetes != null else []
+	var de_quete: Array = quetes.repliques(donnees.get("id", ""), self) if quetes != null else []
 	if not de_quete.is_empty():
 		lignes += de_quete
 	elif deja_parle:
-		# « après » selon l'état du monde (data/quetes.json "apres" : anneau rendu, Hrafn mort, choix moral, maison…), sinon les fixes
-		var selon_etat: Array = quetes.apres(donnees.get("id", "")) if quetes != null else []
+		# « après » selon l'état du monde (data/dialogue/repliques.json, sujet « apres » : anneau rendu, Hrafn mort, choix moral, maison…), sinon les fixes
+		var selon_etat: Array = quetes.apres(donnees.get("id", ""), self) if quetes != null else []
 		lignes = selon_etat if not selon_etat.is_empty() else donnees.get("apres", [])
 	if lignes.is_empty():
 		lignes = donnees.get("lignes", ["…"])

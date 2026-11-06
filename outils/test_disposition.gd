@@ -50,8 +50,13 @@ func _devant(n: Node3D, d: float) -> void:
 	j.velocity = Vector3.ZERO
 	j.rotation.y = atan2(-av.x, -av.z) + PI
 
+## Lignes de salut d'un palier (data/dialogue/repliques.json, sujet « salut » ; « salut_garde » = filtre faction « garde »).
 func _salut(cle: String, palier: String) -> Array:
-	return (dp.d.get(cle, {}) as Dictionary).get(palier, [])
+	for r: Dictionary in RepliquesFiltrees.charger():
+		var f: Dictionary = r.get("filtres", {})
+		if r.get("sujet") == "salut" and f.get("disposition") == palier and (f.get("faction") == "garde") == (cle == "salut_garde") and not f.has("marchand"):
+			return r["texte"]
+	return []
 
 func _tester() -> void:
 	m = SCENE.instantiate()

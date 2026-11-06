@@ -25,6 +25,13 @@ func _parler(id: String) -> Array:
 	_villageois(id).fin_conversation()
 	return lignes
 
+## Texte d'une réplique de data/dialogue/repliques.json (par identifiant).
+func _texte_replique(id: String) -> Array:
+	for r: Dictionary in RepliquesFiltrees.charger():
+		if r.get("id") == id:
+			return r["texte"]
+	return []
+
 func _contient(lignes: Array, mot: String) -> bool:
 	return " ".join(PackedStringArray(lignes.map(func(l: Variant) -> String: return str(l)))).contains(mot)
 
@@ -77,7 +84,7 @@ func _tester() -> void:
 	var l_garde := _parler("garde")
 	_verif(_contient(l_garde, "bandits") and _contient(l_garde, "Hrafn"), "Haldor parle des bandits et de Hrafn dès sa première rencontre")
 	_verif(q.etat.get("repaire_hrafn", 0) == 1, "quête du repaire lancée")
-	_verif(not _contient(m.quetes.donnees["dialogues"]["chasseuse"]["frere_ylva:fin"], "arc"), "plus d'arc d'Ylva dans ses répliques de quête")
+	_verif(not _contient(_texte_replique("chasseuse.frere_ylva.fin"), "arc"), "plus d'arc d'Ylva dans ses répliques de quête")
 	var ylva: Dictionary = _villageois("chasseuse").donnees
 	_verif(not _contient(ylva["apres"], "arc bandé"), "Ylva ne parle plus d'un arc que le joueur n'a pas")
 	_verif(_contient(_villageois("forgeron").donnees["lignes"], "compagnons"), "Brodd : Eirik avait des compagnons")

@@ -215,6 +215,10 @@ func _coche(p: Vector2) -> void:
 	for d: Vector2i in [Vector2i(0, 3), Vector2i(1, 4), Vector2i(2, 5), Vector2i(3, 4), Vector2i(4, 3), Vector2i(5, 2), Vector2i(6, 1), Vector2i(7, 0)]:
 		draw_rect(Rect2(p + Vector2(d), Vector2(1, 2)), Parchemin.ENCRE)
 
+## « Jour 3, 21h30 » (vide pour une entrée non datée : partie d'avant le journal daté).
+static func date_texte(jour: int, heure: float) -> String:
+	return "" if jour <= 0 else "Jour %d, %02dh%02d" % [jour, int(heure), int(fmod(heure, 1.0) * 60.0)]
+
 ## Page droite : la quête choisie.
 func _fiche() -> void:
 	var q := _trouver_quetes()
@@ -243,21 +247,26 @@ func _fiche() -> void:
 	Parchemin.texte(self, _police, Vector2(X, y), "Journal", Parchemin.RUBRIQUE)
 	y += 14.0
 	# journal : la plus récente d'abord, coupé en lignes ; défilement par lignes
-	var rendu: Array = []    # [texte, première ligne de l'entrée]
-	for i in range(n - 1, -1, -1):
-		var lignes := Parchemin.couper(_police, String(etapes[i].get("journal", "")), 266)
+	var rendu: Array = []    # [texte, première ligne de l'entrée, date ?]
+	var ecrites: Array = q.entrees(choix)
+	ecrites.reverse()
+	for e: Dictionary in ecrites:
+		var date: String = date_texte(int(e["jour"]), float(e["heure"]))
+		if date != "":
+			rendu.append([date, false, true])
+		var lignes := Parchemin.couper(_police, String(e["texte"]), 266)
 		for j in lignes.size():
-			rendu.append([lignes[j], j == 0])
-		rendu.append(["", false])
+			rendu.append([lignes[j], j == 0 and date == "", false])
+		rendu.append(["", false, false])
 	var bas := 302.0
 	var places := int((bas - y) / 10.0)
 	defilement = clampi(defilement, 0, maxi(0, rendu.size() - places))
 	for k in range(defilement, mini(rendu.size(), defilement + places)):
 		var r: Array = rendu[k]
-		if r[1]:
+		if r[1] or r[2]:
 			_coche(Vector2(X, y + 2))
 		if r[0] != "":
-			Parchemin.texte(self, _police, Vector2(X + 12, y), r[0], Parchemin.ENCRE)
+			Parchemin.texte(self, _police, Vector2(X + 12, y), r[0], Parchemin.OR_TERNI if r[2] else Parchemin.ENCRE)
 		y += 10.0 if r[0] != "" else 4.0
 	if defilement + places < rendu.size():
 		Parchemin.texte_droite(self, _police, 618, bas, "suite (molette)", Parchemin.PALE)

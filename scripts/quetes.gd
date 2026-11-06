@@ -25,9 +25,61 @@ var joueur: CharacterBody3D
 var hud: Control
 
 var donnees := {}
-var etat := {}      # identifiant de quête → nombre d'étapes faites (absent = pas commencée)
+## JOURNAL À INDEX ENTIER (idée OpenMW) : `etat[quête]` EST l'index de la quête = nombre d'étapes faites. 0 / absent = pas commencée,
+## 1…n-1 = en cours (l'étape suivante à faire est celle d'index `etat`), n = terminée (n = nombre d'étapes). Aucune autre copie :
+## en_cours, fini, faite, objectifs, le journal affiché et les filtres des répliques le lisent tous. Les sauvegardes d'avant
+## portaient déjà cet entier : elles se chargent telles quelles.
+var etat := {}
 var vus := {}       # événements déjà survenus
-var journal: Array = []
+## Date de chaque entrée du journal : "<quête>:<index de l'étape>" → [jour de jeu, heure] (absente des anciennes parties).
+var dates := {}
+## Quêtes échouées (drapeau, à côté de l'index) : id → true. Aucune quête n'échoue encore ; le filtre `echouee` des répliques le lit.
+var echecs := {}
+
+## Entrées du journal, dans l'ordre où elles ont été écrites : [{quete, titre, i, etape, texte, jour, heure}] (jour 0 = non daté).
+func entrees(id := "") -> Array:
+	var res: Array = []
+	for q: Dictionary in donnees["quetes"]:
+		if id != "" and q["id"] != id:
+			continue
+		for i in int(etat.get(q["id"], 0)):
+			var d: Array = dates.get("%s:%d" % [q["id"], i], [0, 0.0])
+			res.append({"quete": q["id"], "titre": q["titre"], "i": i, "etape": q["etapes"][i]["id"], "texte": q["etapes"][i]["journal"],
+				"jour": int(d[0]), "heure": float(d[1])})
+	# chronologique ; les entrées non datées (anciennes parties) d'abord, dans l'ordre des quêtes puis des étapes
+	for k in res.size():
+		res[k]["ordre"] = k
+	res.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var ka: float = a["jour"] * 24.0 + a["heure"] if a["jour"] > 0 else 0.0
+		var kb: float = b["jour"] * 24.0 + b["heure"] if b["jour"] > 0 else 0.0
+		return a["ordre"] < b["ordre"] if ka == kb else ka < kb)
+	return res
+
+## Textes du journal (compat. : l'ancienne liste de textes).
+var journal: Array:
+	get:
+		return entrees().map(func(e: Dictionary) -> String: return e["texte"])
+
+## Index entier d'une quête (0 = pas commencée).
+func index(id: String) -> int:
+	return int(etat.get(id, 0))
+
+## Une quête échoue : drapeau posé, elle n'est plus « en cours ».
+func echouer(id: String) -> void:
+	if not echecs.has(id) and not fini(id):
+		echecs[id] = true
+		change.emit()
+
+func echouee(id: String) -> bool:
+	return echecs.has(id)
+
+## Avance l'index d'une quête jusqu'à `i` (jamais en arrière), en jouant les étapes intermédiaires (récompenses comprises).
+func avancer_index(id: String, i: int) -> void:
+	var q := _quete(id)
+	if q.is_empty():
+		return
+	for k in range(index(id), mini(i, q["etapes"].size())):
+		_completer(q, k)
 
 func _ready() -> void:
 	var chemin := "res://data/quetes.json"
@@ -120,10 +172,15 @@ func signaler(evt: String) -> void:
 			_completer(q, n)
 			n += 1
 
+## [jour de jeu, heure] (le cycle jour/nuit est un frère de ce nœud dans le monde ; sans cycle : jour 1, midi).
+func _maintenant() -> Array:
+	var c: Variant = get_parent().get("cycle") if get_parent() != null else null
+	return [int(c.jour), float(c.heure)] if c != null else [1, 12.0]
+
 func _completer(q: Dictionary, i: int) -> void:
 	var etapes: Array = q["etapes"]
 	etat[q["id"]] = i + 1
-	journal.append(etapes[i]["journal"])
+	dates["%s:%d" % [q["id"], i]] = _maintenant()
 	if i == 0 and not q.get("discrete", false):
 		hud.avis("Nouvelle quête : " + q["titre"])
 		if etapes.size() > 1:
@@ -154,75 +211,56 @@ func _completer(q: Dictionary, i: int) -> void:
 		hud.avis(etapes[i]["objectif"])
 	change.emit()
 
-## Répliques de quête d'un villageois, ou [] s'il n'a rien de spécial à dire.
-## Fait avancer la quête si lui parler en est la prochaine étape.
-func repliques(villageois: String) -> Array:
-	var dialogues: Dictionary = donnees.get("dialogues", {}).get(villageois, {})
-	var evt := "parle:" + villageois
-	# Une conversation peut faire avancer plusieurs quêtes à la fois (Sigrún : sceaux brisés ET lueur du sud) : toutes leurs
-	# répliques sont dites, la plus avancée dans le récit d'abord.
-	var cles: Array = []
+## Un événement fait-il avancer au moins une quête ? (la prochaine étape d'une quête non terminée l'attend)
+func _attend(evt: String) -> bool:
 	for q in donnees["quetes"]:
 		var etapes: Array = q["etapes"]
-		var n: int = etat.get(q["id"], -1)
-		var prochaine := 0 if n == -1 else n
-		if prochaine < etapes.size() and _egal(etapes[prochaine]["declencheur"], evt):
-			cles.append("%s:%s" % [q["id"], etapes[prochaine]["id"]])
-	if not cles.is_empty():
-		signaler(evt)
-		cles.reverse()
-		var dites: Array = []
-		for cle: String in cles:
-			dites.append_array(dialogues.get(cle, []))
-		if not dites.is_empty():
-			return dites
-	var recentes: Array = donnees["quetes"].duplicate()
-	recentes.reverse()   # la quête la plus avancée dans le récit parle en premier (Sigrún : les sceaux avant l'anneau)
-	for q in recentes:
-		if en_cours(q["id"]):
-			# L9 : réplique propre à l'étape en cours (« <quête>:pendant_<étape> »), sinon la réplique générale
-			var n: int = etat.get(q["id"], -1)
-			var et: Array = q["etapes"]
-			var lignes: Array = dialogues.get("%s:pendant_%s" % [q["id"], et[n]["id"]], []) if n >= 0 and n < et.size() else []
-			if lignes.is_empty():
-				lignes = dialogues.get(q["id"] + ":pendant", [])
-			if not lignes.is_empty():
-				return lignes
-	return []
-
-## Réplique « après » d'un villageois selon l'état du monde (data/quetes.json, "apres": {pnj: [{"si": cond, "lignes": [...]}]}).
-## La PREMIÈRE entrée dont la condition est vraie l'emporte (de la plus avancée à la plus générale) ; [] si aucune (le villageois
-## retombe alors sur ses « apres » fixes de villageois.json). Condition = termes séparés par « & » : « fini:<quête> »,
-## « en_cours:<quête> », « etape:<quête>:<étape> » (étape déjà franchie), « vu:<événement> », « maison » (achetée),
-## « choix » (choix moral fait) ; un « ! » devant un terme le nie.
-func apres(villageois: String) -> Array:
-	for entree: Dictionary in donnees.get("apres", {}).get(villageois, []):
-		var ok := true
-		for terme in String(entree.get("si", "")).split("&", false):
-			if not _terme(terme.strip_edges()):
-				ok = false
-				break
-		if ok:
-			return entree.get("lignes", [])
-	return []
-
-func _terme(t: String) -> bool:
-	if t.begins_with("!"):
-		return not _terme(t.substr(1))
-	if t.begins_with("fini:"):
-		return fini(t.substr(5))
-	if t.begins_with("en_cours:"):
-		return en_cours(t.substr(9))
-	if t.begins_with("etape:"):
-		var p := t.substr(6).split(":")
-		return p.size() == 2 and faite(p[0], p[1])
-	if t.begins_with("vu:"):
-		return vus.has(t.substr(3))
-	if t == "maison":
-		return Stockage.maison_achetee
-	if t == "choix":
-		return choix_fait() != ""
+		var n := index(q["id"])
+		if n < etapes.size() and _egal(etapes[n]["declencheur"], evt):
+			return true
 	return false
+
+## Répliques de quête d'un villageois, ou [] s'il n'a rien de spécial à dire (sujet « quete » de data/dialogue/repliques.json :
+## première réplique valide ; l'avancement d'une quête dont lui parler est la prochaine étape se joue ici). `pnj` = son nœud
+## (disposition, rang, lieu pour les filtres) ; facultatif.
+func repliques(villageois: String, pnj: Node = null) -> Array:
+	var evt := "parle:" + villageois
+	var retenues := RepliquesFiltrees.choisir("quete", _contexte(villageois, pnj))
+	if _attend(evt):
+		signaler(evt)
+		# une étape franchie sans réplique (le chef qui lance « Skarnholt ») : les répliques « pendant » se lisent après coup
+		if retenues.is_empty() or String(retenues[0].get("cumul", "")) == "":
+			retenues = RepliquesFiltrees.choisir("quete", _contexte(villageois, pnj))
+	_effets(retenues, pnj)
+	return RepliquesFiltrees.lignes(retenues)
+
+## Réplique « après » d'un villageois selon l'état du monde (sujet « apres » : de la plus avancée à la plus générale, la première
+## valide l'emporte) ; [] si aucune (le villageois retombe alors sur ses « apres » fixes de villageois.json).
+func apres(villageois: String, pnj: Node = null) -> Array:
+	var retenues := RepliquesFiltrees.choisir("apres", _contexte(villageois, pnj))
+	_effets(retenues, pnj)
+	return RepliquesFiltrees.lignes(retenues)
+
+func _contexte(villageois: String, pnj: Node) -> Dictionary:
+	var ctx := RepliquesFiltrees.contexte(pnj, self)
+	if String(ctx["pnj"]) == "":
+		ctx["pnj"] = villageois
+	return ctx
+
+## Effets des répliques dites : signaler un événement, avancer le journal, donner un objet, marquer la mémoire du PNJ, échouer.
+func _effets(retenues: Array, pnj: Node) -> void:
+	for r: Dictionary in retenues:
+		for e: Dictionary in r.get("effets", []):
+			if e.has("signaler"):
+				signaler(String(e["signaler"]))
+			if e.has("journal"):
+				avancer_index(String(e["journal"]["quete"]), int(e["journal"]["index"]))
+			if e.has("donner"):
+				joueur.inventaire.ajouter(String(e["donner"]["objet"]), int(e["donner"].get("n", 1)))
+			if e.has("disposition") and pnj != null and Disposition.courante != null:
+				Disposition.courante.noter(pnj, String(e["disposition"]))
+			if e.has("echec"):
+				echouer(String(e["echec"]))
 
 func fini(id: String) -> bool:
 	return etat.has(id) and etat[id] >= _quete(id).get("etapes", []).size()
@@ -267,7 +305,7 @@ func benediction() -> bool:
 	return vus.has(CHOIX_RESPECTER)
 
 func exporter() -> Dictionary:
-	return {"etat": etat.duplicate(), "vus": vus.keys(), "journal": journal.duplicate()}
+	return {"etat": etat.duplicate(), "vus": vus.keys(), "dates": dates.duplicate(), "echecs": echecs.keys()}
 
 func importer(d: Dictionary) -> void:
 	etat = {}
@@ -276,7 +314,16 @@ func importer(d: Dictionary) -> void:
 	vus = {}
 	for evt in d.get("vus", []):
 		vus[evt] = true
-	journal = d.get("journal", [])
+	# anciennes parties : « journal » (liste de textes) n'est plus lu, l'index suffit à le reconstruire ; sans dates, sans échecs
+	dates = {}
+	var dd: Variant = d.get("dates", {})
+	if dd is Dictionary:
+		for k in dd:
+			if dd[k] is Array and (dd[k] as Array).size() == 2:
+				dates[String(k)] = [int(dd[k][0]), float(dd[k][1])]
+	echecs = {}
+	for id in d.get("echecs", []):
+		echecs[String(id)] = true
 	_sac = joueur.inventaire.objets.duplicate()
 	joueur.regler_benediction(benediction())  # ancienne sauvegarde : pas de choix → 100 de vie max
 	_rattraper()
