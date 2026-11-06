@@ -66,6 +66,9 @@ func options(id_pnj: String) -> Array:
 				r.append({"texte": "Acheter la maison (%s pièces)" % LivreParchemin.nombre(Stockage.PRIX_MAISON), "action": acheter_maison})
 		"volva":
 			r.append({"texte": "Oublier mes talents (%d pièces)" % Progression.PRIX_REINITIALISATION, "action": reinitialiser_arbre})
+	var rg: Node = monde.get("rangs") if monde != null else null
+	if rg is Rangs:
+		r.append_array((rg as Rangs).options(id_pnj))   # chefs de faction : rejoindre / demander une promotion (scripts/rangs.gd)
 	return r
 
 ## Gunnhild vend la maison des Frostmark.

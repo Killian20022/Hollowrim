@@ -126,9 +126,9 @@ static func bonus_prix() -> float:
 	return clampf(p.bonus("prix"), 0.0, 0.5) if p != null else 0.0
 
 ## Part en faveur du joueur chez le marchand `id` : bonus « prix » (bijoux, perks) + disposition du marchand (réputation, prime,
-## mémoire : Disposition.mod_prix, ±15 %), bornée à -0,5..0,6.
+## mémoire : Disposition.mod_prix, ±15 %) + remise du rang de faction (Rangs.remise), bornée à -0,5..0,6.
 static func faveur(id: String) -> float:
-	return clampf(bonus_prix() + Disposition.mod_prix(id), -0.5, 0.6)
+	return clampf(bonus_prix() + Disposition.mod_prix(id) + Rangs.remise(id), -0.5, 0.6)
 
 static func prix_achat(id: String, oid: String) -> int:
 	return maxi(1, ceili(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("achat", 1.1)) * (1.0 - faveur(id)) - 0.0001))

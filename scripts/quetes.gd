@@ -199,6 +199,8 @@ func _completer(q: Dictionary, i: int) -> void:
 		for id in r.get("objets", {}):
 			joueur.inventaire.ajouter(id, int(r["objets"][id]))
 			hud.avis("+ " + joueur.inventaire.nom(id))
+		if r.get("reputation") is Dictionary and Rangs.courant != null:
+			Rangs.courant.recompenser(r["reputation"])   # réputation de faction (data/quetes.json : recompense.reputation)
 		if not q.get("discrete", false):
 			Sons.interface(self, ["ui_quete_fin"], -6.0)
 		quete_terminee.emit(String(q["id"]))   # autosauvegarde de fin de quête (Sauvegardes)
