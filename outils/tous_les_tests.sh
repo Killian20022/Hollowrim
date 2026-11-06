@@ -60,6 +60,7 @@ TESTS=(
 	"test_musique|--nouvelle"
 	"test_villageois|--nouvelle"
 	"test_pnj_village|--nouvelle"
+	"test_habitants_pnj|--nouvelle"   # retours exe 6 : 10 habitants en variantes PnjNordique (os, clips, peau, apparences distinctes)
 	"test_gardes_village|--nouvelle --paisible"
 	"test_vie|--nouvelle --paisible"   # lot vie_pnj : planning jour/nuit, rentrée, sommeil, fuite, répliques, sauvegarde `vie`
 	"test_persos_base|--nouvelle"
