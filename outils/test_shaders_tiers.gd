@@ -1,9 +1,8 @@
 extends SceneTree
 ## Test sans fenêtre : reprises de shaders PS1 libres (THIRD_PARTY.md).
-##  - neige en carrés de pixels (shaders/ps1_flocon.gdshader) : se charge, aucun discard, plafond de taille, branchée par défaut
-##    dans monde.gd avec l'interrupteur --neige-psx=0 ;
+##  - neige : les anciens flocons (billboard StandardMaterial3D) sont rétablis, plus de shader de flocons en carrés de pixels ;
 ##  - fondu au noir soustractif en 32 pas (ps1_post.gdshader, uniform fondu_psx) : actif par défaut, ancien fondu gardé ;
-##  - mention des licences MIT pour les deux.
+##  - mention de la licence MIT.
 ##   godot --headless --path . --script res://outils/test_shaders_tiers.gd
 var echecs := 0
 
@@ -16,14 +15,10 @@ func verifier(cond: bool, texte: String) -> void:
 		echecs += 1
 
 func _lancer() -> void:
-	var flocon := FileAccess.get_file_as_string("res://shaders/ps1_flocon.gdshader")
-	verifier(load("res://shaders/ps1_flocon.gdshader") is Shader, "ps1_flocon.gdshader se charge")
-	verifier(flocon.find("discard;") < 0, "ps1_flocon : aucun discard (test de profondeur précoce)")
-	verifier(flocon.find("uniform float pixels_max") >= 0, "ps1_flocon : taille plafonnée en pixels")
-	verifier(flocon.find("floor(centre - cote * 0.5 + 0.5)") >= 0, "ps1_flocon : coin sur un pixel entier")
+	verifier(not FileAccess.file_exists("res://shaders/ps1_flocon.gdshader"), "ps1_flocon.gdshader retiré (anciens flocons)")
 	var monde := FileAccess.get_file_as_string("res://scripts/monde.gd")
-	verifier(monde.find("preload(\"res://shaders/ps1_flocon.gdshader\")") >= 0, "monde.gd charge ps1_flocon")
-	verifier(monde.find("\"neige-psx\", \"1\")) != \"0\"") >= 0, "monde.gd : neige pixels par défaut, --neige-psx=0 pour l'ancienne")
+	verifier(monde.find("ps1_flocon") < 0 and monde.find("neige-psx") < 0, "monde.gd : plus de neige en carrés de pixels")
+	verifier(monde.find("BaseMaterial3D.BILLBOARD_PARTICLES") >= 0 and monde.find("DISTANCE_FADE_PIXEL_DITHER") >= 0, "monde.gd : flocons billboard à fondu tramé")
 	var post := FileAccess.get_file_as_string("res://shaders/ps1_post.gdshader")
 	verifier(post.find("uniform bool fondu_psx = true;") >= 0, "ps1_post : fondu PS1 actif par défaut")
 	verifier(post.find("floor(fondu * 32.0") >= 0 and post.find("c *= 1.0 - fondu;") >= 0, "ps1_post : fondu en 32 pas + ancien fondu gardé")
@@ -32,6 +27,6 @@ func _lancer() -> void:
 	var pas := floorf(f * 32.0 + 0.001) / 32.0
 	verifier(is_equal_approx(maxf(0.2 - pas, 0.0), 0.0) and is_equal_approx(maxf(0.9 - pas, 0.0), 0.4), "fondu soustractif : ombres au noir d'abord")
 	var tiers := FileAccess.get_file_as_string("res://THIRD_PARTY.md")
-	verifier(tiers.find("dragthelake") >= 0 and tiers.find("Analog Feelings") >= 0 and tiers.count("MIT License") >= 2, "THIRD_PARTY.md : deux licences MIT")
+	verifier(tiers.find("Analog Feelings") >= 0 and tiers.find("dragthelake") < 0 and tiers.count("MIT License") >= 1, "THIRD_PARTY.md : licence MIT du fondu seule")
 	print("ECHECS : %d" % echecs)
 	quit(echecs)

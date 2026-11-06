@@ -4,34 +4,7 @@ Les fichiers ci-dessous reprennent des idées et du code de projets sous licence
 
 | Fichier du jeu | Ce qui est repris | Projet d'origine |
 |---|---|---|
-| shaders/ps1_flocon.gdshader | flocons projetés en carrés de pixels entiers, posés sur la grille des pixels (taille arrondie, plafond, coin entier) ; hachage entier par flocon | dragthelake/godot-psx-shader — addons/tk_psx/shaders/psx_particles.gdshaderinc, addons/tk_look/shaders/look_particles.gdshaderinc |
 | shaders/ps1_post.gdshader (`fondu_psx`) | fondu au noir par soustraction quantifiée en 32 pas | AnalogFeelings/godot-psx — Shaders/psx_fade.gdshader |
-
-## dragthelake/godot-psx-shader
-
-```
-MIT License
-
-Copyright (c) 2026 dragthelake
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
 
 ## AnalogFeelings/godot-psx
 

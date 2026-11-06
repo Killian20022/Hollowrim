@@ -17,7 +17,6 @@ const VILLAGE := Vector3(44.0, 0.0, 40.0)   # Skarnholt
 
 const CIEL := preload("res://shaders/ciel_nuit.gdshader")
 const POST := preload("res://shaders/ps1_post.gdshader")
-const FLOCON := preload("res://shaders/ps1_flocon.gdshader")
 const JOUEUR := preload("res://scripts/joueur.gd")
 const DRAUGR := preload("res://scripts/draugr.gd")
 const HUD := preload("res://scripts/hud.gd")
@@ -1322,15 +1321,6 @@ func _neige() -> void:
 		neige.seed = int(_arguments()["graine-neige"])
 	var q := QuadMesh.new()
 	q.size = Vector2(0.05, 0.05)
-	if String(_arguments().get("neige-psx", "1")) != "0":
-		# flocons en carrés de pixels entiers du monde (shaders/ps1_flocon.gdshader) : plus de scintillement sous le pixel au loin
-		var mf := ShaderMaterial.new()
-		mf.shader = FLOCON
-		q.material = mf
-		neige.draw_pass_1 = q
-		add_child(neige)
-		neige.global_position = joueur.global_position + Vector3(0, 10, 0)
-		return
 	var mq := StandardMaterial3D.new()
 	mq.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mq.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
