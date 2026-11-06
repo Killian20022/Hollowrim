@@ -58,6 +58,7 @@ var _choix_ui: Control     # panneau des choix (au-dessus de la boîte, à droit
 ## Choix de la dernière réplique : [{texte, action: Callable}] ; « Commercer » (action vide, commercer()), services du lot E,
 ## « Au revoir » (sans action). Vide : pas de choix.
 var _options: Array = []
+var _lignes_forcees: Array = []   # répliques imposées à la prochaine conversation (réponse d'une option : Rangs)
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -299,10 +300,14 @@ func _valider_choix() -> void:
 	if String(o.get("texte", "")) == "Commercer" and _marchand != "":
 		commercer()
 		return
+	var pnj_parle := _pnj
 	_fermer()
 	var a: Variant = o.get("action")
 	if a is Callable and (a as Callable).is_valid():
-		(a as Callable).call()
+		var suite: Variant = (a as Callable).call()
+		if suite is Array and not (suite as Array).is_empty() and pnj_parle != null and is_instance_valid(pnj_parle):
+			_lignes_forcees = suite   # l'action répond par des répliques (chef de faction : promotion, refus) : le chef les dit
+			_ouvrir(pnj_parle)
 
 ## Lot L8 : ferme la conversation et ouvre la boutique du marchand (si la boutique existe dans la scène).
 func commercer() -> bool:
@@ -326,7 +331,10 @@ func _ouvrir(pnj: Node3D) -> void:
 	# chaleureux, il salue en conséquence avant ses répliques habituelles (neutre : rien d'ajouté)
 	var accueil := Disposition.accueil_de(pnj)
 	var refus := bool(accueil.get("refus", false)) and String(accueil.get("salut", "")) != ""
-	if refus:
+	if not _lignes_forcees.is_empty():
+		_lignes = _lignes_forcees
+		_lignes_forcees = []
+	elif refus:
 		_lignes = [String(accueil["salut"])]
 	else:
 		_lignes = pnj.parler()

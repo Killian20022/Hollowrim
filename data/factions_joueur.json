@@ -1,0 +1,88 @@
+{
+	"_doc": "FACTIONS HUMAINES JOUABLES (scripts/rangs.gd) : à ne pas confondre avec data/factions.json (camps des ENNEMIS). Mécanisme inspiré de Daggerfall Unity (Guild.cs, MIT) ; contenu original. Rang -1 = non membre. rep_min / skill_haut / skill_bas : une valeur par rang. On atteint le rang r quand la réputation de la faction >= rep_min[r], que la MEILLEURE compétence de la faction >= skill_haut[r] et la SECONDE >= skill_bas[r] ; la promotion se calcule quand on parle au chef, monte tant que le rang suivant est mérité (on peut sauter des rangs), et au plus une fois tous les delai_jours jours de jeu. Réputation négative = exclusion (rang -1). rivalites : faction -> part de chaque point gagné qui est RETIRÉE à la rivale (sans passer sous 0). rangs[i].avantages : valeurs TOTALES à ce rang, le rang suivant remplace (remise : {id de marchand: part du prix} ; repos_bien : tout lit libre repose comme un lit à soi) ; rangs[i].objets : donnés à l'arrivée à ce rang. voix : répliques du chef (%s = rang, %d = jours).",
+	"delai_jours": 7,
+	"factions": {
+		"garde_jarl": {
+			"nom": "La Garde du jarl",
+			"lieu": "Skarnholt",
+			"chef": "garde",
+			"chef_nom": "Haldor",
+			"competences": ["une_main", "parade", "armure"],
+			"rep_min": [0, 10, 25, 45, 70],
+			"skill_haut": [15, 22, 30, 40, 55],
+			"skill_bas": [0, 8, 15, 22, 30],
+			"rivalites": {"cercle_sigrun": 0.25},
+			"rangs": [
+				{"nom": "Veilleur", "texte": "Un bouclier prêté et le droit de monter la garde."},
+				{"nom": "Porte-bouclier", "texte": "Brodd vend 5 % moins cher aux gardes.", "avantages": {"remise": {"forgeron": 0.05}}},
+				{"nom": "Hirdman", "texte": "Remise de Brodd portée à 8 %. Deux potions de soin.", "avantages": {"remise": {"forgeron": 0.08}}, "objets": {"potion_soin": 2}},
+				{"nom": "Housecarl", "texte": "Remise de Brodd portée à 12 %.", "avantages": {"remise": {"forgeron": 0.12}}},
+				{"nom": "Champion du jarl", "texte": "Remise de Brodd portée à 18 %. Une potion de soin forte.", "avantages": {"remise": {"forgeron": 0.18}}, "objets": {"potion_soin_forte": 1}}
+			],
+			"voix": {
+				"adhesion": ["Tu veux porter le bouclier du jarl ? Soit. Lève la main droite : tu es Veilleur. Ne dors pas à ton poste, c'est tout ce que je demande."],
+				"adhesion_refus": ["Pas encore, voyageur."],
+				"promotion": ["Tu as gagné ta place. Désormais, on t'appellera %s.", "Le jarl dit du bien de toi, et le jarl ne dit pas souvent du bien."],
+				"refus": ["Pas encore. Le jarl ne donne pas ses rangs à la légère."],
+				"delai": ["Tu mérites mieux que %s, je le vois. Mais le jarl veut du temps : reviens dans %d jour(s)."],
+				"exclu": ["Tu as sali le nom de la garde. Rends ton bouclier. Remonte ta réputation avant de me reparler."],
+				"sommet": ["Tu es Champion du jarl. Je n'ai plus de rang à te donner. Monte la garde avec nous."],
+				"deja": ["Tu es déjà des nôtres. Que veux-tu ?"]
+			}
+		},
+		"cercle_sigrun": {
+			"nom": "Le Cercle de Sigrún",
+			"lieu": "Landes des Gisants",
+			"chef": "volva",
+			"chef_nom": "Sigrún",
+			"competences": ["restauration", "destruction", "furtivite"],
+			"rep_min": [0, 12, 30, 55],
+			"skill_haut": [15, 25, 35, 50],
+			"skill_bas": [0, 10, 18, 25],
+			"rivalites": {"garde_jarl": 0.25},
+			"rangs": [
+				{"nom": "Disciple", "texte": "Sigrún t'enseigne à lire la cendre."},
+				{"nom": "Lecteur de runes", "texte": "Deux potions de magie.", "objets": {"potion_mana": 2}},
+				{"nom": "Gardien des sceaux", "texte": "Lit de veille : tout lit libre te repose comme ton propre lit.", "avantages": {"repos_bien": true}},
+				{"nom": "Voix de la völva", "texte": "Une potion de soin forte et deux potions de magie.", "avantages": {"repos_bien": true}, "objets": {"potion_soin_forte": 1, "potion_mana": 2}}
+			],
+			"voix": {
+				"adhesion": ["Les runes disaient que tu viendrais. Assieds-toi près du cercle : tu es Disciple. Elles montrent, tu apprendras à regarder."],
+				"adhesion_refus": ["Les runes se taisent encore à ton sujet."],
+				"promotion": ["Les runes se sont tournées vers toi. Tu es %s.", "Ne me remercie pas. Remercie ceux qui dorment sous le tertre."],
+				"refus": ["Pas encore. Les runes n'ont pas fini de te lire."],
+				"delai": ["Tu es prêt pour %s, mais les runes veulent du temps. Reviens dans %d jour(s)."],
+				"exclu": ["Ton nom s'est effacé de mon cercle. Il faudra le regraver."],
+				"sommet": ["Tu es ma voix, désormais. Je n'ai plus rien à graver pour toi."],
+				"deja": ["Tu es du cercle. Parle."]
+			}
+		},
+		"chasseurs": {
+			"nom": "Les Chasseurs du givre",
+			"lieu": "Skarnholt",
+			"chef": "chasseuse",
+			"chef_nom": "Ylva",
+			"competences": ["furtivite", "athletisme", "une_main"],
+			"rep_min": [0, 10, 28, 50],
+			"skill_haut": [15, 22, 32, 45],
+			"skill_bas": [0, 8, 15, 22],
+			"rivalites": {},
+			"rangs": [
+				{"nom": "Rabatteur", "texte": "Tu suis la meute et tu portes les peaux."},
+				{"nom": "Piégeur", "texte": "Grima paie 5 % de mieux tes peaux et te vend 5 % moins cher.", "avantages": {"remise": {"ancienne": 0.05}}},
+				{"nom": "Pisteur", "texte": "Remise de Grima portée à 10 %. Deux potions de soin.", "avantages": {"remise": {"ancienne": 0.10}}, "objets": {"potion_soin": 2}},
+				{"nom": "Maître de la chasse", "texte": "Remise de Grima portée à 15 %.", "avantages": {"remise": {"ancienne": 0.15}}}
+			],
+			"voix": {
+				"adhesion": ["Chut. Tu veux chasser avec nous ? Marche derrière moi et ne fais pas craquer la neige. Tu es Rabatteur."],
+				"adhesion_refus": ["Pas maintenant."],
+				"promotion": ["Tu as appris. Tu es %s.", "Les bêtes te connaissent, maintenant."],
+				"refus": ["Pas encore. Les bêtes savent quand on triche."],
+				"delai": ["Tu vaux déjà %s. Mais on ne grimpe pas plus vite que la lune : reviens dans %d jour(s)."],
+				"exclu": ["Tu as trahi la chasse. Je ne te connais plus. Gagne ta place de nouveau."],
+				"sommet": ["Tu es Maître de la chasse. Il ne me reste rien à t'apprendre."],
+				"deja": ["Tu es des nôtres. Qu'y a-t-il ?"]
+			}
+		}
+	}
+}

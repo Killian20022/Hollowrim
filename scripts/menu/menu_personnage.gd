@@ -22,6 +22,7 @@ const ONGLETS := [
 	{"id": "quetes", "titre": "Quêtes", "script": "res://scripts/menu/onglet_quetes.gd"},
 	{"id": "carte", "titre": "Carte", "script": "res://scripts/menu/onglet_carte.gd"},
 	{"id": "personnage", "titre": "Personnage", "script": "res://scripts/menu/onglet_personnage.gd"},
+	{"id": "factions", "titre": "Factions", "script": "res://scripts/menu/onglet_factions.gd"},
 ]
 ## Actions (touches réglables : Touches) qui ouvrent directement un onglet ; Tab rouvre le dernier.
 const ACTIONS_ONGLETS := {"inventaire": "sac", "competences": "competences", "quetes": "quetes", "carte": "carte"}

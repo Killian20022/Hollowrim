@@ -51,6 +51,7 @@ var aides: Aides
 var narration: Narration
 var vie: Vie            # lot vie_pnj : horloge du village (planning, fuite, répliques)
 var crime: Crime        # crime et justice (témoins, primes, garde, crochetage) : scripts/crime.gd
+var rangs: Rangs        # factions humaines jouables : réputation et rangs par faction (scripts/rangs.gd, data/factions_joueur.json)
 var sommeil: Sommeil    # lot sommeil : lits (marqueurs « emplacement_lit »), dormir / attendre, PNJ au lit
 var tertre: Node3D
 var chemins: Chemins
@@ -721,6 +722,7 @@ func _villageois() -> void:
 	vie = Vie.peupler(self)     # lot vie_pnj : planning jour/nuit, fuite, répliques (data/vie/) ; --sans-vie : A/B
 	sommeil = Sommeil.installer(self)   # lot sommeil : lits posés sur les marqueurs, fenêtre Dormir / Attendre (T), PNJ couchés
 	_chrono("  villageois : vie")
+	rangs = Rangs.creer(self)   # factions jouables : rangs et réputation par faction (scripts/rangs.gd)
 	crime = Crime.peupler(self)   # crime et justice : témoins, primes, garde hostile, arrestation, crochetage (scripts/crime.gd)
 
 ## Villageois dont la naissance est reportée APRÈS le chargement (écran de chargement : Jeu.chargement_etale) : créer leur corps
@@ -1514,6 +1516,7 @@ func sauvegarder(emplacement := -1) -> bool:
 		"villageois_parles": parles,
 		"vie": vie.exporter() if vie != null else {},
 		"crime": crime.exporter() if crime != null else {},   # primes, réputation, hostilité de la garde, objets volés, PNJ tués   # lot vie_pnj : l'emploi du temps recalcule tout depuis l'heure ; seul le compteur d'alarmes est gardé
+		"rangs": rangs.exporter() if rangs != null else {},   # réputation et rang par faction jouable (absent des anciennes parties : non membre partout)
 		"sommeil": sommeil.exporter() if sommeil != null else {},   # bonus « reposé » en cours, lits loués   # lot vie_pnj : l'emploi du temps recalcule tout depuis l'heure ; seul le compteur d'alarmes est gardé
 		"faune": faune.exporter() if faune != null else {},   # heures de jeu et territoires dépeuplés (Faune : repeuplement lent)
 		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
@@ -1610,6 +1613,8 @@ func charger() -> void:
 		vie.restaurer(d["vie"])
 	if crime != null:
 		crime.restaurer(d["crime"] if d.get("crime") is Dictionary else {})
+	if rangs != null:
+		rangs.restaurer(d["rangs"] if d.get("rangs") is Dictionary else {})
 	if sommeil != null:
 		sommeil.restaurer(d.get("sommeil", {}) if d.get("sommeil") is Dictionary else {})
 	var parles: Array = d.get("villageois_parles", [])

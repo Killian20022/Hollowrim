@@ -267,4 +267,7 @@ func _fiche() -> void:
 		parts.append("%d pièces" % int(rec["pieces"]))
 	for id in rec.get("objets", {}):
 		parts.append(Inventaire.objet(String(id)).get("nom", String(id)))
+	if rec.get("reputation") is Dictionary and Rangs.courant != null:
+		for fac: String in rec["reputation"]:
+			parts.append("%+d %s" % [int(rec["reputation"][fac]), Rangs.courant.nom(fac)])
 	Parchemin.texte(self, _police, Vector2(X, 314), ("Reçu : " if finie else "Récompense : ") + " · ".join(parts), Parchemin.OR_TERNI)

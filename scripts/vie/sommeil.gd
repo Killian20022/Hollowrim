@@ -415,7 +415,7 @@ func passer_temps(heures: int, mode: String, lit: Lit = null) -> Dictionary:
 	joueur.vigueur = minf(joueur.vigueur_max, joueur.vigueur + (joueur.vigueur_max - joueur.vigueur) * part)
 	# repos
 	if mode == "dormir" and heures >= HEURES_REPOS and lit != null:
-		_debut_repos("bien_repose" if _a_soi(lit) else "repose")
+		_debut_repos("bien_repose" if _a_soi(lit) or (lit.libre() and Rangs.repos_bien()) else "repose")
 	dernier = {"heures": heures, "mode": mode, "h0": h0, "h1": h1, "lit": lit, "temoin": temoin, "vie": joueur.vie}
 	return dernier
 
