@@ -164,11 +164,17 @@ func _tester() -> void:
 	s.reload()
 	var rn := Node.new()
 	rn.set_script(s)
+	# le vrai nœud Rangs (branche des rangs) est déjà dans le groupe : on le retire le temps du contrôle avec le double
+	var vrais := m.get_tree().get_nodes_in_group("rangs")
+	for v in vrais:
+		v.remove_from_group("rangs")
 	rn.add_to_group("rangs")
 	m.add_child(rn)
 	var c1 := RepliquesFiltrees.contexte(ch, qu)
 	_verif(int(c1["rangs"].get("village", 0)) == 4, "avec un nœud « rangs » : rang lu par rang(faction)")
 	rn.queue_free()
+	for v in vrais:
+		v.add_to_group("rangs")
 
 	print("TEST DIALOGUE FILTRÉ : ", "OK" if _echecs == 0 else "ÉCHEC (%d)" % _echecs)
 	quit(0 if _echecs == 0 else 1)

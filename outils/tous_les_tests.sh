@@ -27,6 +27,8 @@ TESTS=(
 	"test_terrain_sans_discard|--nouvelle"   # le sol n'a aucun discard (early-Z : ×1,9 de GPU dehors sinon)
 	"test_shaders_sans_discard|--nouvelle"   # idem généralisé : aucun shader ne gagne de discard (liste dans banc_perf_reference.json)
 	"test_quetes|--nouvelle"
+	"test_dialogue_filtre|--nouvelle"   # étude Daggerfall : journal à index entier daté, répliques filtrées (première valide gagne)
+	"test_rangs_faction|--nouvelle"   # étude Daggerfall : factions jouables, rangs, délai, exclusion, avantages
 	"test_prologue|--nouvelle --prologue --aides"   # accueil (arrivée, premier objectif, bulles d'aide), quêtes qui se répondent, répliques « après », fin du chapitre
 	"test_archer|--nouvelle"
 	"test_patrouille|--nouvelle"
