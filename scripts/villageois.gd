@@ -148,8 +148,8 @@ static func charger() -> Array:
 	liste.append_array(habitants())
 	return liste
 
-## Habitants anonymes du village (persos/quaternius_jeu, 2026-11-04) : paysans, fermières, chasseurs ; corps Quaternius salis
-## (PersosQuat, clé « pq »), mêmes routines, dialogues et sauvegarde (par id) que les villageois nommés. res://data/habitants.json ;
+## Habitants anonymes du village (persos/quaternius_jeu, 2026-11-04) : paysans, fermières, chasseurs ; dérivés des archétypes validés
+## (PnjNordique.HABITANTS, clé « pnj »), mêmes routines, dialogues et sauvegarde (par id) que les villageois nommés. res://data/habitants.json ;
 ## `--sans-habitants` : aucun ; `--persos-anciens` : mêmes habitants aux mêmes postes, corps Humain.creer (« ancien »).
 static func habitants() -> Array:
 	var chemin := "res://data/habitants.json"
@@ -192,8 +192,8 @@ func _ready() -> void:
 
 	var id: String = donnees.get("id", "")
 	# corps Humain (Quaternius) par défaut ; --persos-kit : personnage de base unifié (PersoDefs)
-	if donnees.has("pq"):        # habitant anonyme (data/habitants.json) : corps Quaternius sali, ou l'ancien corps Humain pour l'avant/après
-		modele = Humain.creer(donnees.get("ancien", APPARENCES["chef"])) if PersosQuat.anciens() else PersosQuat.creer(String(donnees["pq"]))
+	if donnees.has("pnj"):       # habitant anonyme (data/habitants.json) : dérivé d'un archétype nordique validé, ou l'ancien corps Humain pour l'avant/après
+		modele = Humain.creer(donnees.get("ancien", APPARENCES["chef"])) if PersosQuat.anciens() else PnjNordique.creer(String(donnees["pnj"]))
 	elif Personnage.kit_actif():
 		modele = Personnage.creer(PersoDefs.villageois(id))
 	elif not PnjNordique.ancien() and id in PnjNordique.IDS:

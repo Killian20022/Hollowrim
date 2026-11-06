@@ -123,3 +123,9 @@ Commande : `blender.exe -b --python sources_blender/scripts/pq_convertir.py -- l
 - Placement : `DOMESTIQUES` dans `scripts/monde.gd` (vaches et taureau dans l'enclos d'Ylva, chevaux et âne dans un second enclos à l'est, husky devant la maison des chasseurs) ; le second enclos est créé par `scripts/village.gd`.
 - Repli : `--animaux-anciens` retire les domestiques et le second enclos.
 - Films : `outils/films_animaux.sh <dossier> [animaux] [--cap=N]` (script `outils/film_animaux.gd`), sortie dans `Desktop/Skyrim captures/animaux/` avec `ANIMAUX.html`.
+
+### Habitants : remplacés par des dérivés des archétypes validés (retours6/pnj, 2026-11-06)
+Retour exe 6 : « nouveaux PNJ : têtes pas finies, vêtements affreux ». Diagnostic : les habitants `pq_hab_*` n'ont aucune texture (couleur par face), le visage (1 000 triangles
+sans texture) n'a ni yeux ni bouche lisibles, la mante greffée d'`homme_vetu` forme des pointes, les étoffes sont des aplats facettés sombres. Irrécupérable à la racine
+(pas de texture à peindre) : `data/habitants.json` pointe désormais `pnj` = variante de `PnjNordique.HABITANTS` (corps Guerrier / Chasseresse femme / Chasseresse homme validés,
+teintes de bande, cheveux, nattes). Les modèles `pq_hab_*` restent dans le dépôt (inutilisés). `--persos-anciens` inchangé. Test : `outils/test_habitants_pnj.gd` ; films : `outils/film_habitants.gd`.

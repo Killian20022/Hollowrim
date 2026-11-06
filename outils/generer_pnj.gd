@@ -5,5 +5,7 @@ func _init() -> void:
 	PnjNordique.enregistrer = true
 	for id: String in PnjNordique.IDS:
 		PnjNordique.creer(id).free()
+	for id: String in PnjNordique.HABITANTS:
+		PnjNordique.creer(id).free()
 	print("textures des PNJ précalculées")
 	quit()
