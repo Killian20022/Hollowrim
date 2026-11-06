@@ -264,6 +264,50 @@ func _avis(t: String) -> void:
 	if hud != null and hud.has_method("avis"):
 		hud.avis(t)
 
+# ======================================================================================================== crimes (data : « crime »)
+
+func _crime() -> Dictionary:
+	return d.get("crime", {})
+
+## Faction qui tient la juridiction (Skarnholt -> Garde du jarl) ; "" si aucune.
+func faction_juridiction(juridiction: String) -> String:
+	return String(_crime().get("juridictions", {}).get(juridiction, ""))
+
+## Points de réputation perdus par la faction de la juridiction pour un crime VU de ce type (0 si inconnu).
+func perte_crime(type: String) -> float:
+	return float(_crime().get("vu", {}).get(type, 0.0))
+
+## Faction d'un PNJ du village : clé de Crime.cle_pnj (« garde:<id> » = garde du village, « pnj:<id> » = villageois) ; "" si aucune.
+func faction_du_membre(cle: String) -> String:
+	if cle.begins_with("garde:"):
+		return faction_juridiction("skarnholt")
+	return String(_crime().get("membres", {}).get(cle.trim_prefix("pnj:"), ""))
+
+## Points perdus par la faction dont un membre vient d'être tué.
+func perte_membre_tue(faction: String) -> float:
+	return float(_crime().get("membre_tue", {}).get(faction, 0.0))
+
+## Retire des points de réputation à une faction (avis du HUD, exclusion si elle devient négative). Renvoie les points RÉELLEMENT perdus
+## (la réputation est bornée).
+func retirer_reputation(faction: String, points: float) -> float:
+	if not d.get("factions", {}).has(faction) or points <= 0.0:
+		return 0.0
+	var avant := reputation(faction)
+	_ajouter(faction, -points, false)
+	var perdu := avant - reputation(faction)
+	if perdu >= 0.5:
+		_avis("Réputation %s : %d" % [nom(faction), -roundi(perdu)])
+	return perdu
+
+## Rend des points (dette réglée) : ne touche pas aux rivales, ne réintègre personne.
+func rendre_reputation(faction: String, points: float) -> void:
+	if not d.get("factions", {}).has(faction) or points <= 0.0:
+		return
+	var avant := reputation(faction)
+	_ajouter(faction, points, false)
+	if reputation(faction) - avant >= 0.5:
+		_avis("Réputation %s : %+d" % [nom(faction), roundi(reputation(faction) - avant)])
+
 # ======================================================================================================== avantages
 
 ## Avantages en vigueur d'une faction : fusion des rangs 0..rang (le plus haut remplace) ; vide si non membre.

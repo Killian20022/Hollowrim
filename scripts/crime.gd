@@ -16,7 +16,8 @@ extends Node
 ## suite, les autres DELAI_LOIN s plus tard ; ils accourent. Un coup isolé sur un PNJ (frappe perdue) = avertissement, pas une agression.
 ## Un PNJ frappé devient un PnjCombat (scripts/pnj_combat.gd : socle EnnemiBase, mêmes dégâts, sang et mort que les ennemis) qui rend
 ## son corps au PNJ d'origine une fois calmé. Sauvegarde : clé « crime » (primes, réputation, hostilité, objets volés, PNJ tués,
-## mémoire des PNJ). DISPOSITION (scripts/disposition.gd, enfant de ce nœud) : la réputation et la prime colorent l'accueil, les prix,
+## mémoire des PNJ). FACTIONS (scripts/rangs.gd, barème « crime » de data/factions_joueur.json) : un crime vu fait baisser la réputation de la
+## Garde du jarl, le meurtre d'un membre d'une faction (vu ou non) fait baisser la sienne ; une dette réglée rend une part des deux. DISPOSITION (scripts/disposition.gd, enfant de ce nœud) : la réputation et la prime colorent l'accueil, les prix,
 ## la méfiance des gardes ; arme brandie dans le village = remarques, avertissements, puis crime « menace ».
 ## RÉPUTATION LÉGALE (data/disposition.json) : la prime d'un nouveau crime grandit chez le récidiviste (réputation basse) ; régler sa
 ## dette rend une part de la réputation perdue (geôle 1/2, amende 1/4) ; elle remonte d'un point par jour vers 50. La prime, elle,
@@ -68,6 +69,7 @@ var derniere_vue_bloquee: Node = null   # ce qui a caché le joueur au dernier r
 var crochetage: Crochetage
 var disposition: Disposition
 var perdue := {}                    # juridiction -> réputation perdue depuis la dernière dette réglée (en partie rendue au règlement)
+var perdue_factions := {}           # faction -> réputation de faction perdue par des crimes vus depuis la dernière dette (rendue en partie aussi)
 var plaide := false                 # plaidoyer déjà tenté pendant cette arrestation (une seule fois)
 var _ligne_plaidoyer := ""          # réplique du garde après un plaidoyer raté (en tête du dialogue rouvert)
 var treve := false                  # dialogue d'arrestation ouvert : les combattants suspendent leurs coups
@@ -239,6 +241,7 @@ func signaler_meurtre(victime: Node) -> bool:
 	var cle := cle_pnj(victime)
 	if cle != "" and not morts.has(cle):
 		morts.append(cle)
+		_punir_membre_tue(cle)
 	var pos: Vector3 = (victime as Node3D).global_position if victime is Node3D else joueur.global_position
 	var temoins := temoins_de(pos)
 	temoins.erase(victime)
@@ -296,12 +299,33 @@ func _commettre(type: String, p: float, temoins: Array) -> void:
 	var r0 := reputation_de()
 	reputation[JURIDICTION] = clampf(r0 - float(PERTE_REPUTATION.get(type, 2.0)), 0.0, 100.0)
 	perdue[JURIDICTION] = float(perdue.get(JURIDICTION, 0.0)) + r0 - reputation_de()
+	_punir_faction(type)
 	_noter(type, temoins.size(), p)
 	_avis("%s vu : prime de %d pièces à %s" % [_nom_crime(type), roundi(prime()), NOM_JURIDICTION])
 	crime_commis.emit(type, JURIDICTION, temoins.size())
 	var v: Node = monde.get("vie") if monde != null else null
 	if v != null and v.has_method("emettre"):
 		v.emettre("crime", joueur.global_position, R_VOIX, joueur)     # bus de Vie (les gardes n'écoutent que danger / combat / alarme)
+
+## Crime VU : la faction qui tient la juridiction (data/factions_joueur.json, « crime ») perd de la réputation, par type de crime.
+func _punir_faction(type: String) -> void:
+	var rg := Rangs.courant
+	if rg == null or not is_instance_valid(rg):
+		return
+	var f := rg.faction_juridiction(JURIDICTION)
+	if f == "":
+		return
+	var perdu := rg.retirer_reputation(f, rg.perte_crime(type))
+	perdue_factions[f] = float(perdue_factions.get(f, 0.0)) + perdu
+
+## Meurtre d'un membre d'une faction (clé de cle_pnj) : sa faction perd de la réputation, que le meurtre ait été vu ou non.
+func _punir_membre_tue(cle: String) -> void:
+	var rg := Rangs.courant
+	if rg == null or not is_instance_valid(rg):
+		return
+	var f := rg.faction_du_membre(cle)
+	if f != "":
+		rg.retirer_reputation(f, rg.perte_membre_tue(f))
 
 func _noter(type: String, n: int, p: float) -> void:
 	dernier = {"type": type, "temoins": n, "prime": p}
@@ -330,6 +354,11 @@ func _rendre_reputation(cle: String) -> void:
 	var p := float(perdue.get(JURIDICTION, 0.0))
 	reputation[JURIDICTION] = clampf(reputation_de() + p * part, 0.0, 100.0)
 	perdue[JURIDICTION] = 0.0
+	var rg := Rangs.courant
+	if rg != null and is_instance_valid(rg):
+		for f: String in perdue_factions:
+			rg.rendre_reputation(f, float(perdue_factions[f]) * part)
+	perdue_factions = {}
 
 ## Un garde a averti deux fois le joueur qui brandit son arme près de lui (Disposition) : crime « menace », il attaque.
 func menace_persistante(g: Node3D) -> void:
@@ -952,7 +981,7 @@ func _avis(t: String) -> void:
 
 func exporter() -> Dictionary:
 	return {"v": 1, "primes": primes.duplicate(), "reputation": reputation.duplicate(), "hostile": hostile.duplicate(),
-		"voles": voles.duplicate(), "morts": morts.duplicate(), "perdue": perdue.duplicate(),
+		"voles": voles.duplicate(), "morts": morts.duplicate(), "perdue": perdue.duplicate(), "perdue_factions": perdue_factions.duplicate(),
 		"disposition": disposition.exporter() if disposition != null else {}}
 
 func restaurer(d: Dictionary) -> void:
@@ -966,6 +995,7 @@ func restaurer(d: Dictionary) -> void:
 			voles[String(id)] = int(d["voles"][id])
 	morts = (d.get("morts", []) as Array).duplicate() if d.get("morts") is Array else []
 	perdue = (d.get("perdue", {}) as Dictionary).duplicate() if d.get("perdue") is Dictionary else {}
+	perdue_factions = (d.get("perdue_factions", {}) as Dictionary).duplicate() if d.get("perdue_factions") is Dictionary else {}
 	if disposition != null:
 		disposition.restaurer(d.get("disposition", {}))
 	_heure_prec = -1.0

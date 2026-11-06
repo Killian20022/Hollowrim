@@ -1,6 +1,13 @@
 {
 	"_doc": "FACTIONS HUMAINES JOUABLES (scripts/rangs.gd) : à ne pas confondre avec data/factions.json (camps des ENNEMIS). Mécanisme inspiré de Daggerfall Unity (Guild.cs, MIT) ; contenu original. Rang -1 = non membre. rep_min / skill_haut / skill_bas : une valeur par rang. On atteint le rang r quand la réputation de la faction >= rep_min[r], que la MEILLEURE compétence de la faction >= skill_haut[r] et la SECONDE >= skill_bas[r] ; la promotion se calcule quand on parle au chef, monte tant que le rang suivant est mérité (on peut sauter des rangs), et au plus une fois tous les delai_jours jours de jeu. Réputation négative = exclusion (rang -1). rivalites : faction -> part de chaque point gagné qui est RETIRÉE à la rivale (sans passer sous 0). rangs[i].avantages : valeurs TOTALES à ce rang, le rang suivant remplace (remise : {id de marchand: part du prix} ; repos_bien : tout lit libre repose comme un lit à soi) ; rangs[i].objets : donnés à l'arrivée à ce rang. voix : répliques du chef (%s = rang, %d = jours).",
 	"delai_jours": 7,
+	"crime": {
+		"_doc": "CRIME -> RÉPUTATION DE FACTION (scripts/crime.gd -> Rangs). vu : points de réputation perdus par la faction qui tient la juridiction (Skarnholt = Garde du jarl) à chaque crime VU, par type de crime. membre_tue : points perdus par la faction DONT LE MEMBRE VIENT D'ÊTRE TUÉ (vu ou non : la faction l'apprend toujours). membres : pnj -> faction ; les gardes du village sont tous de la Garde du jarl. Réputation négative = exclusion (déjà gérée). Une prime réglée (amende, geôle) rend la part « retour_reputation » de data/disposition.json de ce qui a été perdu depuis la dernière dette.",
+		"juridictions": {"skarnholt": "garde_jarl"},
+		"vu": {"vol": 3, "intrusion": 2, "crochetage": 2, "agression": 6, "meurtre": 20, "menace": 1},
+		"membre_tue": {"garde_jarl": 25, "cercle_sigrun": 25, "chasseurs": 25},
+		"membres": {"garde": "garde_jarl", "volva": "cercle_sigrun", "chasseuse": "chasseurs"}
+	},
 	"factions": {
 		"garde_jarl": {
 			"nom": "La Garde du jarl",

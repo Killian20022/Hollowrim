@@ -137,6 +137,11 @@ func parler() -> Array:
 		lignes = [gestion.replique("apres")]
 	if lignes.is_empty() or str(lignes[0]) == "":
 		lignes = ["Circule, voyageur."]
+	# un garde reconnaît le rang du joueur dans la Garde du jarl (data/dialogue/repliques.json, sujet « rang »)
+	var q: Node = gestion.monde.get("quetes") if gestion != null and gestion.get("monde") != null else null
+	var du_rang: Array = q.rang(String(donnees.get("id", "")), self) if q != null else []
+	if not du_rang.is_empty():
+		lignes = du_rang + lignes
 	deja_parle = true
 	_en_conversation = true
 	_debut_conversation = 0.0

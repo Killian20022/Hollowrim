@@ -12,7 +12,8 @@ signal quete_terminee(id: String)
 signal evenement(evt: String)
 
 ## Objets remis au donneur quand la quête se termine.
-const REMIS := {"lames_brodd": {"lame_antique": 3}, "frere_ylva": {"amulette_eirik": 1}, "repaire_hrafn": {"registre_hrafn": 1}, "expedition_sigrun": {"broche_sigrun": 1}}
+const REMIS := {"lames_brodd": {"lame_antique": 3}, "frere_ylva": {"amulette_eirik": 1}, "repaire_hrafn": {"registre_hrafn": 1}, "expedition_sigrun": {"broche_sigrun": 1},
+	"cendre_runes": {"cristal_givre": 1}, "peau_troll": {"fourrure_troll": 1}}
 
 ## Choix moral du tombeau (événements "choix:piller_offrandes" / "choix:respecter_offrandes", mémorisés dans `vus` donc sauvegardés).
 const CHOIX_PILLER := "choix:piller_offrandes"
@@ -240,6 +241,13 @@ func repliques(villageois: String, pnj: Node = null) -> Array:
 ## valide l'emporte) ; [] si aucune (le villageois retombe alors sur ses « apres » fixes de villageois.json).
 func apres(villageois: String, pnj: Node = null) -> Array:
 	var retenues := RepliquesFiltrees.choisir("apres", _contexte(villageois, pnj))
+	_effets(retenues, pnj)
+	return RepliquesFiltrees.lignes(retenues)
+
+## Réplique de RANG d'un PNJ (sujet « rang » : le chef, les membres et les villageois qui reconnaissent le rang du joueur dans une faction) :
+## [] si le joueur n'a pas de rang qui compte pour lui. Une seule ligne tirée au sort (les entrées sont `hasard`).
+func rang(villageois: String, pnj: Node = null) -> Array:
+	var retenues := RepliquesFiltrees.choisir("rang", _contexte(villageois, pnj))
 	_effets(retenues, pnj)
 	return RepliquesFiltrees.lignes(retenues)
 

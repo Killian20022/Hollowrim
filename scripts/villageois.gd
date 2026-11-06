@@ -267,6 +267,10 @@ func parler() -> Array:
 		lignes = selon_etat if not selon_etat.is_empty() else donnees.get("apres", [])
 	if lignes.is_empty():
 		lignes = donnees.get("lignes", ["…"])
+	# le rang du joueur dans une faction se sent : une réplique de rang (data/dialogue/repliques.json, sujet « rang ») ouvre la conversation
+	var du_rang: Array = quetes.rang(donnees.get("id", ""), self) if quetes != null else []
+	if not du_rang.is_empty():
+		lignes = (du_rang + lignes) if deja_parle else (lignes + du_rang)
 	# lot vie_pnj P3 : une réplique selon le contexte (danger récent, soirée, retour d'un abri) en tête de la conversation
 	var ctx: String = vie.replique_contextuelle(self) if vie != null and vie.has_method("replique_contextuelle") else ""
 	if ctx != "":

@@ -287,6 +287,130 @@
         }
       ],
       "recompense": { "xp": 0, "pieces": 0, "objets": {} }
+    },
+    {
+      "id": "veille_mine",
+      "titre": "Les yeux de Hrafn",
+      "donneur": "garde",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "faction:veille_mine",
+          "objectif": "Abattre le guetteur de l’entrée de la mine",
+          "journal": "Haldor me confie une tâche de garde à garde : les guetteurs de Hrafn sonnent la corne dès qu’un convoi quitte la forêt. Il faut éteindre leurs yeux, le guetteur de l’entrée d’abord."
+        },
+        {
+          "id": "guetteur",
+          "declencheur": "tue:bandit_4",
+          "objectif": "Abattre le rôdeur qui patrouille dans la galerie",
+          "journal": "Le guetteur de l’entrée ne sonnera plus. Reste le rôdeur de la galerie, plus profond dans la mine."
+        },
+        {
+          "id": "rodeur",
+          "declencheur": "tue:bandit_7",
+          "objectif": "Rapporter à Haldor que la corne est muette",
+          "journal": "Le rôdeur est tombé. La corne de Hrafn est muette, au moins pour une saison. Haldor attend mon rapport."
+        },
+        {
+          "id": "fin",
+          "declencheur": "parle:garde",
+          "objectif": "",
+          "journal": "Haldor a écouté sans un mot, puis m’a tendu un heaume de garde et une fiole forte. Le convoi est passé sans un cri : le jarl saura que quelqu’un a veillé."
+        }
+      ],
+      "recompense": {
+        "xp": 180,
+        "pieces": 80,
+        "objets": {
+          "casque_fer": 1,
+          "potion_soin_forte": 1
+        },
+        "reputation": {
+          "garde_jarl": 12
+        }
+      }
+    },
+    {
+      "id": "cendre_runes",
+      "titre": "La cendre du givre",
+      "donneur": "volva",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "faction:cendre_runes",
+          "objectif": "Prendre un cristal de givre dans les profondeurs de la mine",
+          "journal": "Sigrún dit que sa cendre n’accroche plus les runes : il lui faut du froid vrai. Je dois rapporter un cristal de givre de la vieille mine, puis le briser sur le seuil du tertre."
+        },
+        {
+          "id": "cristal",
+          "declencheur": "ramasse:cristal_givre",
+          "objectif": "Porter le cristal au tertre",
+          "journal": "J’ai un cristal de givre. Il pique les doigts à travers le gant. Sigrún veut qu’il soit brisé sur le seuil du tertre, pour dire aux morts que le cercle veille."
+        },
+        {
+          "id": "tertre",
+          "declencheur": "lieu:tertre",
+          "objectif": "Rapporter la nouvelle à Sigrún",
+          "journal": "Au seuil du tertre, j’ai brisé le cristal. Le givre a bu la lumière du cristal et le silence est devenu plus doux. Sigrún saura."
+        },
+        {
+          "id": "fin",
+          "declencheur": "parle:volva",
+          "objectif": "",
+          "journal": "Sigrún a senti le seuil boire mon cristal avant que j’ouvre la bouche. Les runes accrochent de nouveau dans la cendre. Elle m’a confié un anneau de lecteur."
+        }
+      ],
+      "recompense": {
+        "xp": 150,
+        "pieces": 40,
+        "objets": {
+          "anneau_adepte": 1
+        },
+        "reputation": {
+          "cercle_sigrun": 12
+        }
+      }
+    },
+    {
+      "id": "peau_troll",
+      "titre": "La peau du troll",
+      "donneur": "chasseuse",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "faction:peau_troll",
+          "objectif": "Tuer le troll de givre de la caverne du lac",
+          "journal": "Ylva veut la peau du troll de givre qui dort au fond de la caverne du lac, sous la vieille mine : il tue ses chiens quand le vent tourne. Il dort, mais se réveille à neuf pas."
+        },
+        {
+          "id": "troll",
+          "declencheur": "tue:troll_lac",
+          "objectif": "Prendre la fourrure du troll",
+          "journal": "Le troll de givre est tombé. Sa fourrure givrée vaut mieux que mille mots d’Ylva : il faut la prendre vite, avant qu’elle durcisse."
+        },
+        {
+          "id": "fourrure",
+          "declencheur": "ramasse:fourrure_troll",
+          "objectif": "Rapporter la fourrure à Ylva",
+          "journal": "J’ai la fourrure du troll : lourde, froide, raide de givre. Ylva en tirera trois manteaux."
+        },
+        {
+          "id": "fin",
+          "declencheur": "parle:chasseuse",
+          "objectif": "",
+          "journal": "Ylva a reniflé la fourrure comme un bon vin, puis m’a donné une armure de fourrure cousue pour moi. Les bêtes savent ce que j’ai fait."
+        }
+      ],
+      "recompense": {
+        "xp": 220,
+        "pieces": 60,
+        "objets": {
+          "armure_fourrure": 1
+        },
+        "reputation": {
+          "chasseurs": 14
+        }
+      }
     }
   ],
   "textes": {
