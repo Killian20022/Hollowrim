@@ -1,5 +1,5 @@
 {
- "note": "Habitants anonymes du village (scripts/villageois.gd habitants(), persos/quaternius_jeu 2026-11-04). pq : corps Quaternius sali (PersosQuat.HABITANTS) ; ancien : corps Humain.creer (--persos-anciens) ; pos : (x, z) monde ; cap : degrés (0 = vers +Z) ; activite : clip au poste ; sedentaire : ne se promène pas. Répliques communes par type dans roles. Postes HORS des rondes de la garde (data/gardes.json : ronde_place, ronde_rue).",
+ "note": "Habitants anonymes du village (scripts/villageois.gd habitants(), persos/quaternius_jeu 2026-11-04). pq : corps Quaternius sali (PnjNordique.HABITANTS) ; ancien : corps Humain.creer (--persos-anciens) ; pos : (x, z) monde ; cap : degrés (0 = vers +Z) ; activite : clip au poste ; sedentaire : ne se promène pas. Répliques communes par type dans roles. Postes HORS des rondes de la garde (data/gardes.json : ronde_place, ronde_rue).",
  "roles": {
   "paysan": {
    "nom": "Paysan",
@@ -82,7 +82,7 @@
   {
    "id": "hab_paysan_1",
    "type": "paysan",
-   "pq": "pq_hab_paysan_a",
+   "pnj": "hab_paysan_a",
    "pos": [
     38.0,
     38.4
@@ -116,7 +116,7 @@
   {
    "id": "hab_paysanne_1",
    "type": "paysanne",
-   "pq": "pq_hab_paysanne_a",
+   "pnj": "hab_paysanne_a",
    "pos": [
     39.3,
     38.4
@@ -151,7 +151,7 @@
   {
    "id": "hab_paysanne_2",
    "type": "paysanne",
-   "pq": "pq_hab_paysanne_b",
+   "pnj": "hab_paysanne_b",
    "lieu": "puits",
    "pos": [
     46.0,
@@ -186,7 +186,7 @@
    "id": "hab_paysan_2",
    "type": "paysan",
    "nom": "Vieux paysan",
-   "pq": "pq_hab_paysan_c",
+   "pnj": "hab_paysan_c",
    "pos": [
     43.0,
     53.5
@@ -219,7 +219,7 @@
    "id": "hab_paysanne_3",
    "type": "paysanne",
    "nom": "Lavandière",
-   "pq": "pq_hab_paysanne_c",
+   "pnj": "hab_paysanne_c",
    "pos": [
     34.5,
     56.6
@@ -254,7 +254,7 @@
   {
    "id": "hab_paysan_3",
    "type": "paysan",
-   "pq": "pq_hab_paysan_b",
+   "pnj": "hab_paysan_b",
    "pos": [
     46.6,
     44.6
@@ -288,7 +288,7 @@
   {
    "id": "hab_chasseur_1",
    "type": "chasseur",
-   "pq": "pq_hab_chasseur_a",
+   "pnj": "hab_chasseur_a",
    "pos": [
     57.4,
     30.4
@@ -323,7 +323,7 @@
   {
    "id": "hab_chasseresse_1",
    "type": "chasseresse",
-   "pq": "pq_hab_chasseresse_b",
+   "pnj": "hab_chasseresse_b",
    "pos": [
     57.2,
     28.4
@@ -360,7 +360,7 @@
   {
    "id": "hab_chasseur_2",
    "type": "chasseur",
-   "pq": "pq_hab_chasseur_b",
+   "pnj": "hab_chasseur_b",
    "pos": [
     60.0,
     36.4
@@ -394,7 +394,7 @@
   {
    "id": "hab_chasseresse_2",
    "type": "chasseresse",
-   "pq": "pq_hab_chasseresse_a",
+   "pnj": "hab_chasseresse_a",
    "pos": [
     42.5,
     36.2

@@ -27,6 +27,24 @@ const PEAU_ANCIENNE := Color(0.90, 0.80, 0.76)
 const CHEVEUX_VOLVA := Color(0.62, 0.62, 0.66)
 const CHEVEUX_ANCIENNE := Color(0.86, 0.85, 0.82)
 
+## Habitants anonymes du village (retours6/pnj, 2026-11-06) : dérivés des archétypes VALIDÉS (corps Guerrier / Chasseresse femme et
+## homme : visages peints, étoffes tissées, fourrures en mèches), remplacent les habitants Quaternius salis (têtes sans traits,
+## étoffes en aplats facettés). base : guerrier | chasseresse_f | chasseresse_h ; cape : false = sans la cape du guerrier ;
+## bande : teinte des étoffes bleues (voir _teinte_bande) ; cheveux : teinte du poil (cheveux et barbe) ; tresses : teinte des nattes ;
+## barbe : false = visage rasé ; arc : arc et carquois portés (chasseurs).
+static var HABITANTS := {
+	"hab_paysan_a": {"base": "guerrier", "cape": false, "bande": {"dh": -0.38, "sm": 0.45, "smin": 0.03, "vm": 0.95}, "cheveux": Color(0.58, 0.42, 0.30), "barbe": true},
+	"hab_paysan_b": {"base": "chasseresse_h", "bande": {"dh": -0.45, "sm": 2.2, "smin": 0.03, "vm": 0.95}, "cheveux": Color(1.10, 0.75, 0.45), "barbe": false},
+	"hab_paysan_c": {"base": "guerrier", "cape": false, "bande": {"dh": -0.52, "sm": 0.25, "smin": 0.03, "vm": 1.05}, "cheveux": Color(1.5, 1.5, 1.5), "barbe": true},
+	"hab_paysanne_a": {"base": "chasseresse_f", "bande": {"dh": 0.38, "sm": 2.6, "smin": 0.03, "vm": 0.95}, "cheveux": Color(0.75, 0.50, 0.32), "tresses": Color.from_hsv(0.07, 0.55, 1.0)},
+	"hab_paysanne_b": {"base": "chasseresse_f", "bande": {"dh": 0.20, "sm": 2.2, "smin": 0.03, "vm": 0.95}, "cheveux": Color(1.0, 1.0, 1.0), "tresses": Color.from_hsv(0.11, 0.35, 1.0)},
+	"hab_paysanne_c": {"base": "chasseresse_f", "bande": {"dh": -0.50, "sm": 0.8, "smin": 0.03, "vm": 1.0}, "cheveux": Color(0.42, 0.30, 0.26), "tresses": Color.from_hsv(0.05, 0.40, 0.7)},
+	"hab_chasseur_a": {"base": "chasseresse_h", "arc": true, "bande": {"dh": -0.25, "sm": 2.2, "smin": 0.03, "vm": 0.9}, "cheveux": Color(0.62, 0.45, 0.32)},
+	"hab_chasseur_b": {"base": "chasseresse_h", "arc": true, "bande": {"dh": -0.48, "sm": 1.4, "smin": 0.03, "vm": 0.90}, "cheveux": Color(0.40, 0.30, 0.24)},
+	"hab_chasseresse_a": {"base": "chasseresse_f", "arc": true, "bande": {"dh": -0.12, "sm": 1.8, "smin": 0.03, "vm": 0.95}, "cheveux": Color(0.55, 0.38, 0.30), "tresses": Color.from_hsv(0.06, 0.50, 0.8)},
+	"hab_chasseresse_b": {"base": "chasseresse_f", "arc": true, "bande": {"dh": -0.42, "sm": 2.2, "smin": 0.03, "vm": 0.95}, "cheveux": Color(1.15, 0.62, 0.42), "tresses": Color.from_hsv(0.045, 0.62, 1.0)},
+}
+
 const IDS := ["garde", "garde_lance", "forgeron", "chasseuse", "volva", "ancienne", "chef", "eirik"]
 
 ## Vrai si l'argument utilisateur `--pnj-anciens` est passé : les anciens corps Humain.creer partout.
@@ -58,6 +76,7 @@ static func _creer(id: String) -> Node3D:
 		"ancienne": n = _ancienne()
 		"chef": n = _chef()
 		"eirik": n = _eirik()
+		_ when HABITANTS.has(id): n = _habitant(id)
 		_:
 			push_warning("PnjNordique : id inconnu « %s », la cheffe est créée à la place" % id)
 			n = _chef()
@@ -186,6 +205,34 @@ static func _eirik() -> Node3D:
 	var peau: MeshInstance3D = p.get("peau")
 	if peau:
 		_multiplier(peau, 0, Color(0.80, 0.86, 0.95))
+	return n
+
+## Habitant anonyme : archétype validé + variante (table HABITANTS) ; mêmes os, mêmes clips, mêmes pièces que son archétype.
+static func _habitant(id: String) -> Node3D:
+	var spec: Dictionary = HABITANTS[id]
+	var arc: bool = spec.get("arc", false)
+	var n: Node3D
+	match String(spec["base"]):
+		"guerrier": n = GuerrierNordique.creer({"casque": false, "bouclier": "", "epee": false, "avant_bras_nus": true})
+		"chasseresse_h": n = ChasseresseNordique.creer({"corps": "homme", "arc": arc, "carquois": arc, "couteau": arc})
+		_: n = ChasseresseNordique.creer({"arc": arc, "carquois": arc, "couteau": arc})
+	n.name = "Pnj" + id.capitalize().replace(" ", "")
+	var sq := _sq(n)
+	var p := _pieces(sq)
+	if spec.get("cape", true) == false:
+		_sans_cape(sq)
+	var poil: Color = spec.get("cheveux", Color.WHITE)
+	_teinte_poil(p.get("Hair_Long"), poil)
+	if spec.get("barbe", true) == false and p.has("Hair_Beard"):
+		(p["Hair_Beard"] as MeshInstance3D).visible = false
+	else:
+		_teinte_poil(p.get("Hair_Beard"), poil)
+	if spec.has("tresses"):
+		_tresses_teinte(sq, id + "_tresses", spec["tresses"], 0.8)
+	var bande: Dictionary = (spec["bande"] as Dictionary).duplicate()
+	bande["bande"] = Vector2(0.48, 0.80)
+	_teinte_bande(sq, id, bande)
+	n.set_meta("pnj_nordique", id)
 	return n
 
 ## Cape du guerrier retirée (zone u < 0,64 de la surface « découpes » des accessoires) ; mèches de fourrure gardées.
