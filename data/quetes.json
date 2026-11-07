@@ -297,6 +297,7 @@
           "id": "debut",
           "declencheur": "faction:veille_mine",
           "objectif": "Abattre le guetteur de l’entrée de la mine",
+          "carte": "grotte",
           "journal": "Haldor me confie une tâche de garde à garde : les guetteurs de Hrafn sonnent la corne dès qu’un convoi quitte la forêt. Il faut éteindre leurs yeux, le guetteur de l’entrée d’abord."
         },
         {
@@ -339,6 +340,7 @@
           "id": "debut",
           "declencheur": "faction:cendre_runes",
           "objectif": "Prendre un cristal de givre dans les profondeurs de la mine",
+          "carte": "grotte",
           "journal": "Sigrún dit que sa cendre n’accroche plus les runes : il lui faut du froid vrai. Je dois rapporter un cristal de givre de la vieille mine, puis le briser sur le seuil du tertre."
         },
         {
@@ -380,6 +382,7 @@
           "id": "debut",
           "declencheur": "faction:peau_troll",
           "objectif": "Tuer le troll de givre de la caverne du lac",
+          "carte": "grotte",
           "journal": "Ylva veut la peau du troll de givre qui dort au fond de la caverne du lac, sous la vieille mine : il tue ses chiens quand le vent tourne. Il dort, mais se réveille à neuf pas."
         },
         {
