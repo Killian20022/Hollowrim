@@ -178,15 +178,21 @@ static func habitants() -> Array:
 		out.append(d)
 	return out
 
-## Essai Tripo (branche essai/tripo) : habitants de data/habitants_tripo.json (le jarl animé), seulement avec l'argument utilisateur `--jarl-tripo` ;
+## Essai Tripo (branche essai/tripo) : habitants de data/habitants_tripo.json (le jarl animé), seulement avec l'argument utilisateur `--jarl-tripo` (le jarl) ou `--gardes-tripo` (lancier, garde, archer) ;
 ## sans lui le jeu est inchangé. Mêmes champs que data/habitants.json (textes compris : pas de « roles » communs).
 static func habitants_essai() -> Array:
 	var chemin := "res://data/habitants_tripo.json"
-	if not OS.get_cmdline_user_args().has("--jarl-tripo") or not FileAccess.file_exists(chemin):
+	var args := OS.get_cmdline_user_args()
+	if not (args.has("--jarl-tripo") or args.has("--gardes-tripo")) or not FileAccess.file_exists(chemin):
 		return []
 	var json: Variant = JSON.parse_string(FileAccess.get_file_as_string(chemin))
 	if json is Dictionary and (json as Dictionary).get("habitants") is Array:
-		return (json as Dictionary)["habitants"]
+		var out: Array = []
+		for h: Variant in (json as Dictionary)["habitants"]:
+			var drapeau := "--jarl-tripo" if String((h as Dictionary).get("pnj", "")) == "jarl_tripo" else "--gardes-tripo"
+			if args.has(drapeau):
+				out.append(h)
+		return out
 	push_warning("Villageois : JSON invalide : " + chemin)
 	return []
 
