@@ -61,6 +61,14 @@ func _go() -> void:
 		await process_frame
 	var d: DonneesArme = load("res://data/armes/epee_verre.tres")
 	d.modele = EpeesLongues.DOSSIER + epee + ".glb"
+	# nœuds vides du glb (le nouvel export les nomme « garde.001 », « pointe.001 » : mains.gd cherche le nom exact) -> on les lit ici
+	var tmp: Node3D = load(d.modele).instantiate()
+	var g3: Node3D = tmp.find_child("garde*", true, false)
+	var p3: Node3D = tmp.find_child("pointe*", true, false)
+	if g3 != null and p3 != null:
+		d.garde = g3.position
+		d.pointe = p3.position
+	tmp.free()
 	if epee == "tripo_verre":
 		d.materiau_lame = ""   # le matériau « verre » partagé n'est pas posé sur cette épée
 	mains.magie.equiper("gauche", "")
@@ -77,6 +85,24 @@ func _go() -> void:
 	im = root.get_viewport().get_texture().get_image()
 	DirAccess.make_dir_recursive_absolute(_arg("sortie", "user://tripo"))
 	im.save_png(_arg("sortie", "user://tripo").path_join("fixe_%s.png" % epee))
+	# gros plan (fixe) : caméra du joueur, cadrée sur le bas de la lame et la garde, champ resserré
+	var mod: Node3D = mains._modele_arme_d
+	var pr: Node3D = mod.find_child("prise*", true, false)
+	var po: Node3D = mod.find_child("pointe*", true, false)
+	var cg := Camera3D.new()
+	cg.near = 0.01
+	cg.fov = 38.0
+	s.add_child(cg)
+	var cible: Vector3 = pr.global_position.lerp(po.global_position, 0.35)
+	cg.global_transform = Transform3D(Basis.looking_at(cible - j.camera.global_position, Vector3.UP), j.camera.global_position)
+	cg.current = true
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	root.get_viewport().get_texture().get_image().save_png(_arg("sortie", "user://tripo").path_join("gros_%s.png" % epee))
+	cg.queue_free()
+	j.camera.current = true
+	await process_frame
+	print("LONGUEUR_LAME %.3f" % pr.global_position.distance_to(po.global_position))
 	await _coup()
 	await _coup()
 	await _att(0.5)
