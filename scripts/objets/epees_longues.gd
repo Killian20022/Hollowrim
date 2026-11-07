@@ -125,6 +125,17 @@ static func habiller(racine: Node, ombres := false) -> void:
 			nom = String(remap.get(complet, remap.get(nom, nom)))      # clé « lame.3 » (surface précise) avant « lame »
 			if mats.has(nom):
 				mi.set_surface_override_material(s, mats[nom])
+			elif nom == "tripo_verre" and m is BaseMaterial3D:   # essai Tripo : texture propre du glb, passée au shader PS1
+				mi.set_surface_override_material(s, _tripo_pur(m as BaseMaterial3D))
+
+## Essai Tripo (« tripo_verre.glb ») : la texture d'albédo importée passe par le shader PS1 (plus proche voisin, grille, neige = base).
+static var _tripo_mat: ShaderMaterial
+static func _tripo_pur(src: BaseMaterial3D) -> ShaderMaterial:
+	if _tripo_mat == null:
+		var m := Palette.materiau(src.albedo_texture, Vector2.ONE, Color.WHITE)
+		m.set_shader_parameter("tex_neige", src.albedo_texture)
+		_tripo_mat = m
+	return _tripo_mat
 
 ## Matériaux PS1 par nom de matériau Blender (partagés par toutes les épées).
 ## RÉALISME (branche armes/realisme) : chaque matière = une texture dont l'ALPHA porte la BRILLANCE du texel (1 poli, 0 rugueux,
