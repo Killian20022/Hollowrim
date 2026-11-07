@@ -29,6 +29,7 @@ TESTS=(
 	"test_quetes|--nouvelle"
 	"test_dialogue_filtre|--nouvelle"   # étude Daggerfall : journal à index entier daté, répliques filtrées (première valide gagne)
 	"test_rangs_faction|--nouvelle"   # étude Daggerfall : factions jouables, rangs, délai, exclusion, avantages
+	"test_factions_vivantes|--nouvelle"   # factions vivantes : répliques de rang, quêtes de faction, crime vu -> réputation, dette
 	"test_prologue|--nouvelle --prologue --aides"   # accueil (arrivée, premier objectif, bulles d'aide), quêtes qui se répondent, répliques « après », fin du chapitre
 	"test_archer|--nouvelle"
 	"test_patrouille|--nouvelle"
