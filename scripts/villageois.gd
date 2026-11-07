@@ -146,6 +146,7 @@ static func charger() -> Array:
 		return []
 	var liste: Array = (json as Dictionary)["villageois"]
 	liste.append_array(habitants())
+	liste.append_array(habitants_essai())
 	return liste
 
 ## Habitants anonymes du village (persos/quaternius_jeu, 2026-11-04) : paysans, fermières, chasseurs ; dérivés des archétypes validés
@@ -176,6 +177,18 @@ static func habitants() -> Array:
 				anc["tenue"][k] = Color.WHITE
 		out.append(d)
 	return out
+
+## Essai Tripo (branche essai/tripo) : habitants de data/habitants_tripo.json (le jarl animé), seulement avec l'argument utilisateur `--jarl-tripo` ;
+## sans lui le jeu est inchangé. Mêmes champs que data/habitants.json (textes compris : pas de « roles » communs).
+static func habitants_essai() -> Array:
+	var chemin := "res://data/habitants_tripo.json"
+	if not OS.get_cmdline_user_args().has("--jarl-tripo") or not FileAccess.file_exists(chemin):
+		return []
+	var json: Variant = JSON.parse_string(FileAccess.get_file_as_string(chemin))
+	if json is Dictionary and (json as Dictionary).get("habitants") is Array:
+		return (json as Dictionary)["habitants"]
+	push_warning("Villageois : JSON invalide : " + chemin)
+	return []
 
 func _ready() -> void:
 	add_to_group("villageois")

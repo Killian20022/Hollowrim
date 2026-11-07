@@ -58,6 +58,8 @@ static func vider() -> void:
 
 # ======================================================================================================== fabrique
 static func creer(id: String) -> Node3D:
+	if id == "jarl_tripo":      # essai Tripo : modèle skinné sur le squelette nordique + cape à ressorts (scripts/jarl_tripo.gd), pas de cache disque
+		return JarlTripo.creer()
 	var c := CachePersos.lire("pnj_" + id, "res://scripts/pnj_nordique.gd", {})   # PNJ déjà bâti et teint (cache disque, cache_persos.gd)
 	if c != null:
 		return c

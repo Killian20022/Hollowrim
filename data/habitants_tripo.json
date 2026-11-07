@@ -1,0 +1,32 @@
+{
+ "note": "Essai Tripo (branche essai/tripo) : le jarl animé (scripts/jarl_tripo.gd), un habitant de plus à la place du village, ACTIF SEULEMENT avec l'argument utilisateur --jarl-tripo (Villageois.habitants_essai). Mêmes champs que data/habitants.json.",
+ "habitants": [
+  {
+   "id": "hab_jarl_tripo",
+   "type": "jarl",
+   "pnj": "jarl_tripo",
+   "nom": "Jarl Eskil",
+   "role": "Jarl",
+   "pos": [
+    41.0,
+    41.5
+   ],
+   "cap": 180,
+   "activite": "Idle",
+   "sedentaire": true,
+   "interpellations": [
+    "Approche, étranger. Un jarl n'a pas l'habitude d'attendre.",
+    "Ce manteau a vu plus d'hivers que toi."
+   ],
+   "lignes": [
+    "Les loups rôdent près des remparts et mes hommes se plaignent du froid.",
+    "Si tu cherches de l'ouvrage, la garde manque toujours de bras.",
+    "Ne traîne pas dehors après la tombée de la nuit."
+   ],
+   "apres": [
+    "Va, et ne reviens pas les mains vides.",
+    "Les dieux regardent. Ne leur donne pas de raisons de rire."
+   ]
+  }
+ ]
+}

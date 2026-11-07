@@ -4,3 +4,4 @@ export/
 captures/
 *.blend1
 dist/
+sources_blender/tripo/*.blend
