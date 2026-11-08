@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cktov1tavrtj7"
-path="res://.godot/imported/cottage_cottage_tex.png-ae6e3e75b26ccad23f4ac81b0846e433.ctex"
+uid="uid://huqsc2b3m815"
+path="res://.godot/imported/cottage_r1_tex.png-b68c953d699801b66b5b902c6d429e76.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "800c1dc0387076019db5c7e22d83bc7b"
+"md5": "8c1950386212d363a8ddea6705a97b39"
 }
 
 [deps]
 
-source_file="res://assets/essai_tripo/cottage_cottage_tex.png"
-dest_files=["res://.godot/imported/cottage_cottage_tex.png-ae6e3e75b26ccad23f4ac81b0846e433.ctex"]
+source_file="res://assets/essai_tripo/cottage_r1_tex.png"
+dest_files=["res://.godot/imported/cottage_r1_tex.png-b68c953d699801b66b5b902c6d429e76.ctex"]
 
 [params]
 

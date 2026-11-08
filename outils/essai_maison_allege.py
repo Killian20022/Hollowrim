@@ -6,7 +6,7 @@ src,out,target,res,name=a[0],a[1],int(a[2]),int(a[3]),a[4]
 bpy.ops.wm.read_factory_settings(use_empty=True)
 if name in ('cottage','armure'): bpy.ops.import_scene.gltf(filepath=src)
 PIECES=None
-BUD={'casque':220,'torse':380,'gantelet':180,'jambiere':260,'botte':160}
+BUD={'casque':420,'torse':800,'gantelet':340,'jambiere':540,'botte':400}
 def lowpoly(o,t):
     decim(o,t)
 def decim(o,t):
@@ -51,6 +51,7 @@ if name=='taverne':
     nt.links.new(t2.outputs['Color'],bs.inputs['Base Color']); bs.inputs['Roughness'].default_value=1.0
     im2.filepath_raw=out.replace('.glb','_tex.png'); im2.file_format='PNG'; im2.save()
     hi.data.materials.clear(); hi.data.materials.append(mat2)
+    for ca in list(hi.data.color_attributes): print('DROPCOL',ca.name); hi.data.color_attributes.remove(ca)
     hi.data.polygons.foreach_set('use_smooth',[False]*len(hi.data.polygons)); hi.name=name
     bpy.ops.object.select_all(action='DESELECT'); hi.select_set(True)
     bpy.ops.export_scene.gltf(filepath=out,export_format='GLB',use_selection=True,export_yup=True)
@@ -79,6 +80,9 @@ if PIECES:
     for k,o in enumerate(his):
         bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active=o
         bpy.ops.object.duplicate(); d=bpy.context.view_layer.objects.active
+        mr=d.modifiers.new('r','REMESH'); mr.mode='VOXEL'; mr.voxel_size=max(d.dimensions)/110; mr.use_smooth_shade=False
+        bpy.ops.object.modifier_apply(modifier='r')
+        bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT'); bpy.ops.mesh.normals_make_consistent(inside=False); bpy.ops.object.mode_set(mode='OBJECT')
         lowpoly(d,BUD[PIECES[k]])
         d.data.materials.clear(); d.data.materials.append(bpy.data.materials.new('pc%d'%k))
         for p in d.data.polygons: p.material_index=0
@@ -110,7 +114,7 @@ bpy.ops.object.mode_set(mode='OBJECT')
 bpy.ops.object.select_all(action='DESELECT'); sm.select_set(True); bpy.context.view_layer.objects.active=sm
 bpy.ops.object.modifier_apply(modifier='s')
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
-bpy.ops.uv.smart_project(angle_limit=math.radians(float(os.environ.get('ANG','60'))),island_margin=0.006)
+bpy.ops.uv.smart_project(angle_limit=math.radians(float(os.environ.get('ANG','60'))),island_margin=0.01)
 bpy.ops.object.mode_set(mode='OBJECT')
 n=len(sm.data.loops)
 buf=[0.0]*(2*n); sm.data.uv_layers.active.data.foreach_get('uv',buf)
@@ -121,6 +125,10 @@ bpy.ops.object.select_all(action='DESELECT'); lo.select_set(True); bpy.context.v
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT'); bpy.ops.object.mode_set(mode='OBJECT')
 bpy.ops.object.mode_set(mode='OBJECT')
 img=bpy.data.images.new('bake',res,res)
+for mt in hi.data.materials:
+    nt=mt.node_tree; bt=next(n for n in nt.nodes if n.type=='TEX_IMAGE' and 'basecolor' in n.image.name); ot=next(n for n in nt.nodes if n.type=='OUTPUT_MATERIAL')
+    em=nt.nodes.new('ShaderNodeEmission'); nt.links.new(bt.outputs['Color'],em.inputs['Color']); nt.links.new(em.outputs['Emission'],ot.inputs['Surface'])
+
 if PIECES:
     for mt in lo.data.materials:
         mt.use_nodes=True; nt=mt.node_tree; tn=nt.nodes.new('ShaderNodeTexImage'); tn.image=img; tn.interpolation='Closest'; nt.nodes.active=tn
@@ -130,16 +138,16 @@ else:
     lo.data.materials.append(mat)
 sc=bpy.context.scene; sc.render.engine='CYCLES'; sc.cycles.device='CPU'; sc.cycles.samples=1
 sc.render.bake.use_pass_direct=False; sc.render.bake.use_pass_indirect=False; sc.render.bake.use_pass_color=True
-sc.render.bake.margin=4
+sc.render.bake.margin=8
 bpy.ops.object.select_all(action='DESELECT'); hi.select_set(True); lo.select_set(True); bpy.context.view_layer.objects.active=lo
 d=max(hi.dimensions)
-bpy.ops.object.bake(type='DIFFUSE',use_selected_to_active=True,cage_extrusion=d*0.03,max_ray_distance=d*0.08)
+bpy.ops.object.bake(type='EMIT',use_selected_to_active=True,cage_extrusion=d*0.02,max_ray_distance=d*0.06)
 bpy.data.objects.remove(hi)
 # matériau d'export
 mat2=bpy.data.materials.new('ps1_'+name); mat2.use_nodes=True
 nt=mat2.node_tree; bs=next(n for n in nt.nodes if n.type=='BSDF_PRINCIPLED')
 t2=nt.nodes.new('ShaderNodeTexImage'); t2.image=img; t2.interpolation='Closest'
-nt.links.new(t2.outputs['Color'],bs.inputs['Base Color']); bs.inputs['Roughness'].default_value=1.0
+nt.links.new(t2.outputs['Color'],bs.inputs['Base Color']); bs.inputs['Roughness'].default_value=1.0; bs.inputs['Metallic'].default_value=0.0
 img.filepath_raw=out.replace('.glb','_tex.png'); img.file_format='PNG'; img.save()
 objs=[lo]
 if PIECES:
