@@ -11,6 +11,9 @@ const MODELES := {
 	"tripo_garde_epee": preload("res://assets/pnj/tripo_garde_epee_rig.glb"),
 	"tripo_archer": preload("res://assets/pnj/tripo_archer_rig.glb"),
 }
+const EPEE := preload("res://assets/modeles/joueur/epee_nordique.glb")
+static var EPEE_ROT := Vector3(120, 0, 0)
+static var EPEE_POS := Vector3(0, 0.02, -0.035)
 const CHAINES := ["tab_f", "tab_b"]
 ## Tabard de laine : plus léger que la cape du jarl, mais amorti.
 static var RAIDEUR := 0.15
@@ -36,6 +39,18 @@ static func creer(id: String, ressorts := true, avec_collisions := true) -> Node
 	racine.add_child(ap)
 	ap.root_node = NodePath("..")
 	ap.add_animation_library("", _bibliotheque(sq, id == "tripo_garde_lance"))
+	match id:
+		"tripo_garde_epee":
+			_epee_au_flanc(sq)
+		"tripo_archer":
+			ChasseresseNordique.equiper_arc(racine, sq)      # le vrai arc du jeu : porté le long du corps, bandé (corde tirée) puis relâché (clips Pistol_*)
+		"tripo_garde_lance":
+			var m := LanceDroite.new()
+			m.name = "LanceDroite"
+			m.os_haut = sq.find_bone("upperarm_r")
+			m.os_parent = sq.get_bone_parent(m.os_haut)
+			m.cible = ROT_BRAS_DROIT * sq.get_bone_global_rest(m.os_haut).basis.get_rotation_quaternion()
+			sq.add_child(m)
 	if ressorts:
 		_ressorts(sq, avec_collisions)
 	racine.set_meta("pnj_nordique", id)
@@ -100,3 +115,42 @@ static func _ressorts(sq: Skeleton3D, avec_collisions: bool) -> void:
 		sim.set_gravity(i, GRAVITE)
 		sim.set_gravity_direction(i, Vector3.DOWN)
 		sim.set_enable_all_child_collisions(i, avec_collisions)
+
+## Lancier : le bras droit garde, dans le repère du MONDE, l'orientation de la pose A du modèle (hampe verticale) : on corrige chaque image
+## l'inclinaison du torse (en marche, spine_03 se penche d'une vingtaine de degrés) sur l'os du bras. L'épaule suit le torse, la hampe reste droite.
+class LanceDroite extends SkeletonModifier3D:
+	var os_haut := -1
+	var os_parent := -1
+	var cible := Quaternion.IDENTITY      # orientation voulue de upperarm_r dans l'espace du squelette
+
+	func _process_modification_with_delta(_dt: float) -> void:
+		var sq := get_skeleton()
+		if sq == null or os_haut < 0:
+			return
+		var gp := sq.get_bone_global_pose(os_parent).basis.get_rotation_quaternion()
+		sq.set_bone_pose_rotation(os_haut, gp.inverse() * cible)
+
+## Épée du jeu (epee_nordique.glb, mêmes matières que l'épée du joueur) TENUE dans la main droite (BoneAttachment3D sur « hand_r »).
+static func _epee_au_flanc(sq: Skeleton3D) -> void:
+	var acc := BoneAttachment3D.new()
+	acc.name = "EpeeMain"
+	acc.bone_name = "hand_r"
+	sq.add_child(acc)
+	var arme: Node3D = EPEE.instantiate()
+	arme.name = "EpeeJeu"
+	arme.transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(EPEE_ROT.x), deg_to_rad(EPEE_ROT.y), deg_to_rad(EPEE_ROT.z))), EPEE_POS)
+	acc.add_child(arme)
+	var acier := Palette.tex("acier", Palette.ACIER, 4, 0.3)
+	var mats := {
+		"lame": Palette.materiau(acier, Vector2.ONE, Color(0.9, 0.95, 1.05)),
+		"fer": Palette.materiau(acier, Vector2(2, 2), Color(0.5, 0.52, 0.6)),
+		"cuir": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(1, 2)),
+	}
+	for m: ShaderMaterial in mats.values():
+		m.set_shader_parameter("tex_neige", m.get_shader_parameter("tex_base"))
+	for mi: MeshInstance3D in arme.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var mat := mi.mesh.surface_get_material(i)
+			var nom := mat.resource_name.get_slice(".", 0) if mat else ""
+			if mats.has(nom):
+				mi.set_surface_override_material(i, mats[nom])

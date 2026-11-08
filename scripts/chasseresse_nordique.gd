@@ -144,47 +144,53 @@ static func _creer(options := {}) -> Node3D:
 	# arc : trois maillages (porté main gauche / bandé main gauche + corde et flèche tirées par la main droite / relâché),
 	# un seul visible à la fois ; PoseArcher pose le haut du corps pendant la visée et le tir
 	if options.get("arc", true):
-		var posture := Posture.new(sq)
-		var pose := posture.calculer()
-		var hl := sq.find_bone("hand_l")
-		var hr := sq.find_bone("hand_r")
-		var Ml: Transform3D = sq.get_bone_global_rest(hl) * posture.glob(hl).affine_inverse()      # pose de visée -> repos (main G)
-		var Mr: Transform3D = sq.get_bone_global_rest(hr) * posture.glob(hr).affine_inverse()      # pose de visée -> repos (main D)
-		var porte := Acc.new(sq)
-		var tr_porte := porte.repere_porte()
-		var tr_vise: Transform3D = Ml * posture.repere_arc
-		sq.set_meta("arc_porte", [hl, tr_porte])     # contrôle des traversées (outils/test_chasseresse.gd)
-		sq.set_meta("arc_vise", [hl, tr_vise])
-		sq.set_meta("corde_encoche", [hr, Transform3D(Basis(), Mr * posture.encoche)])
-		porte.arc(tr_porte, hl)
-		var mi_porte := porte.construire(rest_skin, "arc_porte")
-		var vise := Acc.new(sq)
-		vise.arc(tr_vise, hl, 0.165, false)
-		vise.corde_bandee(tr_vise, hl, 0.165, Mr * posture.encoche, hr, Ml, Mr, posture)
-		vise.fleche_encochee(posture, Ml, Mr, hl, hr)
-		var mi_vise := vise.construire(rest_skin, "arc_vise")
-		var relache := Acc.new(sq)
-		relache.arc(tr_vise, hl)
-		var mi_relache := relache.construire(rest_skin, "arc_relache")
-		for mi: MeshInstance3D in [mi_porte, mi_vise, mi_relache]:
-			sq.add_child(mi)
-		mi_vise.visible = false
-		mi_relache.visible = false
-		var mod := PoseArcher.new()
-		mod.name = "PoseArcher"
-		mod.ap = racine.get_node("Animations") as AnimationPlayer
-		mod.regler(sq, pose)
-		mod.mi_porte = mi_porte
-		mod.mi_vise = mi_vise
-		mod.mi_relache = mi_relache
-		sq.add_child(mod)
-		var ap := racine.get_node("Animations") as AnimationPlayer
-		ap.current_animation_changed.connect(func(nom: StringName) -> void:
-			if is_instance_valid(mod):
-				mod.visibilites(String(nom), 0.0))
+		equiper_arc(racine, sq)
 	_t("accessoires (materiaux)", t0)
 	racine.set_meta("chasseresse_nordique", true)
 	return racine
+
+## Équipe un corps déjà bâti (65 os Humain, « Skeleton3D » + « Animations ») de l'arc long et de la posture d'archer : trois arcs (porté / bandé avec corde
+## tirée et flèche encochée / relâché) commutés par PoseArcher selon les clips Pistol_Aim_Neutral et Pistol_Shoot. Appelée par _creer, et par GardeTripo (archer Tripo).
+static func equiper_arc(racine: Node3D, sq: Skeleton3D) -> void:
+	var rest_skin := sq.create_skin_from_rest_transforms()
+	var posture := Posture.new(sq)
+	var pose := posture.calculer()
+	var hl := sq.find_bone("hand_l")
+	var hr := sq.find_bone("hand_r")
+	var Ml: Transform3D = sq.get_bone_global_rest(hl) * posture.glob(hl).affine_inverse()      # pose de visée -> repos (main G)
+	var Mr: Transform3D = sq.get_bone_global_rest(hr) * posture.glob(hr).affine_inverse()      # pose de visée -> repos (main D)
+	var porte := Acc.new(sq)
+	var tr_porte := porte.repere_porte()
+	var tr_vise: Transform3D = Ml * posture.repere_arc
+	sq.set_meta("arc_porte", [hl, tr_porte])     # contrôle des traversées (outils/test_chasseresse.gd)
+	sq.set_meta("arc_vise", [hl, tr_vise])
+	sq.set_meta("corde_encoche", [hr, Transform3D(Basis(), Mr * posture.encoche)])
+	porte.arc(tr_porte, hl)
+	var mi_porte := porte.construire(rest_skin, "arc_porte")
+	var vise := Acc.new(sq)
+	vise.arc(tr_vise, hl, 0.165, false)
+	vise.corde_bandee(tr_vise, hl, 0.165, Mr * posture.encoche, hr, Ml, Mr, posture)
+	vise.fleche_encochee(posture, Ml, Mr, hl, hr)
+	var mi_vise := vise.construire(rest_skin, "arc_vise")
+	var relache := Acc.new(sq)
+	relache.arc(tr_vise, hl)
+	var mi_relache := relache.construire(rest_skin, "arc_relache")
+	for mi: MeshInstance3D in [mi_porte, mi_vise, mi_relache]:
+		sq.add_child(mi)
+	mi_vise.visible = false
+	mi_relache.visible = false
+	var mod := PoseArcher.new()
+	mod.name = "PoseArcher"
+	mod.ap = racine.get_node("Animations") as AnimationPlayer
+	mod.regler(sq, pose)
+	mod.mi_porte = mi_porte
+	mod.mi_vise = mi_vise
+	mod.mi_relache = mi_relache
+	sq.add_child(mod)
+	var ap := racine.get_node("Animations") as AnimationPlayer
+	ap.current_animation_changed.connect(func(nom: StringName) -> void:
+		if is_instance_valid(mod):
+			mod.visibilites(String(nom), 0.0))
 
 ## Déplace les sommets de `mi` par f(p) (même peau d'os, mêmes UV ; normales gardées : déformation douce).
 static func _deformer(mi: MeshInstance3D, f: Callable) -> void:

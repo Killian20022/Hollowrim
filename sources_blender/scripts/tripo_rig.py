@@ -21,8 +21,8 @@ OUT_GLB = arg("sortie", os.path.join(BASE, "assets", "pnj", "tripo_%s_rig.glb" %
 # Position approximative de chaque main dans le maillage en pose A (mesurée sur les vues de face / profil) : sert à orienter les os des bras.
 CONF = {
     "garde_lance": dict(mains={"r": (-0.33, -0.255, 1.20), "l": (0.345, -0.03, 0.85)}),
-    "garde_epee": dict(mains={"r": (-0.264, -0.03, 0.85), "l": (0.264, -0.03, 0.85)}),
-    "archer": dict(mains={"r": (-0.32, -0.03, 0.87), "l": (0.285, -0.03, 0.87)}, rogner_z=1.93, rouge=1.5, zmin=0.52),
+    "garde_epee": dict(mains={"r": (-0.264, -0.03, 0.85), "l": (0.264, -0.03, 0.85)}, retirer=True),
+    "archer": dict(mains={"r": (-0.32, -0.03, 0.87), "l": (0.285, -0.03, 0.87)}, rogner_z=1.93, rouge=1.5, zmin=0.52, retirer=True),
 }[MODELE]
 J = [1.02, 0.80, 0.62, 0.44]        # articulations du tabard (3 os) ; la hauteur est ramenée à celle du bord inférieur du tissu
 
@@ -43,6 +43,53 @@ nv = len(me.vertices)
 P = np.array([v.co[:] for v in me.vertices])
 x, y, z = P[:, 0], P[:, 1], P[:, 2]
 print("maillage :", nv, "sommets,", len(me.polygons), "tris")
+
+def dist_segment(a, b):
+    a = np.array(a); b = np.array(b); ab = b - a
+    t = np.clip(((P - a) @ ab) / (ab @ ab), 0.0, 1.0)
+    return np.linalg.norm(P - (a + t[:, None] * ab), axis=1)
+
+def regions():
+    """(arme rigide, os qui la porte, sommets à RETIRER du maillage) pour le maillage courant."""
+    n = len(P)
+    rig = np.zeros(n, dtype=bool); retire = np.zeros(n, dtype=bool); os_ = "hand_r"
+    if MODELE == "garde_lance":
+        rig = np.hypot(x + 0.33, y + 0.255) < 0.065            # hampe verticale tenue à droite (fût, fer et poing)
+    elif MODELE == "garde_epee":
+        epee = (dist_segment((-0.28, -0.02, 0.95), (-0.40, -0.34, 0.10)) < (0.11 if "retirer" in CONF else 0.05)) & (z < 0.95) & (x < -0.31)
+        if "retirer" in CONF:
+            retire = epee & (z < 0.82)       # lame et garde ; le poing (gant) reste
+        else:
+            rig = epee
+    else:
+        os_ = "spine_03"                                      # arc en bandoulière et carquois dans le dos
+        # l'arc (courbe fine) est le seul élément à dépasser de 0.20 derrière le dos : on prend ces sommets et leurs voisins à 3 cm
+        loin = [i for i in range(n) if y[i] > 0.20]
+        kda = kdtree.KDTree(len(loin))
+        for k, i in enumerate(loin):
+            kda.insert(Vector(P[i]), k)
+        kda.balance()
+        arc = np.array([y[i] > 0.10 and len(kda.find_range(Vector(P[i]), 0.06 if "retirer" in CONF else 0.03)) > 0 for i in range(n)])
+        if "retirer" in CONF:
+            arc |= (np.abs(x) > 0.36) & (z > 0.30) & (z < 0.80) & (y > 0.02)      # bouts bas de l'arc, de part et d'autre des hanches
+        carquois = (x > -0.42) & (x < 0.02) & (z > 1.05) & (z < 1.95) & (y > 0.12)
+        if "retirer" in CONF:
+            retire = arc & ~carquois      # l'arc du jeu (ChasseresseNordique) remplace celui de Tripo ; le carquois reste
+            rig = carquois
+        else:
+            rig = arc | carquois
+    return rig, os_, retire
+
+if "retirer" in CONF:       # arme du modèle retirée du maillage (remplacée par l'arme du jeu, posée dans Godot)
+    _, _, retire = regions()
+    bm = bmesh.new(); bm.from_mesh(me)
+    bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[bm.verts[i] for i in range(nv) if retire[i]], context="VERTS")
+    bm.to_mesh(me); bm.free()
+    nv = len(me.vertices)
+    P = np.array([v.co[:] for v in me.vertices])
+    x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    print("ARME RETIRÉE : %d sommets ; reste %d sommets, %d tris" % (int(retire.sum()), nv, len(me.polygons)))
 
 # couleur (rouge du tabard) échantillonnée dans la texture
 im = next(nd.image for m in me.materials for nd in m.node_tree.nodes if nd.type == "TEX_IMAGE")
@@ -146,27 +193,7 @@ if sans:        # éclats isolés (hors de la copie soudée) : ils prennent les 
 bpy.data.objects.remove(cp)
 
 # ---------------------------------------------------------------- 3. arme : région rigide
-def dist_segment(a, b):
-    a = np.array(a); b = np.array(b); ab = b - a
-    t = np.clip(((P - a) @ ab) / (ab @ ab), 0.0, 1.0)
-    return np.linalg.norm(P - (a + t[:, None] * ab), axis=1)
-arme = np.zeros(nv, dtype=bool)
-os_arme = "hand_r"
-if MODELE == "garde_lance":
-    arme = np.hypot(x + 0.33, y + 0.255) < 0.065            # hampe verticale tenue à droite (fût, fer et poing)
-elif MODELE == "garde_epee":
-    arme = (dist_segment((-0.28, -0.02, 0.95), (-0.40, -0.34, 0.10)) < 0.05) & (z < 0.95)
-else:
-    os_arme = "spine_03"                                      # arc en bandoulière et carquois dans le dos
-    # l'arc (courbe fine) est le seul élément à dépasser de 0.20 derrière le dos : on prend ces sommets et leurs voisins à 3 cm
-    loin = [i for i in range(nv) if y[i] > 0.20]
-    kda = kdtree.KDTree(len(loin))
-    for k, i in enumerate(loin):
-        kda.insert(Vector(P[i]), k)
-    kda.balance()
-    arc = np.array([y[i] > 0.10 and len(kda.find_range(Vector(P[i]), 0.03)) > 0 for i in range(nv)])
-    carquois = (x > -0.42) & (x < 0.02) & (z > 1.05) & (z < 1.95) & (y > 0.12)
-    arme = arc | carquois
+arme, os_arme, _ = regions()
 print("ARME : %d sommets rigides sur %s" % (int(arme.sum()), os_arme))
 
 # ---------------------------------------------------------------- 4. tabard : classe (rouge lissé dans l'espace), chaînes d'os, poids
