@@ -1,0 +1,15 @@
+{
+	"_doc": "Arc du joueur (scripts/arc_joueur.gd). Équiper l'arc_chasseur (Sac > Armes, ou touche B) : clic gauche MAINTENU = bander, relâché = tirer (une flèche du sac, id « fleche »). Tension 0..1 = temps de bandage / temps_plein. Dégâts et vitesse de la flèche vont de *_min (tension minimale) à *_max (tension pleine). Sous tension_min le tir est annulé sans perdre de flèche.",
+	"temps_plein": 0.95,
+	"tension_min": 0.12,
+	"degats_min": 7.0,
+	"degats_max": 36.0,
+	"vitesse_min": 13.0,
+	"vitesse_max": 34.0,
+	"recuperation": 0.42,
+	"vitesse_marche": 0.55,
+	"fov_zoom": 10.0,
+	"fleche_recuperable": 0.6,
+	"id_arc": "arc_chasseur",
+	"id_fleche": "fleche"
+}

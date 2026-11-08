@@ -33,6 +33,10 @@ var resultat := ""       # "", "touche", "bloque", "parade", "mur"
 var genre := "fleche"
 var gravite := GRAVITE
 var options_coup := {}
+## Flèche du joueur : peut-elle se ramasser une fois fichée ? (durée de vie au sol : VIE_RAMASSABLE)
+var recuperable := false
+const VIE_RAMASSABLE := 90.0
+const PORTEE_RAMASSAGE := 1.7
 var _t := 0.0
 var _ex: Array[RID] = []
 
@@ -56,6 +60,21 @@ static func tirer_givre(parent: Node, depart: Vector3, direction: Vector3, tireu
 	p.tireur = tireur_
 	p.joueur = joueur_
 	p.options_coup = {"ralenti": RALENTI_GIVRE, "type": "glace", "recul": 2.5}
+	p.vitesse = direction.normalized() * vitesse_
+	parent.add_child(p)
+	p.global_position = depart
+	p._orienter()
+	return p
+
+## Flèche DU JOUEUR (ArcJoueur) : touche les ennemis et les cibles (DegatsCombat.appliquer, comme un coup d'arme), jamais le joueur ;
+## une flèche qui se fiche dans le décor peut se ramasser en passant dessus (`recuperable`, tirée au sort par l'arc).
+static func tirer_joueur(parent: Node, depart: Vector3, direction: Vector3, tireur_: CollisionObject3D, degats_: float, vitesse_: float, recuperable_ := true) -> Projectile:
+	var p := Projectile.new()
+	p.genre = "fleche_joueur"
+	p.degats = degats_
+	p.tireur = tireur_
+	p.joueur = tireur_
+	p.recuperable = recuperable_
 	p.vitesse = direction.normalized() * vitesse_
 	parent.add_child(p)
 	p.global_position = depart
@@ -160,7 +179,15 @@ func _orienter() -> void:
 func _physics_process(dt: float) -> void:
 	_t += dt
 	if plantee:
-		if _t > VIE_PLANTEE:
+		if recuperable and joueur != null and is_instance_valid(joueur) and joueur.global_position.distance_to(global_position) < PORTEE_RAMASSAGE \
+				and not bool(joueur.get("mort")):
+			var inv: Variant = joueur.get("inventaire")
+			if inv != null:
+				inv.ajouter("fleche", 1)
+				Sons.jouer_a(get_parent() if get_parent() else self, ["cloth1"], global_position, -10.0, 0.2)
+				queue_free()
+				return
+		if _t > (VIE_RAMASSABLE if recuperable else VIE_PLANTEE):
 			queue_free()
 		return
 	if _t > VIE_VOL:
@@ -171,9 +198,10 @@ func _physics_process(dt: float) -> void:
 	var vers := de + vitesse * dt
 	var q := PhysicsRayQueryParameters3D.create(de, vers + vitesse.normalized() * 0.4)
 	var ex := _ex.duplicate()
-	for e in get_tree().get_nodes_in_group("ennemis"):
-		if e is CollisionObject3D:
-			ex.append((e as CollisionObject3D).get_rid())
+	if genre != "fleche_joueur":   # les flèches ennemies traversent les autres ennemis ; celles du joueur les touchent
+		for e in get_tree().get_nodes_in_group("ennemis"):
+			if e is CollisionObject3D:
+				ex.append((e as CollisionObject3D).get_rid())
 	q.exclude = ex
 	var r := get_world_3d().direct_space_state.intersect_ray(q)
 	if r.is_empty():
@@ -182,6 +210,18 @@ func _physics_process(dt: float) -> void:
 		return
 	global_position = r["position"] - vitesse.normalized() * 0.3
 	var cible: Object = r["collider"]
+	if genre == "fleche_joueur" and cible != null and cible != joueur and cible.has_method("recevoir_coup"):
+		var dir_v := vitesse.normalized()
+		var info := {"type": "perforant", "point": r["position"], "direction": dir_v, "normale": r["normal"],
+			"zone": DegatsCombat.zone(cible as Node3D, r["position"]), "attaque": "legere", "arme": "arc",
+			"stagger": 0.35 * clampf(degats / 36.0, 0.2, 1.0), "collider": cible, "affaibli": false, "charge": 0.0, "instant": 0.0}
+		resultat = DegatsCombat.appliquer(cible as Node, degats, global_position - dir_v * 2.0, false, info)
+		if resultat == "":
+			resultat = "touche"
+		touche.emit(resultat)
+		GerbePixels.emettre(self, global_position, (-dir_v + Vector3.UP * 0.4).normalized(), "sang", 0.8)
+		queue_free()
+		return
 	if cible != null and cible.has_method("recevoir_coup") and cible is CharacterBody3D:
 		var origine: Vector3 = global_position - vitesse.normalized() * 2.0
 		if not options_coup.is_empty() and joueur != null and cible == joueur:

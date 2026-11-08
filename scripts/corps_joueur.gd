@@ -292,7 +292,11 @@ func _process(dt: float) -> void:
 		_action = ""
 
 	var but_lacet := 0.0
-	if _action == "":
+	var clip_arc: String = joueur.arc.clip_tps() if joueur.get("arc") != null else ""
+	if clip_arc != "" and sol:
+		_action = ""
+		_jouer(clip_arc, 0.08)
+	elif _action == "":
 		but_lacet = _locomotion(plat, vitesse, sol, etat)
 	_lacet = lerp_angle(_lacet, but_lacet, 1.0 - exp(-10.0 * dt))
 	modele.rotation.y = PI + _lacet
