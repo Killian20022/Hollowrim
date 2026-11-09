@@ -19,7 +19,7 @@ const LUEUR := Vector3(3.0, 5.4, 7.6)
 ## Réglage de clarté par modèle (le défaut Tripo : texture trop sombre sous le shader PS1).
 const TEINTES := {"draugr": Color(0.95, 0.88, 0.8), "archer": Color(0.9, 0.9, 0.9), "squelette": Color(0.9, 0.9, 0.9), "gobelin": Color(0.95, 0.95, 0.95)}
 ## Agrandissement de l'arme (le draugr est plus massif que le joueur).
-const ECH_ARME := {"draugr": 1.15, "archer": 1.0, "squelette": 1.0, "gobelin": 1.0}
+const ECH_ARME := {"draugr": 1.15, "archer": 1.0, "squelette": 1.0, "gobelin": 0.75}
 const PRISE := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 ## Inclinaison de la lame autour de l'axe X de la main (degrés).
 static var INCL := -35.0
