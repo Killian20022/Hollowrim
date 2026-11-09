@@ -58,7 +58,7 @@ func _tester() -> void:
 	if vie == null:
 		_fin()
 		return
-	_verif(vie.civils.size() == 16, "16 civils enregistrés (6 nommés + 10 habitants) : %d" % vie.civils.size())
+	_verif(vie.civils.size() == 17, "17 civils enregistrés (6 nommés + 10 habitants + Mage Eirwen, lot 2) : %d" % vie.civils.size())
 	var j: CharacterBody3D = m.joueur
 	j.global_position = Vector3(44.0, m.hauteur(44.0, 40.0) + 0.2, 40.0)
 	j.velocity = Vector3.ZERO
@@ -77,13 +77,13 @@ func _tester() -> void:
 	for c: Dictionary in vie.civils:
 		if EmploiDuTemps.mode(c["f"], 20.0, c["id"]) == "soir":
 			soir += 1
-	_verif(soir == 15, "20 h : 15 civils en soirée (Haldor veille) : %d" % soir)
+	_verif(soir == 16, "20 h : 16 civils en soirée (Haldor veille) : %d" % soir)
 	for h in [23.0, 3.0]:
 		var n := 0
 		for c: Dictionary in vie.civils:
 			if EmploiDuTemps.mode(c["f"], h, c["id"]) == "maison":
 				n += 1
-		_verif(n == 15, "%.0f h : 15 civils en mode « maison » : %d" % [h, n])
+		_verif(n == 16, "%.0f h : 16 civils en mode « maison » : %d" % [h, n])
 
 	# --- 8 h et 13 h : au poste
 	for h in [8.0, 13.0]:
@@ -115,13 +115,13 @@ func _tester() -> void:
 		var caches := _nb(func(c: Dictionary) -> bool: return c["n"].est_endormi() and c["n"]._forme.disabled and (c["n"].au_lit() or (not c["n"].visible and c["n"].process_mode == Node.PROCESS_MODE_DISABLED)))
 		var au_lit := _nb(func(c: Dictionary) -> bool: return c["n"].au_lit())
 		var veille: Node3D = vie.civil("garde")["n"]
-		_verif(dort == 15 and caches == 15, "%.0f h : 15 civils dorment (%d au lit), les autres cachés et gelés, tous sans collision (%d / %d)" % [h, au_lit, dort, caches])
+		_verif(dort == 16 and caches == 16, "%.0f h : 16 civils dorment (%d au lit), les autres cachés et gelés, tous sans collision (%d / %d)" % [h, au_lit, dort, caches])
 		_verif(not veille.est_endormi() and veille.visible, "%.0f h : Haldor tient la porte" % h)
 
 	# --- 7 h : réveil, tout le monde ressort
 	await _heure(7.0)
 	var sorti := _nb(func(c: Dictionary) -> bool: return not c["n"].est_endormi() and c["n"].visible and not c["n"]._forme.disabled and c["n"].process_mode == Node.PROCESS_MODE_INHERIT)
-	_verif(sorti == 16, "7 h : tout le monde est réveillé, visible, solide et actif (%d / 16)" % sorti)
+	_verif(sorti == 17, "7 h : tout le monde est réveillé, visible, solide et actif (%d / 17)" % sorti)
 
 	# --- rentrée à pied (heure qui avance par petits pas : RENTRE puis DORT, sans téléportation)
 	await _heure(21.0)
@@ -142,7 +142,7 @@ func _tester() -> void:
 			chemin_ok = chemin_ok and d < 30.0
 	await _attendre(60.0)
 	var dort2 := _nb(func(c: Dictionary) -> bool: return c["n"].est_endormi())
-	_verif(dort2 == 15, "rentrée : 15 civils ont fini par s'endormir à la porte de leur bâtiment (%d)" % dort2)
+	_verif(dort2 == 16, "rentrée : 16 civils ont fini par s'endormir à la porte de leur bâtiment (%d)" % dort2)
 	var coince := _nb(func(c: Dictionary) -> bool: return c["n"].etat == 4)
 	for c: Dictionary in vie.civils:
 		if c["n"].etat == 4 or (c["id"] != "garde" and not c["n"].est_endormi()):
@@ -162,7 +162,7 @@ func _tester() -> void:
 
 	# --- réveil à pied
 	await _heure(5.0)
-	_verif(_nb(func(c: Dictionary) -> bool: return c["n"].est_endormi()) == 15, "5 h : ils dorment encore")
+	_verif(_nb(func(c: Dictionary) -> bool: return c["n"].est_endormi()) == 16, "5 h : ils dorment encore")
 	for pas in [5.4, 5.8, 6.2, 6.6, 7.0, 7.4]:
 		m.cycle.heure = pas
 		vie.tick()
@@ -173,7 +173,7 @@ func _tester() -> void:
 	for c: Dictionary in vie.civils:
 		if not _a_son_poste(c):
 			loin.append("%s (état %d, %.1f m)" % [c["id"], c["n"].etat, (c["n"] as Node3D).global_position.distance_to(c["n"].points[0])])
-	_verif(au_poste == 16, "réveil à pied : les 16 civils sont à leur poste ou en promenade autour (%d) %s" % [au_poste, loin])
+	_verif(au_poste == 17, "réveil à pied : les 17 civils sont à leur poste ou en promenade autour (%d) %s" % [au_poste, loin])
 
 	# --- fuite devant un hostile (P2) : faux loup à 10 m du centre
 	await _heure(12.0)
@@ -226,7 +226,7 @@ func _tester() -> void:
 		var dd: float = (c["n"] as Node3D).global_position.distance_to(c["n"].points[0])
 		if dd >= 3.0 or c["n"].est_endormi():
 			print("   hors poste : %s à %.1f m, état %d, route %d, fuit %s, mode %s" % [c["id"], dd, c["n"].etat, c["n"]._route.size(), c["fuit"], c["mode"]])
-	_verif(revenus == 16, "danger passé : les 16 civils sont de retour à leur poste ou en promenade (%d / 16)" % revenus)
+	_verif(revenus == 17, "danger passé : les 17 civils sont de retour à leur poste ou en promenade (%d / 17)" % revenus)
 
 	# --- dialogues contextuels
 	vie.dernier_danger = -1.0e9

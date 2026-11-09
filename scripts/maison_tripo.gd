@@ -27,7 +27,12 @@ static func aabb(n: Node3D) -> AABB:
 	var r := AABB()
 	var premier := true
 	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
-		var b := n.global_transform.affine_inverse() * mi.global_transform * mi.get_aabb()
+		var t := Transform3D()      # repère de `mi` dans celui de `n`, par la chaîne locale : marche aussi hors de l'arbre (intérieur bâti sur un fil)
+		var x: Node3D = mi
+		while x != n and x != null:
+			t = x.transform * t
+			x = x.get_parent() as Node3D
+		var b := t * mi.get_aabb()
 		r = b if premier else r.merge(b)
 		premier = false
 	return r
