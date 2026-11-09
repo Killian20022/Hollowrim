@@ -237,7 +237,7 @@ func _process(dt: float) -> void:
 		return
 	# reflet de la torche et de la lumière : seulement visibles à la troisième personne
 	mains_tps.avancer(dt, _vue_3)
-	var allumee: bool = mains_tps.torche_tenue()   # (mains.torche_sortie est VRAI aussi avec un sort ou un bouclier en main gauche)
+	var allumee: bool = mains_tps.torche_tenue() and not (joueur.get("arc") != null and joueur.arc.actif)   # arc : la main gauche tient l'arc   # (mains.torche_sortie est VRAI aussi avec un sort ou un bouclier en main gauche)
 	pivot_torche.visible = allumee
 	for f in flammes:
 		f.emitting = allumee and _vue_3
@@ -296,6 +296,7 @@ func _process(dt: float) -> void:
 	if clip_arc != "" and sol:
 		_action = ""
 		_jouer(clip_arc, 0.08)
+		but_lacet = joueur.arc.lacet_tps()   # archer de profil, l'épaule gauche vers la cible
 	elif _action == "":
 		but_lacet = _locomotion(plat, vitesse, sol, etat)
 	_lacet = lerp_angle(_lacet, but_lacet, 1.0 - exp(-10.0 * dt))
