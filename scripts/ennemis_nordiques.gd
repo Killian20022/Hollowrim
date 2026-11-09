@@ -350,8 +350,10 @@ static func _sq(n: Node3D) -> Skeleton3D:
 static func squelette(spec := {}) -> Node3D:
 	if EnnemiTripo.actif():      # essai Tripo (--ennemis-tripo) : squelette guerrier généré, arme du jeu (épée / hache / arc)
 		var arme_t := arme_squelette(spec)
-		var t := EnnemiTripo.creer("squelette", arme_t)
-		t.set_meta("variante", "squelette_" + arme_t)
+		var poings := arme_t != "arc"       # le modèle Tripo ne tient aucune arme (mains osseuses ouvertes) : le guerrier combat à mains nues, seul l'archer garde l'arc
+		var t := EnnemiTripo.creer("squelette", "arc" if not poings else "")
+		t.set_meta("squelette_poings", poings)
+		t.set_meta("variante", "squelette_" + ("poings" if poings else arme_t))
 		t.set_meta("teinte", "ivoire")
 		return t
 	return SqueletteGuerrier.modele(arme_squelette(spec), teinte_squelette(spec))

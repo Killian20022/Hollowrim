@@ -65,6 +65,17 @@ def arms(inverse):
         bpy.ops.pose.armature_apply()
     bpy.ops.object.mode_set(mode="OBJECT")
 arms(False)
+if arg("diag"):
+    for s_ in ("r", "l"):
+        for n_ in ("upperarm_", "lowerarm_", "hand_", "middle_01_", "middle_03_"):
+            b_ = arm.data.bones[n_ + s_]
+            print("DIAG", n_ + s_, "head", tuple(round(a, 3) for a in (arm.matrix_world @ b_.head_local)), "tail", tuple(round(a, 3) for a in (arm.matrix_world @ b_.tail_local)))
+    for sg_ in (-1, 1):
+        sel_ = P[(sg_ * x > 0.25) & (z > 0.55) & (z < 1.25)]
+        print("DIAG maillage bras", sg_, "n", len(sel_), "z min %.3f max %.3f" % (sel_[:, 2].min(), sel_[:, 2].max()))
+        for zc in np.arange(0.6, 1.2, 0.05):
+            t_ = sel_[(sel_[:, 2] >= zc) & (sel_[:, 2] < zc + 0.05)]
+            if len(t_): print("DIAG  z %.2f : x %.3f..%.3f  y %.3f..%.3f  n %d" % (zc, t_[:, 0].min(), t_[:, 0].max(), t_[:, 1].min(), t_[:, 1].max(), len(t_)))
 
 # jambes : décalage en x (translation seule, l'orientation des os et donc les clips ne change pas), mesuré sur les cuisses et les bottes
 def jambe_x(sg):
@@ -125,6 +136,25 @@ for i in range(nv):
     top = sorted(body[i].items(), key=lambda kv: -kv[1])[:4]
     tot = sum(v for _, v in top) or 1.0
     final.append([(n_, v / tot) for n_, v in top if v / tot > 0.015])
+# mains rigides (--mains-rigides) : sans cela, les poids automatiques étalent la main sur l'avant-bras et le poignet, et la cuisson A -> T écrase
+# les doigts en moignons. Tout ce qui dépasse le poignet (le long de l'avant-bras, en pose A) suit l'os de la main à 100 %.
+if arg("mains-rigides"):
+    for s_, sg_ in (("r", -1), ("l", 1)):
+        hb_ = arm.data.bones["hand_" + s_]
+        wr_ = np.array((arm.matrix_world @ hb_.head_local)[:])
+        u_ = wr_ - np.array((arm.matrix_world @ arm.data.bones["lowerarm_" + s_].head_local)[:])
+        u_ /= np.linalg.norm(u_)
+        nrig_ = 0
+        for i in range(nv):
+            if sg_ * x[i] < 0.2:
+                continue
+            d_ = P[i] - wr_
+            t_ = float(d_ @ u_)
+            r_ = float(np.linalg.norm(d_ - t_ * u_))
+            if t_ > float(arg("mains-poignet", "-0.03")) and r_ < 0.14:
+                final[i] = [("hand_" + s_, 1.0)]
+                nrig_ += 1
+        print("mains rigides", s_, ":", nrig_, "sommets")
 for g in list(garde.vertex_groups):
     garde.vertex_groups.remove(g)
 groupes = {}
