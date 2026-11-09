@@ -38,7 +38,7 @@ var _bus := {}                     # id d'ennemi -> {"n": ennemi, "t": date} : d
 const MEMOIRE_BUS := 6.0           # s pendant lesquelles un danger annoncé compte comme menace
 ## Modèles Tripo PAR DÉFAUT (ModelesTripo) : trois gardes du village ont un corps Tripo (lancier, garde à l'épée, archer, scripts/garde_tripo.gd) ;
 ## ils gardent leur id, poste ou ronde, répliques, alerte et rôle dans Crime (même scripts/garde_village.gd). Ancien corps (creer_modele) :
-## `--modeles-anciens[=gardes]` pour tous, ou « "modele": "ancien" » sur le garde dans data/gardes.json.
+## `--modeles-anciens[=gardes]` pour tous, ou « "modele_ancien": true » sur le garde dans data/gardes.json.
 const GARDES_TRIPO := {"halle_o": "tripo_garde_lance", "ronde_place": "tripo_garde_epee", "ronde_nord": "tripo_archer"}
 static var _mats := {}
 static var _bases := {}   # bouclier -> Gardien de référence (hors arbre, jamais affiché)

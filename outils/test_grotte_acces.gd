@@ -148,7 +148,7 @@ func _tester() -> void:
 	_verif(a.jeu != null and a.jeu.ennemis.has("bandit_4"), "le guetteur (bandit_4) est apparu à l'entrée")
 	_verif(not a.jeu.ennemis.has("hrafn") and not a.jeu.ennemis.has("bandit_0"), "le camp (hrafn, bandit_0) n'est pas encore apparu : apparition progressive")
 	var guet: CharacterBody3D = a.jeu.ennemis["bandit_4"]
-	_verif(is_instance_valid(guet) and guet.global_position.y < -200.0 and guet.vivant() and guet.nom_affiche == "Guetteur", "guetteur vivant, dans la grotte")
+	_verif(is_instance_valid(guet) and guet.global_position.y < -200.0 and guet.vivant() and guet.nom_affiche == ("Gobelin" if EnnemiTripo.gobelin_actif() else "Guetteur"), "guetteur vivant, dans la grotte (%s : gobelin Tripo par défaut, bandit avec --modeles-anciens)" % guet.nom_affiche)
 	# navigation : un mur de 3,6 m entre le bandit et le joueur, le bandit le contourne et vient au corps à corps
 	var gr: Grotte = a.grotte
 	var bn: CharacterBody3D = guet

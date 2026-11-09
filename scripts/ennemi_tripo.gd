@@ -4,7 +4,7 @@ class_name EnnemiTripo
 ## (allègement, texture 512) puis tripo_ennemi_rig.py (rig). Les armes Tripo sont RETIRÉES du modèle : on pose celles du jeu (épée, hache, masse, épée courte,
 ## arc) sur hand_r / hand_l. Yeux bleus : texels bleu franc de la texture rendus lumineux par le shader (voir SHADER_CODE).
 ## Actif PAR DÉFAUT (ModelesTripo, groupe « ennemis ») ; anciens corps DraugrNordique / SqueletteGuerrier : `--modeles-anciens[=ennemis]`
-## ou « "modele": "ancien" » dans les options d'un ennemi.
+## ou « "modele_ancien": true » dans les options d'un ennemi.
 ##   EnnemiTripo.creer("draugr" | "archer" | "squelette" | "gobelin", arme) -> Node3D (contrat de Humain.creer : Skeleton3D + AnimationPlayer « Animations »)
 ## Le gobelin est bâti à taille humaine (rig) puis réduit : méta « echelle_tripo » (0,667 -> ~1,2 m), appliquée par draugr.gd.
 

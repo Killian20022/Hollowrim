@@ -105,7 +105,8 @@ func _membre_reel(genre: String, membre: String, x: float) -> void:
 		for mi: MeshInstance3D in rb.find_children("Maille*", "MeshInstance3D", true, false):
 			if mi.visible and mi.mesh != null and mi.skin != null:
 				visibles += 1
-	ok(visibles >= 2, "%s/%s : %d maillages copiés sur le morceau" % [genre, membre, visibles])
+	var mini := 1 if d.modele.has_meta("tripo_ennemi") else 2     # corps Tripo (défaut, ModelesTripo) : un seul maillage skinné, contre 2+ pièces pour DraugrNordique
+	ok(visibles >= mini, "%s/%s : %d maillages copiés sur le morceau (min %d)" % [genre, membre, visibles, mini])
 	var capuchons := 0
 	for c in sq.find_children("*Capuchon*", "MeshInstance3D", true, false):
 		capuchons += 1

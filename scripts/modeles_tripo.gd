@@ -5,8 +5,8 @@ class_name ModelesTripo
 ## ne sont pas supprimés : ils restent chargeables pour d'autres factions (voir docs/MODELES_TRIPO.md).
 ##   Pour toute la partie : argument utilisateur `--modeles-anciens` (tous les groupes) ou `--modeles-anciens=gardes,jarl,ennemis,gobelin`
 ##   (seulement ceux-là). Les anciennes options `--gardes-tripo`, `--jarl-tripo`, `--ennemis-tripo`, `--gobelin-tripo` sont acceptées sans effet.
-##   Pour UN personnage : « "modele": "ancien" » dans ses données (data/gardes.json, data/villageois.json, ennemis de la grotte), ou
-##   l'option « "modele_ancien": true » d'un ennemi (monde.creer_draugr) : il garde l'ancien corps même si les autres sont en Tripo.
+##   Pour UN personnage : « "modele_ancien": true » dans ses données (data/gardes.json, data/villageois.json, ennemis de la grotte) ou dans
+##   les options d'un ennemi (monde.creer_draugr) : il garde l'ancien corps même si les autres sont en Tripo.
 ## Ne pas confondre avec `--pnj-anciens` / `--persos-anciens` (corps encore plus anciens : Humain Quaternius, avant les PNJ nordiques).
 
 const GROUPES := ["gardes", "jarl", "ennemis", "gobelin"]
@@ -18,10 +18,10 @@ static func actif(groupe: String) -> bool:
 		_lire(OS.get_cmdline_user_args())
 	return not bool(_anciens.get(groupe, false))
 
-## Vrai si les données d'un personnage imposent l'ancien corps : « "modele": "ancien" » (gardes, villageois, specs d'EnnemisNordiques)
-## ou « "modele_ancien": true » (options d'un ennemi : monde.creer_draugr pose les options en propriétés, `modele` y est déjà le Node3D).
+## Vrai si les données d'un personnage imposent l'ancien corps : « "modele_ancien": true » (gardes, villageois, ennemis, specs d'EnnemisNordiques).
+## (Pas « modele » : data/villageois.json s'en sert déjà pour le corps Humain, et draugr.gd pour son Node3D.)
 static func ancien_impose(donnees: Dictionary) -> bool:
-	return String(donnees.get("modele", "")) == "ancien" or bool(donnees.get("modele_ancien", false))
+	return bool(donnees.get("modele_ancien", false))
 
 ## Tests : relit les arguments (ou `args` simulés), au lieu du cache.
 static func relire(args: Variant = null) -> void:

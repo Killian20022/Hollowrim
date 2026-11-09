@@ -268,7 +268,7 @@ static func _choix(spec: Dictionary) -> Dictionary:
 	var lueur := "givre" if r_l < 0.5 else ("sang" if r_l < 0.75 else "braise")
 	var d := {"t": "draugr", "etat": etat, "arme": arme_d, "bouclier": bouclier_d, "sans_casque": sans_casque, "lueur": lueur}
 	if ModelesTripo.ancien_impose(spec):
-		d["ancien"] = true      # « "modele": "ancien" » : ancien corps DraugrNordique malgré les modèles Tripo (factions, docs/MODELES_TRIPO.md)
+		d["ancien"] = true      # « "modele_ancien": true » : ancien corps DraugrNordique malgré les modèles Tripo (factions, docs/MODELES_TRIPO.md)
 	return d
 
 ## Corps (clé, fabrique) d'une variante.
@@ -287,7 +287,7 @@ static func _def_corps(ch: Dictionary) -> Array:
 			var bo: String = ch["bouclier"]
 			return ["bandit_%s_%s" % [c, bo], func() -> Node3D: return GuerrierNordique.creer({"casque": c, "bouclier": bo, "epee": false})]
 	# Modèles Tripo par défaut (ModelesTripo) : corps générés (arme du jeu incluse) à la place du corps DraugrNordique ; le zombie (mains nues,
-	# clips Zombie_*) et les draugrs « "modele": "ancien" » gardent l'ancien corps ; tous : --modeles-anciens[=ennemis].
+	# clips Zombie_*) et les draugrs « modele_ancien » gardent l'ancien corps ; tous : --modeles-anciens[=ennemis].
 	if EnnemiTripo.actif() and not bool(ch.get("ancien", false)) and String(ch["arme"]) != "mains":
 		var arme_t: String = ch["arme"]
 		var id_t := "archer" if arme_t == "arc" else "draugr"
@@ -355,7 +355,7 @@ static func _sq(n: Node3D) -> Skeleton3D:
 ## les archers, sinon tirée de l'identifiant (graine fixe : même squelette à chaque partie) — 1 sur 3 en sbire à la hache, crâne nu.
 ## Indépendant de --pnj-anciens (les squelettes n'ont pas d'ancien corps).
 static func squelette(spec := {}) -> Node3D:
-	if EnnemiTripo.actif() and not ModelesTripo.ancien_impose(spec):      # Tripo par défaut : squelette généré (mains nues, ou arc) ; ancien SqueletteGuerrier : --modeles-anciens[=ennemis] ou « modele: ancien »
+	if EnnemiTripo.actif() and not ModelesTripo.ancien_impose(spec):      # Tripo par défaut : squelette généré (mains nues, ou arc) ; ancien SqueletteGuerrier : --modeles-anciens[=ennemis] ou « modele_ancien »
 		var arme_t := arme_squelette(spec)
 		var poings := arme_t != "arc"       # le modèle Tripo ne tient aucune arme (mains osseuses ouvertes) : le guerrier combat à mains nues, seul l'archer garde l'arc
 		var t := EnnemiTripo.creer("squelette", "arc" if not poings else "")
