@@ -444,7 +444,12 @@ func _creer_ennemi(a: Dictionary) -> void:
 		for p: Vector3 in pat:
 			pts.append(g.to_global(p) + Vector3(0, 0.05, 0))
 		opts["patrouille"] = pts
-	var dr: CharacterBody3D = monde.creer_draugr(String(e.get("type", "sbire")) if boss == "" else "sbire", pos, lacet, false, opts)
+	var type_e: String = String(e.get("type", "sbire")) if boss == "" else "sbire"
+	if id == "bandit_4" and EnnemiTripo.gobelin_actif():   # point d'apparition de test du gobelin Tripo (--gobelin-tripo)
+		type_e = "gobelin"
+		opts["nom_affiche"] = "Gobelin"
+		opts.erase("vie_imposee")
+	var dr: CharacterBody3D = monde.creer_draugr(type_e, pos, lacet, false, opts)
 	if monde._paisible():
 		dr.process_mode = Node.PROCESS_MODE_DISABLED
 	ennemis[id] = dr

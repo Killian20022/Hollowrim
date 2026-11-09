@@ -31,6 +31,7 @@ const EPEE := preload("res://assets/modeles/joueur/epee_nordique.glb")
 ## l'index, poignée au creux des doigts — calculée par outils/calcul_prise.gd.
 var prise := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 const ATTAQUES := ["Sword_Attack", "Sword_Attack", "Punch_Cross"]
+const POINGS_OS := ["Punch_Cross", "Zombie_Griffes", "Punch_Cross", "Zombie_Poing"]   # squelette sans arme : coups de poing osseux et griffes
 ## Draugr « zombie » : clips Zombie_* joués à la place des clips Quaternius (même logique d'états) ; la course devient la démarche.
 const ANIMS_ZOMBIE := {"Sword_Idle": "Zombie_Attente", "Idle": "Zombie_Attente", "Walk": "Zombie_Marche", "Jog_Fwd": "Zombie_Marche",
 	"Hit_Chest": "Zombie_Coup2", "Hit_Head": "Zombie_Coup"}
@@ -55,6 +56,7 @@ const ACCEL := 8.0  # m/s²
 const ROT_MAX := 6.0  # rad/s ; 10 pendant le geste d'attaque
 
 var type := "guerrier"
+var _poings := false  # squelette Tripo sans arme (--ennemis-tripo) : griffes et poings
 var _os := false  # type « squelette* » (renseigné dans _ready)
 var _humain := false  # bandit vivant (personnage de base) : bourse « cadavre_bandit » au lieu de « cadavre_draugr »
 ## Allures propres au type (le squelette est plus vif que le draugr, dont la marche est lente et raide).
@@ -192,9 +194,18 @@ func _ready() -> void:
 	if type == "guerrier":
 		vie_max = ReglagesCombat.vie("guerrier")
 		degats = ReglagesCombat.degats("guerrier")
-	if type == "sbire":
+	if type == "sbire" or type == "gobelin":
 		vie_max = ReglagesCombat.vie("sbire")
 		degats = ReglagesCombat.degats("sbire")
+		if type == "gobelin":      # essai Tripo (--gobelin-tripo, voir EnnemiTripo) : petit, fragile, vif
+			vie_max *= 0.6
+			degats *= 0.8
+			_marche = 1.3
+			_marche_proche = 1.7
+			_course = 4.0
+			nom_affiche = "Gobelin"
+			if echelle == 1.0:
+				echelle = 0.667
 	elif _os:
 		nom_affiche = "Squelette"
 		vie_max = ReglagesCombat.vie("squelette")
@@ -236,14 +247,19 @@ func _ready() -> void:
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.38
 	capsule.height = 1.8
+	if type == "gobelin":
+		capsule.radius = 0.27
+		capsule.height = 1.2
 	forme.shape = capsule
-	forme.position.y = 0.9
+	forme.position.y = capsule.height * 0.5
 	add_child(forme)
 
 	var app := EnnemisNordiques.apparence_defaut(type, apparence)
 	_humain = app.has("perso")
 	if app.has("perso"):
 		modele = Personnage.creer(app["perso"])      # bandits vivants : personnage de base unifie (PersoDef)
+	elif type == "gobelin":
+		modele = EnnemiTripo.creer("gobelin", "epee_courte")
 	elif _os:
 		modele = EnnemisNordiques.squelette({"type": type, "archer": archer, "ident": ident, "variante": variante, "teinte": teinte_os})   # copie d'un gabarit préconstruit
 	else:
@@ -255,6 +271,9 @@ func _ready() -> void:
 		if modele == null:
 			modele = Humain.creer(app)
 	modele.scale = Vector3.ONE * echelle
+	_poings = _os and bool(modele.get_meta("squelette_poings", false))
+	if _poings:
+		degats *= 0.85    # griffes et poings osseux : un peu moins qu'à l'épée
 	add_child(modele)
 	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):
 		_mailles.append(mi)
@@ -654,7 +673,7 @@ func _physics_process(dt: float) -> void:
 					if _menace:
 						_demarrer_serie(dir)
 					else:
-						_attaque = (["Sword_Attack"] if _os else ATTAQUES).pick_random()  # le squelette frappe à l’arme (pas de coup de poing : la lame traverserait la tête)
+						_attaque = (POINGS_OS if _poings else ["Sword_Attack"] if _os else ATTAQUES).pick_random()  # le squelette frappe à l’arme (pas de coup de poing : la lame traverserait la tête)
 						if _zombie_ok():
 							_attaque = ATTAQUES_ZOMBIE.pick_random()
 						if boss == "hrafn":
@@ -1029,6 +1048,8 @@ func _lancer_coup_serie() -> void:
 	_lourd = false
 	if _zombie_ok():
 		_attaque = "Zombie_Poing"
+	elif _poings:
+		_attaque = POINGS_OS.pick_random()
 	elif _os:
 		_attaque = "Sword_Attack"
 	elif _serie == 1:

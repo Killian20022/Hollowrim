@@ -281,6 +281,10 @@ static func _def_corps(ch: Dictionary) -> Array:
 			var c: bool = ch["casque"]
 			var bo: String = ch["bouclier"]
 			return ["bandit_%s_%s" % [c, bo], func() -> Node3D: return GuerrierNordique.creer({"casque": c, "bouclier": bo, "epee": false})]
+	if EnnemiTripo.actif():      # essai Tripo (--ennemis-tripo) : corps générés (arme du jeu incluse), à la place du corps DraugrNordique
+		var arme_t: String = ch["arme"]
+		var id_t := "archer" if arme_t == "arc" else "draugr"
+		return ["tripo_%s_%s" % [id_t, arme_t], func() -> Node3D: return EnnemiTripo.creer(id_t, arme_t)]
 	var bd: String = ch["bouclier"]
 	var ep: bool = ch["arme"] == "epee"
 	var ca: bool = not ch["sans_casque"]
@@ -344,6 +348,14 @@ static func _sq(n: Node3D) -> Skeleton3D:
 ## les archers, sinon tirée de l'identifiant (graine fixe : même squelette à chaque partie) — 1 sur 3 en sbire à la hache, crâne nu.
 ## Indépendant de --pnj-anciens (les squelettes n'ont pas d'ancien corps).
 static func squelette(spec := {}) -> Node3D:
+	if EnnemiTripo.actif():      # essai Tripo (--ennemis-tripo) : squelette guerrier généré, arme du jeu (épée / hache / arc)
+		var arme_t := arme_squelette(spec)
+		var poings := arme_t != "arc"       # le modèle Tripo ne tient aucune arme (mains osseuses ouvertes) : le guerrier combat à mains nues, seul l'archer garde l'arc
+		var t := EnnemiTripo.creer("squelette", "arc" if not poings else "")
+		t.set_meta("squelette_poings", poings)
+		t.set_meta("variante", "squelette_" + ("poings" if poings else arme_t))
+		t.set_meta("teinte", "ivoire")
+		return t
 	return SqueletteGuerrier.modele(arme_squelette(spec), teinte_squelette(spec))
 
 ## Variante de teinte d'un squelette (C10) : imposée (spec « teinte » : givre, sang, braise, ivoire), sinon tirée de l'identifiant
@@ -383,6 +395,10 @@ static func _draugr(ch: Dictionary) -> Node3D:
 	var sans_casque: bool = ch["sans_casque"]
 	var n := _corps(ch)
 	var sq := _sq(n)
+	if n.has_meta("tripo_ennemi"):      # corps Tripo : couleurs, arme et yeux sont déjà ceux du modèle
+		n.set_meta("variante", "draugr_tripo_%s" % arme)
+		n.set_meta("teinte", "givre")
+		return n
 	var teintes: Array[Color] = [Color(1, 1, 1), Color(0.86, 1.02, 0.9), Color(0.72, 0.7, 0.68), Color(0.88, 0.98, 1.12)]
 	var lueur := String(ch.get("lueur", "givre"))
 	_teinter_tout(n, teintes[etat], LUEURS_DRAUGR.get(lueur, Vector3(-1, -1, -1)))
