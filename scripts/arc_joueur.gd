@@ -29,9 +29,9 @@ const ORIENTATION := preload("res://scripts/orientation_main.gd")
 ## devant, dans l'axe de visée (elle pointe vers le centre de l'écran) ; le poing gauche tient l'arc sous le centre. Au repos
 ## l'arc est baissé en bas à gauche, couché vers la droite : la levée se termine droite sans jamais basculer de l'autre côté.
 ## POSE_REPOS = [appui de la flèche sur l'arc, direction de la flèche, inclinaison (rad, positif = haut vers la gauche)].
-const ENCOCHE_VISEE := Vector3(-0.19, -0.15, -0.3)
+const ENCOCHE_VISEE := Vector3(-0.13, -0.2, -0.32)
 ## Appui de la flèche sur l'arc en visée : sous le centre de l'écran, dans l'axe de l'encoche (flèche droit devant).
-const APPUI_VISEE := Vector3(-0.24, -0.19, -0.73)
+const APPUI_VISEE := Vector3(-0.22, -0.34, -0.73)
 const POSE_REPOS := [Vector3(-0.17, -0.34, -0.6), Vector3(0.35, -0.15, -1.0), -1.25]
 ## Arc de la 1re personne un peu réduit (1,15 m au lieu de 1,59 m) pour tenir presque entier dans le champ.
 const ECHELLE_ARC_VM := 0.72
@@ -43,6 +43,10 @@ const DECALAGE_BRAS := Vector3(0.0, -0.1, -0.42)
 const CARQUOIS := Vector3(0.3, -0.5, 0.05)
 const COUDE_G := Vector3(-0.6, -1.2, -0.3)
 const COUDE_D := Vector3(0.8, -0.6, 0.1)
+## 3e personne : ancrage de la corde (repère du joueur, depuis l'os Head) au coin droit de la mâchoire, assez à droite et en
+## avant pour que la main de corde reste HORS du crâne et du casque ; coude droit bien à droite et en arrière.
+const ANCRAGE_TPS := Vector3(0.16, -0.11, 0.05)
+const COUDE_D_TPS := Vector3(0.7, 0.05, 0.5)
 ## Épaule droite ramenée en arrière (repère de la caméra) : le bras de corde se replie naturellement vers la joue.
 const RECUL_EPAULE_D := Vector3(0.05, 0.0, 0.3)
 
@@ -593,9 +597,10 @@ func _placer_tp() -> void:
 		epaule = _os_monde("upperarm_l")
 		tete = _os_monde("Head")
 	var l := smoothstep(0.0, 1.0, _levee)
-	# visée : poing gauche à ~95 % de l'allonge du bras, sur la ligne épaule -> cible ; encoche sous la pommette droite
-	var appui_v := epaule + visee * 0.47
-	var joue := tete + b_j * Vector3(0.05, -0.06, -0.06)
+	# visée : la flèche passe par l'ANCRAGE (coin droit de la mâchoire, en avant et à droite du crâne vu de la caméra) et file
+	# dans l'axe du tir ; le poing gauche tient l'arc sur cette ligne, à ~95 % de l'allonge du bras depuis l'épaule.
+	var joue := tete + b_j * ANCRAGE_TPS
+	var appui_v := joue + visee * ((epaule - joue).dot(visee) + 0.47)
 	var appui_r := joueur.global_position + b_j * Vector3(-0.32, 0.92, -0.2)
 	var dir_r := (b_j * Vector3(0.15, -0.55, -1.0)).normalized()
 	var dir_v := visee   # flèche exactement dans l'axe du tir
@@ -611,7 +616,7 @@ func _placer_tp() -> void:
 	_pivot_corps_d.transform = _tp.repere_encoche.transform
 	if ok:
 		_coudes_corps[0].global_position = epaule + b_j * Vector3(-0.5, -0.5, 0.2)
-		_coudes_corps[1].global_position = _os_monde("upperarm_r") + b_j * Vector3(0.5, 0.15, 0.5)
+		_coudes_corps[1].global_position = _os_monde("upperarm_r") + b_j * COUDE_D_TPS
 		var ph_tp := _phase_recup()
 		var lache := ph_tp >= 0.0
 		var main_d := etat == BANDE or lache

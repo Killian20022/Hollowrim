@@ -157,6 +157,15 @@ func _poses() -> void:
 	await _photo("mi_tension")
 	await _attendre(60)
 	await _photo("pleine")
+	if vue == "3":
+		# contrôle de la main de corde à pleine tension (le corps tourné de profil, épaule gauche vers la cible) :
+		# profil droit de la tête (caméra derrière), 3/4 dos, face (devant le torse) et dessus
+		var p0 := _plan
+		for pl in ["profil", "dos34", "face", "dessus"]:
+			_plan = pl
+			await _photo("pleine_" + pl)
+		_plan = p0
+		await _cadre_attente()
 	arc.relacher()
 	await _attendre(3)
 	await _photo("lacher")
@@ -168,6 +177,10 @@ func _poses() -> void:
 	await _attendre(40)
 	await _photo("repos_apres")
 	await _attendre(20)
+
+func _cadre_attente() -> void:
+	_cadre()
+	await process_frame
 
 func _attendre(k: int) -> void:
 	for i in k:
@@ -210,6 +223,11 @@ func _cadre() -> void:
 		var be: Basis = Basis(Vector3.UP, j.rotation.y)
 		cam.global_position = j.global_position + be * Vector3(1.4, 1.9, 2.6)
 		cam.look_at(j.global_position + be * Vector3(-0.5, 1.35, -5.0))
+	elif cam != null and _plan in ["profil", "dos34", "face", "dessus"]:
+		var bp: Basis = Basis(Vector3.UP, j.rotation.y)
+		var pos: Vector3 = {"profil": Vector3(0.05, 1.55, 1.5), "dos34": Vector3(-1.1, 1.85, 1.2), "face": Vector3(1.5, 1.5, -0.25), "dessus": Vector3(0.15, 3.0, 0.05)}[_plan]
+		cam.global_position = j.global_position + bp * pos
+		cam.look_at(j.global_position + bp * Vector3(0.0, 1.45, -0.25), bp * Vector3(0, 0, -1) if _plan == "dessus" else Vector3.UP)
 	elif cam != null and cam.current:
 		# plan latéral (côté droit de l'archer, un peu devant) : l'archer à gauche, les flèches filent vers la droite
 		var b: Basis = Basis(Vector3.UP, j.rotation.y)
