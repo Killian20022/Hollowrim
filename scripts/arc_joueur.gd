@@ -29,9 +29,9 @@ const ORIENTATION := preload("res://scripts/orientation_main.gd")
 ## devant, dans l'axe de visée (elle pointe vers le centre de l'écran) ; le poing gauche tient l'arc sous le centre. Au repos
 ## l'arc est baissé en bas à gauche, couché vers la droite : la levée se termine droite sans jamais basculer de l'autre côté.
 ## POSE_REPOS = [appui de la flèche sur l'arc, direction de la flèche, inclinaison (rad, positif = haut vers la gauche)].
-const ENCOCHE_VISEE := Vector3(-0.085, -0.25, -0.3)
+const ENCOCHE_VISEE := Vector3(-0.19, -0.15, -0.3)
 ## Appui de la flèche sur l'arc en visée : sous le centre de l'écran, dans l'axe de l'encoche (flèche droit devant).
-const APPUI_VISEE := Vector3(-0.085, -0.215, -0.73)
+const APPUI_VISEE := Vector3(-0.24, -0.19, -0.73)
 const POSE_REPOS := [Vector3(-0.17, -0.34, -0.6), Vector3(0.35, -0.15, -1.0), -1.25]
 ## Arc de la 1re personne un peu réduit (1,15 m au lieu de 1,59 m) pour tenir presque entier dans le champ.
 const ECHELLE_ARC_VM := 0.72
