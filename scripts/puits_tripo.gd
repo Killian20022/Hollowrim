@@ -30,7 +30,7 @@ static func poser(parent: Node3D, corps: StaticBody3D, xf: Transform3D, sol_y_mo
 	if ResourceLoader.exists(MODELE):
 		var n := (load(MODELE) as PackedScene).instantiate() as Node3D
 		n.name = "Margelle"
-		MaisonTripo.ps1(n, Color(1.35, 1.35, 1.35), false)
+		MaisonTripo.ps1(n, Color(1.35, 1.35, 1.35), true)     # double face : aucune pièce fine (bardeau, poteau) ne laisse de trou
 		racine.add_child(n)
 		for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
 			mi.visibility_range_end = 90.0

@@ -19,6 +19,12 @@ hi.data.vertices.foreach_set('co',new.ravel()); hi.data.update()
 # normals check: n vertex normal not needed
 bpy.ops.object.select_all(action='DESELECT'); hi.select_set(True); bpy.context.view_layer.objects.active=hi
 bpy.ops.object.duplicate(); lo=bpy.context.view_layer.objects.active; lo.name='lo'
+bm=bmesh.new(); bm.from_mesh(lo.data)
+nv=len(bm.verts)
+bmesh.ops.remove_doubles(bm,verts=bm.verts,dist=0.0004)
+bmb=sum(1 for e in bm.edges if len(e.link_faces)==1); bmn=sum(1 for e in bm.edges if len(e.link_faces)>2)
+print('WELD verts',nv,'->',len(bm.verts),'boundary',bmb,'nonman',bmn)
+bm.to_mesh(lo.data); bm.free(); lo.data.update()
 tr=sum(len(p.vertices)-2 for p in lo.data.polygons); print('HITRIS',tr)
 # intermediate: 150k then target
 for tgt in (120000,):
@@ -28,11 +34,13 @@ tr2=len(lo.data.polygons); print('MID',tr2)
 vg=lo.vertex_groups.new(name='w')
 for v in lo.data.vertices:
     z=v.co.z*2.957
-    vg.add([v.index], 0.05 if z<1.05 else (0.5 if z<2.6 else 1.0),'REPLACE')
-md=lo.modifiers.new('d','DECIMATE'); md.decimate_type='COLLAPSE'; md.ratio=4750/tr2; md.use_collapse_triangulate=True
-md.vertex_group='w'; md.vertex_group_factor=10.0
+    vg.add([v.index], 0.2 if z<1.05 else (0.3 if z<2.6 else 0.5),'REPLACE')
+md=lo.modifiers.new('d','DECIMATE'); md.decimate_type='COLLAPSE'; md.ratio=10500/tr2; md.use_collapse_triangulate=True
+md.vertex_group='w'; md.vertex_group_factor=3.0
 bpy.ops.object.modifier_apply(modifier='d')
 print('LOTRIS',len(lo.data.polygons))
+bm=bmesh.new(); bm.from_mesh(lo.data)
+print('FINAL boundary',sum(1 for e in bm.edges if len(e.link_faces)==1),'nonman',sum(1 for e in bm.edges if len(e.link_faces)>2)); bm.free()
 lo.vertex_groups.clear()
 nm=sum(1 for p in lo.data.polygons if p.center.z*2.957<1.05)
 print('MARGELLE faces',nm,'rest',len(lo.data.polygons)-nm)

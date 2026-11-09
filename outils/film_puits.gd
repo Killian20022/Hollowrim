@@ -87,6 +87,27 @@ func _stills() -> void:
 	cam.fov = 50.0
 	_vue(c + Vector3(3.6, 1.6, 4.0), c + Vector3(0.2, 1.0, 0.1))
 	await _capt(dos + "/gros.png")
+	cam.fov = 60.0
+	for k in 6:     # gros plans tout autour (contre-jour, de près) : là où les cassures se voient
+		var az := deg_to_rad(30.0 + 60.0 * k)
+		var d := 2.3 if k % 2 == 0 else 1.6
+		_vue(c + Vector3(sin(az) * d, 1.15, cos(az) * d), c + Vector3(0, 1.1 if k % 3 else 1.6, 0))
+		await _capt(dos + "/gros_%d.png" % k)
+	if args.has("diag"):     # diagnostic : seau et conduit sans le noir, vus de près dans le puits
+		for mi: MeshInstance3D in m.find_child("PuitsTripo", true, false).find_children("*", "MeshInstance3D", true, false):
+			for k in mi.mesh.get_surface_count():
+				var mt := mi.get_active_material(k)
+				if mt is ShaderMaterial and (mt as ShaderMaterial).shader.resource_path.ends_with("puits_conduit.gdshader"):
+					(mt as ShaderMaterial).set_shader_parameter("clair", 1.0)
+		cam.fov = 70.0
+		_vue(c + Vector3(0.2, 1.8, 0.7), c + Vector3(0, -2.0, 0))
+		await _capt(dos + "/diag_seau_haut.png")
+		_vue(c + Vector3(0.1, 1.6, 0.3), c + Vector3(0, -4.5, 0))
+		await _capt(dos + "/diag_seau_bas.png")
+	_vue(c + Vector3(1.4, 0.3, 1.0), c + Vector3(0, 1.9, 0))     # toit vu de dessous
+	await _capt(dos + "/toit_dessous.png")
+	_vue(c + Vector3(-1.6, 2.6, -1.2), c + Vector3(0, 1.6, 0))     # toit vu de dessus
+	await _capt(dos + "/toit_dessus.png")
 	cam.fov = 65.0
 	# plongée : debout au bord de la margelle, regard vers le fond
 	_vue(c + Vector3(0.0, 1.7, 1.25), c + Vector3(0.0, -2.0, -0.1))

@@ -13,6 +13,7 @@ uniform float sol_y = 0.0;          // hauteur monde du terrain sous le puits
 uniform float biais = 0.3;          // le terrain rendu (relief fin, neige) dépasse le maillage : le plan de profondeur est relevé d'autant
 uniform float haut = 0.81;           // hauteur de la margelle au-dessus du sol (ouverture du puits)
 uniform float rayon = 0.64;          // rayon de l'ouverture
+uniform float clair = 0.0;          // diagnostic : 1 = pas de dégradé vers le noir
 uniform float grille = 135.0;
 uniform float affine = 1.0;
 
@@ -57,5 +58,5 @@ void fragment() {
 	// dégradé vers le noir : à peine plus sombre jusqu'à 0,5 m sous la margelle, quasi noir à 3 m
 	float p = max(prof, 0.0);
 	float k = p < 0.5 ? 1.0 - 0.25 * p / 0.5 : 0.75 * pow(clamp(1.0 - (p - 0.5) / 2.5, 0.0, 1.0), 2.0) + 0.015;
-	ALBEDO = texture(tex_base, uv).rgb * COLOR.rgb * teinte.rgb * k;
+	ALBEDO = texture(tex_base, uv).rgb * COLOR.rgb * teinte.rgb * mix(k, 1.0, clair);
 }

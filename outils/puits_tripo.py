@@ -87,7 +87,7 @@ D=3.8
 bm=bmesh.new(); bm.from_mesh(lo.data)
 for v in bm.verts:
     r=math.hypot(v.co.x,v.co.y)
-    if r<0.26 and 0.5<v.co.z<1.48:
+    if r<0.26 and 0.1<v.co.z<1.48:
         w=min(1.0,(1.48-v.co.z)/(1.48-1.18)); v.co.z-=D*w
 seau=[]
 for f in bm.faces:
