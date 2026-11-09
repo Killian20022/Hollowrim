@@ -28,6 +28,8 @@ func _attendre(n: int) -> void:
 		await process_frame
 
 func _photo(nom: String) -> void:
+	for cl in root.find_children("*", "CanvasLayer", true, false):
+		(cl as CanvasLayer).visible = false      # HUD, sous-titres
 	await RenderingServer.frame_post_draw
 	var im := root.get_viewport().get_texture().get_image()
 	im.save_png(sortie.path_join("%s%s.png" % [nom, suffixe]))
@@ -97,6 +99,9 @@ func _go() -> void:
 	else:
 		await _village()
 	_planche(vue)
+	sc.queue_free()      # crypte : sortir avec la scène encore en place bloquait la fermeture
+	for i in 5:
+		await process_frame
 	quit(0)
 
 func _village() -> void:
@@ -114,27 +119,34 @@ func _village() -> void:
 		for g in m.get_node("GardesVillage").gardes:
 			if String(g.donnees.get("id", "")) == id:
 				cibles.append(["garde_" + id, g])
-	# tous côte à côte sur la place (sol relevé), figés en Idle, tournés vers la caméra
-	var base := Vector3(30.0, 0.0, 34.0)
+	# tous côte à côte sur la place, figés en Idle, tournés vers la caméra (+Z) ; repositionnés avant chaque photo
+	var base := Vector3(33.0, 0.0, 43.0)
 	for i in cibles.size():
 		var n: Node3D = cibles[i][1]
-		var x := base.x + i * 1.6
-		n.global_position = Vector3(x, m.hauteur(x, base.z) + 0.02, base.z)
-		n.velocity = Vector3.ZERO
-		n.rotation.y = 0.0
-		var ap: AnimationPlayer = n.get("anim")
 		_figer(n)
+		var ap: AnimationPlayer = n.get("anim")
 		if ap:
 			ap.process_mode = Node.PROCESS_MODE_ALWAYS
 			ap.play("Idle")
-	j.global_position = Vector3(base.x + 2.4, m.hauteur(base.x + 2.4, base.z + 9.0) + 0.2, base.z + 9.0)
+		print("CIBLE ", cibles[i][0], " corps=", n.modele.name, " tripo=", n.modele.has_meta("pnj_nordique") and String(n.modele.get_meta("pnj_nordique", "")).contains("tripo") or n.modele.scene_file_path.contains("tripo") or String(n.modele.name).to_lower().contains("tripo"))
+	j.global_position = Vector3(base.x + 2.4, m.hauteur(base.x + 2.4, base.z + 12.0) + 0.2, base.z + 12.0)
+	var aligner := func() -> void:
+		for i in cibles.size():
+			var n: Node3D = cibles[i][1]
+			var x := base.x + i * 1.8
+			n.global_position = Vector3(x, m.hauteur(x, base.z) + 0.02, base.z)
+			n.rotation.y = 0.0
+	aligner.call()
 	await _attendre(30)
 	for c: Array in cibles:
-		_cadrer(c[1], 2.6, 0.7)
+		aligner.call()
+		_cadrer(c[1], 2.6, 0.35)
 		await _attendre(4)
 		await _photo("village_" + String(c[0]))
-	var mil := base + Vector3((cibles.size() - 1) * 0.8, 0, 0)
-	cam.global_position = Vector3(mil.x, m.hauteur(mil.x, mil.z + 6.0) + 1.8, mil.z + 6.0)
+	aligner.call()
+	cam.fov = 66.0
+	var mil := base + Vector3((cibles.size() - 1) * 0.9, 0, 0)
+	cam.global_position = Vector3(mil.x + 3.2, m.hauteur(mil.x + 3.2, mil.z + 3.8) + 1.8, mil.z + 3.8)
 	cam.look_at(Vector3(mil.x, m.hauteur(mil.x, mil.z) + 1.0, mil.z), Vector3.UP)
 	await _attendre(4)
 	await _photo("village_ensemble")
@@ -144,7 +156,11 @@ func _crypte() -> void:
 		await physics_frame
 	var t = m.tertre
 	t._passer(true)
+	var t_max := Time.get_ticks_msec() + 30000
+	while not t.dedans and Time.get_ticks_msec() < t_max:      # le donjon est bâti sur un fil : la bascule attend qu'il soit prêt
+		await process_frame
 	await create_timer(1.6, true, false, true).timeout
+	print("CRYPTE dedans=", t.dedans)
 	var c: Node3D = t.crypte
 	j.global_position = c.to_global(Vector3(0.0, 0.1, -21.0))
 	j.velocity = Vector3.ZERO
@@ -178,7 +194,8 @@ func _crypte() -> void:
 		var ap: AnimationPlayer = d.get("anim")
 		if ap:
 			ap.process_mode = Node.PROCESS_MODE_ALWAYS
-			ap.play("Sword_Idle" if ap.has_animation("Sword_Idle") else "Idle")
+			ap.play("Pistol_Aim_Neutral" if (bool(d.get("archer")) or String(x[0]).ends_with("archer")) and ap.has_animation("Pistol_Aim_Neutral") else ("Sword_Idle" if ap.has_animation("Sword_Idle") else "Idle"))
+		d.global_rotation.y = lacet      # face au joueur (+Z de la crypte)
 	cam = Camera3D.new()
 	cam.fov = 50.0
 	cam.near = 0.05
@@ -192,7 +209,7 @@ func _crypte() -> void:
 	await _attendre(10)
 	for x: Array in cibles:
 		var d: Node3D = x[1]
-		cam.global_position = d.global_position + face * 2.6 + Vector3(0, 1.45, 0) + Basis(Vector3.UP, lacet).x * 0.6
+		cam.global_position = d.global_position + face * 2.4 + Vector3(0, 1.4, 0) + Basis(Vector3.UP, lacet).x * 0.35
 		cam.look_at(d.global_position + Vector3(0, 1.0, 0), Vector3.UP)
 		lum.global_position = cam.global_position + Vector3(0, 0.6, 0)
 		await _attendre(4)
