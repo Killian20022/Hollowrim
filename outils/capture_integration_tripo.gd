@@ -1,6 +1,7 @@
 extends SceneTree
 ## Preuves de l'intégration des modèles Tripo (ModelesTripo) : planches de photos dans le vrai jeu (foret_test), fenêtre HORS ÉCRAN (godot_slot.sh).
-##   --vue=village : le jarl (villageois « chef ») et les trois gardes Tripo (halle_o, ronde_place, ronde_nord), de face, + plan large.
+##   --vue=village : le jarl (villageois « chef »), les trois gardes Tripo (halle_o, ronde_place, ronde_nord), le garde en armure dorée (halle_e)
+##                   et le mage Tripo (Mage Eirwen), de face, + plan large ; avant, la place telle quelle (puits Tripo, mage à côté).
 ##   --vue=crypte  : draugr guerrier, archer draugr, squelette (mains nues), archer squelette, dans le vestibule de la crypte, + plan large.
 ## Avec --modeles-anciens les MÊMES personnages sont pris : planche des anciens corps. Écrit <sortie>/<vue>_<nom>.png et <sortie>/planche_<vue>.png.
 ##   godot --path . --resolution 960x540 --script res://outils/capture_integration_tripo.gd -- --nouvelle --vue=village [--modeles-anciens] --sortie=<dossier>
@@ -111,11 +112,23 @@ func _village() -> void:
 	m.add_child(cam)
 	cam.make_current()
 	await _attendre(120)
+	# la place telle qu'elle est, sans rien déplacer : puits Tripo, Mage Eirwen à côté (lot 2)
+	var puits := m.find_child("PuitsTripo", true, false) as Node3D
+	var cp := puits.global_position if puits != null else Vector3(42.0, m.hauteur(42.0, 38.0), 38.0)
+	print("PUITS tripo=", puits != null, " ", cp)
+	cam.fov = 60.0
+	cam.global_position = cp + Vector3(-5.5, 2.4, 6.5)
+	cam.look_at(cp + Vector3(0, 1.0, 0), Vector3.UP)
+	await _attendre(10)
+	await _photo("village_place_puits")
 	var cibles: Array = []
 	for v in get_nodes_in_group("villageois"):
 		if "donnees" in v and String(v.donnees.get("id", "")) == "chef" and not v.has_method("alerter"):
 			cibles.append(["jarl_chef", v])
-	for id in ["halle_o", "ronde_place", "ronde_nord"]:
+	for v in get_nodes_in_group("villageois"):
+		if "donnees" in v and String(v.donnees.get("id", "")) == "hab_mage_tripo":
+			cibles.append(["mage_tripo", v])
+	for id in ["halle_o", "halle_e", "ronde_place", "ronde_nord"]:
 		for g in m.get_node("GardesVillage").gardes:
 			if String(g.donnees.get("id", "")) == id:
 				cibles.append(["garde_" + id, g])
@@ -144,9 +157,10 @@ func _village() -> void:
 		await _attendre(4)
 		await _photo("village_" + String(c[0]))
 	aligner.call()
-	cam.fov = 66.0
+	cam.fov = 66.0 if cibles.size() <= 4 else 84.0      # 6 personnages (lot 2) : plus large plutôt que plus loin
 	var mil := base + Vector3((cibles.size() - 1) * 0.9, 0, 0)
-	cam.global_position = Vector3(mil.x + 3.2, m.hauteur(mil.x + 3.2, mil.z + 3.8) + 1.8, mil.z + 3.8)
+	var recul := 4.4      # au-delà, la caméra entre dans la maison au sud de la place
+	cam.global_position = Vector3(mil.x + 1.2, m.hauteur(mil.x + 1.2, mil.z + recul) + 1.8, mil.z + recul)
 	cam.look_at(Vector3(mil.x, m.hauteur(mil.x, mil.z) + 1.0, mil.z), Vector3.UP)
 	await _attendre(4)
 	await _photo("village_ensemble")

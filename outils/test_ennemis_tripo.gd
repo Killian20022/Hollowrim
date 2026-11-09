@@ -85,7 +85,33 @@ func _lancer() -> void:
 		anc2.free()
 	ModelesTripo.relire(["--modeles-anciens"])
 	ok(not ModelesTripo.actif("gardes") and not ModelesTripo.actif("jarl") and not EnnemiTripo.actif(), "--modeles-anciens : tous les groupes")
+	ok(not ModelesTripo.actif("mage") and not ModelesTripo.actif("puits") and not ModelesTripo.actif("maison"), "--modeles-anciens : aussi mage, puits, auberge h2 (lot 2)")
+	ModelesTripo.relire(["--modeles-anciens=puits"])
+	ok(not ModelesTripo.actif("puits") and ModelesTripo.actif("mage") and ModelesTripo.actif("maison") and ModelesTripo.actif("gardes"), "--modeles-anciens=puits : seulement le puits")
 	ModelesTripo.relire()
 	ok(EnnemiTripo.actif() and ModelesTripo.actif("gardes"), "arguments réels relus : Tripo par défaut")
+	# lot 2 : actifs par défaut, garde en armure dorée (halle_e) à côté des gardes Tripo
+	ok(PuitsTripo.actif and MaisonTripo.actif and MageTripo.pnj_actif() and not MageTripo.actif(), "lot 2 par défaut : puits, auberge h2, PNJ mage (mages ennemis inchangés)")
+	var VILL: Script = load("res://scripts/villageois.gd")
+	var hab_essai: Array = VILL.habitants_essai()
+	var mage_hab := false
+	for h: Dictionary in hab_essai:
+		mage_hab = mage_hab or String(h.get("pnj", "")) == "tripo_mage"
+	ok(mage_hab and hab_essai.size() == 1, "habitants en plus par défaut : le seul Mage Eirwen")
+	var dore := {}
+	for g: Dictionary in GardesVillage.donnees()["gardes"]:
+		if g.get("armure_tripo", false):
+			dore = g
+	ok(String(dore.get("id", "")) == "halle_e" and not GardesVillage.GARDES_TRIPO.has("halle_e"), "armure dorée sur halle_e, hors des trois gardes Tripo")
+	var md := GardesVillage.creer_modele(dore)
+	ok(md != null and md.name == "GardeDore", "halle_e : corps en armure dorée par défaut")
+	if md:
+		md.free()
+	var dore_anc := dore.duplicate()
+	dore_anc["modele_ancien"] = true
+	var mda := GardesVillage.creer_modele(dore_anc)
+	ok(mda != null and mda.name != "GardeDore", "halle_e + modele_ancien : ancien Gardien")
+	if mda:
+		mda.free()
 	print("RESULTAT : %d échec(s)" % echecs)
 	quit(1 if echecs > 0 else 0)

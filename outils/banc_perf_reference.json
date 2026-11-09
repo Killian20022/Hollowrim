@@ -37,6 +37,7 @@
 		"shaders/ps1_herbe.gdshader": 1.0,
 		"shaders/ps1_perso.gdshader": 1.0,
 		"shaders/ps1_rameau.gdshader": 1.0,
+		"shaders/puits_conduit.gdshader": 1.0,
 		"shaders/rayon_neant_cercle.gdshader": 2.0,
 		"shaders/rayon_neant_faisceau.gdshader": 4.0,
 		"shaders/rayon_neant_tache.gdshader": 2.0,
