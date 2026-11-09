@@ -375,4 +375,4 @@ func _tester_serrures(v: Node3D) -> void:
 		for c: Dictionary in vie.civils:
 			if not a_lit.has(String(c["id"])):
 				sans.append(c["id"])
-		_verif(sans.is_empty() and vie.civils.size() == 16, "les %d civils ont chacun un lit à leur nom (sans lit : %s)" % [vie.civils.size(), sans])
+		_verif(sans.is_empty() and vie.civils.size() == 17, "les %d civils ont chacun un lit à leur nom (sans lit : %s)" % [vie.civils.size(), sans])

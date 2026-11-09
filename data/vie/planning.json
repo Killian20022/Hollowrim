@@ -20,7 +20,7 @@
   "volva": {"profil": "travailleur", "maison": "sigrun", "soir": "poste"},
   "garde": {"profil": "veilleur", "maison": "tour"},
   "ancienne": {"profil": "service", "maison": "grima", "soir": "poste"},
-  "hab_mage_tripo": {"profil": "travailleur", "maison": "sigrun", "soir": "poste"},
+  "hab_mage_tripo": {"profil": "travailleur", "maison": "h2", "soir": "poste"},
   "hab_paysanne_2": {"soir": "puits", "maison": "h2"},
   "hab_paysanne_3": {"soir": "poste", "maison": "h3"},
   "hab_paysan_2": {"maison": "h3"},

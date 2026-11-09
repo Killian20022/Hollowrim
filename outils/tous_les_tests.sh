@@ -171,7 +171,7 @@ for t in "${TESTS[@]}"; do
 	d0=$SECONDS; sortie="$LOGS/$nom.log"; note=""
 	DELAI="${TEMPS_MAX:-240}"; [[ "$nom" == "test_degats_sanctuaire" && -z "${TEMPS_MAX:-}" ]] && DELAI=600   # ~245 s seul, davantage sur machine chargee
 	[[ ( "$nom" == "test_menace_bot" || "$nom" == "test_mage_bot" ) && -z "${TEMPS_MAX:-}" ]] && DELAI=900   # banc de 7 séries de combats (~2-4 min seul)
-	[[ "$nom" == "test_interieurs" && -z "${TEMPS_MAX:-}" ]] && DELAI=600   # 18 bâtiments ouverts parcourus un à un (~315 s seul)
+	[[ "$nom" == "test_interieurs" && -z "${TEMPS_MAX:-}" ]] && DELAI=900   # 18 bâtiments ouverts parcourus un à un (~315 s seul autrefois, ~685 s seul le 2026-11-09, base comprise)
 	RAPIDE="--fixed-fps 60"; REEL=0; [[ " $TEMPS_REEL " == *" $nom "* ]] && { RAPIDE=""; REEL=1; }
 	for essai in 1 2; do
 		: > "$sortie"; rc=0

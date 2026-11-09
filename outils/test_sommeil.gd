@@ -196,7 +196,7 @@ func _tester() -> void:
 				print("   mal couché : %s%s" % [cc["id"], _couche_dans(nn, nn.lit)])
 		elif nn.est_endormi() and not nn.visible:
 			caches += 1
-	_verif(couches >= 4 and couches + caches == 15, "3 h : %d civils couchés dans un lit, %d dorment cachés (15 en tout)" % [couches, caches])
+	_verif(couches >= 4 and couches + caches == 16, "3 h : %d civils couchés dans un lit, %d dorment cachés (16 en tout, Mage Eirwen compris)" % [couches, caches])
 	_verif(mauvais == 0, "tous les couchés sont dans leur cadre (%d mal posés)" % mauvais)
 	# lot bâtiments ouverts : les trappeurs ont chacun leur lit dans H1-H4 ; à la maison des chasseurs, seule Kari (son lit) : le lit
 	# libre n'accueille donc personne d'un autre foyer. La règle « place libre du foyer » est vérifiée par lit_pour.
