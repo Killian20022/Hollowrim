@@ -32,6 +32,7 @@ TESTS=(
 	"test_factions_vivantes|--nouvelle"   # factions vivantes : répliques de rang, quêtes de faction, crime vu -> réputation, dette
 	"test_prologue|--nouvelle --prologue --aides"   # accueil (arrivée, premier objectif, bulles d'aide), quêtes qui se répondent, répliques « après », fin du chapitre
 	"test_archer|--nouvelle"
+	"test_arc_joueur|--nouvelle"   # arc du joueur (armes/arc v7) : bander, tirer, balistique, 1re et 3e personne
 	"test_patrouille|--nouvelle"
 	"test_boss_phases|--nouvelle"
 	"test_vegetation_biome|--nouvelle"
