@@ -56,9 +56,9 @@ def regions():
     if MODELE == "garde_lance":
         rig = np.hypot(x + 0.33, y + 0.255) < 0.065            # hampe verticale tenue à droite (fût, fer et poing)
     elif MODELE == "garde_epee":
-        epee = (dist_segment((-0.28, -0.02, 0.95), (-0.40, -0.34, 0.10)) < (0.11 if "retirer" in CONF else 0.05)) & (z < 0.95) & (x < -0.31)
+        epee = (dist_segment((-0.28, -0.02, 0.95), (-0.40, -0.34, 0.10)) < (0.18 if "retirer" in CONF else 0.05)) & (z < 0.95) & (x < -0.28)
         if "retirer" in CONF:
-            retire = epee & (z < 0.82)       # lame et garde ; le poing (gant) reste
+            retire = epee & (z < 0.84)       # lame et garde ; le poing (gant) reste
         else:
             rig = epee
     else:
@@ -89,6 +89,52 @@ if "retirer" in CONF:       # arme du modèle retirée du maillage (remplacée p
     nv = len(me.vertices)
     P = np.array([v.co[:] for v in me.vertices])
     x, y, z = P[:, 0], P[:, 1], P[:, 2]
+    if MODELE == "garde_epee":      # avant-bras + main droits (maillage Tripo déformé, main en griffes) remplacés par le symétrique du gauche, depuis le coude
+        ZC, ZB, XM = 1.05, 0.80, 0.235
+        bm = bmesh.new(); bm.from_mesh(me); bm.verts.ensure_lookup_table()
+        # anneau du coude (z 1.03..1.07) : centre des deux côtés pour recaler le miroir en y
+        def anneau(sg): 
+            q = [v.co for v in bm.verts if sg * v.co.x > XM and 1.03 <= v.co.z <= 1.07]
+            return np.array([[c.x, c.y, c.z] for c in q]).mean(axis=0)
+        al, ar = anneau(1), anneau(-1)
+        dy = ar[1] - al[1]; dx = ar[0] + al[0]      # le miroir place l'anneau à -al.x ; recalé sur l'anneau droit
+        print("COUDE : gauche", al, "droit", ar, "dy", dy)
+        droit = [v for v in bm.verts if v.co.x < -XM and ZB <= v.co.z < ZC]
+        bmesh.ops.delete(bm, geom=droit, context="VERTS")
+        bm.verts.ensure_lookup_table()
+        gv = set(v for v in bm.verts if v.co.x > XM and ZB <= v.co.z < ZC)
+        gf = [f for f in bm.faces if all(v in gv for v in f.verts)]
+        dup = bmesh.ops.duplicate(bm, geom=gf)["geom"]
+        nvs = [e for e in dup if isinstance(e, bmesh.types.BMVert)]
+        nfs = [e for e in dup if isinstance(e, bmesh.types.BMFace)]
+        for v in nvs:
+            v.co.x = -v.co.x + dx
+            v.co.y += dy
+        bmesh.ops.reverse_faces(bm, faces=nfs)
+        hl = np.array([[v.co.x, v.co.y, v.co.z] for v in gv if v.co.z < 0.93]).mean(axis=0)
+        CONF["mains"]["r"] = (-hl[0] + dx, hl[1] + dy, hl[2])
+        print("BRAS DROIT SYMETRISE : %d sommets supprimes, %d faces copiees ; main droite cible" % (len(droit), len(nfs)), CONF["mains"]["r"])
+        # éclats isolés laissés par le retrait de l'épée (petits îlots soudés par position, côté droit, sous la poitrine) : supprimés
+        pos = {v.index: (round(v.co.x / 0.003), round(v.co.y / 0.003), round(v.co.z / 0.003)) for v in bm.verts}
+        par = {}
+        def rac(k):
+            while par.setdefault(k, k) != k:
+                par[k] = par[par[k]]; k = par[k]
+            return k
+        for f in bm.faces:
+            ks = [pos[v.index] for v in f.verts]
+            for k in ks[1:]:
+                par[rac(k)] = rac(ks[0])
+        comp = {}
+        for v in bm.verts:
+            comp.setdefault(rac(pos[v.index]), []).append(v)
+        eclats = [v for vs in comp.values() if len(vs) < 100 and np.mean([w.co.x for w in vs]) < -0.15 and np.mean([w.co.z for w in vs]) < 1.2 for v in vs]
+        bmesh.ops.delete(bm, geom=eclats, context="VERTS")
+        print("ÉCLATS SUPPRIMÉS :", len(eclats))
+        bm.to_mesh(me); bm.free()
+        nv = len(me.vertices)
+        P = np.array([v.co[:] for v in me.vertices])
+        x, y, z = P[:, 0], P[:, 1], P[:, 2]
     print("ARME RETIRÉE : %d sommets ; reste %d sommets, %d tris" % (int(retire.sum()), nv, len(me.polygons)))
 
 # couleur (rouge du tabard) échantillonnée dans la texture
