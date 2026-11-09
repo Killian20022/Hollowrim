@@ -51,6 +51,13 @@ func _tirer(tenu: float, viser := true) -> Dictionary:
 	await _sim(tenu)
 	var m := {"tension": arc.tension, "facteur": arc.facteur_vitesse(), "fov": j.camera.fov, "etat": arc.etat, "clip": arc.clip_tps(),
 		"tremblement": arc.tremblement}
+	if not j.troisieme:
+		# pose de visée de la 1re personne (repère de la caméra, fractions de l'écran)
+		var inv: Transform3D = j.camera.global_transform.affine_inverse()
+		var taille := Vector2(j.camera.get_viewport().get_visible_rect().size)
+		m["pointe_cam"] = inv * arc._vm.pointe()
+		m["poignee_ecran"] = j.camera.unproject_position(arc._vm.global_position) / taille
+		m["encoche_cam"] = inv * arc._vm.encoche_monde()
 	arc.relacher()
 	await _sim(DT * 2.0)
 	m["parti"] = arc.tirs > n0
@@ -144,8 +151,16 @@ func _tester() -> void:
 	_verif(r3["facteur"] < 0.7 and r3["fov"] < fov0 - 3.0, "bandage : marche ×%.2f, champ de vision %.1f → %.1f" % [r3["facteur"], fov0, r3["fov"]])
 	var axe: Vector3 = -j.camera.global_transform.basis.z
 	var vise := (arc.dernier_tir["cible"] - arc.dernier_tir["depart"]).normalized() as Vector3
-	_verif(vise.angle_to(arc.dernier_tir["direction"]) < 0.001 and axe.angle_to(arc.dernier_tir["direction"]) < deg_to_rad(4.0),
-		"départ exactement vers le point visé par le centre de l'écran (écart %.2f° avec l'axe de la caméra : parallaxe de la pointe)" % rad_to_deg(axe.angle_to(arc.dernier_tir["direction"])))
+	_verif(vise.angle_to(arc.dernier_tir["direction"]) < 0.001 and axe.angle_to(arc.dernier_tir["direction"]) < deg_to_rad(0.5),
+		"départ exactement vers le point visé par le centre de l'écran (écart %.2f° avec l'axe de la caméra)" % rad_to_deg(axe.angle_to(arc.dernier_tir["direction"])))
+	# 1re personne, pleine tension (composition Skyrim) : pointe AU réticule, arc levé (poing juste sous le centre, à gauche),
+	# encoche à la joue, hors du champ (main de corde hors champ)
+	var pc: Vector3 = r3["pointe_cam"]
+	var pe: Vector2 = r3["poignee_ecran"]
+	var ec: Vector3 = r3["encoche_cam"]
+	_verif(Vector2(pc.x, pc.y).length() < 0.002 and pc.z < -0.4, "visée 1re personne : pointe de la flèche au centre de l'écran (écart %.1f mm à %.2f m)" % [Vector2(pc.x, pc.y).length() * 1000.0, -pc.z])
+	_verif(pe.x > 0.35 and pe.x < 0.5 and pe.y > 0.5 and pe.y < 0.68, "visée 1re personne : arc levé, poignée sous le réticule à gauche (%d %% × %d %% de l'écran)" % [roundi(pe.x * 100.0), roundi(pe.y * 100.0)])
+	_verif(ec.x > 0.0 and ec.y < 0.0 and ec.z > -0.1 and absf(ec.x / ec.z) > 1.2, "visée 1re personne : encoche à la joue droite, hors du champ (%.2f, %.2f, %.2f)" % [ec.x, ec.y, ec.z])
 	await _sim(1.2)
 	var dern: Dictionary = cible.coups[-1] if cible.coups.size() > 0 else {}
 	_verif(cible.coups.size() == n_coups + 1 and is_instance_valid(p_plein) and absf(float(dern.get("degats", -1.0)) - p_plein.degats_impact) < 0.01

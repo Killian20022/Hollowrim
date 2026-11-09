@@ -21,6 +21,8 @@ const INFOS := "res://assets/modeles/armes/arc_chasseur.json"
 ## La flèche repose sur le poing, à gauche de la poignée (archer droitier) et au-dessus de son centre.
 const APPUI := Vector3(-0.024, 0.045, 0.0)
 const RAYON_CORDE := 0.0034
+## Appui de CE modèle (APPUI par défaut) : la 1re personne passe la flèche à droite de la poignée en visée (composition Skyrim).
+var appui := APPUI
 
 var mi_arc: MeshInstance3D
 var mi_corde: MeshInstance3D
@@ -172,7 +174,7 @@ func _appliquer() -> void:
 		fleche.transform = fleche_libre
 	else:
 		# encoche sur la corde, fût posé sur l'appui (à gauche de la poignée, sur le poing)
-		var dir := (APPUI - n).normalized()
+		var dir := (appui - n).normalized()
 		fleche.transform = Transform3D(Basis.looking_at(dir, Vector3.UP), n)
 
 func _maille_corde(haut: Vector3, noeud: Vector3, bas: Vector3) -> ArrayMesh:

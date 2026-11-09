@@ -117,6 +117,9 @@ func _go() -> void:
 		_plan = _arg("cam", "epaule")
 		croix.visible = false
 	arc.equiper()
+	if _arg("cacher") != "":   # contrôle : cacher un bras de la 1re personne (upperarm_l / upperarm_r)
+		var sqc: Skeleton3D = arc._sq
+		sqc.set_bone_pose_scale(sqc.find_bone(_arg("cacher")), Vector3.ONE * 0.001)
 	if mode == "poses":
 		await _poses()
 		quit(0)
@@ -153,7 +156,9 @@ func _poses() -> void:
 	await _attendre(30)
 	await _photo("repos")
 	arc.appuyer()
-	await _attendre(16)
+	await _attendre(8)
+	await _photo("levee")
+	await _attendre(8)
 	await _photo("mi_tension")
 	await _attendre(60)
 	await _photo("pleine")
@@ -197,6 +202,9 @@ func _photo(nom: String) -> void:
 		var sq: Skeleton3D = arc._sq
 		var mg := inv * (sq.global_transform * sq.get_bone_global_pose(sq.find_bone("hand_l")).origin)
 		var md := inv * (sq.global_transform * sq.get_bone_global_pose(sq.find_bone("hand_r")).origin)
+		var eg := inv * (sq.global_transform * sq.get_bone_global_pose(sq.find_bone("upperarm_l")).origin)
+		var ed := inv * (sq.global_transform * sq.get_bone_global_pose(sq.find_bone("upperarm_r")).origin)
+		print("EPAULES %s g %s d %s cible_d %s" % [nom, eg, ed, arc._pivot_d.position])
 		print("POSE %s main_g %s main_d %s poignee %s encoche %s pointe %s" % [nom, mg, md, inv * arc._vm.global_position, inv * arc._vm.encoche_monde(), inv * arc._vm.pointe()])
 	await RenderingServer.frame_post_draw
 	var im := root.get_viewport().get_texture().get_image()
