@@ -192,9 +192,18 @@ func _ready() -> void:
 	if type == "guerrier":
 		vie_max = ReglagesCombat.vie("guerrier")
 		degats = ReglagesCombat.degats("guerrier")
-	if type == "sbire":
+	if type == "sbire" or type == "gobelin":
 		vie_max = ReglagesCombat.vie("sbire")
 		degats = ReglagesCombat.degats("sbire")
+		if type == "gobelin":      # essai Tripo (--gobelin-tripo, voir EnnemiTripo) : petit, fragile, vif
+			vie_max *= 0.6
+			degats *= 0.8
+			_marche = 1.3
+			_marche_proche = 1.7
+			_course = 4.0
+			nom_affiche = "Gobelin"
+			if echelle == 1.0:
+				echelle = 0.667
 	elif _os:
 		nom_affiche = "Squelette"
 		vie_max = ReglagesCombat.vie("squelette")
@@ -236,14 +245,19 @@ func _ready() -> void:
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.38
 	capsule.height = 1.8
+	if type == "gobelin":
+		capsule.radius = 0.27
+		capsule.height = 1.2
 	forme.shape = capsule
-	forme.position.y = 0.9
+	forme.position.y = capsule.height * 0.5
 	add_child(forme)
 
 	var app := EnnemisNordiques.apparence_defaut(type, apparence)
 	_humain = app.has("perso")
 	if app.has("perso"):
 		modele = Personnage.creer(app["perso"])      # bandits vivants : personnage de base unifie (PersoDef)
+	elif type == "gobelin":
+		modele = EnnemiTripo.creer("gobelin", "epee_courte")
 	elif _os:
 		modele = EnnemisNordiques.squelette({"type": type, "archer": archer, "ident": ident, "variante": variante, "teinte": teinte_os})   # copie d'un gabarit préconstruit
 	else:

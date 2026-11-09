@@ -9,6 +9,8 @@ const AMORTIS := {"thigh_l": 0.80, "thigh_r": 0.80, "calf_l": 0.72, "calf_r": 0.
 ## voûte (radians autour de l'axe X du squelette, + = vers l'avant)
 const VOUTE := {"spine_01": 0.02, "spine_02": 0.04, "spine_03": 0.04, "neck_01": 0.07, "Head": -0.07}
 
+var voute_k := 1.0        # facteur de voûte (gobelin : démarche courbée)
+var amortir := true       # false : pas de jambes tendues (gobelin)
 var _marche := 0.0     # 0 = immobile, 1 = marche / course (lissé)
 var _voute := 1.0      # 0 pendant la mort
 
@@ -24,7 +26,7 @@ func _process_modification() -> void:
 	var k := 1.0 - exp(-8.0 * get_process_delta_time())
 	_marche = lerpf(_marche, cible_m, k)
 	_voute = lerpf(_voute, cible_v, k)
-	if _marche > 0.01:
+	if _marche > 0.01 and amortir:
 		for nom: String in AMORTIS:
 			var i := sq.find_bone(nom)
 			if i < 0:
@@ -39,5 +41,5 @@ func _process_modification() -> void:
 				continue
 			var parent := sq.get_bone_parent(i)
 			var pb := sq.get_bone_global_pose(parent).basis if parent >= 0 else Basis()
-			var voulue := Basis(Vector3.RIGHT, float(VOUTE[nom]) * _voute) * sq.get_bone_global_pose(i).basis
+			var voulue := Basis(Vector3.RIGHT, float(VOUTE[nom]) * _voute * voute_k) * sq.get_bone_global_pose(i).basis
 			sq.set_bone_pose_rotation(i, (pb.inverse() * voulue).orthonormalized().get_rotation_quaternion())
