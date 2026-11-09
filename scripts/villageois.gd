@@ -189,8 +189,9 @@ static func habitants_essai() -> Array:
 	if json is Dictionary and (json as Dictionary).get("habitants") is Array:
 		var out: Array = []
 		for h: Variant in (json as Dictionary)["habitants"]:
-			var drapeau := "--jarl-tripo" if String((h as Dictionary).get("pnj", "")) == "jarl_tripo" else "--gardes-tripo"
-			if args.has(drapeau):
+			if String((h as Dictionary).get("pnj", "")) == "jarl_tripo":
+				continue      # le jarl Tripo n'est plus un habitant de plus : il remplace le chef (villageois._ready)
+			if args.has("--gardes-tripo") and args.has("--gardes-tripo-en-plus"):      # lancier, garde, archer en habitants supplémentaires (films v2) ; sinon ils remplacent des gardes (gardes_village.gd)
 				out.append(h)
 		return out
 	push_warning("Villageois : JSON invalide : " + chemin)
@@ -211,7 +212,9 @@ func _ready() -> void:
 
 	var id: String = donnees.get("id", "")
 	# corps Humain (Quaternius) par défaut ; --persos-kit : personnage de base unifié (PersoDefs)
-	if donnees.has("pnj"):       # habitant anonyme (data/habitants.json) : dérivé d'un archétype nordique validé, ou l'ancien corps Humain pour l'avant/après
+	if id == "chef" and OS.get_cmdline_user_args().has("--jarl-tripo"):      # essai Tripo : le jarl animé (scripts/jarl_tripo.gd) tient la place du chef : même id (dialogue, quêtes, factions, sommeil), autre corps
+		modele = JarlTripo.creer()
+	elif donnees.has("pnj"):       # habitant anonyme (data/habitants.json) : dérivé d'un archétype nordique validé, ou l'ancien corps Humain pour l'avant/après
 		modele = Humain.creer(donnees.get("ancien", APPARENCES["chef"])) if PersosQuat.anciens() else PnjNordique.creer(String(donnees["pnj"]))
 	elif Personnage.kit_actif():
 		modele = Personnage.creer(PersoDefs.villageois(id))

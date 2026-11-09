@@ -12,8 +12,13 @@ const MODELES := {
 	"tripo_archer": preload("res://assets/pnj/tripo_archer_rig.glb"),
 }
 const EPEE := preload("res://assets/modeles/joueur/epee_nordique.glb")
-static var EPEE_ROT := Vector3(120, 0, 0)
-static var EPEE_POS := Vector3(0, 0.02, -0.035)
+## Prise de la main droite : celle du corps du joueur (corps_joueur.gd, PRISE) : milieu de la poignée dans le poing, lame dans l'axe de l'avant-bras.
+## Inclinaison de la lame autour de l'axe de la main (degrés, + = pointe vers l'avant-bas) et échelle de l'épée (le garde est plus massif que le joueur).
+static var EPEE_INCL := -35.0
+static var EPEE_ECH := 1.15
+## Centre du poing du maillage Tripo dans le repère de hand_r (mesuré à l'image : le gantelet du modèle est plus bas / plus en arrière que l'os, la prise du joueur y tombe à côté).
+static var CENTRE_POING := Vector3(-0.163, -0.066, -0.015)
+static var PRISE := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 const CHAINES := ["tab_f", "tab_b"]
 ## Tabard de laine : plus léger que la cape du jarl, mais amorti.
 static var RAIDEUR := 0.15
@@ -138,11 +143,15 @@ static func _epee_au_flanc(sq: Skeleton3D) -> void:
 	sq.add_child(acc)
 	var arme: Node3D = EPEE.instantiate()
 	arme.name = "EpeeJeu"
-	arme.transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(EPEE_ROT.x), deg_to_rad(EPEE_ROT.y), deg_to_rad(EPEE_ROT.z))), EPEE_POS)
+	var prise := PRISE
+	prise.basis = Basis(Vector3.RIGHT, deg_to_rad(EPEE_INCL)) * prise.basis
+	prise.basis = prise.basis.scaled(Vector3.ONE * EPEE_ECH)
+	prise.origin = CENTRE_POING - prise.basis.y.normalized() * 0.04 * EPEE_ECH      # le centre du poing est à 4 cm du pommeau le long de la lame
+	arme.transform = prise
 	acc.add_child(arme)
 	var acier := Palette.tex("acier", Palette.ACIER, 4, 0.3)
 	var mats := {
-		"lame": Palette.materiau(acier, Vector2.ONE, Color(0.9, 0.95, 1.05)),
+		"lame": Palette.materiau(acier, Vector2.ONE, Color(0.98, 0.95, 0.9)),
 		"fer": Palette.materiau(acier, Vector2(2, 2), Color(0.5, 0.52, 0.6)),
 		"cuir": Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(1, 2)),
 	}

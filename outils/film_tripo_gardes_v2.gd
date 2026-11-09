@@ -103,8 +103,6 @@ func _go() -> void:
 		await process_frame
 		if m == null:
 			m = sc if sc.get("pret") != null else null
-	var re := _arg("epee_rot"); if re != "": var q := re.split(","); GardeTripo.EPEE_ROT = Vector3(float(q[0]), float(q[1]), float(q[2]))
-	var rp := _arg("epee_pos"); if rp != "": var q2 := rp.split(","); GardeTripo.EPEE_POS = Vector3(float(q2[0]), float(q2[1]), float(q2[2]))
 	j = m.joueur
 	j.mort = false
 	if m.get("hud") != null:
