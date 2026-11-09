@@ -7,7 +7,7 @@ render_mode unshaded, cull_back, depth_draw_opaque;
 // creux de neige : les sommets SOUS le plan du sol sont ramenés, pour la PROFONDEUR seule, sur ce plan le long de leur rayon de vue
 // (- 1 cm). L'image est celle d'un conduit réellement creusé ; rien de ce qui est devant le sol (margelle, joueur) n'est caché par
 // lui. Les faces du conduit sont orientées vers l'intérieur et la face arrière est écartée : un seul plan visible par pixel.
-uniform sampler2D tex_base : source_color, filter_nearest, repeat_enable;
+uniform sampler2D tex_base : source_color, filter_nearest_mipmap, repeat_enable;
 uniform vec4 teinte : source_color = vec4(1.0);
 uniform float sol_y = 0.0;          // hauteur monde du terrain sous le puits
 uniform float biais = 0.3;          // le terrain rendu (relief fin, neige) dépasse le maillage : le plan de profondeur est relevé d'autant
@@ -17,6 +17,7 @@ uniform float grille = 135.0;
 uniform float affine = 1.0;
 
 varying vec3 uv_aff;
+varying float prof;   // profondeur monde sous la margelle (m)
 
 void vertex() {
 	vec2 uv = UV;
@@ -35,6 +36,7 @@ void vertex() {
 		vec2 g = VIEWPORT_SIZE * (grille / 270.0);
 		clip.xy = round(clip.xy / clip.w * g) / g * clip.w;
 	}
+	prof = MODEL_MATRIX[3].y + haut - yw;
 	POSITION = clip;
 	float w = mix(1.0, clip.w, affine);
 	uv_aff = vec3(uv * w, w);
@@ -52,5 +54,8 @@ void fragment() {
 		if (t < 0.0 || length(h.xz - ctr.xz) > rayon) discard;
 	}
 	vec2 uv = uv_aff.xy / uv_aff.z;
-	ALBEDO = texture(tex_base, uv).rgb * COLOR.rgb * teinte.rgb;
+	// dégradé vers le noir : à peine plus sombre jusqu'à 0,5 m sous la margelle, quasi noir à 3 m
+	float p = max(prof, 0.0);
+	float k = p < 0.5 ? 1.0 - 0.25 * p / 0.5 : 0.75 * pow(clamp(1.0 - (p - 0.5) / 2.5, 0.0, 1.0), 2.0) + 0.015;
+	ALBEDO = texture(tex_base, uv).rgb * COLOR.rgb * teinte.rgb * k;
 }

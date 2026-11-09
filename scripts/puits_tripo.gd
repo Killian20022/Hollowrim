@@ -14,7 +14,8 @@ const SHADER := preload("res://shaders/puits_conduit.gdshader")
 
 const R_INT := 0.62          # rayon intérieur de la margelle (m) : le conduit prolonge exactement la paroi
 const Y_HAUT := 0.81         # haut du conduit (m au-dessus du sol) : niveau où se trouvait l'eau du modèle, 4 cm sous la margelle
-const PROFONDEUR := 5.0      # m sous le sol jusqu'à l'eau
+const ECHELLE := 1.25        # le puits est agrandi (margelle ~1 m, emprise proche de l'ancien puits)
+const PROFONDEUR := 4.6      # m (avant échelle) sous le sol jusqu'à l'eau : ~5,75 m réels
 const FACES := 14
 const R_EXT := 1.03          # rayon extérieur de la margelle (collision)
 const H_COLLISION := 1.6     # plus haut que le saut : on ne monte pas sur la margelle (et on ne marche donc pas au-dessus du trou)
@@ -23,7 +24,7 @@ const H_COLLISION := 1.6     # plus haut que le saut : on ne monte pas sur la ma
 static func poser(parent: Node3D, corps: StaticBody3D, xf: Transform3D, sol_y_monde: float, num: int) -> int:
 	var racine := Node3D.new()
 	racine.name = "PuitsTripo"
-	racine.transform = xf
+	racine.transform = xf.scaled_local(Vector3.ONE * ECHELLE)
 	parent.add_child(racine)
 	var tris := 0
 	if ResourceLoader.exists(MODELE):
@@ -36,7 +37,7 @@ static func poser(parent: Node3D, corps: StaticBody3D, xf: Transform3D, sol_y_mo
 			tris += _tris(mi.mesh)
 	# le conduit est calé sur le terrain (le modèle est posé au plus bas de son emprise, enfoncé de 3 cm)
 	var dy := clampf(sol_y_monde - parent.to_global(xf.origin).y, 0.0, 0.05)
-	var mat := _materiau_conduit(TexturesBati.tex("pierre_fine"), sol_y_monde, Color(1.25, 1.25, 1.25))
+	var mat := _materiau_conduit(TexturesBati.tex("pierre_brute"), sol_y_monde, Color(0.62, 0.7, 0.7))
 	var cond := _conduit(mat)
 	cond[0].position.y = dy
 	racine.add_child(cond[0])
@@ -55,10 +56,10 @@ static func poser(parent: Node3D, corps: StaticBody3D, xf: Transform3D, sol_y_mo
 	var forme := CollisionShape3D.new()
 	forme.set_meta("objet", "puits#%d" % num)
 	var cy := CylinderShape3D.new()
-	cy.radius = R_EXT
-	cy.height = H_COLLISION
+	cy.radius = R_EXT * ECHELLE
+	cy.height = H_COLLISION * ECHELLE
 	forme.shape = cy
-	forme.transform = xf * Transform3D(Basis(), Vector3(0, H_COLLISION * 0.5, 0))
+	forme.transform = xf * Transform3D(Basis(), Vector3(0, H_COLLISION * ECHELLE * 0.5, 0))
 	corps.add_child(forme)
 	return tris
 
@@ -68,6 +69,8 @@ static func _materiau_conduit(tex: Texture2D, sol_y_monde: float, teinte: Color)
 	m.set_shader_parameter("tex_base", tex)
 	m.set_shader_parameter("teinte", teinte)
 	m.set_shader_parameter("sol_y", sol_y_monde)
+	m.set_shader_parameter("haut", Y_HAUT * ECHELLE)
+	m.set_shader_parameter("rayon", (R_INT + 0.02) * ECHELLE)
 	Palette._appliquer(m, Palette._ps1_actif)
 	Palette.suivre(m)
 	return m
@@ -84,10 +87,7 @@ static func _tris(m: Mesh) -> int:
 
 ## Dégradé de couleur de sommet : clair en haut (à peine plus sombre que la margelle), presque noir au fond.
 static func _ombre(y: float) -> float:
-	if y >= 0.0:
-		return 1.0 - (Y_HAUT - y) / Y_HAUT * 0.3
-	var prof := clampf(-y / PROFONDEUR, 0.0, 1.0)
-	return pow(1.0 - prof, 1.7) * 0.7 + 0.03
+	return 1.0     # le dégradé vers le noir est calculé par fragment dans le shader (profondeur sous la margelle)
 
 ## Conduit : [MeshInstance3D, triangles]. Parois vers l'intérieur, rayon irrégulier d'un anneau à l'autre (pierres), un anneau pile
 ## au niveau du sol (chaque triangle est tout au-dessus ou tout au-dessous : voir le shader), eau noire immobile au fond.
@@ -117,8 +117,8 @@ static func _conduit(mat: ShaderMaterial) -> Array:
 			if k == FACES:
 				r = Vector2(v[i * (FACES + 1)].x, v[i * (FACES + 1)].z).length()
 			v.append(Vector3(sin(a) * r, y, cos(a) * r))
-			uv.append(Vector2(float(k) / FACES * 2.0, -y * 0.5))     # une tuile de pierre = 2 m de paroi
-			col.append(Color(o, o * 0.97, o * 0.95, 1.0))
+			uv.append(Vector2(float(k) / FACES * 1.5, -y * 0.4))     # grosses pierres : une tuile = 2,5 m de paroi
+			col.append(Color(o, o * 0.97, o * 0.95, 1.0) * (0.85 + 0.15 * float((i + k) % 2)))
 	for i in ys.size() - 1:
 		for k in FACES:
 			var a0 := i * (FACES + 1) + k
