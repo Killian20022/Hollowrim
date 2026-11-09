@@ -1,5 +1,5 @@
 extends SceneTree
-## ESSAI Tripo v2 : l'auberge h2 du village (extérieur cottage + intérieur taverne Tripo) et l'armure portée par un mannequin.
+## ESSAI Tripo v2 : l'auberge h2 du village (extérieur cottage + intérieur taverne Tripo) et l'armure portée par un humain.
 ##   --mode=stills --sortie=dossier   vues fixes (extérieur 4 côtés, entrée, intérieur, armure)   --mode=film   (avec --write-movie)
 ##   --mode=avant                     mêmes vues avec `--sans-tripo` (à lancer séparément pour la planche avant/après)
 const DT := 1.0 / 30.0
@@ -66,46 +66,13 @@ func _go() -> void:
 			await _stills()
 	quit(0)
 
-## Mannequin (poteau, bras, jambes en bois) à taille du joueur (1,8 m) portant les pièces de l'armure, posé sur la place devant l'auberge.
+## Humain réel (corps Humain.creer) portant l'armure Tripo par BoneAttachment3D, posé sur la place devant l'auberge.
 func _armure() -> void:
 	armure = Node3D.new()
-	armure.name = "ArmureMannequin"
+	armure.name = "ArmureHumain"
 	m.add_child(armure)
-	var bois := StandardMaterial3D.new()
-	bois.albedo_color = Color("#4a3322")
-	bois.roughness = 1.0
-	var box := func(pos: Vector3, taille: Vector3) -> void:
-		var mi := MeshInstance3D.new()
-		var b := BoxMesh.new()
-		b.size = taille
-		mi.mesh = b
-		mi.material_override = bois
-		mi.position = pos
-		armure.add_child(mi)
-	box.call(Vector3(0, 0.04, 0), Vector3(0.7, 0.08, 0.7))
-	box.call(Vector3(-0.1, 0.45, 0), Vector3(0.1, 0.9, 0.1))
-	box.call(Vector3(0.1, 0.45, 0), Vector3(0.1, 0.9, 0.1))
-	box.call(Vector3(0, 1.25, 0), Vector3(0.34, 0.6, 0.2))
-	box.call(Vector3(0, 1.62, 0), Vector3(0.12, 0.16, 0.12))
-	box.call(Vector3(-0.3, 1.3, 0), Vector3(0.12, 0.5, 0.12))
-	box.call(Vector3(0.3, 1.3, 0), Vector3(0.12, 0.5, 0.12))
-	# pièces : hauteurs réelles visées (casque 0,26 m, torse 0,5 m, jambière 0,45 m, botte 0,25 m, gantelet 0,3 m)
-	var vise := {"casque": 0.27, "torse": 0.62, "gantelet": 0.30, "jambiere": 0.48, "botte": 0.26}
-	var place := [["casque", Vector3(0, 1.74, 0), 1.0], ["torse", Vector3(0, 1.28, 0), 1.0], ["gantelet", Vector3(-0.36, 1.05, 0), 1.0], ["gantelet", Vector3(0.36, 1.05, 0), -1.0],
-		["jambiere", Vector3(-0.14, 0.55, 0), 1.0], ["jambiere", Vector3(0.14, 0.55, 0), -1.0], ["botte", Vector3(-0.14, 0.16, 0), 1.0], ["botte", Vector3(0.14, 0.16, 0), -1.0]]
-	for pc: Array in place:
-		var n := (load("res://assets/essai_tripo/armure.glb") as PackedScene).instantiate()
-		var src := n.find_child(pc[0], true, false) as MeshInstance3D
-		var copie := MeshInstance3D.new()
-		copie.mesh = src.mesh
-		var hh := src.get_aabb().size.y
-		# orientation : la plus grande dimension verticale (Y du glb = haut) ; échelle pour la hauteur visée
-		var e: float = vise[pc[0]] / hh
-		copie.scale = Vector3(e * pc[2], e, e)
-		copie.position = pc[1]
-		armure.add_child(copie)
-		MaisonTripo.ps1(copie, Color(1.25, 1.2, 1.1))
-		n.free()
+	var corps := GardesVillage.creer_modele_dore({"taille": 1.0, "largeur": 1.0})
+	armure.add_child(corps)
 	var p0 := _libre(pivot.global_transform * Vector3(0, 0, 5.0))
 	armure.global_position = Vector3(p0.x, m.hauteur(p0.x, p0.z), p0.z)
 	print("FILM armure en ", p0)
