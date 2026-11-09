@@ -32,7 +32,7 @@ func _go() -> void:
 	cam.fov = 40.0
 	cam.near = 0.05
 	cam.far = 400.0
-	if mode == "iter":
+	if mode == "iter" or args.has("simple"):
 		var we := WorldEnvironment.new()
 		var env := Environment.new()
 		env.background_mode = Environment.BG_COLOR
@@ -93,6 +93,8 @@ func _go() -> void:
 			await _stills()
 		"film":
 			await _film()
+		"extremites":
+			await _extremites()
 	if mode == "film":
 		quit(0)
 	else:
@@ -172,7 +174,7 @@ func _pas(az_deg: float, dist: float, haut: float, vise_h: float, fov: float) ->
 		garde.global_position = Vector3(x0, m.hauteur(x0, z0), z0)
 		garde.rotation.y = cap
 	elif args.has("surplace"):   # pas sur place (caméra qui tourne autour) : aucun décor ne s'interpose
-		garde.global_position = Vector3(centre.x, m.hauteur(centre.x, centre.z), centre.z)
+		garde.global_position = Vector3(centre.x, (m.hauteur(centre.x, centre.z) if m.has_method("hauteur") else centre.y), centre.z)
 		garde.rotation.y = 0.0
 	else:
 		var x := centre.x + sin(th) * R_MARCHE
@@ -224,11 +226,71 @@ func _stills() -> void:
 			_pas(v[1], 4.4, 2.1, 1.0, 36.0)
 			await process_frame
 		await _capt("%s/garde_marche_%s.png" % [dos, v[0]])
+	if args.has("compare"):   # côte à côte avec un garde du village sans l'armure (même modèle, même pose de repos)
+		var g2 := GardesVillage.creer_modele({"poil": 1, "peau": 2})
+		m.add_child(g2)
+		var a2: AnimationPlayer = g2.get_node("Animations")
+		anim.play("Idle")
+		a2.play("Idle")
+		for v in [["face", 0.0], ["profil", 90.0]]:
+			for i in 30:
+				garde.global_position = Vector3(centre.x, m.hauteur(centre.x, centre.z), centre.z)
+				garde.rotation.y = 0.0
+				var dx := Vector3(1.0, 0, 0) if v[0] == "face" else Vector3(0, 0, -0.9)
+				var p2 := garde.global_position + dx
+				g2.global_position = Vector3(p2.x, m.hauteur(p2.x, p2.z), p2.z)
+				g2.rotation.y = 0.0
+				var c := garde.global_position + dx * 0.5 + Vector3(0, 0.95, 0)
+				var az := deg_to_rad(v[1])
+				cam.fov = 30.0
+				_vue(c + Vector3(sin(az) * 5.0, 0.35, cos(az) * 5.0), c)
+				await process_frame
+			await _capt("%s/comparaison_%s.png" % [dos, v[0]])
+		g2.queue_free()
+		_marche_pose()
 	for v in [["torse", 25.0, 2.6, 1.7, 1.35, 22.0], ["tete", 20.0, 2.2, 1.6, 1.5, 22.0], ["jambes", 25.0, 2.8, 0.7, 0.55, 34.0]]:
 		for i in 30:
 			_pas(v[1], v[2], v[3], v[4], v[5])
 			await process_frame
 		await _capt("%s/garde_%s.png" % [dos, v[0]])
+
+## Gros plans des mains et des pieds (repos : face / profil ; marche : 3/4), caméra visant l'os lui-même.
+func _os_pos(nom: String) -> Vector3:
+	var sq := garde.find_child("Skeleton3D", true, false) as Skeleton3D
+	var i := sq.find_bone(nom)
+	return sq.global_transform * sq.get_bone_global_pose(i).origin
+
+func _vise_os(nom: String, az_deg: float, dist: float, dh: float, fov: float) -> void:
+	var c := _os_pos(nom)
+	var az := garde.rotation.y + deg_to_rad(az_deg)
+	cam.fov = fov
+	_vue(c + Vector3(sin(az) * dist, dh, cos(az) * dist), c)
+
+func _extremites() -> void:
+	var dos := String(args.get("sortie", "/tmp/w/ext"))
+	DirAccess.make_dir_recursive_absolute(dos)
+	if m.get("cycle") != null:
+		m.cycle.heure = 12.0
+	centre = garde.global_position
+	anim.play("Idle")
+	# repos
+	for v in [["main_face", "hand_l", 20.0, 0.9, 0.1, 24.0], ["main_profil", "hand_l", 90.0, 0.9, 0.1, 24.0], ["main_dos", "hand_l", 150.0, 0.9, 0.15, 24.0],
+			["pied_profil", "foot_l", 90.0, 1.1, 0.12, 26.0], ["pied_face", "foot_l", 10.0, 1.1, 0.3, 26.0], ["pied_34", "foot_l", 45.0, 1.1, 0.3, 26.0]]:
+		for i in 20:
+			garde.rotation.y = 0.0
+			_vise_os(v[1], v[2], v[3], v[4], v[5])
+			await process_frame
+		await _capt("%s/%s.png" % [dos, v[0]])
+	# marche sur place (plusieurs instants du pas)
+	args["surplace"] = "1"
+	_marche_pose()
+	for v in [["main_marche", "hand_l", 60.0, 1.0, 0.15, 26.0], ["pied_marche", "foot_l", 80.0, 1.3, 0.15, 30.0]]:
+		for k in 3:
+			for i in 9:
+				_pas(0.0, 4.0, 2.0, 1.0, 36.0)
+				_vise_os(v[1], v[2], v[3], v[4], v[5])
+				await process_frame
+			await _capt("%s/%s_%d.png" % [dos, v[0], k])
 
 func _film() -> void:
 	m.cycle.heure = 12.0

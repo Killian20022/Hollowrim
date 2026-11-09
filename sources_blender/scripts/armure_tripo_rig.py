@@ -24,7 +24,7 @@ DEBUG = arg("debug", "")
 BOITES = {"casque": (-0.495, -0.37, 0.44, 1), "cuirasse": (-0.055, 0.17, 0.44, 1), "gantelet": (-0.48, -0.36, 0.15, 0.44),
           "jambiere": (0.05, 0.16, 0.15, 0.44), "botte": (-0.195, -0.10, -1, 0.15)}
 # Budget de triangles par pièce UNIQUE (les pièces paires sont doublées par miroir) : ~7 500 au total.
-BUDGET = {"casque": 1300, "cuirasse": 2900, "gantelet": 750, "jambiere": 700, "botte": 400}
+BUDGET = {"casque": 1300, "cuirasse": 2900, "gantelet": 500, "jambiere": 700, "botte": 450, "main": 100000}
 ALPHA = float(arg("alpha", "74"))     # bras abaissés de ALPHA degrés sous l'horizontale (angle des manches de la cuirasse)
 
 # ---------------------------------------------------------------- 0. pièces de face (cache)
@@ -107,24 +107,47 @@ def poser_cuirasse(o):
     P += np.array([0, float(arg("y_cuirasse", "0.005")), float(arg("z_cuirasse", "0.80"))])
     set_pts(o, P)
 
+def lisse01(x): x = np.clip(x, 0, 1); return x * x * (3 - 2 * x)
+def dseg(P, a, b):
+    ab = b - a; t = np.clip(((P - a) @ ab) / (ab @ ab), 0, 1); return np.linalg.norm(P - (a + t[:, None] * ab), axis=1)
+def pseg(P, a, b):
+    ab = b - a; t = np.clip(((P - a) @ ab) / (ab @ ab), 0, 1); return a + t[:, None] * ab
+
+def affiner_cuirasse(o):
+    """Silhouette d'un garde : torse resserré vers l'axe du corps (largeur kx, profondeur ky), épaulières rentrées (ke au-delà de
+    x0), manches resserrées autour de l'os du bras (km) ; fondu entre torse et manches (même règle que les poids)."""
+    P = pts(o)
+    kx, ky = (float(v) for v in arg("k_torse", "0.88,0.88").split(","))
+    ke, x0, km = float(arg("k_epaule", "0.8")), float(arg("x_epaule", "0.14")), float(arg("k_manche", "0.9"))
+    pel, cou = tete("pelvis"), tete("neck_01")
+    yc = np.interp(P[:, 2], [pel[2], cou[2]], [pel[1], cou[1]])
+    T = P.copy()
+    ax_ = np.abs(P[:, 0])
+    haut = lisse01((P[:, 2] - (cou[2] - 0.30)) / 0.12)             # épaulières : seulement en haut du torse
+    xe = np.where(ax_ > x0, x0 * kx + (ax_ - x0) * (kx * (1 - haut) + ke * haut), ax_ * kx)
+    T[:, 0] = np.sign(P[:, 0]) * xe
+    T[:, 1] = yc + (P[:, 1] - yc) * ky
+    d_tor = dseg(P, pel, cou)
+    for s_ in ("l", "r"):
+        segs = [(tete("upperarm_" + s_), tete("lowerarm_" + s_)), (tete("lowerarm_" + s_), tete("hand_" + s_))]
+        ds = np.stack([dseg(P, a, b) for a, b in segs]); qs = np.stack([pseg(P, a, b) for a, b in segs])
+        ib = np.argmin(ds, axis=0); d_b = ds.min(0); q = qs[ib, np.arange(len(P))]
+        cote = (P[:, 0] > 0) if s_ == "l" else (P[:, 0] < 0)
+        m = lisse01((float(arg("manche", "0.75")) * d_tor - d_b) / 0.05 + 0.5) * cote
+        A = q + (P - q) * km
+        T = T * (1 - m[:, None]) + A * m[:, None]
+    set_pts(o, T)
+    print("CUIRASSE affinée : %s -> %s" % (P.min(0).round(3), T.max(0).round(3)))
+
 def poser_gantelet(o):
     # source = main DROITE pendante (doigts vers -z, dos de la main vers -y, pouce vers +x) -> main gauche par miroir x,
     # puis doigts le long de l'avant-bras gauche (abaissé de ALPHA), dos de la main vers le haut/l'extérieur
     P = normaliser(o)
     P[:, 0] *= -1                                            # main gauche
     z1 = P[:, 2].max()
-    # doigts refermés : la source a des doigts longs recourbés en griffe -> sous les jointures (zk), raccourcis (f) et ramenés vers
-    # l'axe de la main côté paume (+y), d'où un poing ganté trapu
-    zk = float(arg("doigts_k", "0.30")) * z1
-    fz, fy = float(arg("doigts_f", "0.5")), float(arg("doigts_y", "0.55"))
-    bande = np.abs(P[:, 2] - zk) < 0.04 * z1
-    yk = P[bande, 1].mean() if bande.any() else 0.0
-    d = P[:, 2] < zk
-    t = (zk - P[d, 2]) / zk                                  # 0 aux jointures -> 1 au bout des doigts
-    P[d, 2] = zk - (zk - P[d, 2]) * fz
-    P[d, 1] = yk + (P[d, 1] - yk) * (1.0 - (1.0 - fy) * t)
     s = float(arg("s_gantelet", "2.5"))
     P *= s
+    P[:, :2] *= float(arg("k_canon", "0.86"))                   # canon moins épais (avant-bras humain), même longueur
     P[:, 2] -= z1 * s                                       # haut du canon (coude) à z 0, doigts vers -z
     # repère : doigts (-z) -> axe de l'avant-bras ; dos de la main (-y) -> haut/extérieur (perpendiculaire dans le plan frontal)
     coude, poignet = tete("lowerarm_l"), tete("hand_l")
@@ -150,9 +173,9 @@ def poser_jambiere(o):
     P = P[garde]
     # z : cheville (source 0,069) -> 0,20 (dans le revers de la botte), genou (0,142) -> 0,542, haut (0,242) -> 1,0
     ks = [float(v) for v in arg("k_jambe", "0.068,0.142,0.242").split(",")]
-    kd = [float(v) for v in arg("k_jambe_d", "0.19,0.53,1.12").split(",")]
+    kd = [float(v) for v in arg("k_jambe_d", "0.19,0.53,1.0").split(",")]
     P[:, 2] = np.interp(P[:, 2], ks, kd, left=None, right=None)
-    sx, sy = (float(v) for v in arg("s_jambe", "3.25,3.4").split(","))
+    sx, sy = (float(v) for v in arg("s_jambe", "2.9,3.0").split(","))
     P[:, 0] *= sx; P[:, 1] *= sy
     P[:, 0] += tete("thigh_l")[0] + float(arg("x_jambe", "0.0"))
     # axe de la jambière recalé sur celui de la jambe du corps (le mollet est en arrière de la cuisse) : décalage en y lissé par tranche
@@ -167,16 +190,151 @@ def poser_jambiere(o):
     set_pts(o, P)
 
 def poser_botte(o):
+    # botte AJUSTÉE au pied du corps : longueur du talon à la pointe = pied + jeu, semelle à plat au niveau de la plante du pied,
+    # talon calé sur le talon du corps (ni trop longue, ni enfoncée, ni flottante)
     P = normaliser(o)
-    s = float(arg("s_botte", "2.1"))
+    F = CORPS_P[(CORPS_P[:, 0] > 0.02) & (CORPS_P[:, 2] < 0.10)]
+    long_pied = F[:, 1].max() - F[:, 1].min()
+    s = (long_pied + float(arg("jeu_botte", "0.03"))) / (P[:, 1].max() - P[:, 1].min())
     P *= s
-    P += np.array([tete("foot_l")[0] + float(arg("x_botte", "0.016")), float(arg("y_botte", "0.025")), float(arg("z_botte", "-0.008"))])
+    P[P[:, 2] < float(arg("semelle", "0.012")), 2] = 0.0             # semelle plane
+    P += np.array([(F[:, 0].min() + F[:, 0].max()) / 2 - (P[:, 0].min() + P[:, 0].max()) / 2 + float(arg("x_botte", "0.0")),
+                   F[:, 1].max() + float(arg("talon", "0.014")) - P[:, 1].max(), F[:, 2].min() - P[:, 2].min()])
+    print("BOTTE échelle %.3f ; pied %.3f m de long, botte %s -> %s" % (s, long_pied, P.min(0).round(3), P.max(0).round(3)))
     set_pts(o, P)
 
 for nom, f in (("casque", poser_casque), ("cuirasse", poser_cuirasse), ("gantelet", poser_gantelet), ("jambiere", poser_jambiere), ("botte", poser_botte)):
     f(PIECES[nom])
+    if nom == "cuirasse":
+        affiner_cuirasse(PIECES[nom])
     P = pts(PIECES[nom])
     print("POSE %-9s %7d sommets  min %s  max %s" % (nom, len(P), P.min(0).round(3), P.max(0).round(3)))
+
+# ---------------------------------------------------------------- 2b. main de gantelet reconstruite (la main Tripo, recourbée en griffe,
+# ne se pose pas proprement) : plaque du dos de la main + 4 doigts et pouce en lames dorées articulées, mi-fermés, sur les os du corps ;
+# UV de chaque face pris sur la face la plus proche ET de même orientation du gantelet source (dos des lames dorées, paume en cuir).
+# Le gantelet source est ensuite coupé au poignet : il ne reste que son canon d'avant-bras.
+def rot(v, ang, k):
+    k = k / np.linalg.norm(k); return v * math.cos(ang) + np.cross(k, v) * math.sin(ang) + k * (k @ v) * (1 - math.cos(ang))
+def nrm(v): return v / np.linalg.norm(v)
+def construire_main(donneur):
+    me_d = donneur.data
+    uvd = me_d.uv_layers[0]
+    C = np.array([p.center[:] for p in me_d.polygons]); N = np.array([p.normal[:] for p in me_d.polygons])
+    UV = [[uvd.data[li].uv[:] for li in p.loop_indices] for p in me_d.polygons]
+    im = next(nd.image for m in me_d.materials if m for nd in m.node_tree.nodes if nd.type == "TEX_IMAGE" and "basecolor" in nd.image.name)
+    W, H = im.size; PX = np.array(im.pixels[:]).reshape(H, W, 4)
+    def clair(uvs):
+        t = np.array(uvs); xs = (t[:, 0] % 1 * (W - 1)).astype(int); ys = (t[:, 1] % 1 * (H - 1)).astype(int)
+        mid = t.mean(0); xm = int(mid[0] % 1 * (W - 1)); ym = int(mid[1] % 1 * (H - 1))
+        return (PX[ys, xs, :3].sum(1).min() + PX[ym, xm, :3].sum()) / 2
+    CLAIR = np.array([clair(u) for u in UV])
+    h0 = tete("hand_l")
+    k = np.mean([tete(f + "_01_l") for f in ("index", "middle", "ring", "pinky")], axis=0)
+    axh = nrm(k - h0)
+    cote = nrm(tete("index_01_l") - tete("pinky_01_l"))
+    dos = nrm(np.cross(cote, axh))
+    paume = -dos
+    bm = bmesh.new()
+    ROLE = {}
+    def boite(a, b, u, w, t, fin=0.92, haut=0.78, dz=0.0):
+        d = nrm(b - a); u = nrm(u - d * (d @ u)); sd = np.cross(d, u)
+        vs = []
+        for c, f in ((a, 1.0), (b, fin)):
+            c = c + u * dz
+            for x, y in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+                vs.append(bm.verts.new(c + sd * x * w / 2 * f * (haut if y > 0 else 1.0) + u * y * t / 2 * f))
+        for q, r in (((0, 1, 2, 3), "or"), ((4, 7, 6, 5), "or"), ((0, 4, 5, 1), "cuir"), ((1, 5, 6, 2), "or"), ((2, 6, 7, 3), "or"), ((3, 7, 4, 0), "or")):
+            ROLE[bm.faces.new([vs[i] for i in q])] = r
+    # dos de la main : du canon (rentré dedans) aux jointures, plus large que la main du corps
+    larg = np.linalg.norm(tete("index_01_l") - tete("pinky_01_l")) + float(arg("main_larg", "0.015"))
+    centre_k = (tete("index_01_l") + tete("pinky_01_l")) / 2
+    boite(h0 - axh * 0.02, centre_k + axh * 0.004, dos, larg * 0.9, float(arg("main_ep", "0.022")), fin=1.06, haut=0.68, dz=0.004)
+    boite(centre_k - axh * 0.018, centre_k + axh * 0.012, dos, larg * 0.98, 0.036, fin=1.0, haut=0.72, dz=0.008)   # garde des jointures
+    # doigts : 3 lames chacun, mi-fermés vers la paume
+    angles = [math.radians(float(v)) for v in arg("doigts_angles", "24,40,28").split(",")]
+    for f, w in (("index", 0.021), ("middle", 0.022), ("ring", 0.021), ("pinky", 0.018)):
+        a = tete(f + "_01_l"); d0 = nrm(queue(f + "_01_l") - a)
+        L = [np.linalg.norm(queue(f + "_0%d_l" % i) - tete(f + "_0%d_l" % i)) for i in (1, 2, 3)]
+        L[2] += 0.5 * np.linalg.norm(queue(f + "_04_leaf_l") - tete(f + "_04_leaf_l"))
+        kx = np.cross(d0, paume); cum = 0.0; p0 = a - d0 * 0.008
+        for i in range(3):
+            cum += angles[i]
+            d = rot(d0, cum, kx); u = rot(dos, cum, kx)
+            p1 = p0 + d * (L[i] + (0.008 if i == 0 else 0.0))
+            boite(p0 - d * 0.005, p1, u, w, 0.019, fin=0.6 if i == 2 else 0.92, dz=0.002)
+            p0 = p1
+    # pouce : 2 lames ; la seconde vient se poser devant la 2e phalange de l'index, côté paume (pouce refermé sur les doigts)
+    a = tete("thumb_01_l"); d0 = nrm(queue("thumb_01_l") - a)
+    L1 = np.linalg.norm(queue("thumb_01_l") - a) + np.linalg.norm(queue("thumb_02_l") - tete("thumb_02_l")) * 0.6
+    p1 = a - d0 * 0.008 + d0 * L1
+    boite(a - d0 * 0.012, p1, dos, 0.027, 0.024, fin=0.95)
+    ci = tete("index_02_l") + paume * float(arg("pouce_avant", "0.022"))
+    d2 = nrm(ci - p1); L2 = min(np.linalg.norm(ci - p1), 0.055)
+    boite(p1 - d2 * 0.006, p1 + d2 * L2, dos - d2 * (d2 @ dos), 0.024, 0.021, fin=0.62)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    # arêtes chanfreinées : lames arrondies plutôt que des briques
+    bmesh.ops.bevel(bm, geom=list(bm.edges), offset=float(arg("main_chanfrein", "0.0035")), segments=1, affect="EDGES", clamp_overlap=True)
+    bm.normal_update()
+    uvl = bm.loops.layers.uv.new(uvd.name)
+    # projection par sommet sur la surface du gantelet source (posé sur la même main) : le dos doré, les lames des doigts
+    # et le cuir de la paume gardent leur dessin ; si les coins d'une face tombent sur des îlots différents, repli sur une face entière
+    from mathutils.bvhtree import BVHTree
+    from mathutils import geometry as mgeo
+    bmd = bmesh.new(); bmd.from_mesh(me_d); bmesh.ops.triangulate(bmd, faces=bmd.faces); bmd.faces.ensure_lookup_table()
+    uvdl = bmd.loops.layers.uv[uvd.name]
+    arbre = BVHTree.FromBMesh(bmd)
+    Minv = donneur.matrix_world.inverted()
+    print("MAIN donneur matrice identité :", donneur.matrix_world == Matrix.Identity(4))
+    def uv_proj(p):
+        loc, nor, fi, dist = arbre.find_nearest(Minv @ Vector(p))
+        f = bmd.faces[fi]; v = [l.vert.co for l in f.loops]; t = [Vector((*l[uvdl].uv, 0)) for l in f.loops]
+        r = mgeo.barycentric_transform(loc, v[0], v[1], v[2], t[0], t[1], t[2])
+        return (r.x, r.y), dist
+    ecart_max = float(arg("main_ecart_uv", "0.03"))
+    n_proj = 0; DIAG = []
+    for fa in bm.faces:
+        res = [uv_proj(l.vert.co) for l in fa.loops]
+        u4 = [r[0] for r in res]; U = np.array(u4)
+        cote3d = max((fa.loops[i].vert.co - fa.loops[i - 1].vert.co).length for i in range(len(fa.loops)))
+        DIAG.append((np.ptp(U, axis=0).max(), max(r[1] for r in res), cote3d))
+        if np.ptp(U, axis=0).max() < ecart_max * max(cote3d / 0.03, 1.0) and max(r[1] for r in res) < float(arg("main_dist", "0.15")):
+            for lo, uv in zip(fa.loops, u4):
+                lo[uvl].uv = uv
+            n_proj += 1
+            continue
+        c = np.array(fa.calc_center_median()[:]); n = np.array(fa.normal[:])
+        # lames : dos doré du gantelet source (faces tournées vers le dos de la main) ; dessous : cuir de la paume
+        ok = (N @ dos) > 0.5 if ROLE.get(fa, "or") == "or" else (N @ dos) < -0.5
+        cand = np.nonzero(ok)[0] if ok.any() else np.arange(len(C))
+        proches = cand[np.argsort(np.linalg.norm(C[cand] - c, axis=1))[:int(arg("main_voisins", "300"))]]
+        # parmi les faces voisines, la plus claire pour l'or (évite les creux sombres), la plus proche pour le cuir
+        j = proches[np.argmax(CLAIR[proches])] if ROLE.get(fa, "or") == "or" else proches[0]
+        u = UV[j]; u4 = [u[0], u[1], u[2], (u[0][0] + u[2][0] - u[1][0], u[0][1] + u[2][1] - u[1][1]) if len(u) == 3 else u[3]]
+        for lo, uv in zip(fa.loops, u4):
+            lo[uvl].uv = uv
+    print("MAIN UV projetées %d / %d faces" % (n_proj, len(bm.faces))); bmd.free()
+    D = np.array(DIAG); print("MAIN DIAG ecart uv", np.percentile(D[:, 0], [10, 50, 90]).round(3), "dist", np.percentile(D[:, 1], [10, 50, 90]).round(3), "cote", np.percentile(D[:, 2], [10, 50, 90]).round(3))
+    me_m = bpy.data.meshes.new("main"); bm.to_mesh(me_m); bm.free()
+    om = bpy.data.objects.new("main", me_m); bpy.context.collection.objects.link(om)
+    for mt in me_d.materials:
+        me_m.materials.append(mt)
+    return om
+
+def couper_poignet(o):
+    coude, poignet = tete("lowerarm_l"), tete("hand_l")
+    ax = nrm(poignet - coude)
+    lim = np.linalg.norm(poignet - coude) + float(arg("canon_bout", "0.015"))
+    P = pts(o)
+    hors = (P - coude) @ ax > lim
+    bm = bmesh.new(); bm.from_mesh(o.data); bm.verts.ensure_lookup_table()
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if hors[v.index]], context="VERTS")
+    bm.to_mesh(o.data); bm.free()
+    print("GANTELET coupé au poignet : %d sommets retirés" % int(hors.sum()))
+
+PIECES["main"] = construire_main(PIECES["gantelet"])
+couper_poignet(PIECES["gantelet"])
+print("MAIN %d faces" % len(PIECES["main"].data.polygons))
 
 def miroir(o, nom):
     m = o.copy(); m.data = o.data.copy(); m.name = nom; m.data.name = nom
@@ -187,7 +345,7 @@ def miroir(o, nom):
 
 if DEBUG:
     os.makedirs(DEBUG, exist_ok=True)
-    for nom in ("gantelet", "jambiere", "botte"):
+    for nom in ("gantelet", "main", "jambiere", "botte"):
         miroir(PIECES[nom], nom + "_r")
     mat = bpy.data.materials.new("corps_gris"); mat.diffuse_color = (0.25, 0.3, 0.45, 1)
     corps.data.materials.clear(); corps.data.materials.append(mat)
@@ -219,6 +377,8 @@ for nom, o in PIECES.items():
     h = o.copy(); h.data = o.data.copy(); h.name = nom + "_hd"; bpy.context.collection.objects.link(h); HD[nom] = h
 for nom, o in PIECES.items():
     avant = len(o.data.polygons); b0 = bords(o)
+    if BUDGET[nom] >= avant:
+        continue
     md = o.modifiers.new("dec", "DECIMATE"); md.decimate_type = "COLLAPSE"; md.ratio = BUDGET[nom] / avant
     md.use_collapse_triangulate = True
     bpy.context.view_layer.objects.active = o
@@ -228,7 +388,7 @@ for nom, o in PIECES.items():
 # ---------------------------------------------------------------- 4. atlas commun 512 recuit depuis la texture 4K d'origine
 for o in bpy.data.objects:
     o.select_set(False)
-ordre = ["casque", "cuirasse", "gantelet", "jambiere", "botte"]
+ordre = ["casque", "cuirasse", "gantelet", "main", "jambiere", "botte"]
 for i, nom in enumerate(ordre):
     o = PIECES[nom]
     vg = o.vertex_groups.new(name="piece_" + nom); vg.add(list(range(len(o.data.vertices))), 1.0, "REPLACE")
@@ -275,8 +435,13 @@ for a, b in ((uvn.outputs["UV"], ti.inputs["Vector"]), (uvn.outputs["UV"], tn.in
              (nm.outputs["Normal"], dp.inputs[0]), (dp.outputs["Value"], mr.inputs[0]), (ti.outputs["Color"], gm.inputs[0]),
              (gm.outputs[0], mu.inputs[6]), (mr.outputs[0], mu.inputs[7]), (mu.outputs[2], em.inputs["Color"]), (em.outputs[0], out.inputs[0])):
     nt.links.new(a, b)
-for h in HD.values():
-    h.data.materials.clear(); h.data.materials.append(mhd)
+# main reconstruite : ses UV sont des lames recopiées (orientation quelconque) -> la carte normale y serait lue de travers
+# (lames cuites dans l'ombre) ; on l'éclaire par sa normale géométrique seule
+mhd_main = mhd.copy(); ntm = mhd_main.node_tree
+dpm = next(n for n in ntm.nodes if n.type == "VECT_MATH" and n.operation == "DOT_PRODUCT")
+ntm.links.new(next(n for n in ntm.nodes if n.type == "NEW_GEOMETRY").outputs["Normal"], dpm.inputs[0])
+for nom, h in HD.items():
+    h.data.materials.clear(); h.data.materials.append(mhd_main if nom == "main" else mhd)
 CUIT = bpy.data.images.new("armure_cuit", 1024, 1024)
 mat = bpy.data.materials.new("armure_cuisson"); mat.use_nodes = True
 nt = mat.node_tree; nt.nodes.clear()
@@ -288,9 +453,24 @@ sc.render.engine = "CYCLES"; sc.cycles.device = "CPU"; sc.cycles.samples = 1
 sc.render.bake.margin = 6; sc.render.bake.use_clear = True
 sc.render.bake.use_selected_to_active = True; sc.render.bake.cage_extrusion = 0.03; sc.render.bake.max_ray_distance = 0.08
 for o in bpy.data.objects:
-    o.select_set(o == armure or o in HD.values())
+    o.select_set(o == armure or (o in HD.values() and o != HD["main"]))
 bpy.context.view_layer.objects.active = armure
 bpy.ops.object.bake(type="EMIT")
+# main reconstruite : lames serrées qui se chevauchent -> une cage de 3 cm tombait sur les lames voisines (dessous en cuir, creux) ;
+# seconde cuisson de ses seules faces, cage de quelques mm, sans effacer le reste de l'atlas
+am = armure.copy(); am.data = armure.data.copy(); am.name = "armure_main"; bpy.context.collection.objects.link(am)
+gi = am.vertex_groups["piece_main"].index
+garde = np.array([any(g.group == gi and g.weight > 0.5 for g in v.groups) for v in am.data.vertices])
+bm = bmesh.new(); bm.from_mesh(am.data); bm.verts.ensure_lookup_table()
+bmesh.ops.delete(bm, geom=[v for v in bm.verts if not garde[v.index]], context="VERTS")
+bm.to_mesh(am.data); bm.free()
+for o in bpy.data.objects:
+    o.select_set(o == am or o == HD["main"])
+bpy.context.view_layer.objects.active = am
+sc.render.bake.use_clear = False; sc.render.bake.margin = 2
+sc.render.bake.cage_extrusion = 0.003; sc.render.bake.max_ray_distance = 0.02
+bpy.ops.object.bake(type="EMIT")
+bpy.data.objects.remove(am)
 CUIT.scale(512, 512)
 # reflets d'or relevés sur les arêtes claires (les lames restent lisibles de dos, à contre-jour) ; ombres inchangées
 px = np.array(CUIT.pixels[:]).reshape(-1, 4)
@@ -330,6 +510,8 @@ def permis(nom, os_):
         return os_ in ("pelvis", "spine_01", "spine_02", "spine_03", "neck_01", "thigh_l", "thigh_r") or os_.startswith(("clavicle", "upperarm", "lowerarm"))
     if nom == "gantelet":
         return os_.endswith("_l") and (os_.startswith(("lowerarm", "hand")) or os_.startswith(DOIGTS))
+    if nom == "main":
+        return os_ == "hand_l"
     if nom == "jambiere":
         return os_ in ("thigh_l", "calf_l", "foot_l")
     if nom == "botte":
@@ -346,8 +528,6 @@ for nom in ordre:
 masques = {nom: np.array([permis(nom, n) for n in cnoms]) for nom in ordre}
 # cuirasse : les MANCHES (sommets plus près de l'os du bras que de l'axe du torse) ne suivent que le bras (sinon elles restent au torse
 # quand le bras se rabat et découvrent l'épaule) ; le torse ne prend pas les os des bras
-def dseg(P, a, b):
-    ab = b - a; t = np.clip(((P - a) @ ab) / (ab @ ab), 0, 1); return np.linalg.norm(P - (a + t[:, None] * ab), axis=1)
 d_tor = dseg(AP, tete("pelvis"), tete("neck_01"))
 for s_ in ("l", "r"):
     d_bras = np.minimum(dseg(AP, tete("upperarm_" + s_), tete("lowerarm_" + s_)), dseg(AP, tete("lowerarm_" + s_), tete("hand_" + s_)))
@@ -375,6 +555,14 @@ for it in range(int(arg("lissage", "6"))):
     np.add.at(S, E[:, 0], AW[E[:, 1]]); np.add.at(S, E[:, 1], AW[E[:, 0]])
     np.add.at(n, E[:, 0], 1); np.add.at(n, E[:, 1], 1)
     AW = 0.5 * AW + 0.5 * S / np.maximum(n, 1)[:, None]
+# bottes : poids nets par zones (le lissage tordait la pointe et la cheville) : tige -> mollet au-dessus de la cheville, pointe -> ball
+# au-delà de la jointure des orteils, le reste -> pied ; fondus courts
+ib = np.nonzero(piece_de == "botte")[0]
+jc, jf, jb = cnoms.index("calf_l"), cnoms.index("foot_l"), cnoms.index("ball_l")
+wc = lisse01((AP[ib, 2] - float(arg("cheville_z", "0.115"))) / 0.05)
+wb = lisse01((tete("ball_l")[1] + 0.012 - AP[ib, 1]) / 0.024) * (1 - wc)
+AW[ib] = 0.0
+AW[ib, jc] = wc; AW[ib, jb] = wb; AW[ib, jf] = 1 - wc - wb
 # 4 influences au plus, normalisé
 idx = np.argsort(-AW, axis=1)[:, 4:]
 np.put_along_axis(AW, idx, 0.0, axis=1)
@@ -394,7 +582,7 @@ def nom_miroir(n):
 bm = bmesh.new(); bm.from_mesh(me)
 dl = bm.verts.layers.deform.verify()
 bm.verts.ensure_lookup_table()
-paires = {i for i in range(len(AP)) if piece_de[i] in ("gantelet", "jambiere", "botte")}
+paires = {i for i in range(len(AP)) if piece_de[i] in ("gantelet", "main", "jambiere", "botte")}
 faces = [f for f in bm.faces if all(v.index in paires for v in f.verts)]
 res = bmesh.ops.duplicate(bm, geom=faces)
 remap = {armure.vertex_groups[n].index: armure.vertex_groups[nom_miroir(n)].index for n in cnoms}
