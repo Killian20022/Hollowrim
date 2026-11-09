@@ -530,6 +530,9 @@ func _construire() -> void:
 		var s: float = pose[4]
 		var r_emprise: float = {"puits": 1.6, "etal": 1.4, "charrette": 1.2, "tas_bois": 0.9, "banc": 0.8, "sacs": 0.4}.get(mod, 0.3)
 		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])).scaled(Vector3.ONE * s), Vector3(x, _sol_bas(x, z, r_emprise), z))
+		if mod == "puits" and PuitsTripo.actif:      # ESSAI Tripo (essai/puits) : puits Tripo + conduit profond, collision et pose dans PuitsTripo
+			tris += PuitsTripo.poser(self, _corps, xf, to_global(Vector3(x, _sol(x, z), z)).y, num)
+			continue
 		var sub := substitut(mod)
 		var garde: Array = SUBST_GARDE.get(mod, [])
 		# Retours exe 5 (« des drapeaux suspendus, d'un certain angle ») : le mât d'une bannière n'est plus fondu dans le maillage de
