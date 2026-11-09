@@ -32,7 +32,7 @@ func _go() -> void:
 	cam.fov = 40.0
 	cam.near = 0.05
 	cam.far = 400.0
-	if mode == "iter" or mode == "pieces":
+	if mode == "iter":
 		var we := WorldEnvironment.new()
 		var env := Environment.new()
 		env.background_mode = Environment.BG_COLOR
@@ -75,14 +75,11 @@ func _go() -> void:
 		# espace dégagé le plus proche de la place du village (x est, z sud)
 		for i in 5:
 			await process_frame
-		var p0 := _libre(Vector3(float(args.get("cx", "44")), 0.0, float(args.get("cz", "36"))))
+		var p0 := Vector3(float(args.get("cx", "44")), 0.0, float(args.get("cz", "36")))
+		if not args.has("fixe"):
+			p0 = _libre(p0)
 		sol = Vector3(p0.x, m.hauteur(p0.x, p0.z), p0.z)
 		print("ARMURE place libre ", sol)
-	for k in args:
-		if String(k).begins_with("r_"):   # réglage à chaud : --r_casque_lacet=90 --r_casque_echelle=2.2,1.5,1.3
-			var morceaux := String(k).split("_")
-			var v := String(args[k])
-			ArmureTripo._reglages[morceaux[1]][morceaux[2]] = Vector3(float(v.get_slice(",", 0)), float(v.get_slice(",", 1)), float(v.get_slice(",", 2))) if "," in v else float(v)
 	garde = GardesVillage.creer_modele({"armure_tripo": true, "poil": 1, "peau": 2})
 	m.add_child(garde)
 	garde.global_position = sol
@@ -92,8 +89,6 @@ func _go() -> void:
 	match mode:
 		"iter":
 			await _iter()
-		"pieces":
-			await _pieces()
 		"stills":
 			await _stills()
 		"film":
@@ -127,7 +122,7 @@ func _iter() -> void:
 	var sq := garde.find_child("Skeleton3D", true, false) as Skeleton3D
 	var etat := {}
 	for c in sq.get_children():
-		if c is MeshInstance3D:
+		if c is MeshInstance3D and c.name != "Armure_armure":
 			etat[c] = (c as MeshInstance3D).visible
 			(c as MeshInstance3D).visible = false
 	for pose in ["Idle", "Walk"]:
@@ -160,29 +155,6 @@ func _iter() -> void:
 	_orbite(25.0, 3.0, 0.5, 0.4)
 	await _capt(dos + "/bas.png")
 
-func _pieces() -> void:
-	var dos := String(args.get("sortie", "/tmp/w/iter"))
-	DirAccess.make_dir_recursive_absolute(dos)
-	garde.visible = false
-	var src := (load(ArmureTripo.GLB) as PackedScene).instantiate()
-	var x := -0.5
-	var noms := ["casque", "torse", "gantelet", "jambiere", "botte"]
-	for nom in noms:
-		var mi0 := src.find_child(nom, true, false) as MeshInstance3D
-		var mi := MeshInstance3D.new()
-		mi.mesh = mi0.mesh
-		mi.material_override = ArmureTripo.materiau()
-		mi.scale = Vector3.ONE * 3.0
-		mi.position = Vector3(x, 1.0, 0)
-		root.add_child(mi)
-		x += 0.25
-	cam.fov = 20.0
-	for v in [["face", Vector3(0, 1.0, 3.5)], ["dos", Vector3(0, 1.0, -3.5)], ["gauche", Vector3(3.5, 1.0, 0)], ["haut", Vector3(0.0, 3.5, 0.3)]]:
-		_vue(v[1] + Vector3(0, 0, 0), Vector3(-0.05, 1.0, 0))
-		if v[0] == "haut":
-			cam.look_at(Vector3(-0.05, 1.0, 0), Vector3.FORWARD)
-		await _capt("%s/pieces_%s.png" % [dos, v[0]])
-
 ## Marche du garde en cercle (rayon R autour de `centre`) ; la caméra le suit à l'azimut relatif `az` (0 = devant lui, 90 = son profil, 180 = derrière).
 const R_MARCHE := 3.0
 var _t_marche := 0.0
@@ -192,11 +164,22 @@ func _pas(az_deg: float, dist: float, haut: float, vise_h: float, fov: float) ->
 	_t_marche += DT
 	var w := 1.03 / R_MARCHE
 	var th := _t_marche * w
-	var x := centre.x + sin(th) * R_MARCHE
-	var z := centre.z + (1.0 - cos(th)) * R_MARCHE
-	garde.global_position = Vector3(x, m.hauteur(x, z), z)
-	var tang := Vector3(cos(th), 0, sin(th))
-	garde.rotation.y = atan2(tang.x, tang.z)
+	if args.has("droit"):   # marche en ligne droite (cap --cap en degrés), plus lisible qu'un cercle dans une rue
+		var cap := deg_to_rad(float(args.get("cap", "0")))
+		var d := _t_marche * 1.03
+		var x0 := centre.x + sin(cap) * d
+		var z0 := centre.z + cos(cap) * d
+		garde.global_position = Vector3(x0, m.hauteur(x0, z0), z0)
+		garde.rotation.y = cap
+	elif args.has("surplace"):   # pas sur place (caméra qui tourne autour) : aucun décor ne s'interpose
+		garde.global_position = Vector3(centre.x, m.hauteur(centre.x, centre.z), centre.z)
+		garde.rotation.y = 0.0
+	else:
+		var x := centre.x + sin(th) * R_MARCHE
+		var z := centre.z + (1.0 - cos(th)) * R_MARCHE
+		garde.global_position = Vector3(x, m.hauteur(x, z), z)
+		var tang := Vector3(cos(th), 0, sin(th))
+		garde.rotation.y = atan2(tang.x, tang.z)
 	var az := garde.rotation.y + deg_to_rad(az_deg)
 	var p := garde.global_position
 	cam.fov = fov
@@ -241,7 +224,7 @@ func _stills() -> void:
 			_pas(v[1], 4.4, 2.1, 1.0, 36.0)
 			await process_frame
 		await _capt("%s/garde_marche_%s.png" % [dos, v[0]])
-	for v in [["torse", 25.0, 2.6, 1.7, 1.35, 22.0], ["tete", 20.0, 2.2, 1.8, 1.68, 18.0], ["jambes", 60.0, 3.0, 0.7, 0.45, 22.0]]:
+	for v in [["torse", 25.0, 2.6, 1.7, 1.35, 22.0], ["tete", 20.0, 2.2, 1.6, 1.5, 22.0], ["jambes", 25.0, 2.8, 0.7, 0.55, 34.0]]:
 		for i in 30:
 			_pas(v[1], v[2], v[3], v[4], v[5])
 			await process_frame
