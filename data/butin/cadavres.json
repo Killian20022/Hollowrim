@@ -14,6 +14,7 @@
 			{"table": "potions", "poids": 22},
 			{"id": "anneau_cuivre", "poids": 10},
 			{"id": "lame_antique", "poids": 6},
+			{"id": "fleche", "poids": 14, "n": [3, 8]},
 			{"table": "armes_communes", "poids": 7},
 			{"table": "armures_communes", "poids": 8}
 		]},

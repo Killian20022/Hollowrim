@@ -70,6 +70,18 @@ func equiper(main: String, id: String) -> String:
 	var eq := _eq()
 	if eq == null or id == "":
 		return _dire("Rien à équiper.", true)
+	if ArcJoueur.est_arc(id.trim_prefix("sac:")):   # arc du joueur (ArcJoueur) : se tient à deux mains, remplace l'épée
+		var arc: ArcJoueur = joueur.arc
+		if arc.actif:
+			arc.ranger()
+			_rafraichir()
+			return _dire("Arc rangé : l'épée reprend la main.", false)
+		var refus := arc.equiper()
+		if refus != "":
+			return _dire(refus, true)
+		Sons.jouer(self, ["cloth1", "cloth2"], -12.0)
+		_rafraichir()
+		return _dire("Arc de chasseur en main : clic gauche maintenu pour bander, relâcher pour tirer (%d flèches)." % arc.fleches(), false)
 	if id.begins_with("conso:"):
 		return utiliser(id.substr(6))
 	if id.begins_with("sac:"):

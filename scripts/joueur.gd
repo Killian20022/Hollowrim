@@ -117,6 +117,7 @@ var camera: Camera3D
 var mains: Node3D
 var corps: Node3D  # corps visible à la troisième personne
 var camera_tp: Node3D
+var arc: ArcJoueur
 var troisieme := false  # V : bascule première / troisième personne
 ## Matériau du sol au dernier pas / à la dernière réception (MateriauSol : neige, terre, pierre, bois, eau).
 var materiau_sol := MateriauSol.NEIGE
@@ -170,6 +171,9 @@ func _ready() -> void:
 	camera_tp.set_script(CAMERA_TP)
 	camera_tp.joueur = self
 	add_child(camera_tp)
+	arc = ArcJoueur.new()   # arc du joueur (data/arc/arc_joueur.json) : inactif tant que l'arc n'est pas équipé
+	arc.joueur = self
+	add_child(arc)
 	for a in OS.get_cmdline_user_args():
 		if a == "--vue=3":
 			basculer_vue(true)
@@ -180,8 +184,10 @@ func _ready() -> void:
 ## (hors champ) : les coups d'épée et les invites partent donc toujours des yeux du joueur.
 func basculer_vue(troisieme_personne: bool) -> void:
 	troisieme = troisieme_personne
-	mains.visible = not troisieme
+	mains.visible = not troisieme and not (arc != null and arc.actif)
 	corps.definir_vue(troisieme)
+	if arc != null:
+		arc.vue_changee()
 	if troisieme:
 		camera_tp.recaler()
 		camera_tp.camera.current = true
@@ -416,6 +422,8 @@ func _physics_process(dt: float) -> void:
 	var magie_m: Variant = mains.get("magie")
 	if magie_m != null:
 		vitesse *= magie_m.facteur_vitesse()   # sort qui se charge : on avance plus lentement (ChargeSort)
+	if arc != null:
+		vitesse *= arc.facteur_vitesse()   # arc bandé : marche ralentie (ArcJoueur)
 	if lenteur > 0.0:
 		lenteur -= dt
 		vitesse *= lenteur_facteur

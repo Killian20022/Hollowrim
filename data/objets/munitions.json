@@ -1,0 +1,7 @@
+{
+	"_doc": "Munitions de l'arc du joueur (data/arc/arc_joueur.json). Comptées dans le sac par identifiant ; une flèche qui rate se ramasse dans le monde (ArcJoueur.FlechePlantee). Nouvel objet = nouvel identifiant, jamais de renommage.",
+	"objets": {
+		"fleche": {"nom": "Flèche", "poids": 0.05, "valeur": 2, "categorie": "divers", "rarete": "commun", "munition": true,
+			"description": "Flèche d'if empennée, à pointe de fer : une par tir à l'arc."}
+	}
+}

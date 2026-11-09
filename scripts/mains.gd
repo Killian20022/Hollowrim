@@ -727,7 +727,7 @@ func _pose(nom: String, _sens := 1.0) -> Transform3D:
 # --- entrées ----------------------------------------------------------------------------
 
 func _peut_agir() -> bool:
-	return joueur != null and not joueur.mort and not joueur.en_dialogue
+	return joueur != null and not joueur.mort and not joueur.en_dialogue and not (joueur.get("arc") != null and joueur.arc.actif)   # arc équipé : plus d'épée
 
 func _unhandled_input(e: InputEvent) -> void:
 	if not _peut_agir() or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:

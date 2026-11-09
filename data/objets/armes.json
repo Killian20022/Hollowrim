@@ -1,6 +1,7 @@
 {
 	"_doc": "Armes du sac écrites à la main (les 20 armes du catalogue restent dans data/armes/catalogue_armes.json, lues par CatalogueArmes.fiche_objet). Modèle tenu : data/armes/<id>.tres. hache_kolbeinn : modèle tenu data/armes/hache_kolbeinn.tres (lot A RPG : modèle de la hache de guerre teinté de givre, gestes de hache, gel ; son ancien bonus caché ×1,25 est dans ses propres dégâts, effectif seulement quand on la TIENT). Poids allégés au lot A (ancien 9 / 7 / 9 / 9 / 7 / 10 / 9). Format commun : docs/RPG.md §2. Nouvel objet = nouvel identifiant, jamais de renommage (sinon Inventaire.ALIAS).",
 	"objets": {
+		"arc_chasseur": {"nom": "Arc de chasseur", "poids": 1.2, "valeur": 90, "rarete": "commun", "categorie": "arme", "arc": true, "description": "Arc long d'if des chasseurs du givre. Maintenir le clic gauche pour bander, relâcher pour tirer : demande des flèches."},
 		"epee_skarnholt": {"nom": "Épée de Skarnholt", "poids": 6.0, "valeur": 120, "rarete": "unique", "categorie": "arme"},
 		"hache_kolbeinn": {"nom": "Hache de Kolbeinn le Gelé", "poids": 5.0, "valeur": 200, "rarete": "unique", "categorie": "arme", "description": "Hache du Jarl Kolbeinn, prise dans la glace de son trône : mord comme une hache de guerre et gèle à chaque coup."},
 		"epee_or": {"nom": "Épée en or", "poids": 5.0, "valeur": 180, "rarete": "rare", "categorie": "arme"},
