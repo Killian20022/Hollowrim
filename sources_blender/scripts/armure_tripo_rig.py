@@ -195,37 +195,47 @@ def poser_gantelet(o):
     Rh = np.column_stack([lat_b, -dos_b, -a_b])              # x -> lat, -y (dos source) -> dos, -z (doigts) -> axe de la main
     bande = (np.abs(P0[:, 2] - zk) < 0.04 * z1) & ~pouce
     xm, ym = (P0[bande, 0].min() + P0[bande, 0].max()) / 2, (P0[bande, 1].min() + P0[bande, 1].max()) / 2
-    K_s = np.array([xm, ym, zk])
-    s_h = np.linalg.norm(K_b - W_b) / (zw - zk) * float(arg("k_main_long", "1.0"))
+    W_s = np.array([xm, ym, zw])
     w_src = np.ptp(P0[bande, 0])
     w_b = np.linalg.norm(tete("index_01_l") - tete("pinky_01_l")) + 2 * float(arg("doigt_demi", "0.011"))
-    s_lat = min(s_h, float(arg("k_main_larg", "1.12")) * w_b / w_src)
-    Ph = (P0 - K_s) * np.array([s_lat, s_h * float(arg("k_main_ep", "0.9")), s_h]) @ Rh.T + K_b
-    # doigts serrés (écart latéral réduit vers le bout)
+    long_nue = np.linalg.norm(queue("middle_03_l") - W_b)
+    cible_long = long_nue * float(arg("k_main_long", "1.10"))      # gantelet = main nue + 10 % (poignet -> bout du majeur)
+    s_lat = float(arg("k_main_larg", "1.25")) * w_b / w_src          # une main en armure est plus large qu'une main nue
     L_d = zk - P0[doigts, 2].min()
-    t_d = lisse01((zk - P0[doigts, 2]) / (0.6 * L_d))
-    u = (Ph[doigts] - K_b) @ lat_b; uc = u.mean()
-    Ph[doigts] += np.outer((uc + (u - uc) * (1 - (1 - float(arg("k_serre", "0.88"))) * t_d)) - u, lat_b)
-    # légère flexion vers la paume (la pose de l'animation ajoute la sienne par les os des doigts)
-    fl = math.radians(float(arg("flexion", "18")))
-    if fl > 0:
-        idx = np.nonzero(doigts)[0]
-        d_ = (Ph[idx] - K_b) @ a_b
-        angs = fl * np.clip(d_ / (s_h * L_d), 0, 1)          # flexion progressive, nulle aux jointures
-        Ph[idx] = np.array([K_b + rot(Ph[i] - K_b, g, lat_b) for i, g in zip(idx, angs)])
-    # pouce le long de l'index : rotation rigide autour de sa base
-    cote_pouce = np.sign((Ph[pouce].mean(0) - K_b) @ lat_b) if pouce.any() else 0
+    fl = math.radians(float(arg("flexion", "10")))
+    def placer_main(s_h):
+        # ancrée au POIGNET (la plaque de dos garde l'échelle de la manchette, pas de rétrécissement au poignet)
+        Ph = (P0 - W_s) * np.array([s_lat, s_h * float(arg("k_main_ep", "0.9")), s_h]) @ Rh.T + W_b
+        K_a = W_b + a_b * (zw - zk) * s_h                            # jointures du gantelet
+        t_d = lisse01((zk - P0[doigts, 2]) / (0.6 * L_d))
+        u = (Ph[doigts] - K_a) @ lat_b; uc = u.mean()
+        Ph[doigts] += np.outer((uc + (u - uc) * (1 - (1 - float(arg("k_serre", "0.88"))) * t_d)) - u, lat_b)
+        if fl > 0:                                                    # légère flexion vers la paume, nulle aux jointures
+            idx = np.nonzero(doigts)[0]
+            d_ = (Ph[idx] - K_a) @ a_b
+            angs = fl * np.clip(d_ / (s_h * L_d), 0, 1)
+            Ph[idx] = np.array([K_a + rot(Ph[i] - K_a, g, lat_b) for i, g in zip(idx, angs)])
+        if pouce.any():                                               # pouce le long de l'index
+            zp = P0[pouce, 2]
+            base = Ph[pouce][zp > np.percentile(zp, 85)].mean(0); bout = Ph[pouce][zp < np.percentile(zp, 10)].mean(0)
+            k_l = s_h * (zw - zk) / np.linalg.norm(K_b - W_b)
+            cible = W_b + (tete("index_02_l") - W_b) * k_l - dos_b * float(arg("pouce_paume", "0.018")) * k_l
+            v1, v2 = nrm(bout - base), nrm(cible - base)
+            k = np.cross(v1, v2)
+            if np.linalg.norm(k) > 1e-6:
+                ang = math.acos(np.clip(v1 @ v2, -1, 1)) * float(arg("pouce_k", "1.0"))
+                Ph[pouce] = np.array([base + rot(q - base, ang, k) for q in Ph[pouce]])
+        return Ph, K_a
+    s_h = np.linalg.norm(K_b - W_b) / (zw - zk)
+    for _ in range(3):                                                # longueur poignet -> bout des doigts = cible
+        Ph, K_a = placer_main(s_h)
+        long_g = ((Ph[doigts] - W_b) @ a_b).max()
+        s_h *= cible_long / long_g
+    Ph, K_a = placer_main(s_h)
+    long_g = ((Ph[doigts] - W_b) @ a_b).max()
+    cote_pouce = np.sign((Ph[pouce].mean(0) - K_a) @ lat_b) if pouce.any() else 0
     attendu = np.sign((tete("thumb_01_l") - K_b) @ lat_b)
     print("GANTELET pouce : %d sommets, côté %+d (attendu %+d)" % (pouce.sum(), cote_pouce, attendu))
-    if pouce.any():
-        zp = P0[pouce, 2]
-        base = Ph[pouce][zp > np.percentile(zp, 85)].mean(0); bout = Ph[pouce][zp < np.percentile(zp, 10)].mean(0)
-        cible = tete("index_02_l") - dos_b * float(arg("pouce_paume", "0.018"))
-        v1, v2 = nrm(bout - base), nrm(cible - base)
-        k = np.cross(v1, v2)
-        if np.linalg.norm(k) > 1e-6:
-            ang = math.acos(np.clip(v1 @ v2, -1, 1)) * float(arg("pouce_k", "1.0"))
-            Ph[pouce] = np.array([base + rot(q - base, ang, k) for q in Ph[pouce]])
     # fondu canon / main dans la manchette
     t = lisse01((P0[:, 2] - (zw - dz)) / (2 * dz))
     P = Ph * (1 - t[:, None]) + Pc * t[:, None]
@@ -234,10 +244,10 @@ def poser_gantelet(o):
         vg = o.vertex_groups.new(name=nom)
         for i in np.nonzero(w > 1e-3)[0]:
             vg.add([int(i)], float(w[i]), "REPLACE")
-    Mh = P[(1 - t) > 0.99]
-    print("GANTELET main : long %.3f (corps %.3f), larg %.3f (corps nue %.3f, x%.2f)" % (
-        np.ptp(Mh @ a_b), np.linalg.norm(queue("middle_03_l") - W_b), np.ptp(Mh[(Mh - K_b) @ a_b > -0.01] @ lat_b), w_b,
-        np.ptp(Mh[(Mh - K_b) @ a_b > -0.01] @ lat_b) / w_b))
+    larg_g = np.ptp(P[bande] @ lat_b)
+    avant_bras = np.linalg.norm(tete("hand_l") - tete("lowerarm_l"))
+    print("GANTELET main : poignet->bout %.3f m (main nue %.3f, x%.2f) ; largeur jointures %.3f (nue %.3f, x%.2f) ; main/avant-bras %.2f" % (
+        long_g, long_nue, long_g / long_nue, larg_g, w_b, larg_g / w_b, long_g / avant_bras))
 
 def poser_jambiere(o):
     P = normaliser(o)          # z 0 = bas du pied de la jambière
@@ -538,8 +548,13 @@ jeux = {"paume": ["lowerarm_l", "hand_l"],
         "doigts": ["hand_l"] + [f + "_0%d_l" % k for f in ("index", "middle", "ring", "pinky") for k in (1, 2, 3)],
         "pouce": ["hand_l", "thumb_01_l", "thumb_02_l", "thumb_03_l"]}
 Wg = np.zeros((len(ig), len(cnoms)))
+# part des phalanges : l'animation referme les doigts du corps en poing ; à part pleine, les doigts du gantelet (plus longs) se
+# replient en moignon. À 50 %, ils restent articulés par phalange mais ne se ferment qu'à moitié (doigts entiers lisibles).
+k_ph = float(arg("part_phalanges", "0.5"))
 for cle, f in (("paume", 1 - z_d - z_p), ("doigts", z_d), ("pouce", z_p)):
     w = poids_os(jeux[cle], AP[ig])
+    if cle != "paume":
+        w = w * k_ph; w[:, 0] += 1 - k_ph                     # jeux[cle][0] = hand_l
     for k, n in enumerate(jeux[cle]):
         Wg[:, cnoms.index(n)] += w[:, k] * np.clip(f, 0, 1)[:, None].ravel()
 AW[ig] = Wg / Wg.sum(1, keepdims=True)

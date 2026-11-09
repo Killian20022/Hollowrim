@@ -227,7 +227,7 @@ func _stills() -> void:
 			await process_frame
 		await _capt("%s/garde_marche_%s.png" % [dos, v[0]])
 	if args.has("compare"):   # côte à côte avec un garde du village sans l'armure (même modèle, même pose de repos)
-		var g2 := GardesVillage.creer_modele({"poil": 1, "peau": 2})
+		var g2 := GardesVillage.creer_modele({"poil": 1, "peau": 2, "bouclier": "dos", "type": "ronde"})   # bouclier au dos : main gauche libre
 		m.add_child(g2)
 		var a2: AnimationPlayer = g2.get_node("Animations")
 		anim.play("Idle")
@@ -246,6 +246,29 @@ func _stills() -> void:
 				_vue(c + Vector3(sin(az) * 5.0, 0.35, cos(az) * 5.0), c)
 				await process_frame
 			await _capt("%s/comparaison_%s.png" % [dos, v[0]])
+		# proportion des mains : même cadrage (même distance, même angle, visée sur l'os de la main) pour le garde en armure
+		# et pour le garde du village côte à côte (au repos)
+		garde.global_position = Vector3(centre.x, m.hauteur(centre.x, centre.z), centre.z)
+		var p3 := garde.global_position + Vector3(2.0, 0, 0)
+		g2.global_position = Vector3(p3.x, m.hauteur(p3.x, p3.z), p3.z)
+		g2.global_rotation = garde.global_rotation
+		for v in [["face", 0.0], ["profil", 90.0]]:
+			for qui in [["armure", garde, g2], ["normal", g2, garde]]:
+				(qui[1] as Node3D).visible = true
+				(qui[2] as Node3D).visible = false
+				for i in 20:
+					var sq := (qui[1] as Node3D).find_child("Skeleton3D", true, false) as Skeleton3D
+					var c := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("lowerarm_l")).origin
+					var c2 := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("hand_l")).origin
+					# visée sur le poignet, à 1,1 m : avant-bras et main entiers dans le cadre, même cadrage pour les deux gardes
+					var vise := c.lerp(c2, 1.0)
+					var az := deg_to_rad(v[1])
+					var dir := (qui[1] as Node3D).global_basis * Vector3(sin(az), 0.0, cos(az))
+					cam.fov = 30.0
+					_vue(vise + dir.normalized() * 1.1 + Vector3(0, 0.03, 0), vise)
+					await process_frame
+				await _capt("%s/proportion_main_%s_%s.png" % [dos, v[0], qui[0]])
+		garde.visible = true
 		g2.queue_free()
 		_marche_pose()
 	for v in [["torse", 25.0, 2.6, 1.7, 1.35, 22.0], ["tete", 20.0, 2.2, 1.6, 1.5, 22.0], ["jambes", 25.0, 2.8, 0.7, 0.55, 34.0]]:
