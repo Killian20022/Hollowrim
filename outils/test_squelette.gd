@@ -34,6 +34,7 @@ func _creer(type: String, x: float, z: float, opts := {}) -> CharacterBody3D:
 	return d
 
 func _tester() -> void:
+	var tripo: bool = "--ennemis-tripo" in OS.get_cmdline_user_args()
 	m = SCENE.instantiate()
 	m.set_meta("test", true)
 	root.add_child(m)
@@ -48,13 +49,16 @@ func _tester() -> void:
 	for d in [epee, archer]:
 		var sq: Skeleton3D = d.modele.find_child("Skeleton3D", true, false)
 		_verif(sq != null and sq.find_bone("hand_r") >= 0 and sq.find_bone("ball_l") >= 0, "%s : squelette RIG18 + feuilles du ragdoll (%d os)" % [d.type, sq.get_bone_count()])
-		_verif(sq.get_bone_count() <= 26, "%s : au plus 26 os" % d.type)
 		var tri := _triangles(d)
-		_verif(tri >= BUDGET.x and tri <= BUDGET.y, "%s : %d triangles dans le budget %d-%d" % [d.type, tri, BUDGET.x, BUDGET.y])
 		_verif(d.vie_max == ReglagesCombat.vie("squelette") and d.nom_affiche == "Squelette", "%s : %d PV (ReglagesCombat), nommé « Squelette »" % [d.type, int(d.vie_max)])
 		_verif(d.anim.has_animation("Sword_Idle") and d.anim.has_animation("Death01") and d.anim.has_animation("Sword_Attack"), "%s : animations de la bibliothèque partagée" % d.type)
-	_verif(epee.modele.find_child("epee", true, false).visible and not epee.modele.find_child("arc", true, false).visible, "épéiste : épée visible, arc caché")
-	_verif(archer.modele.find_child("arc", true, false).visible and not archer.modele.find_child("epee", true, false).visible, "archer : arc visible, épée cachée")
+		if tripo:   # modèle Tripo : rig 65 os, budget propre (testé par test_ennemis_tripo)
+			continue
+		_verif(sq.get_bone_count() <= 26, "%s : au plus 26 os" % d.type)
+		_verif(tri >= BUDGET.x and tri <= BUDGET.y, "%s : %d triangles dans le budget %d-%d" % [d.type, tri, BUDGET.x, BUDGET.y])
+	if not tripo:
+		_verif(epee.modele.find_child("epee", true, false).visible and not epee.modele.find_child("arc", true, false).visible, "épéiste : épée visible, arc caché")
+		_verif(archer.modele.find_child("arc", true, false).visible and not archer.modele.find_child("epee", true, false).visible, "archer : arc visible, épée cachée")
 	# --- coups : léger (par derrière : pas de parade), puissant (os fragiles : +30 %)
 	var derriere := epee.global_position + Vector3(0, 0, -2.0)
 	# équilibrage : un squelette pas encore alerté, frappé dans le dos, subit l'attaque furtive (× ReglagesCombat.FURTIF)

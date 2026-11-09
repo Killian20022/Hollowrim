@@ -23,11 +23,20 @@ const ECH_ARME := {"draugr": 1.15, "archer": 1.0, "squelette": 1.0, "gobelin": 0
 const PRISE := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 ## Inclinaison de la lame autour de l'axe X de la main (degrés).
 static var INCL := -35.0
+## Poing = sommets de la main entre FIST_MIN et FIST_MAX de la portée (95e centile de la distance au poignet) : la moyenne brute était tirée vers l'avant-bras.
+## Recul (m) de l'origine de l'arme derrière le centre du poing : plus grand = la poignée monte dans la main.
+const GRIP := {"draugr": 0.04, "archer": 0.04, "squelette": 0.115, "gobelin": 0.04}
+const FIST_MIN := 0.5
+const FIST_MAX := 0.9
 
 static var _shader: Shader
 static var _mats := {}
 static var _centres := {}
 static var _mx := Mutex.new()
+
+## --gobelin-tripo : un gobelin Tripo de test remplace le guetteur de l'entrée de la grotte des bandits (aucun placement dans le monde sinon).
+static func gobelin_actif() -> bool:
+	return OS.get_cmdline_user_args().has("--gobelin-tripo")
 
 static func actif() -> bool:
 	return OS.get_cmdline_user_args().has("--ennemis-tripo")
@@ -94,6 +103,7 @@ static func creer(id: String, arme := "") -> Node3D:
 		EnnemisNordiques._arc(sq)
 	elif arme != "":
 		_armer(sq, corps, id, arme)
+		(sq.get_node("Arme/Aplomb") as Node).set("ap", ap)
 	racine.set_meta("armes_nordiques", true)
 	racine.set_meta("tripo_ennemi", id)
 	if id == "draugr" or id == "archer":
@@ -115,8 +125,7 @@ static func centre_poing(sq: Skeleton3D, mi: MeshInstance3D, id: String) -> Vect
 	var b: PackedInt32Array = a[Mesh.ARRAY_BONES]
 	var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
 	var par := b.size() / maxi(v.size(), 1)
-	var somme := Vector3.ZERO
-	var n := 0
+	var pts: Array[Vector3] = []
 	for i in v.size():
 		var p := 0.0
 		for k in par:
@@ -124,11 +133,23 @@ static func centre_poing(sq: Skeleton3D, mi: MeshInstance3D, id: String) -> Vect
 			if nom == "hand_r":
 				p += w[i * par + k]
 		if p >= 0.5:
-			somme += v[i]
-			n += 1
+			pts.append(sq.get_bone_global_rest(os_main).affine_inverse() * (mi.transform * v[i]))
+	var ds: Array[float] = []
+	for q in pts:
+		ds.append(q.length())
+	ds.sort()
+	var somme := Vector3.ZERO
+	var n := 0
+	if ds.size() > 0:
+		var r := ds[int(ds.size() * 0.95)]
+		for q in pts:
+			var d := q.length()
+			if d >= FIST_MIN * r and d <= FIST_MAX * r:
+				somme += q
+				n += 1
 	var c := Vector3(-0.01, -0.08, 0.0)
 	if n > 0:
-		c = sq.get_bone_global_rest(os_main).affine_inverse() * (mi.transform * (somme / n))
+		c = somme / n
 	_mx.lock()
 	_centres[id] = c
 	_mx.unlock()
@@ -145,5 +166,23 @@ static func _armer(sq: Skeleton3D, corps: MeshInstance3D, id: String, arme: Stri
 	var bs := PRISE.basis
 	bs = Basis(Vector3.RIGHT, deg_to_rad(INCL)) * bs
 	bs = bs.scaled(Vector3.ONE * e)
+	if id == "gobelin":   # lame de dague claire : le fer sombre du jeu disparaît sur la peau verte
+		var acier := EnnemisNordiques._materiau("arme_gobelin", ["#4a4742", "#7a756d", "#a9a399", "#d2ccc0"])
+		for m: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
+			m.material_override = acier
+		if a is MeshInstance3D:
+			(a as MeshInstance3D).material_override = acier
 	var c := centre_poing(sq, corps, id)
-	a.transform = Transform3D(bs, c - bs.y.normalized() * 0.04 * e)
+	a.transform = Transform3D(bs, c - bs.y.normalized() * float(GRIP.get(id, 0.04)) * e)
+	if true:
+		var ar: Node = preload("res://scripts/arme_aplomb_tripo.gd").new()
+		ar.name = "Aplomb"
+		ar.set("sq", sq)
+		ar.set("arme", a)
+		ar.set("base", PRISE.basis)
+		ar.set("centre", c)
+		ar.set("ech", e)
+		ar.set("grip", float(GRIP.get(id, 0.04)))
+		ar.set("incl", INCL)
+		ar.set("os", sq.find_bone("hand_r"))
+		acc.add_child(ar)

@@ -77,21 +77,34 @@ func _go() -> void:
 		"gobelin":
 			type = "gobelin"
 	var lacet := c.global_rotation.y
-	var spot := pos
+	var dx := float(_arg("dx", "0"))
+	var spot := c.to_global(Vector3(dx, 0.05, -27.0))
 	var e = m.creer_draugr(type, spot, lacet, false, opts)
 	e.global_position = spot
 	e.rotation.y = lacet
-	j.global_position = c.to_global(Vector3(0.0, 0.1, -27.0 + float(_arg("dist", "4.5"))))
+	j.global_position = c.to_global(Vector3(dx + float(_arg("jx", "0")), 0.1, -27.0 + float(_arg("dist", "4.5"))))
 	await _att(0.3)
 	print("DEBUG crypte %s joueur %s ennemi %s pos %s dedans %s vis %s" % [c.global_position, j.global_position, e.global_position, pos, t.dedans, c.visible])
 	e.set_physics_process(true)
+	var cam2: Camera3D = null
+	if cible == "archer":      # caméra libre qui suit l'archer de 3/4 face, le joueur (invulnérable) est derrière elle : on voit bander l'arc et partir la flèche
+		cam2 = Camera3D.new()
+		cam2.fov = 50.0
+		root.add_child(cam2)
+		cam2.current = true
 	var viser := func() -> void:
+		if cam2 != null and e.vivant():
+			var vj: Vector3 = j.global_position - e.global_position
+			vj.y = 0.0
+			vj = vj.normalized().rotated(Vector3.UP, deg_to_rad(float(_arg("angle", "35"))))
+			cam2.global_position = e.global_position + vj * float(_arg("cam", "3.4")) + Vector3(0, 1.45, 0)
+			cam2.look_at(e.global_position + Vector3(0, 1.05, 0))
 		var v: Vector3 = e.global_position - j.global_position
 		j.rotation.y = atan2(-v.x, -v.z)
 		j.tete.rotation.x = clampf(atan2(e.global_position.y + 1.0 * e.echelle - (j.global_position.y + 1.6), maxf(Vector2(v.x, v.z).length(), 0.1)), -0.5, 0.5)
 		j.velocity = Vector3.ZERO
 		var plat := Vector2(v.x, v.z)
-		if cible == "archer" and plat.length() > 0.0 and e.vivant():      # l'archer recule pour tirer : on le garde sur place (il bande l'arc et tire)
+		if cible == "archer" and _arg("pin", "0") == "1" and plat.length() > 0.0 and e.vivant():      # l'archer recule pour tirer : on le garde sur place (il bande l'arc et tire)
 			e.global_position = Vector3(spot.x, e.global_position.y, spot.z)
 			e.velocity = Vector3.ZERO
 	e.etat = e.GARDE
