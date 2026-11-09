@@ -65,7 +65,7 @@ func _go() -> void:
 	cam.make_current()
 	for nom in _arg("clip", "Idle").split(","):
 		anim.play(nom)
-		anim.seek(0.4, true)
+		anim.seek(float(_arg("t", "0.4")), true)
 		anim.pause()
 		await _att(6)
 		var bm := sq.global_transform.basis.inverse() * sq.global_transform.basis * sq.get_bone_global_pose(sq.find_bone("hand_r")).basis

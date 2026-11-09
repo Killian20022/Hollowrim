@@ -112,7 +112,7 @@ func _jarl() -> void:
 	await _images(int(15.0 * 30), func(i: int) -> void:
 		var k := float(i) / 450.0
 		var b := c.global_transform.basis          # +Z local = devant le jarl : caméra de face puis 3/4
-		var p := c.global_position + b.z * lerpf(4.2, 2.6, k) + b.x * lerpf(1.8, -1.4, k)
+		var p := c.global_position + b.z * lerpf(0.3, 0.75, k) + b.x * lerpf(3.4, 2.6, k)
 		p.y = c.global_position.y + 1.5
 		cam.global_position = p
 		cam.look_at(c.global_position + Vector3(0, 1.15, 0), Vector3.UP))
