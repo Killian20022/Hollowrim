@@ -4,7 +4,7 @@ class_name GardeTripo
 ## sur cuisses et mollets) ; donc mêmes clips (Humain.bibliotheque()), PiedsAuSol, SuiviTete, Ragdoll… L'arme est rigide (lance et épée sur la
 ## main droite, arc et carquois sur spine_03). Lancier : le bras droit reste figé dans la pose A du modèle dans tous les clips (la hampe ne se balance pas).
 ##   GardeTripo.creer("tripo_garde_lance" | "tripo_garde_epee" | "tripo_archer") -> Node3D   (modèles : sources_blender/scripts/tripo_rig.py)
-## Utilisé par PnjNordique.creer(id), habitants de data/habitants_tripo.json (inactifs sauf argument --jarl-tripo ou --gardes-tripo).
+## Utilisé par PnjNordique.creer(id), habitants de data/habitants_tripo.json (supplémentaires seulement avec --gardes-tripo-en-plus).
 
 const MODELES := {
 	"tripo_garde_lance": preload("res://assets/pnj/tripo_garde_lance_rig.glb"),

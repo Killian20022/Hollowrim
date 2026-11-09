@@ -1,5 +1,5 @@
 {
- "note": "Essai Tripo (branche essai/tripo) : le jarl animé (scripts/jarl_tripo.gd, argument --jarl-tripo) et trois gardes animés (scripts/garde_tripo.gd, argument --gardes-tripo), des habitants de plus ; sans ces arguments le jeu est inchangé. Mêmes champs que data/habitants.json.",
+ "note": "Habitants SUPPLÉMENTAIRES Tripo, chargés seulement avec --gardes-tripo-en-plus (films). En jeu normal, les modèles Tripo sont PAR DÉFAUT : le jarl Gunnar remplace le corps du chef, les trois gardes Tripo remplacent halle_o, ronde_place et ronde_nord (voir scripts/modeles_tripo.gd, docs/MODELES_TRIPO.md). Mêmes champs que data/habitants.json.",
  "habitants": [
   {
    "id": "hab_jarl_tripo",

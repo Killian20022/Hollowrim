@@ -56,7 +56,7 @@ const ACCEL := 8.0  # m/s²
 const ROT_MAX := 6.0  # rad/s ; 10 pendant le geste d'attaque
 
 var type := "guerrier"
-var _poings := false  # squelette Tripo sans arme (--ennemis-tripo) : griffes et poings
+var _poings := false  # squelette Tripo sans arme (par défaut, ModelesTripo) : griffes et poings
 var _os := false  # type « squelette* » (renseigné dans _ready)
 var _humain := false  # bandit vivant (personnage de base) : bourse « cadavre_bandit » au lieu de « cadavre_draugr »
 ## Allures propres au type (le squelette est plus vif que le draugr, dont la marche est lente et raide).
@@ -79,6 +79,7 @@ var degats_imposes := 0.0
 var debout := false  # endormi debout (niches) plutôt qu'allongé
 var variante := ""  # squelettes : arme imposée (« epee », « arc », « hache ») ; vide = tirée de l'identifiant
 var teinte_os := ""    # squelettes : teinte imposée (« givre », « sang », « braise », « ivoire ») ; vide = tirée de l'identifiant (C10)
+var modele_ancien := false   # option : ancien corps (DraugrNordique / SqueletteGuerrier) malgré les modèles Tripo par défaut (ModelesTripo, factions)
 var ident := ""  # pour la sauvegarde (les draugrs tués restent morts)
 var hud: Control
 var quetes: Node  # posé par monde.creer_draugr (événements de réveil)
@@ -197,7 +198,7 @@ func _ready() -> void:
 	if type == "sbire" or type == "gobelin":
 		vie_max = ReglagesCombat.vie("sbire")
 		degats = ReglagesCombat.degats("sbire")
-		if type == "gobelin":      # essai Tripo (--gobelin-tripo, voir EnnemiTripo) : petit, fragile, vif
+		if type == "gobelin":      # gobelin Tripo (par défaut, voir EnnemiTripo / ModelesTripo) : petit, fragile, vif
 			vie_max *= 0.6
 			degats *= 0.8
 			_marche = 1.3
@@ -261,10 +262,12 @@ func _ready() -> void:
 	elif type == "gobelin":
 		modele = EnnemiTripo.creer("gobelin", "epee_courte")
 	elif _os:
-		modele = EnnemisNordiques.squelette({"type": type, "archer": archer, "ident": ident, "variante": variante, "teinte": teinte_os})   # copie d'un gabarit préconstruit
+		modele = EnnemisNordiques.squelette({"type": type, "archer": archer, "ident": ident, "variante": variante, "teinte": teinte_os, "modele_ancien": modele_ancien})   # copie d'un gabarit préconstruit
 	else:
 		# pnj/ennemis : archétypes nordiques + variante (EnnemisNordiques) ; --pnj-anciens = ancien corps Humain
 		var spec := {"type": type, "archer": archer, "boss": boss, "ident": ident, "apparence": app}
+		if modele_ancien:
+			spec["modele_ancien"] = true
 		if zombie:
 			spec["zombie"] = true
 		modele = EnnemisNordiques.creer(spec)
@@ -1431,7 +1434,7 @@ var _butin: Node3D      # bourse laissée sur le corps (le cadavre reste tant qu
 
 ## Ce qu'il faut pour refaire le modèle du corps (sauvegarde du butin, dépouille statique) : type, arme, teinte, boss, échelle, lacet.
 func spec_depouille() -> Dictionary:
-	return {"type": type, "archer": archer, "boss": boss, "zombie": zombie, "variante": variante, "teinte_os": teinte_os, "ident": ident,
+	return {"type": type, "archer": archer, "boss": boss, "zombie": zombie, "variante": variante, "teinte_os": teinte_os, "ident": ident, "modele_ancien": modele_ancien,
 		"echelle": echelle, "lacet": snappedf(global_rotation.y, 0.01)}
 
 ## Modèle seul d'un corps (voir spec_depouille) en pose Death01 allongée : mêmes fabriques que _ready, aucune physique ni IA.
@@ -1441,9 +1444,11 @@ static func modele_depouille(spec: Dictionary) -> Node3D:
 	var app := EnnemisNordiques.apparence_defaut(t, {})
 	var m: Node3D
 	if t.begins_with("squelette"):
-		m = EnnemisNordiques.squelette({"type": t, "archer": arch, "ident": String(spec.get("ident", "")), "variante": String(spec.get("variante", "")), "teinte": String(spec.get("teinte_os", ""))})
+		m = EnnemisNordiques.squelette({"type": t, "archer": arch, "ident": String(spec.get("ident", "")), "variante": String(spec.get("variante", "")), "teinte": String(spec.get("teinte_os", "")), "modele_ancien": bool(spec.get("modele_ancien", false))})
 	else:
 		var sp := {"type": t, "archer": arch, "boss": String(spec.get("boss", "")), "ident": String(spec.get("ident", "")), "apparence": app}
+		if bool(spec.get("modele_ancien", false)):
+			sp["modele_ancien"] = true
 		if bool(spec.get("zombie", false)):
 			sp["zombie"] = true
 		m = EnnemisNordiques.creer(sp)

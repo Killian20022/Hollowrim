@@ -1,9 +1,9 @@
 extends SceneTree
-## Gobelin Tripo EN COMBAT dans la vraie grotte des bandits (foret_test) : avec --gobelin-tripo il remplace le guetteur de l'entrée (bandit_4).
+## Gobelin Tripo EN COMBAT dans la vraie grotte des bandits (foret_test) : par défaut il remplace le guetteur de l'entrée (bandit_4).
 ## Test : il apparaît (corps Tripo, ~1,2 m), est alerté, marche, ATTAQUE et blesse le joueur, puis meurt sous un coup létal.
 ## Film : --film (joueur invulnérable, caméra sur le gobelin, HUD caché ; plans affichés « PLAN nom image », photo <sortie>/gobelin_grotte_attaque.png).
-##   godot --headless --path . --script res://outils/test_gobelin_tripo.gd -- --gobelin-tripo --ennemis-tripo --nouvelle
-##   godot --path . --write-movie f.avi --fixed-fps 30 --resolution 960x540 --script res://outils/test_gobelin_tripo.gd -- --gobelin-tripo --nouvelle --film --sortie=<dossier>
+##   godot --headless --path . --script res://outils/test_gobelin_tripo.gd -- --nouvelle
+##   godot --path . --write-movie f.avi --fixed-fps 30 --resolution 960x540 --script res://outils/test_gobelin_tripo.gd -- --nouvelle --film --sortie=<dossier>
 const SCENE := preload("res://scenes/foret_test.tscn")
 var m: Node3D
 var j: CharacterBody3D
@@ -105,7 +105,7 @@ func _go() -> void:
 	film = OS.get_cmdline_user_args().has("--film")
 	var sortie := _arg("sortie", "user://film")
 	DirAccess.make_dir_recursive_absolute(sortie)
-	ok(EnnemiTripo.gobelin_actif(), "option --gobelin-tripo reconnue")
+	ok(EnnemiTripo.gobelin_actif(), "gobelin Tripo actif par défaut (sans --modeles-anciens)")
 	if film:
 		Effets.niveau_force = 1
 		Sang.niveau_force = 2

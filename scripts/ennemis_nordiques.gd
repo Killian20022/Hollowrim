@@ -77,12 +77,14 @@ static func apparence_defaut(type: String, apparence := {}) -> Dictionary:
 static func spec_depuis_options(type: String, opts := {}) -> Dictionary:
 	var apparence: Dictionary = opts.get("apparence", {})
 	if type.begins_with("squelette"):
-		return {"type": type, "archer": bool(opts.get("archer", false)), "ident": String(opts.get("ident", "")), "variante": String(opts.get("variante", "")), "teinte": String(opts.get("teinte_os", ""))}
+		return {"type": type, "archer": bool(opts.get("archer", false)), "ident": String(opts.get("ident", "")), "variante": String(opts.get("variante", "")), "teinte": String(opts.get("teinte_os", "")), "modele_ancien": bool(opts.get("modele_ancien", false))}
 	if apparence.has("perso"):
 		return {}
 	var boss: String = opts.get("boss", "")
 	var ident: String = opts.get("ident", boss)
 	var sp := {"type": type, "archer": bool(opts.get("archer", false)), "boss": boss, "ident": ident, "apparence": apparence_defaut(type, apparence)}
+	if bool(opts.get("modele_ancien", false)):
+		sp["modele_ancien"] = true   # ancien corps malgré les modèles Tripo (ModelesTripo)
 	if bool(opts.get("zombie", false)):
 		sp["zombie"] = true   # draugr « zombie » (mains nues, clips Zombie_*) : même clé que draugr.gd._ready, la copie préparée sert
 	return sp
@@ -264,7 +266,10 @@ static func _choix(spec: Dictionary) -> Dictionary:
 	# C10 : lueur des orbites Givre / Sang / Braise (tirage ajouté après les autres : armes, casques, états inchangés)
 	var r_l := rng.randf()
 	var lueur := "givre" if r_l < 0.5 else ("sang" if r_l < 0.75 else "braise")
-	return {"t": "draugr", "etat": etat, "arme": arme_d, "bouclier": bouclier_d, "sans_casque": sans_casque, "lueur": lueur}
+	var d := {"t": "draugr", "etat": etat, "arme": arme_d, "bouclier": bouclier_d, "sans_casque": sans_casque, "lueur": lueur}
+	if ModelesTripo.ancien_impose(spec):
+		d["ancien"] = true      # « "modele": "ancien" » : ancien corps DraugrNordique malgré les modèles Tripo (factions, docs/MODELES_TRIPO.md)
+	return d
 
 ## Corps (clé, fabrique) d'une variante.
 static func _def_corps(ch: Dictionary) -> Array:
@@ -281,7 +286,9 @@ static func _def_corps(ch: Dictionary) -> Array:
 			var c: bool = ch["casque"]
 			var bo: String = ch["bouclier"]
 			return ["bandit_%s_%s" % [c, bo], func() -> Node3D: return GuerrierNordique.creer({"casque": c, "bouclier": bo, "epee": false})]
-	if EnnemiTripo.actif():      # essai Tripo (--ennemis-tripo) : corps générés (arme du jeu incluse), à la place du corps DraugrNordique
+	# Modèles Tripo par défaut (ModelesTripo) : corps générés (arme du jeu incluse) à la place du corps DraugrNordique ; le zombie (mains nues,
+	# clips Zombie_*) et les draugrs « "modele": "ancien" » gardent l'ancien corps ; tous : --modeles-anciens[=ennemis].
+	if EnnemiTripo.actif() and not bool(ch.get("ancien", false)) and String(ch["arme"]) != "mains":
 		var arme_t: String = ch["arme"]
 		var id_t := "archer" if arme_t == "arc" else "draugr"
 		return ["tripo_%s_%s" % [id_t, arme_t], func() -> Node3D: return EnnemiTripo.creer(id_t, arme_t)]
@@ -348,7 +355,7 @@ static func _sq(n: Node3D) -> Skeleton3D:
 ## les archers, sinon tirée de l'identifiant (graine fixe : même squelette à chaque partie) — 1 sur 3 en sbire à la hache, crâne nu.
 ## Indépendant de --pnj-anciens (les squelettes n'ont pas d'ancien corps).
 static func squelette(spec := {}) -> Node3D:
-	if EnnemiTripo.actif():      # essai Tripo (--ennemis-tripo) : squelette guerrier généré, arme du jeu (épée / hache / arc)
+	if EnnemiTripo.actif() and not ModelesTripo.ancien_impose(spec):      # Tripo par défaut : squelette généré (mains nues, ou arc) ; ancien SqueletteGuerrier : --modeles-anciens[=ennemis] ou « modele: ancien »
 		var arme_t := arme_squelette(spec)
 		var poings := arme_t != "arc"       # le modèle Tripo ne tient aucune arme (mains osseuses ouvertes) : le guerrier combat à mains nues, seul l'archer garde l'arc
 		var t := EnnemiTripo.creer("squelette", "arc" if not poings else "")

@@ -445,7 +445,7 @@ func _creer_ennemi(a: Dictionary) -> void:
 			pts.append(g.to_global(p) + Vector3(0, 0.05, 0))
 		opts["patrouille"] = pts
 	var type_e: String = String(e.get("type", "sbire")) if boss == "" else "sbire"
-	if id == "bandit_4" and EnnemiTripo.gobelin_actif():   # point d'apparition de test du gobelin Tripo (--gobelin-tripo)
+	if id == "bandit_4" and EnnemiTripo.gobelin_actif() and not ModelesTripo.ancien_impose(e):   # gobelin Tripo par défaut au guetteur de l'entrée ; bandit : --modeles-anciens=gobelin
 		type_e = "gobelin"
 		opts["nom_affiche"] = "Gobelin"
 		opts.erase("vie_imposee")

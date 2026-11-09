@@ -92,7 +92,7 @@ func _lancer() -> void:
 			ap.seek(0.3, true)
 			var main := EnnemisNordiques.main_de_tir(n)
 			ok(main != Vector3.INF and main.y > 0.8 and main.y < 2.0, "%s : la flèche part de la main (hand_l à y=%.2f)" % [c[0], main.y])
-	var tripo_actif: bool = "--ennemis-tripo" in OS.get_cmdline_user_args()   # Tripo : le guerrier a un modèle unique, une variante de moins
+	var tripo_actif: bool = EnnemiTripo.actif()   # Tripo : le guerrier a un modèle unique, une variante de moins
 	ok(variantes.size() >= (9 if tripo_actif else 10), "variantes distinctes : %d" % variantes.size())
 	ok(not EnnemisNordiques.anciens(), "--pnj-anciens absent : nouveaux corps")
 	print("TEST ENNEMIS NORDIQUES : %s (%d échecs)" % ["OK" if echecs == 0 else "ÉCHEC", echecs])

@@ -77,6 +77,8 @@ TESTS=(
 	"test_draugr|--nouvelle"
 	"test_draugr_zombie|--nouvelle"   # draugr « zombie » (clips Mixamo Zombie_*) : clips continus, réveil allongé -> debout, démarche, mains nues, réaction ; draugr ordinaire inchangé
 	"test_ennemis_nordiques|--nouvelle"
+	"test_ennemis_tripo|--nouvelle"   # ennemis Tripo par défaut (draugr, archer, squelette mains nues, gobelin) + anciens corps sur demande (ModelesTripo)
+	"test_gobelin_tripo|--nouvelle"   # gobelin Tripo en combat au guetteur de la grotte des bandits
 	"test_betes_quat|--nouvelle --test"   # bêtes Quaternius (loup, cerf, araignée…)
 	"test_faune|--nouvelle --test"   # faune vivante : biomes, heures, plafonds, repeuplement, domestiques du soir, husky suiveur
 	"test_degats|--nouvelle --test"   # dégâts, posture, finishers, décapitation, plafonds du sang (combat/degats_gore)

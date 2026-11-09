@@ -3,7 +3,8 @@ class_name EnnemiTripo
 ## nordiques (65 os de homme_vetu.glb) donc mêmes clips (Humain.bibliotheque()), PiedsAuSol, Ragdoll… Modèles : sources_blender/scripts/tripo_ennemi_prep.py
 ## (allègement, texture 512) puis tripo_ennemi_rig.py (rig). Les armes Tripo sont RETIRÉES du modèle : on pose celles du jeu (épée, hache, masse, épée courte,
 ## arc) sur hand_r / hand_l. Yeux bleus : texels bleu franc de la texture rendus lumineux par le shader (voir SHADER_CODE).
-## Actif avec l'argument utilisateur `--ennemis-tripo` ; sans lui le jeu est inchangé.
+## Actif PAR DÉFAUT (ModelesTripo, groupe « ennemis ») ; anciens corps DraugrNordique / SqueletteGuerrier : `--modeles-anciens[=ennemis]`
+## ou « "modele": "ancien" » dans les options d'un ennemi.
 ##   EnnemiTripo.creer("draugr" | "archer" | "squelette" | "gobelin", arme) -> Node3D (contrat de Humain.creer : Skeleton3D + AnimationPlayer « Animations »)
 ## Le gobelin est bâti à taille humaine (rig) puis réduit : méta « echelle_tripo » (0,667 -> ~1,2 m), appliquée par draugr.gd.
 
@@ -34,12 +35,13 @@ static var _mats := {}
 static var _centres := {}
 static var _mx := Mutex.new()
 
-## --gobelin-tripo : un gobelin Tripo de test remplace le guetteur de l'entrée de la grotte des bandits (aucun placement dans le monde sinon).
+## Par défaut, le gobelin Tripo remplace le guetteur de l'entrée de la grotte des bandits (bandit_4) ; le bandit d'origine revient avec
+## `--modeles-anciens[=gobelin]`. Aucun autre placement dans le monde.
 static func gobelin_actif() -> bool:
-	return OS.get_cmdline_user_args().has("--gobelin-tripo")
+	return ModelesTripo.actif("gobelin")
 
 static func actif() -> bool:
-	return OS.get_cmdline_user_args().has("--ennemis-tripo")
+	return ModelesTripo.actif("ennemis")
 
 static func _le_shader() -> Shader:
 	if _shader == null:

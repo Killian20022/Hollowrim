@@ -34,7 +34,7 @@ func _creer(type: String, x: float, z: float, opts := {}) -> CharacterBody3D:
 	return d
 
 func _tester() -> void:
-	var tripo: bool = "--ennemis-tripo" in OS.get_cmdline_user_args()
+	var tripo: bool = EnnemiTripo.actif()   # Tripo par défaut ; --modeles-anciens : SqueletteGuerrier
 	m = SCENE.instantiate()
 	m.set_meta("test", true)
 	root.add_child(m)

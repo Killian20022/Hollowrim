@@ -4,7 +4,7 @@ class_name JarlTripo
 ## Sitting_Idle…), PiedsAuSol, SuiviTete, Ragdoll… marchent tels quels. La cape est animée par un SpringBoneSimulator3D (3 chaînes) avec des
 ## capsules de collision sur cuisses, mollets et bassin. Contrat de Humain.creer : racine -> Skeleton3D + AnimationPlayer « Animations ».
 ##   JarlTripo.creer() -> Node3D      (modèle : sources_blender/scripts/tripo_jarl_rig.py -> assets/pnj/tripo_jarl_rig.glb)
-## Utilisé par PnjNordique.creer("jarl_tripo") (habitant « hab_jarl_tripo » de data/habitants.json, inactif sauf argument --jarl-tripo).
+## Utilisé par PnjNordique.creer("jarl_tripo") et par villageois.gd : corps du chef (Gunnar) PAR DÉFAUT ; ancien corps : --modeles-anciens=jarl (ModelesTripo).
 
 const GLB := preload("res://assets/pnj/tripo_jarl_rig.glb")
 const CHAINES := ["cape_l", "cape_c", "cape_r"]

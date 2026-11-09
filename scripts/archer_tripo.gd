@@ -1,6 +1,6 @@
 class_name ArcherTripo
 extends Node
-## Comportement d'archer d'ESSAI pour l'archer Tripo (scripts/garde_tripo.gd, argument --gardes-tripo) : se tourne vers une cible, bande l'arc
+## Comportement d'archer d'ESSAI pour l'archer Tripo (scripts/garde_tripo.gd, actif par défaut, voir ModelesTripo) : se tourne vers une cible, bande l'arc
 ## (clip Pistol_Aim_Neutral : PoseArcher de la chasseresse tire la corde vers la main droite, flèche encochée), lâche (Pistol_Shoot : l'arc
 ## relâché prend le relais) et lance une VRAIE flèche (Projectile.tirer, comme les archers bandits de draugr.gd) qui vole, chute et se plante.
 ## Nœud enfant du villageois ; pendant la rafale l'IA du villageois est suspendue. N'est installé que par les outils d'essai (outils/film_tripo_gardes_v2.gd).

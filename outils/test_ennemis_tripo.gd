@@ -1,7 +1,8 @@
 extends SceneTree
 ## Test sans fenêtre des ennemis Tripo (scripts/ennemi_tripo.gd) : chaque corps est créé, 65 os, clips de l'IA, budget de triangles, arme en main
-## (BoneAttachment hand_r), matériau PS1, échelle ; le gobelin fait ~1,2 m ; EnnemisNordiques et squelette() les renvoient avec --ennemis-tripo.
-##   godot --headless --path . --script res://outils/test_ennemis_tripo.gd -- --ennemis-tripo --nouvelle
+## (BoneAttachment hand_r), matériau PS1, échelle ; le gobelin fait ~1,2 m ; EnnemisNordiques et squelette() les renvoient PAR DÉFAUT ;
+## anciens corps : option modele_ancien, zombie, --modeles-anciens[=groupes] (ModelesTripo).
+##   godot --headless --path . --script res://outils/test_ennemis_tripo.gd -- --nouvelle
 const ANIMS := ["Idle", "Sword_Idle", "Walk", "Jog_Fwd", "Sword_Attack", "Punch_Cross", "Hit_Chest", "Hit_Head", "Death01", "Pistol_Aim_Neutral", "Pistol_Shoot"]
 var echecs := 0
 
@@ -29,7 +30,7 @@ func _hauteur(n: Node3D, sq: Skeleton3D) -> float:
 	return h * n.scale.y
 
 func _lancer() -> void:
-	ok(EnnemiTripo.actif(), "option --ennemis-tripo reconnue")
+	ok(EnnemiTripo.actif(), "modèles Tripo des ennemis actifs par défaut (sans --modeles-anciens)")
 	var cas := [["draugr", "epee"], ["draugr", "hache"], ["archer", "arc"], ["squelette", "epee"], ["squelette", "hache"], ["gobelin", "epee_courte"]]
 	for c: Array in cas:
 		var n := EnnemiTripo.creer(c[0], c[1])
@@ -63,5 +64,28 @@ func _lancer() -> void:
 	var sqn := EnnemisNordiques.squelette({"type": "squelette", "ident": "sq1"})
 	ok(sqn.has_meta("tripo_ennemi"), "EnnemisNordiques.squelette -> corps Tripo (%s)" % sqn.get_meta("variante", ""))
 	sqn.free()
+	# anciens corps toujours chargeables (factions) : option « modele_ancien », zombie, et --modeles-anciens[=groupes] (ModelesTripo)
+	var app_d := {"corps": "homme", "draugr": true, "tenue": {}}
+	var anc := EnnemisNordiques.creer({"type": "guerrier", "ident": "g_anc", "apparence": app_d, "modele_ancien": true})
+	ok(anc != null and not anc.has_meta("tripo_ennemi") and anc.has_meta("draugr_nordique"), "modele_ancien : ancien corps DraugrNordique (%s)" % (anc.get_meta("variante", "") if anc else "null"))
+	if anc:
+		anc.free()
+	var zb := EnnemisNordiques.creer({"type": "sbire", "ident": "z0", "apparence": app_d, "zombie": true})
+	ok(zb != null and not zb.has_meta("tripo_ennemi"), "draugr zombie : garde l'ancien corps (mains nues)")
+	if zb:
+		zb.free()
+	var sqa := EnnemisNordiques.squelette({"type": "squelette", "ident": "sq_anc", "modele_ancien": true})
+	ok(not sqa.has_meta("tripo_ennemi"), "modele_ancien : ancien SqueletteGuerrier")
+	sqa.free()
+	ModelesTripo.relire(["--modeles-anciens=ennemis,gobelin"])
+	ok(not EnnemiTripo.actif() and not EnnemiTripo.gobelin_actif() and ModelesTripo.actif("gardes") and ModelesTripo.actif("jarl"), "--modeles-anciens=ennemis,gobelin : seulement ces groupes")
+	var anc2 := EnnemisNordiques.creer({"type": "guerrier", "ident": "g_anc2", "apparence": app_d})
+	ok(anc2 != null and not anc2.has_meta("tripo_ennemi"), "--modeles-anciens=ennemis : ancien corps sans option")
+	if anc2:
+		anc2.free()
+	ModelesTripo.relire(["--modeles-anciens"])
+	ok(not ModelesTripo.actif("gardes") and not ModelesTripo.actif("jarl") and not EnnemiTripo.actif(), "--modeles-anciens : tous les groupes")
+	ModelesTripo.relire()
+	ok(EnnemiTripo.actif() and ModelesTripo.actif("gardes"), "arguments réels relus : Tripo par défaut")
 	print("RESULTAT : %d échec(s)" % echecs)
 	quit(1 if echecs > 0 else 0)
