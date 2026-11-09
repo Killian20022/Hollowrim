@@ -146,6 +146,35 @@ func _seau(dos: String) -> void:
 		cam.fov = 55.0
 		_vue(c + Vector3(0.45, 1.5, 0.6), c + Vector3(0, -0.6, 0))
 		await _capt(dos + "/seau_corde%s.png" % suf)
+	# v5 : angle de la capture utilisateur (plongée depuis la margelle, corde au centre) + gros plan du conduit
+	cam.fov = 40.0
+	_vue(c + Vector3(0.0, 1.55, 1.15), c + Vector3(0, 0.1, 0.0))
+	await _capt(dos + "/plongee_utilisateur.png")
+	if args.has("sansmodele"):
+		var pt := m.find_child("PuitsTripo", true, false)
+		for mi: MeshInstance3D in pt.find_child("Margelle", true, false).find_children("*", "MeshInstance3D", true, false):
+			var a := mi.mesh.surface_get_arrays(0)
+			var vv: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var lo := Vector3(1e9, 1e9, 1e9)
+			var hi := Vector3(-1e9, -1e9, -1e9)
+			var nn := 0
+			for v in vv:
+				if Vector2(v.x, v.z).length() < 0.45 and v.y < 1.45:
+					lo = lo.min(v)
+					hi = hi.max(v)
+					nn += 1
+			print("AXE ", mi.name, " surf=", mi.mesh.get_surface_count(), " verts=", vv.size(), " axe=", nn, " ", lo, hi)
+		for ch in pt.get_children():
+			print("ENFANT ", ch.name, " ", ch.get_class())
+			if ch.name != "Margelle":
+				ch.visible = false
+		await _capt(dos + "/diag_sans_conduit.png")
+		return
+	cam.fov = 60.0
+	_vue(c + Vector3(0.0, 1.5, 0.9), c + Vector3(0, -1.2, 0.0))
+	await _capt(dos + "/conduit_gros.png")
+	_vue(c + Vector3(0.7, 1.4, -0.5), c + Vector3(-0.2, -1.5, 0.2))
+	await _capt(dos + "/conduit_gros_b.png")
 	cam.fov = 55.0
 	_vue(c + Vector3(6.5, 2.6, 7.0), c + Vector3(0.3, 1.2, 0.2))
 	await _capt(dos + "/village.png")

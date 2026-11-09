@@ -135,6 +135,11 @@ print('SEAU tris',sum(len(f.verts)-2 for f in bm2.faces))
 # fusion des faces triangles
 bmesh.ops.triangulate(bm2,faces=bm2.faces[:])
 bm2.to_mesh(mseau); bm2.free()
+# restes de l'ancien seau/corde etires (lamelles du haut du conduit jusqu'a z=-3,6) : ils formaient la 'dalle grise' dans le conduit
+rest=[f for f in bm.faces if all(math.hypot(v.co.x,v.co.y)<0.45 for v in f.verts) and min(v.co.z for v in f.verts)<1.2]
+print('RESTES supprimes',len(rest))
+bmesh.ops.delete(bm,geom=rest,context='FACES')
+bmesh.ops.delete(bm,geom=[v for v in bm.verts if not v.link_faces],context='VERTS')
 bm.to_mesh(lo.data); bm.free(); lo.data.update()
 oseau=bpy.data.objects.new('seau',mseau); bpy.context.scene.collection.objects.link(oseau)
 mat2=bpy.data.materials.new('ps1_puits'); mat2.use_nodes=True
