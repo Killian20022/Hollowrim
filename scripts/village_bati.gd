@@ -222,6 +222,8 @@ static func tas_de_bois(v, p: Node3D, c: Vector3, lacet: float, longueur := 2.0)
 ## grenier | grange), pente (°), porte (+Z | -Z | +X | -X), fenetres [[côté, abscisse]], dragons, cheminee (x local),
 ## fumee, torche, porche, appentis, enseigne, bois. Collision : une boîte (corps du bâtiment).
 static func maison(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary) -> Node3D:
+	if MaisonTripo.actif and o.get("id", "") == "h2":
+		return _maison_tripo(v, g, x, z, lacet, o)
 	var modele_q := VillageBatiQ.modele_de(x, z)      # bâti hybride (défaut ; `--bati-ancien` : inchangé) : corps de la maison en pièces Quaternius
 	if modele_q != "":
 		return VillageBatiQ.maison(v, g, x, z, lacet, o, modele_q)
@@ -851,3 +853,41 @@ static func moulin_vent(v, g: Node3D, x: float, z: float) -> void:
 		"porte": {"cote": "-X", "c": Vector3(-rp - 0.02 - 0.04, 0.62, 0), "n": Vector3.LEFT, "larg": 1.0, "haut": 1.9, "q": modele_porte(9301)},
 		"fenetres": [[Vector3(-2.42, 3.4, 0.0), Vector2(0.4, 0.5), false]]})
 	v._emprise(p, Vector2(3.4, 3.4), Vector2.ZERO, ip)
+
+
+## ESSAI Tripo : l'auberge h2 garde son emprise, sa porte, sa coque de collisions et son intérieur à la demande ; l'extérieur est le cottage Tripo.
+static func _maison_tripo(v, g: Node3D, x: float, z: float, lacet: float, o: Dictionary) -> Node3D:
+	var L: float = o.get("L", 6.0)
+	var W: float = o.get("W", 4.5)
+	var h: float = o.get("h", 2.0)
+	var style := "colombage"
+	var graine := int(absf(x) * 13.0 + absf(z) * 7.0) + 5
+	var bas := Basis(Vector3.UP, lacet)
+	var hmin := INF
+	var hmax := -INF
+	for sx in [-1.0, 0.0, 1.0]:
+		for sz in [-1.0, 0.0, 1.0]:
+			var c := Vector3(x, 0, z) + bas * Vector3(sx * (L * 0.5 + 0.3), 0, sz * (W * 0.5 + 0.3))
+			var hc: float = v.h_sol(c.x, c.z)
+			hmin = minf(hmin, hc)
+			hmax = maxf(hmax, hc)
+	var y: float = v.h_sol(x, z) if hmax - hmin < 0.3 else (hmin + hmax) * 0.5 + 0.1
+	y = maxf(y, hmax + 0.05 - 0.4)
+	var p: Node3D = v.pivot_monde(x, z, lacet, y, g)
+	p.name = "Bati_tripo_%d_%d" % [roundi(x), roundi(z)]
+	var socle := hmin - y
+	var y_sol := 0.4
+	var Wt := W + 0.9
+	var y0 := y_sol + h + 1.9
+	var pente: float = o.get("pente", PENTE)
+	var faite := (Wt * 0.5 + 0.78) * tan(deg_to_rad(pente)) - RELEVE
+	var e_mur := 0.25
+	var fen: Array = v._fenetres_de(L)
+	var nporte := _normale("+Z")
+	var cporte := Vector3(nporte.x * (L * 0.5 + e_mur), y_sol, nporte.z * (W * 0.5 + e_mur))
+	MaisonTripo.exterieur(p, L, W, minf(socle, 0.0) - 0.05)
+	var bas_c := minf(socle, 0.0) - 0.3
+	var haut_c := y0 + faite * 0.6
+	var ip := BatimentsOuverts.ouvrir(v, p, _spec_ouvert(o, style, L, W, Wt, y_sol, y0, faite, cporte, nporte, "+Z", graine, fen, bas_c, haut_c, v))
+	v._emprise(p, Vector2(L * 0.5 + 0.5, Wt * 0.5 + 0.5), Vector2.ZERO, ip)
+	return p

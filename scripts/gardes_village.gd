@@ -127,6 +127,8 @@ static func _place_vigie(village: Node3D, g: Dictionary) -> Vector3:
 ## Modèle d'un garde : le Gardien nordique ENTIER (bouclier au bras aux postes, dans le dos en ronde) + variante légère.
 ## g : "poil" (index de POILS), "peau" (index de PEAUX), "rase" (sans barbe), "taille", "largeur".
 static func creer_modele(g: Dictionary) -> Node3D:
+	if g.get("armure_tripo", false):
+		return creer_modele_dore(g)
 	var bouclier: String = g.get("bouclier", "dos" if g.get("type", "poste") == "ronde" else "bras")
 	# un Gardien construit par variante de bouclier (≈ 0,4 s chacun), puis copié (maillages, peaux et matières partagés)
 	if not _bases.has(bouclier) or not is_instance_valid(_bases[bouclier]):
@@ -153,6 +155,23 @@ static func creer_modele(g: Dictionary) -> Node3D:
 			if m is ShaderMaterial:
 				var te: Variant = (m as ShaderMaterial).get_shader_parameter("teinte")
 				peau.set_surface_override_material(s, _mat_teinte(m, "peau_%d_%d" % [ik, s], (te if te is Color else Color.WHITE) * PEAUX[ik]))
+	var h := clampf(float(g.get("taille", 1.0)), 0.9, 1.1)
+	var l := clampf(float(g.get("largeur", 1.0)), 0.92, 1.08)
+	n.scale = Vector3(h * l, h, h * l)
+	return n
+
+## ESSAI Tripo : garde en ARMURE DORÉE Tripo (scripts/armure_tripo.gd). Corps humain (Humain.creer) en sous-vêtement sombre ajusté (ni tunique ni pantalon : les vêtements épais avalaient plastron et jambières), les cinq
+## pièces de l'armure accrochées aux os ; mêmes variantes de barbe, de peau et de carrure que les autres gardes.
+static func creer_modele_dore(g: Dictionary) -> Node3D:
+	var ip := clampi(int(g.get("poil", 0)), 0, POILS.size() - 1)
+	var ik := clampi(int(g.get("peau", 0)), 0, PEAUX.size() - 1)
+	var n := Humain.creer({"corps": "homme", "barbe": not g.get("rase", false), "cheveux": "Hair_Long", "teinte_cheveux": POILS[ip] * Color(1.1, 1.1, 1.05),
+		"peau": Color(0.95, 0.80, 0.68) * PEAUX[ik], "tenue": {}})
+	n.name = "GardeDore"
+	var cheveux := n.find_child("Hair_Long", true, false) as MeshInstance3D
+	if cheveux != null:
+		cheveux.visible = false   # sous le heaume
+	ArmureTripo.equiper(n, false)
 	var h := clampf(float(g.get("taille", 1.0)), 0.9, 1.1)
 	var l := clampf(float(g.get("largeur", 1.0)), 0.92, 1.08)
 	n.scale = Vector3(h * l, h, h * l)

@@ -252,6 +252,12 @@ static func _plan(s: Dictionary, ip: Interieur, ax: float, az: float, y_mur: flo
 
 static func amenager(b: Interieurs, pl: Dictionary) -> void:
 	var murs := Murs.new(pl)
+	if MaisonTripo.actif and String(pl["id"]) == "h2":
+		_doublure(b, pl)
+		_plafond(b, pl)
+		MaisonTripo.interieur(b, pl)       # ESSAI Tripo : taverne Tripo (plancher, comptoir, tables, mezzanine) à la place du plancher et du mobilier
+		_lits(b, pl, murs, ["-X", "+X"])
+		return
 	_doublure(b, pl)
 	_sol(b, pl)
 	_plafond(b, pl)
