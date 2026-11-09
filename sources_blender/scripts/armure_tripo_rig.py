@@ -113,6 +113,16 @@ def poser_gantelet(o):
     P = normaliser(o)
     P[:, 0] *= -1                                            # main gauche
     z1 = P[:, 2].max()
+    # doigts refermés : la source a des doigts longs recourbés en griffe -> sous les jointures (zk), raccourcis (f) et ramenés vers
+    # l'axe de la main côté paume (+y), d'où un poing ganté trapu
+    zk = float(arg("doigts_k", "0.30")) * z1
+    fz, fy = float(arg("doigts_f", "0.5")), float(arg("doigts_y", "0.55"))
+    bande = np.abs(P[:, 2] - zk) < 0.04 * z1
+    yk = P[bande, 1].mean() if bande.any() else 0.0
+    d = P[:, 2] < zk
+    t = (zk - P[d, 2]) / zk                                  # 0 aux jointures -> 1 au bout des doigts
+    P[d, 2] = zk - (zk - P[d, 2]) * fz
+    P[d, 1] = yk + (P[d, 1] - yk) * (1.0 - (1.0 - fy) * t)
     s = float(arg("s_gantelet", "2.5"))
     P *= s
     P[:, 2] -= z1 * s                                       # haut du canon (coude) à z 0, doigts vers -z
@@ -249,7 +259,13 @@ uvn = nt.nodes.new("ShaderNodeUVMap"); uvn.uv_map = uv_src
 ti = nt.nodes.new("ShaderNodeTexImage"); ti.image = img_src
 tn = nt.nodes.new("ShaderNodeTexImage"); tn.image = img_nor
 nm = nt.nodes.new("ShaderNodeNormalMap"); nm.uv_map = uv_src
-dp = nt.nodes.new("ShaderNodeVectorMath"); dp.operation = "DOT_PRODUCT"; dp.inputs[1].default_value = Vector((0.35, -0.55, 0.76)).normalized()
+# lumière = normale GÉOMÉTRIQUE relevée vers le haut (et non une direction fixe de face, qui cuisait le dos dans l'ombre) :
+# le relief de la carte normale ressort pareil de face, de dos et de profil, plus clair sur le dessus des lames
+geo = nt.nodes.new("ShaderNodeNewGeometry")
+lv = nt.nodes.new("ShaderNodeVectorMath"); lv.operation = "ADD"; lv.inputs[1].default_value = (0, 0, float(arg("haut", "0.8")))
+ln = nt.nodes.new("ShaderNodeVectorMath"); ln.operation = "NORMALIZE"
+nt.links.new(geo.outputs["Normal"], lv.inputs[0]); nt.links.new(lv.outputs[0], ln.inputs[0])
+dp = nt.nodes.new("ShaderNodeVectorMath"); dp.operation = "DOT_PRODUCT"; nt.links.new(ln.outputs[0], dp.inputs[1])
 mr = nt.nodes.new("ShaderNodeMapRange"); mr.inputs[1].default_value = -0.3; mr.inputs[2].default_value = 1.0
 mr.inputs[3].default_value = float(arg("ombre", "0.4")); mr.inputs[4].default_value = float(arg("lumiere", "1.4"))
 gm = nt.nodes.new("ShaderNodeGamma"); gm.inputs[1].default_value = float(arg("gamma", "1.1"))
@@ -276,6 +292,12 @@ for o in bpy.data.objects:
 bpy.context.view_layer.objects.active = armure
 bpy.ops.object.bake(type="EMIT")
 CUIT.scale(512, 512)
+# reflets d'or relevés sur les arêtes claires (les lames restent lisibles de dos, à contre-jour) ; ombres inchangées
+px = np.array(CUIT.pixels[:]).reshape(-1, 4)
+lum = px[:, :3] @ np.array([0.3, 0.55, 0.15])
+k = np.clip((lum - 0.3) / 0.45, 0, 1); k = k * k * (3 - 2 * k)
+px[:, :3] = np.clip(px[:, :3] * (1 + float(arg("reflets", "0.4")) * k[:, None]), 0, 1)
+CUIT.pixels[:] = px.ravel()
 TEX = os.path.splitext(OUT_GLB)[0] + "_tex.png"
 CUIT.filepath_raw = TEX; CUIT.file_format = "PNG"; CUIT.save()
 print("ATLAS", TEX)
@@ -399,7 +421,7 @@ bm = bmesh.new(); bm.from_mesh(sous.data)
 dl = bm.verts.layers.deform.verify()
 bm.verts.ensure_lookup_table(); bm.normal_update()
 retire = []
-marge = float(arg("marge", "0.012")); pousses = 0
+marge = float(arg("marge", "0.02")); pousses = 0
 for v in bm.verts:
     d = v[dl]
     if d:

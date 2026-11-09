@@ -10,16 +10,28 @@ class_name ArmureTripo
 const GLB := "res://assets/essai_tripo/armure_complete.glb"
 const TEX := "res://assets/essai_tripo/armure_complete_tex.png"
 ## Teinte de l'or (multiplie l'atlas : or bruni du rendu Tripo, un peu relevé pour rester lisible sous le shader ps1).
-const TEINTE := Color(0.68, 0.58, 0.46)
-const TEINTE_MAILLES := Color(0.85, 0.75, 0.62)
+const TEINTE := Color(0.5, 0.43, 0.34)
+## Lueur propre de l'or, PROPORTIONNELLE à sa couleur (et non un ajout plat) : à contre-jour, de dos ou de profil, les lames gardent
+## leurs reflets clairs sur fond brun au lieu de virer au brun uni, sans délaver la face au soleil.
+const LUEUR := Vector3(0.7, 0.63, 0.52)
+## Cuir de la sous-couche, sombre : il se lit comme l'ombre entre les plaques (omoplates, aisselles), pas comme une pièce.
+const TEINTE_MAILLES := Color(0.42, 0.36, 0.3)
 static var _mat: ShaderMaterial
+static var _shader: Shader
+
+## Shader perso du jeu dont l'émission est multipliée par l'albédo (EMISSION = emission * ALBEDO).
+static func shader_or() -> Shader:
+	if _shader == null:
+		_shader = Shader.new()
+		_shader.code = Humain.shader_perso(false).code.replace("EMISSION = emission +", "EMISSION = emission * ALBEDO +")
+	return _shader
 static var _mat_mailles: ShaderMaterial
 
 static func materiau() -> ShaderMaterial:
 	if _mat == null:
 		_mat = Palette.materiau(load(TEX) as Texture2D, Vector2.ONE, TEINTE, false)
-		_mat.shader = Humain.shader_perso(false)
-		_mat.set_shader_parameter("emission", Vector3(0.015, 0.012, 0.006))
+		_mat.shader = shader_or()
+		_mat.set_shader_parameter("emission", LUEUR)
 		_mat.set_shader_parameter("tex_neige", load(TEX) as Texture2D)   # pas de neige sur l'armure (elle blanchissait l'or)
 	return _mat
 
