@@ -127,8 +127,8 @@ static func _place_vigie(village: Node3D, g: Dictionary) -> Vector3:
 ## Modèle d'un garde : le Gardien nordique ENTIER (bouclier au bras aux postes, dans le dos en ronde) + variante légère.
 ## g : "poil" (index de POILS), "peau" (index de PEAUX), "rase" (sans barbe), "taille", "largeur".
 static func creer_modele(g: Dictionary) -> Node3D:
-	if g.get("armure_tripo", false):
-		return creer_modele_dore(g)
+	if g.get("armure_tripo", false) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
+		return creer_modele_dore(g)      # armure dorée Tripo (défaut, garde halle_e) ; ancien Gardien avec --modeles-anciens[=gardes] ou modele_ancien
 	var bouclier: String = g.get("bouclier", "dos" if g.get("type", "poste") == "ronde" else "bras")
 	# un Gardien construit par variante de bouclier (≈ 0,4 s chacun), puis copié (maillages, peaux et matières partagés)
 	if not _bases.has(bouclier) or not is_instance_valid(_bases[bouclier]):

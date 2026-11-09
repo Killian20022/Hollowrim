@@ -5,8 +5,8 @@ class_name PuitsTripo
 ## par la couleur de sommet, avec la corde et le seau (construits ici, rigides) pendus dans le conduit au-dessus d'un disque d'eau noir et
 ## IMMOBILE (aucun effet sur l'eau). Le terrain n'est pas troué : le shader du conduit ramène les sommets sous le sol sur le plan du sol
 ## pour la profondeur seule (shaders/puits_conduit.gdshader, même astuce que le creux de neige de ps1.gdshader).
-## `-- --sans-tripo` ou `--puits-ancien` rend le puits d'avant (kitbash Quaternius).
-static var actif := not (OS.get_cmdline_user_args().has("--sans-tripo") or OS.get_cmdline_user_args().has("--puits-ancien"))
+## PAR DÉFAUT (lot 2) ; `--modeles-anciens[=puits]`, `-- --sans-tripo` ou `--puits-ancien` rend le puits d'avant (kitbash Quaternius).
+static var actif := ModelesTripo.actif("puits") and not (OS.get_cmdline_user_args().has("--sans-tripo") or OS.get_cmdline_user_args().has("--puits-ancien"))
 const MODELE := "res://assets/essai_tripo/puits.glb"
 const TEXTURE := "res://assets/essai_tripo/puits_tex.png"
 const SHADER := preload("res://shaders/puits_conduit.gdshader")

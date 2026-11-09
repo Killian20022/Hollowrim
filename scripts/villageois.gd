@@ -178,21 +178,27 @@ static func habitants() -> Array:
 		out.append(d)
 	return out
 
-## Habitants SUPPLÉMENTAIRES de data/habitants_tripo.json (lancier, garde, archer Tripo en plus des gardes : films v2), seulement avec
-## l'argument `--gardes-tripo-en-plus`. En jeu normal les gardes Tripo REMPLACENT trois gardes (gardes_village.gd) et le jarl Tripo le chef
+## Habitants SUPPLÉMENTAIRES de data/habitants_tripo.json : le PNJ Mage Eirwen (mage Tripo) PAR DÉFAUT (`--modeles-anciens[=mage]` le retire) ;
+## lancier, garde, archer Tripo en plus des gardes (films v2) seulement avec l'argument `--gardes-tripo-en-plus`. En jeu normal les gardes Tripo REMPLACENT trois gardes (gardes_village.gd) et le jarl Tripo le chef
 ## (_ready), voir ModelesTripo. Mêmes champs que data/habitants.json (textes compris : pas de « roles » communs).
 static func habitants_essai() -> Array:
 	var chemin := "res://data/habitants_tripo.json"
 	var args := OS.get_cmdline_user_args()
-	if not args.has("--gardes-tripo-en-plus") or not ModelesTripo.actif("gardes") or not FileAccess.file_exists(chemin):
+	var en_plus := args.has("--gardes-tripo-en-plus") and ModelesTripo.actif("gardes")
+	if not (en_plus or MageTripo.pnj_actif()) or not FileAccess.file_exists(chemin):
 		return []
 	var json: Variant = JSON.parse_string(FileAccess.get_file_as_string(chemin))
 	if json is Dictionary and (json as Dictionary).get("habitants") is Array:
 		var out: Array = []
 		for h: Variant in (json as Dictionary)["habitants"]:
-			if String((h as Dictionary).get("pnj", "")) == "jarl_tripo":
+			var pnj_id := String((h as Dictionary).get("pnj", ""))
+			if pnj_id == "jarl_tripo":
 				continue      # le jarl Tripo n'est plus un habitant de plus : il remplace le chef (villageois._ready)
-			out.append(h)      # lancier, garde, archer en habitants supplémentaires (films v2)
+			if pnj_id == "tripo_mage":
+				if MageTripo.pnj_actif():
+					out.append(h)      # Mage Eirwen : PNJ par défaut (lot 2)
+			elif en_plus:
+				out.append(h)      # lancier, garde, archer en habitants supplémentaires (films v2)
 		return out
 	push_warning("Villageois : JSON invalide : " + chemin)
 	return []

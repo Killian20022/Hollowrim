@@ -1,9 +1,9 @@
 class_name MaisonTripo
 ## ESSAI Tripo (branche essai/maison) : l'auberge « h2 » reçoit un extérieur Tripo (cottage nordique allégé, 3 500 tri, texture cuite 512 px)
 ## et un intérieur de taverne Tripo (3 000 tri, 512 px) à la place du bâti procédural. Emprise, porte, coque de collisions et données
-## (data/batiments.json) restent celles de l'auberge : seule l'apparence change. `-- --sans-tripo` rend le bâti d'avant.
+## (data/batiments.json) restent celles de l'auberge : seule l'apparence change. PAR DÉFAUT (lot 2) ; `--modeles-anciens[=maison]`, `-- --sans-tripo` ou `--h2-ancien` rend le bâti d'avant.
 ## Réglages d'ajustement : `--tripo-rot=°` (lacet du cottage), `--tripo-dx=m`, `--tripo-dz=m` (décalage), `--tripo-irot=°` (lacet de la taverne).
-static var actif := not (OS.get_cmdline_user_args().has("--sans-tripo") or OS.get_cmdline_user_args().has("--h2-ancien"))
+static var actif := ModelesTripo.actif("maison") and not (OS.get_cmdline_user_args().has("--sans-tripo") or OS.get_cmdline_user_args().has("--h2-ancien"))
 const EXT := "res://assets/essai_tripo/cottage.glb"
 const INT := "res://assets/essai_tripo/taverne.glb"
 

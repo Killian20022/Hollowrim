@@ -1,5 +1,5 @@
 {
- "note": "Habitants SUPPLÉMENTAIRES Tripo, chargés seulement avec --gardes-tripo-en-plus (films). En jeu normal, les modèles Tripo sont PAR DÉFAUT : le jarl Gunnar remplace le corps du chef, les trois gardes Tripo remplacent halle_o, ronde_place et ronde_nord (voir scripts/modeles_tripo.gd, docs/MODELES_TRIPO.md). Mêmes champs que data/habitants.json.",
+ "note": "Habitants SUPPLÉMENTAIRES Tripo : le PNJ Mage Eirwen (tripo_mage) PAR DÉFAUT (--modeles-anciens[=mage] le retire) ; les trois gardes seulement avec --gardes-tripo-en-plus (films). En jeu normal, les modèles Tripo sont PAR DÉFAUT : le jarl Gunnar remplace le corps du chef, les trois gardes Tripo remplacent halle_o, ronde_place et ronde_nord (voir scripts/modeles_tripo.gd, docs/MODELES_TRIPO.md). Mêmes champs que data/habitants.json.",
  "habitants": [
   {
    "id": "hab_jarl_tripo",
@@ -98,6 +98,30 @@
    ],
    "apres": [
     "File. La nuit tombe vite ici."
+   ]
+  },
+  {
+   "id": "hab_mage_tripo",
+   "type": "garde",
+   "pnj": "tripo_mage",
+   "nom": "Mage Eirwen",
+   "role": "Mage",
+   "pos": [
+    41.0,
+    39.5
+   ],
+   "cap": 180,
+   "activite": "Idle",
+   "sedentaire": true,
+   "interpellations": [
+    "Le givre murmure ton nom, voyageur."
+   ],
+   "lignes": [
+    "Les runes ne mentent jamais, contrairement aux hommes.",
+    "Ce bâton a gelé des rivières entières."
+   ],
+   "apres": [
+    "Que le froid te soit léger."
    ]
   }
  ]

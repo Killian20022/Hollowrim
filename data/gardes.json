@@ -46,7 +46,7 @@
      "lignes": ["Ma première garde d’hiver. Ne dis pas à Haldor que j’ai froid aux pieds.", "Il le sait déjà, de toute façon. Il sait tout."]},
     {"id": "halle_o", "type": "poste", "pos": [40.0, 26.0], "cap": 0, "poil": 5, "peau": 1, "taille": 1.05, "largeur": 1.04,
      "lignes": ["Le chef Gunnar est dans la longue maison. Entre, si tu as une bonne raison.", "Et essuie tes bottes. Il déteste la neige sur les dalles."]},
-    {"id": "halle_e", "type": "poste", "pos": [48.5, 26.0], "cap": 0, "poil": 1, "peau": 3, "taille": 1.0, "largeur": 0.98,
+    {"id": "halle_e", "type": "poste", "armure_tripo": true, "pos": [48.5, 26.0], "cap": 0, "poil": 1, "peau": 3, "taille": 1.0, "largeur": 0.98,
      "lignes": ["Je garde la porte du chef. C’est un honneur, paraît-il.", "Un honneur qui ne réchauffe pas les orteils."]},
     {"id": "tour", "type": "poste", "pos": [48.2, 84.0], "cap": 180, "poil": 3, "peau": 2, "taille": 1.03, "largeur": 1.0,
      "lignes": ["La tour est fermée. La cloche, c’est pour le feu, les loups et les morts.", "Prie pour n’entendre que la première."]},
@@ -64,7 +64,7 @@
     {"id": "ronde_ouest", "type": "ronde", "boucle": false, "poil": 1, "peau": 1, "rase": true, "taille": 0.95, "largeur": 0.96,
      "route": [[30.8, 31.2], [23.8, 32.8], [21.8, 38.2], [19.2, 46.2], [19.8, 56.8]],
      "lignes": ["Côté lac, la palissade est basse. Je passe souvent.", "Si tu tombes à l’eau, ne compte pas sur moi. Je ne sais pas nager."]},
-    {"id": "ronde_place", "type": "ronde", "armure_tripo": true, "boucle": true, "poil": 3, "peau": 3, "taille": 1.02, "largeur": 1.0,
+    {"id": "ronde_place", "type": "ronde", "boucle": true, "poil": 3, "peau": 3, "taille": 1.02, "largeur": 1.0,
      "route": [[37.8, 33.2], [49.8, 33.8], [51.2, 38.2], [48.6, 43.0], [48.8, 46.0], [41.8, 46.8], [39.8, 47.8], [35.8, 40.2], [33.8, 37.8]],
      "lignes": ["Je fais le tour de la place. Les étals, le puits, les bancs. Rien ne m’échappe.", "Sauf les commérages de Grima. Ceux-là, personne ne les arrête."]}
   ]

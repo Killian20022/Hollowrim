@@ -4,12 +4,15 @@ class_name ModelesTripo
 ## Les ANCIENS corps (GuerrierNordique / Gardien des gardes, PnjNordique du chef, DraugrNordique, SqueletteGuerrier, bandit guetteur)
 ## ne sont pas supprimés : ils restent chargeables pour d'autres factions (voir docs/MODELES_TRIPO.md).
 ##   Pour toute la partie : argument utilisateur `--modeles-anciens` (tous les groupes) ou `--modeles-anciens=gardes,jarl,ennemis,gobelin`
-##   (seulement ceux-là). Les anciennes options `--gardes-tripo`, `--jarl-tripo`, `--ennemis-tripo`, `--gobelin-tripo` sont acceptées sans effet.
+##   (seulement ceux-là ; groupes : gardes, jarl, ennemis, gobelin, mage, puits, maison). Les anciennes options `--gardes-tripo`, `--jarl-tripo`,
+##   `--ennemis-tripo`, `--gobelin-tripo` sont acceptées sans effet ; `--mage-tripo` ne fait plus que remplacer aussi les mages ENNEMIS.
 ##   Pour UN personnage : « "modele_ancien": true » dans ses données (data/gardes.json, data/villageois.json, ennemis de la grotte) ou dans
 ##   les options d'un ennemi (monde.creer_draugr) : il garde l'ancien corps même si les autres sont en Tripo.
 ## Ne pas confondre avec `--pnj-anciens` / `--persos-anciens` (corps encore plus anciens : Humain Quaternius, avant les PNJ nordiques).
 
-const GROUPES := ["gardes", "jarl", "ennemis", "gobelin"]
+## Lot 2 (2026-11-09) : « mage » (PNJ Mage Eirwen, MageTripo), « puits » (puits Tripo de la place, PuitsTripo), « maison » (auberge h2 :
+## chaumière et taverne Tripo, MaisonTripo) ; l'armure dorée (garde halle_e, ArmureTripo) suit le groupe « gardes ».
+const GROUPES := ["gardes", "jarl", "ennemis", "gobelin", "mage", "puits", "maison"]
 static var _anciens := {}     # groupe -> bool, lu une fois
 
 ## Vrai si le groupe utilise les modèles Tripo (défaut), faux avec --modeles-anciens[=…groupe…].
