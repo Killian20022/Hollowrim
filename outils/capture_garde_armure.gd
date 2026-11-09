@@ -28,6 +28,10 @@ func _vue(pos: Vector3, vise: Vector3) -> void:
 func _go() -> void:
 	var mode := String(args.get("mode", "iter"))
 	var sol := Vector3.ZERO
+	if args.has("taille"):   # --taille=1280x720 : rendu plus fin pour les gros plans
+		var tl := String(args["taille"]).split("x")
+		root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+		DisplayServer.window_set_size(Vector2i(int(tl[0]), int(tl[1])))
 	cam = Camera3D.new()
 	cam.fov = 40.0
 	cam.near = 0.05
@@ -95,7 +99,11 @@ func _go() -> void:
 			await _film()
 		"extremites":
 			await _extremites()
-	if mode == "film":
+		"avantbras":
+			await _avantbras()
+		"film_avantbras":
+			await _film_avantbras()
+	if mode == "film" or mode == "film_avantbras":
 		quit(0)
 	else:
 		OS.kill(OS.get_process_id())   # quit() reste parfois suspendu (fuites au vidage de la boucle) : capture déjà écrite
@@ -314,6 +322,90 @@ func _extremites() -> void:
 				_vise_os(v[1], v[2], v[3], v[4], v[5])
 				await process_frame
 			await _capt("%s/%s_%d.png" % [dos, v[0], k])
+
+func _coude_angle(c: String) -> float:
+	var a := _os_pos("upperarm_" + c)
+	var b := _os_pos("lowerarm_" + c)
+	var h := _os_pos("hand_" + c)
+	return rad_to_deg((a - b).angle_to(h - b))
+
+func _vise_avantbras(c: String, az_deg: float, dist: float) -> void:
+	# cadrage coude -> poignet : visée au milieu de l'avant-bras, à distance fixe, même pour toutes les poses
+	var e := _os_pos("lowerarm_" + c)
+	var w := _os_pos("hand_" + c)
+	var mil := e.lerp(w, 0.45)
+	var az := garde.rotation.y + deg_to_rad(az_deg)
+	cam.fov = 28.0
+	_vue(mil + Vector3(sin(az) * dist, 0.04, cos(az) * dist), mil)
+
+func _avantbras() -> void:
+	# gros plans de l'avant-bras (repos, marche, coude plié en attaque) de face, de profil et de 3/4
+	var dos := String(args.get("sortie", "/tmp/w/ab"))
+	DirAccess.make_dir_recursive_absolute(dos)
+	if m.get("cycle") != null:
+		m.cycle.heure = 12.0
+	centre = garde.global_position
+	var vues := [["face", 0.0], ["profil", 90.0], ["34", 45.0]]
+	anim.play("Idle")
+	for v in vues:
+		for i in 20:
+			garde.rotation.y = 0.0
+			_vise_avantbras("l", v[1], float(args.get("ab_dist", "1.3")))
+			await process_frame
+		await _capt("%s/repos_%s.png" % [dos, v[0]])
+	# coude plié : instant de l'attaque où un coude est le plus fermé
+	var meilleur := ["Sword_Attack", 0.0, "l", 180.0]
+	for nom in ["Sword_Attack", "Punch_Cross"]:
+		if not anim.has_animation(nom):
+			continue
+		var L := anim.get_animation(nom).length
+		for k in 24:
+			_jouer(nom, L * k / 24.0)
+			await process_frame
+			for c in [String(args.get("ab_bras", "l"))]:
+				var ang := _coude_angle(c)
+				if ang < meilleur[3]:
+					meilleur = [nom, L * k / 24.0, c, ang]
+	print("AVANTBRAS attaque ", meilleur)
+	for v in vues:
+		for i in 6:
+			garde.rotation.y = 0.0
+			_jouer(meilleur[0], meilleur[1])
+			_vise_avantbras(meilleur[2], v[1], float(args.get("ab_dist", "1.3")))
+			await process_frame
+		await _capt("%s/attaque_%s.png" % [dos, v[0]])
+	args["surplace"] = "1"
+	_marche_pose()
+	for v in vues:
+		for i in 23:
+			_pas(0.0, 4.0, 2.0, 1.0, 36.0)
+			_vise_avantbras("l", v[1], float(args.get("ab_dist", "1.3")))
+			await process_frame
+		await _capt("%s/marche_%s.png" % [dos, v[0]])
+
+func _film_avantbras() -> void:
+	# gros plan de l'avant-bras gauche : marche (orbite lente), puis coups de poing en boucle (coude plié)
+	if m.get("cycle") != null:
+		m.cycle.heure = 12.0
+	centre = garde.global_position
+	args["surplace"] = "1"
+	_marche_pose()
+	var n := int(6.0 / DT)
+	for i in n:
+		_pas(0.0, 4.0, 2.0, 1.0, 36.0)
+		_vise_avantbras("l", lerpf(-20.0, 120.0, float(i) / n), 1.4)
+		await process_frame
+	anim.play("Punch_Cross")
+	n = int(6.0 / DT)
+	for i in n:
+		garde.rotation.y = 0.0
+		if not anim.is_playing():
+			anim.play("Punch_Cross")
+		var c := garde.global_position + Vector3(0.0, 1.3, 0.0)
+		var az := deg_to_rad(lerpf(10.0, 100.0, float(i) / n))
+		cam.fov = 30.0
+		_vue(c + Vector3(sin(az) * 1.6, 0.1, cos(az) * 1.6), c)
+		await process_frame
 
 func _film() -> void:
 	m.cycle.heure = 12.0

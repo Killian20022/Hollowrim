@@ -175,16 +175,41 @@ def poser_gantelet(o):
     doigts = (P0[:, 2] < zk) & ~pouce
     # --- canon : repère de l'avant-bras
     s = float(arg("s_gantelet", "2.5"))
-    Pc = P0 * s
-    Pc[:, :2] *= float(arg("k_canon", "0.86"))
-    Pc[:, 2] -= z1 * s
+    # axe propre du canon : milieu de la boîte de chaque tranche (z au-dessus du poignet), droite ajustée ; le canon est recentré sur
+    # cet axe (centré sur la boîte de toute la pièce, pouce compris, il était décalé de 4-5 cm de l'os de l'avant-bras)
+    zs = np.linspace(zw + 0.05 * z1, 0.92 * z1, 12)
+    cs = []
+    for z_ in zs:
+        q_ = P0[np.abs(P0[:, 2] - z_) < 0.02 * z1, :2]
+        cs.append((q_.min(0) + q_.max(0)) / 2)
+    cs = np.array(cs)
+    fx, fy = np.polyfit(zs, cs[:, 0], 1), np.polyfit(zs, cs[:, 1], 1)
+    zc_ = np.clip(P0[:, 2], zw, z1)
+    Q0 = P0.copy()
+    Q0[:, 0] -= np.polyval(fx, zc_); Q0[:, 1] -= np.polyval(fy, zc_)
+    print("GANTELET canon : axe recentré de (%.3f, %.3f) au poignet à (%.3f, %.3f) en haut (unités source)" % (
+        np.polyval(fx, zw), np.polyval(fy, zw), np.polyval(fx, z1), np.polyval(fy, z1)))
+    # le canon est un brassard qui va du POIGNET (bande, z = zw) au COUDE (bord évasé, rayon max de la pièce source) ; au-dessus du
+    # bord, la crête pointue couvre le coude. Avant : échelle uniforme, le bord évasé tombait au milieu de l'avant-bras (cassure).
     coude, poignet = tete("lowerarm_l"), tete("hand_l")
-    ax = (poignet - coude) / np.linalg.norm(poignet - coude)
+    L_ab = np.linalg.norm(poignet - coude)
+    zz = np.linspace(zw + 0.1 * z1, 0.95 * z1, 40)
+    rr = [np.median(np.linalg.norm(Q0[np.abs(Q0[:, 2] - z_) < 0.015 * z1, :2], axis=1)) for z_ in zz]
+    z_bord = zz[int(np.argmax(rr))]
+    s_z = (L_ab - float(arg("bord_coude", "0.01"))) / (z_bord - zw)
+    Pc = Q0.copy()
+    Pc[:, :2] *= s * float(arg("k_canon", "0.86"))
+    zr = Pc[:, 2].copy()
+    Pc[:, 2] = (np.minimum(zr, z_bord) - zw) * s_z         # 0 au poignet, L_ab au coude
+    Pc[:, 2] += np.maximum(zr - z_bord, 0) * s * float(arg("k_creste", "0.86"))   # crête au-dessus du coude : pas allongée
+    print("GANTELET canon : bord évasé à z=%.2f (source), allongement %.2f (échelle z %.3f contre %.3f en largeur)" % (
+        z_bord / z1, s_z / (s * float(arg("k_canon", "0.86"))), s_z, s * float(arg("k_canon", "0.86"))))
+    ax = (poignet - coude) / L_ab
     up = np.array([0, 0, 1.0]); dos = up - ax * ax.dot(up); dos /= np.linalg.norm(dos)
     R = np.column_stack([np.cross(dos, ax) * 1.0, -dos, -ax])
     if np.linalg.det(R) < 0:
         R[:, 0] *= -1
-    Pc = Pc @ R.T + coude + ax * float(arg("d_gantelet", "-0.08")) + dos * float(arg("h_gantelet", "0.0"))
+    Pc = Pc @ R.T + poignet + dos * float(arg("h_gantelet", "0.0"))
     # --- main : repère de la main du squelette
     W_b = tete("hand_l")
     K_b = np.mean([tete(f + "_01_l") for f in ("index", "middle", "ring", "pinky")], axis=0)
@@ -205,7 +230,11 @@ def poser_gantelet(o):
     fl = math.radians(float(arg("flexion", "10")))
     def placer_main(s_h):
         # ancrée au POIGNET (la plaque de dos garde l'échelle de la manchette, pas de rétrécissement au poignet)
-        Ph = (P0 - W_s) * np.array([s_lat, s_h * float(arg("k_main_ep", "0.9")), s_h]) @ Rh.T + W_b
+        sx_h, sy_h = s_lat, s_h * float(arg("k_main_ep", "0.9"))
+        sx_c = sy_c = s * float(arg("k_canon", "0.86"))
+        g_ = lisse01((P0[:, 2] - zk) / (zw - zk))[:, None]        # 0 aux jointures (main v8 intacte), 1 au poignet (section du canon)
+        sxy = np.array([sx_h, sy_h]) ** (1 - g_) * np.array([sx_c, sy_c]) ** g_
+        Ph = np.column_stack([(P0[:, :2] - W_s[:2]) * sxy, (P0[:, 2] - W_s[2]) * s_h]) @ Rh.T + W_b
         K_a = W_b + a_b * (zw - zk) * s_h                            # jointures du gantelet
         t_d = lisse01((zk - P0[doigts, 2]) / (0.6 * L_d))
         u = (Ph[doigts] - K_a) @ lat_b; uc = u.mean()
@@ -245,6 +274,10 @@ def poser_gantelet(o):
         for i in np.nonzero(w > 1e-3)[0]:
             vg.add([int(i)], float(w[i]), "REPLACE")
     larg_g = np.ptp(P[bande] @ lat_b)
+    d_c = R[:, 1] * -1; d_h = dos_b - ax * (ax @ dos_b); d_h /= np.linalg.norm(d_h)
+    print("GANTELET torsion canon/main autour de l'avant-bras : %.1f°" % math.degrees(math.atan2(np.cross(d_c, d_h) @ ax, d_c @ d_h)))
+    print("GANTELET échelles : canon xy %.3f ; main x %.3f y %.3f (raccord au poignet sur la section du canon)" % (
+        s * float(arg("k_canon", "0.86")), s_lat, s_h * float(arg("k_main_ep", "0.9"))))
     avant_bras = np.linalg.norm(tete("hand_l") - tete("lowerarm_l"))
     print("GANTELET main : poignet->bout %.3f m (main nue %.3f, x%.2f) ; largeur jointures %.3f (nue %.3f, x%.2f) ; main/avant-bras %.2f" % (
         long_g, long_nue, long_g / long_nue, larg_g, w_b, larg_g / w_b, long_g / avant_bras))
@@ -565,6 +598,22 @@ for it in range(int(arg("lissage", "6"))):
     np.add.at(S, E[:, 0], AW[E[:, 1]]); np.add.at(S, E[:, 1], AW[E[:, 0]])
     np.add.at(n, E[:, 0], 1); np.add.at(n, E[:, 1], 1)
     AW = 0.5 * AW + 0.5 * S / np.maximum(n, 1)[:, None]
+# canon du gantelet : brassard RIGIDE. Après le lissage, l'avant-bras ne suit que lowerarm ; la main ne le reprend que dans les 2 cm
+# avant le poignet (avant : poids à la distance + lissage, la rotation de la main tordait la plaque en bonbon).
+z_m = zone("zone_main")[ig]
+coude_, poignet_ = tete("lowerarm_l"), tete("hand_l")
+ax_ = nrm(poignet_ - coude_)
+t_ax = (AP[ig] - coude_) @ ax_ - np.linalg.norm(poignet_ - coude_)
+hf = lisse01((t_ax + float(arg("canon_fondu", "0.02"))) / (2 * float(arg("canon_fondu", "0.02"))))
+# la crête qui dépasse au-dessus du coude suit le haut du bras (sinon elle pivote avec l'avant-bras et sort du bras plié)
+hu = lisse01(-((AP[ig] - coude_) @ ax_) / float(arg("creste_fondu", "0.05")))
+rig = np.zeros((len(ig), len(cnoms)))
+rig[:, cnoms.index("lowerarm_l")] = (1 - hf) * (1 - hu)
+rig[:, cnoms.index("upperarm_l")] = hu
+rig[:, cnoms.index("hand_l")] = hf
+k_c = (1 - z_m)[:, None]
+AW[ig] = AW[ig] * (1 - k_c) + rig * k_c
+print("CANON rigide : %d sommets (lowerarm seul jusqu'à 2 cm du poignet)" % int((z_m < 0.5).sum()))
 # bottes : poids nets par zones (le lissage tordait la pointe et la cheville) : tige -> mollet au-dessus de la cheville, pointe -> ball
 # au-delà de la jointure des orteils, le reste -> pied ; fondus courts
 ib = np.nonzero(piece_de == "botte")[0]
