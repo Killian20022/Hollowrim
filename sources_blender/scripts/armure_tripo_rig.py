@@ -139,6 +139,23 @@ def affiner_cuirasse(o):
         m = lisse01((float(arg("manche", "0.75")) * d_tor - d_b) / 0.05 + 0.5) * cote
         A = q + (P - q) * km
         T = T * (1 - m[:, None]) + A * m[:, None]
+        # bout de la manche (le « tuyau » ouvert au coude) : raccourci jusqu'au coude et resserré en cône sur le bras, il rentre dans
+        # l'évasement du canon (pièce rigide de l'avant-bras) au lieu de finir en tube béant sous le coude
+        epa, cou_ = tete("upperarm_" + s_), tete("lowerarm_" + s_)
+        Lu = np.linalg.norm(cou_ - epa); au = (cou_ - epa) / Lu
+        u = (T - epa) @ au; c_ = epa + np.outer(u, au); rad = T - c_
+        bras_ = (u < Lu + float(arg("coudiere_zone", "0.10"))) & (np.linalg.norm(rad, axis=1) < 0.16)   # pas les tassettes près de la main
+        m = m * bras_
+        mm = m > 0.5
+        u_max = u[mm].max()
+        z0 = Lu - float(arg("coudiere_long", "0.08")); u_fin = Lu + float(arg("coudiere_bout", "0.015"))
+        if u_max > z0:
+            un = np.where(u > z0, z0 + (u - z0) * (u_fin - z0) / (u_max - z0), u)
+            w_ = lisse01((u - z0) / (u_max - z0)) * m
+            k_r = 1 - w_ * (1 - float(arg("coudiere_k", "0.72")))
+            Tn = epa + np.outer(un, au) + rad * k_r[:, None]
+            T = T * (1 - m[:, None] * bras_[:, None]) + Tn * (m * bras_)[:, None]
+            print("MANCHE %s : bout ramené de %.3f à %.3f m le long du bras (coude %.3f), resserré x%.2f" % (s_, u_max, u_fin, Lu, float(arg("coudiere_k", "0.72"))))
     set_pts(o, T)
     print("CUIRASSE affinée : %s -> %s" % (P.min(0).round(3), T.max(0).round(3)))
 
@@ -168,48 +185,45 @@ def poser_gantelet(o):
     z1 = P0[:, 2].max()
     zw, zk, dz = float(arg("z_poignet", "0.50")) * z1, float(arg("z_jointures", "0.19")) * z1, float(arg("z_fondu", "0.05")) * z1
     pouce = np.zeros(len(P0), bool)
+    canon = np.zeros(len(P0), bool)
     for c in composantes(o):
         Q = P0[c]
         if Q[:, 0].mean() < float(arg("x_pouce", "-0.015")) and Q[:, 2].max() < zw and Q[:, 2].min() > 0.05 * z1:
             pouce[c] = True
+        if Q[:, 2].min() > float(arg("z_canon", "0.40")) * z1:     # le canon : pièces séparées au-dessus de la main (bande, évasement, crête)
+            canon[c] = True
     doigts = (P0[:, 2] < zk) & ~pouce
-    # --- canon : repère de l'avant-bras
-    s = float(arg("s_gantelet", "2.5"))
-    # axe propre du canon : milieu de la boîte de chaque tranche (z au-dessus du poignet), droite ajustée ; le canon est recentré sur
-    # cet axe (centré sur la boîte de toute la pièce, pouce compris, il était décalé de 4-5 cm de l'os de l'avant-bras)
+    # --- canon : brassard RIGIDE (pièce à part, accrochée à l'os lowerarm dans le jeu). Transformation RIGIDE + échelle uniforme :
+    # l'axe propre du canon (milieu de la boîte de chaque tranche, droite ajustée) est ramené sur l'os de l'avant-bras par une ROTATION
+    # (pas de cisaillement), la bande du poignet (z = zw) au poignet, le haut de la crête au coude (+ jeu) ; forme source exacte.
     zs = np.linspace(zw + 0.05 * z1, 0.92 * z1, 12)
     cs = []
     for z_ in zs:
-        q_ = P0[np.abs(P0[:, 2] - z_) < 0.02 * z1, :2]
+        q_ = P0[canon & (np.abs(P0[:, 2] - z_) < 0.02 * z1), :2]
         cs.append((q_.min(0) + q_.max(0)) / 2)
     cs = np.array(cs)
     fx, fy = np.polyfit(zs, cs[:, 0], 1), np.polyfit(zs, cs[:, 1], 1)
-    zc_ = np.clip(P0[:, 2], zw, z1)
-    Q0 = P0.copy()
-    Q0[:, 0] -= np.polyval(fx, zc_); Q0[:, 1] -= np.polyval(fy, zc_)
-    print("GANTELET canon : axe recentré de (%.3f, %.3f) au poignet à (%.3f, %.3f) en haut (unités source)" % (
-        np.polyval(fx, zw), np.polyval(fy, zw), np.polyval(fx, z1), np.polyval(fy, z1)))
-    # le canon est un brassard qui va du POIGNET (bande, z = zw) au COUDE (bord évasé, rayon max de la pièce source) ; au-dessus du
-    # bord, la crête pointue couvre le coude. Avant : échelle uniforme, le bord évasé tombait au milieu de l'avant-bras (cassure).
+    C0 = np.array([np.polyval(fx, zw), np.polyval(fy, zw), zw])
+    d_ax = nrm(np.array([fx[0], fy[0], 1.0])); ez = np.array([0, 0, 1.0])
+    k_ = np.cross(d_ax, ez); ang_ = math.asin(min(np.linalg.norm(k_), 1.0))
+    Q0 = P0 - C0
+    if ang_ > 1e-6:
+        Q0 = np.array([rot(q, ang_, k_) for q in Q0])
     coude, poignet = tete("lowerarm_l"), tete("hand_l")
     L_ab = np.linalg.norm(poignet - coude)
-    zz = np.linspace(zw + 0.1 * z1, 0.95 * z1, 40)
-    rr = [np.median(np.linalg.norm(Q0[np.abs(Q0[:, 2] - z_) < 0.015 * z1, :2], axis=1)) for z_ in zz]
-    z_bord = zz[int(np.argmax(rr))]
-    s_z = (L_ab - float(arg("bord_coude", "0.01"))) / (z_bord - zw)
-    Pc = Q0.copy()
-    Pc[:, :2] *= s * float(arg("k_canon", "0.86"))
-    zr = Pc[:, 2].copy()
-    Pc[:, 2] = (np.minimum(zr, z_bord) - zw) * s_z         # 0 au poignet, L_ab au coude
-    Pc[:, 2] += np.maximum(zr - z_bord, 0) * s * float(arg("k_creste", "0.86"))   # crête au-dessus du coude : pas allongée
-    print("GANTELET canon : bord évasé à z=%.2f (source), allongement %.2f (échelle z %.3f contre %.3f en largeur)" % (
-        z_bord / z1, s_z / (s * float(arg("k_canon", "0.86"))), s_z, s * float(arg("k_canon", "0.86"))))
+    z_haut = Q0[canon, 2].max()
+    su = (L_ab + float(arg("canon_coude", "0.01"))) / z_haut
+    k_ep = float(arg("k_ep_canon", "0.92"))
+    Pc = Q0 * np.array([su * k_ep, su * k_ep, su])
     ax = (poignet - coude) / L_ab
     up = np.array([0, 0, 1.0]); dos = up - ax * ax.dot(up); dos /= np.linalg.norm(dos)
     R = np.column_stack([np.cross(dos, ax) * 1.0, -dos, -ax])
     if np.linalg.det(R) < 0:
         R[:, 0] *= -1
     Pc = Pc @ R.T + poignet + dos * float(arg("h_gantelet", "0.0"))
+    print("GANTELET canon rigide : %d sommets, axe incliné de %.1f° redressé, échelle %.3f (épaisseur x%.2f), longueur %.3f m (avant-bras %.3f)" % (
+        canon.sum(), math.degrees(ang_), su, k_ep, z_haut * su, L_ab))
+    s = su * k_ep                                            # échelle de référence du canon (manchette de la main)
     # --- main : repère de la main du squelette
     W_b = tete("hand_l")
     K_b = np.mean([tete(f + "_01_l") for f in ("index", "middle", "ring", "pinky")], axis=0)
@@ -230,11 +244,7 @@ def poser_gantelet(o):
     fl = math.radians(float(arg("flexion", "10")))
     def placer_main(s_h):
         # ancrée au POIGNET (la plaque de dos garde l'échelle de la manchette, pas de rétrécissement au poignet)
-        sx_h, sy_h = s_lat, s_h * float(arg("k_main_ep", "0.9"))
-        sx_c = sy_c = s * float(arg("k_canon", "0.86"))
-        g_ = lisse01((P0[:, 2] - zk) / (zw - zk))[:, None]        # 0 aux jointures (main v8 intacte), 1 au poignet (section du canon)
-        sxy = np.array([sx_h, sy_h]) ** (1 - g_) * np.array([sx_c, sy_c]) ** g_
-        Ph = np.column_stack([(P0[:, :2] - W_s[:2]) * sxy, (P0[:, 2] - W_s[2]) * s_h]) @ Rh.T + W_b
+        Ph = (P0 - W_s) * np.array([s_lat, s_h * float(arg("k_main_ep", "0.9")), s_h]) @ Rh.T + W_b
         K_a = W_b + a_b * (zw - zk) * s_h                            # jointures du gantelet
         t_d = lisse01((zk - P0[doigts, 2]) / (0.6 * L_d))
         u = (Ph[doigts] - K_a) @ lat_b; uc = u.mean()
@@ -267,17 +277,18 @@ def poser_gantelet(o):
     print("GANTELET pouce : %d sommets, côté %+d (attendu %+d)" % (pouce.sum(), cote_pouce, attendu))
     # fondu canon / main dans la manchette
     t = lisse01((P0[:, 2] - (zw - dz)) / (2 * dz))
+    t[canon] = 1.0
     P = Ph * (1 - t[:, None]) + Pc * t[:, None]
     set_pts(o, P)
-    for nom, w in (("zone_main", 1 - t), ("zone_doigts", doigts.astype(float)), ("zone_pouce", pouce.astype(float))):
+    for nom, w in (("zone_main", 1 - t), ("zone_doigts", doigts.astype(float)), ("zone_pouce", pouce.astype(float)), ("zone_canon", canon.astype(float))):
         vg = o.vertex_groups.new(name=nom)
         for i in np.nonzero(w > 1e-3)[0]:
             vg.add([int(i)], float(w[i]), "REPLACE")
     larg_g = np.ptp(P[bande] @ lat_b)
     d_c = R[:, 1] * -1; d_h = dos_b - ax * (ax @ dos_b); d_h /= np.linalg.norm(d_h)
     print("GANTELET torsion canon/main autour de l'avant-bras : %.1f°" % math.degrees(math.atan2(np.cross(d_c, d_h) @ ax, d_c @ d_h)))
-    print("GANTELET échelles : canon xy %.3f ; main x %.3f y %.3f (raccord au poignet sur la section du canon)" % (
-        s * float(arg("k_canon", "0.86")), s_lat, s_h * float(arg("k_main_ep", "0.9"))))
+    print("GANTELET échelles : canon xy %.3f ; main x %.3f y %.3f" % (
+        s, s_lat, s_h * float(arg("k_main_ep", "0.9"))))
     avant_bras = np.linalg.norm(tete("hand_l") - tete("lowerarm_l"))
     print("GANTELET main : poignet->bout %.3f m (main nue %.3f, x%.2f) ; largeur jointures %.3f (nue %.3f, x%.2f) ; main/avant-bras %.2f" % (
         long_g, long_nue, long_g / long_nue, larg_g, w_b, larg_g / w_b, long_g / avant_bras))
@@ -613,7 +624,18 @@ rig[:, cnoms.index("upperarm_l")] = hu
 rig[:, cnoms.index("hand_l")] = hf
 k_c = (1 - z_m)[:, None]
 AW[ig] = AW[ig] * (1 - k_c) + rig * k_c
-print("CANON rigide : %d sommets (lowerarm seul jusqu'à 2 cm du poignet)" % int((z_m < 0.5).sum()))
+# bout des manches (resserré dans l'évasement du canon) : RIGIDE sur le haut du bras, sinon il se froisse quand le coude plie
+for s_ in ("l", "r"):
+    epa, cou_ = tete("upperarm_" + s_), tete("lowerarm_" + s_)
+    Lu = np.linalg.norm(cou_ - epa); u = (AP - epa) @ ((cou_ - epa) / Lu)
+    w_ = lisse01((u - (Lu - float(arg("manche_rigide", "0.14")))) / 0.05) * (piece_de == "manche_" + s_) * (u < Lu + 0.06)
+    oh = np.zeros(len(cnoms)); oh[cnoms.index("upperarm_" + s_)] = 1.0
+    AW = AW * (1 - w_[:, None]) + oh[None, :] * w_[:, None]
+    print("MANCHE %s rigide au coude : %d sommets" % (s_, int((w_ > 0.5).sum())))
+# canon : pièce RIGIDE à part (séparée du maillage habillé avant l'export, accrochée à lowerarm dans le jeu) : lowerarm seul
+EST_CANON = zone("zone_canon") > 0.5
+AW[EST_CANON] = 0.0; AW[EST_CANON, cnoms.index("lowerarm_l")] = 1.0
+print("CANON : %d sommets rigides (pièce à part), manchette de la main %d sommets" % (int(EST_CANON.sum()), int(((z_m < 0.999)).sum()) - int(EST_CANON.sum())))
 # bottes : poids nets par zones (le lissage tordait la pointe et la cheville) : tige -> mollet au-dessus de la cheville, pointe -> ball
 # au-delà de la jointure des orteils, le reste -> pied ; fondus courts
 ib = np.nonzero(piece_de == "botte")[0]
@@ -629,6 +651,8 @@ AW /= AW.sum(1, keepdims=True)
 for g in list(armure.vertex_groups):
     armure.vertex_groups.remove(g)
 VG = [armure.vertex_groups.new(name=n) for n in cnoms]
+VG_CANON = armure.vertex_groups.new(name="canon_marque")
+VG_CANON.add([int(i) for i in np.nonzero(EST_CANON)[0]], 1.0, "REPLACE")
 for j in range(len(cnoms)):
     nz = np.nonzero(AW[:, j] > 1e-4)[0]
     for i in nz:
@@ -693,12 +717,38 @@ print("SOUS-COUCHE %d sommets (%d retirés, %d ramenés derrière l'armure)" % (
 msous = bpy.data.materials.new("sous_couche_mailles"); msous.diffuse_color = (0.12, 0.1, 0.09, 1)
 sous.data.materials.clear(); sous.data.materials.append(msous)
 
+# ---------------------------------------------------------------- 7b. canons : pièces RIGIDES à part (non habillées)
+# Chaque canon devient un maillage sans poids, aux coordonnées de la pose de repos ; le jeu l'accroche à l'os lowerarm_l / lowerarm_r
+# par un BoneAttachment3D (transformation = pose de liaison de l'os dans la peau de l'armure) : zéro déformation.
+gi_c = armure.vertex_groups["canon_marque"].index
+def dans_canon(v):
+    return any(g.group == gi_c and g.weight > 0.5 for g in v.groups)
+CANONS = []
+for cote, sg in (("l", 1), ("r", -1)):
+    m = armure.copy(); m.data = armure.data.copy(); m.name = "canon_" + cote; m.data.name = "canon_" + cote
+    bpy.context.collection.objects.link(m)
+    bm = bmesh.new(); bm.from_mesh(m.data); bm.verts.ensure_lookup_table()
+    dl = bm.verts.layers.deform.verify()
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not (gi_c in v[dl] and v[dl][gi_c] > 0.5 and v.co.x * sg > 0)], context="VERTS")
+    bm.to_mesh(m.data); bm.free()
+    for g in list(m.vertex_groups):
+        m.vertex_groups.remove(g)
+    m.parent = None
+    CANONS.append(m)
+    print("CANON %s : %d sommets, %d faces" % (cote, len(m.data.vertices), len(m.data.polygons)))
+bm = bmesh.new(); bm.from_mesh(me); bm.verts.ensure_lookup_table()
+dl = bm.verts.layers.deform.verify()
+bmesh.ops.delete(bm, geom=[v for v in bm.verts if gi_c in v[dl] and v[dl][gi_c] > 0.5], context="VERTS")
+bm.to_mesh(me); bm.free(); me.update()
+armure.vertex_groups.remove(armure.vertex_groups["canon_marque"])
+print("ARMURE habillée sans les canons : %d sommets, %d triangles" % (len(me.vertices), len(me.polygons)))
+
 # ---------------------------------------------------------------- 8. export habillé
 for o in (armure, sous):
     o.parent = arm
     mo = o.modifiers.new("Armature", "ARMATURE"); mo.object = arm
 for o in list(bpy.data.objects):
-    if o not in (arm, armure, sous):
+    if o not in (arm, armure, sous) and o not in CANONS:
         bpy.data.objects.remove(o)
 for o in bpy.data.objects:
     o.select_set(True)

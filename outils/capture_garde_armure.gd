@@ -345,16 +345,18 @@ func _avantbras() -> void:
 	if m.get("cycle") != null:
 		m.cycle.heure = 12.0
 	centre = garde.global_position
-	var vues := [["face", 0.0], ["profil", 90.0], ["34", 45.0]]
+	var cote := String(args.get("ab_bras", "l"))   # --ab_bras=r : bras droit (vues en miroir)
+	var sg := 1.0 if cote == "l" else -1.0
+	var vues := [["face", 0.0], ["profil", 90.0 * sg], ["34", 45.0 * sg]]
 	anim.play("Idle")
 	for v in vues:
 		for i in 20:
 			garde.rotation.y = 0.0
-			_vise_avantbras("l", v[1], float(args.get("ab_dist", "1.3")))
+			_vise_avantbras(cote, v[1], float(args.get("ab_dist", "1.3")))
 			await process_frame
 		await _capt("%s/repos_%s.png" % [dos, v[0]])
 	# coude plié : instant de l'attaque où un coude est le plus fermé
-	var meilleur := ["Sword_Attack", 0.0, "l", 180.0]
+	var meilleur := ["Sword_Attack", 0.0, cote, 180.0]
 	for nom in ["Sword_Attack", "Punch_Cross"]:
 		if not anim.has_animation(nom):
 			continue
@@ -362,7 +364,7 @@ func _avantbras() -> void:
 		for k in 24:
 			_jouer(nom, L * k / 24.0)
 			await process_frame
-			for c in [String(args.get("ab_bras", "l"))]:
+			for c in [cote]:
 				var ang := _coude_angle(c)
 				if ang < meilleur[3]:
 					meilleur = [nom, L * k / 24.0, c, ang]
@@ -379,7 +381,7 @@ func _avantbras() -> void:
 	for v in vues:
 		for i in 23:
 			_pas(0.0, 4.0, 2.0, 1.0, 36.0)
-			_vise_avantbras("l", v[1], float(args.get("ab_dist", "1.3")))
+			_vise_avantbras(cote, v[1], float(args.get("ab_dist", "1.3")))
 			await process_frame
 		await _capt("%s/marche_%s.png" % [dos, v[0]])
 

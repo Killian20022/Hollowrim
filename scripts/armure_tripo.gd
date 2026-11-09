@@ -4,9 +4,10 @@ class_name ArmureTripo
 ## repartie de la planche Tripo : vue de face de chaque pièce, mise à l'échelle d'un homme de 1,81 m, poids lissés transférés du corps).
 ## Deux maillages habillés, greffés sur le Skeleton3D du modèle (mêmes noms d'os, poses de liaison du GLB) :
 ##   « armure »      or bruni + cuir sombre (atlas 512 recuit), shader ps1 ;
-##   « sous_couche » le corps ramené derrière l'armure, en cuir sombre (comble coudes, genoux, aisselles, cou en marche).
+##   « sous_couche » le corps ramené derrière l'armure, en cuir sombre (comble coudes, genoux, aisselles, cou en marche) ;
+##   « canon_l/_r » les brassards des avant-bras, pièces RIGIDES accrochées aux os lowerarm (BoneAttachment3D).
 ## Le corps d'origine (peau, yeux, cheveux, barbe, sous-vêtement) est masqué : l'armure couvre tout.
-## `equiper(modele)` retourne les deux MeshInstance3D ajoutés.
+## `equiper(modele)` retourne les MeshInstance3D ajoutés.
 const GLB := "res://assets/essai_tripo/armure_complete.glb"
 const TEX := "res://assets/essai_tripo/armure_complete_tex.png"
 ## Teinte de l'or (multiplie l'atlas : or bruni du rendu Tripo, un peu relevé pour rester lisible sous le shader ps1).
@@ -63,6 +64,29 @@ static func equiper(modele: Node3D, _cacher := true) -> Array:
 		mi.material_override = materiau() if nom == "armure" else materiau_mailles()
 		sq.add_child(mi)
 		mi.skeleton = NodePath("..")
+		res.append(mi)
+	# canons des avant-bras : pièces RIGIDES (brassards), accrochées aux os lowerarm_l / lowerarm_r par un BoneAttachment3D, comme
+	# l'épée des gardes ; aucune déformation. Le maillage est aux coordonnées de la pose de repos du GLB : sa transformation sous
+	# l'attache est la pose de liaison de l'os dans la peau de l'armure (même placement que si elle était habillée à 100 % sur l'os).
+	var peau := (src.find_child("armure", true, false) as MeshInstance3D).skin if src.find_child("armure", true, false) != null else null
+	for cote in ["l", "r"]:
+		var mc := src.find_child("canon_" + cote, true, false) as MeshInstance3D
+		if mc == null or peau == null:
+			continue
+		var lie := Transform3D.IDENTITY
+		for i in peau.get_bind_count():
+			if peau.get_bind_name(i) == "lowerarm_" + cote or (peau.get_bind_name(i) == "" and sq.get_bone_name(peau.get_bind_bone(i)) == "lowerarm_" + cote):
+				lie = peau.get_bind_pose(i)
+		var acc := BoneAttachment3D.new()
+		acc.name = "Canon_" + cote
+		acc.bone_name = "lowerarm_" + cote
+		sq.add_child(acc)
+		var mi := MeshInstance3D.new()
+		mi.name = "Armure_canon_" + cote
+		mi.mesh = mc.mesh
+		mi.material_override = materiau()
+		mi.transform = lie
+		acc.add_child(mi)
 		res.append(mi)
 	src.free()
 	return res
