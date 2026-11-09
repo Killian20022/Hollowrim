@@ -26,26 +26,29 @@ const BRAS := preload("res://assets/modeles/joueur/bras_fps.glb")
 const ORIENTATION := preload("res://scripts/orientation_main.gd")
 
 ## Première personne (repère de la caméra), visée « à la Skyrim » : l'arc MONTE dans le champ, presque vertical (haut incliné
-## vers la droite, inclinaison_visee), le poing gauche juste sous le réticule ; la flèche est encochée sous l'œil, contre la joue
-## droite (ENCOCHE_VISEE, la main de corde presque hors champ en bas à droite) et file jusqu'à l'arc : sa POINTE arrive exactement
-## au centre de l'écran (appui_visee() le calcule depuis l'encoche et la longueur de la flèche). Au repos l'arc est baissé en bas à
-## gauche, couché vers la droite : la levée (~0,35 s) se termine presque droite sans basculer de l'autre côté.
+## vers la droite, inclinaison_visee), à bout de bras ; le poing gauche reste SOUS le réticule et à sa gauche (la cible reste
+## visible) ; la flèche est encochée contre la joue droite (ENCOCHE_VISEE, main de corde hors champ en bas à droite), passe au ras
+## des jointures et sa POINTE arrive exactement au centre de l'écran. Au repos l'arc est baissé en bas à gauche, couché vers la
+## droite ; la levée (~0,33 s) le monte et le redresse en même temps (interpolation des rotations, sans balayage).
 ## POSE_REPOS = [appui de la flèche sur l'arc, direction de la flèche, inclinaison (rad, positif = haut vers la gauche)].
-const ENCOCHE_VISEE := Vector3(0.07, -0.09, -0.01)
+const ENCOCHE_VISEE := Vector3(0.14, -0.2, -0.01)
 const POSE_REPOS := [Vector3(-0.17, -0.34, -0.6), Vector3(0.35, -0.15, -1.0), -1.25]
+## Visée (m, repère de la caméra) : allonge de l'encoche à l'appui (bras tendu ; au-delà de l'allonge du modèle, la corde suit)
+## et dépassement de la pointe au-delà de l'appui (la flèche s'allonge côté encoche, hors champ, si l'allonge l'exige).
+const ALLONGE_VISEE := 0.75
+const DEPASSE_VISEE := 0.3
+## Appui de la flèche en visée (repère local de l'arc) : à droite de la poignée, au ras des jointures du poing (au repos :
+## ArcModele.APPUI) ; le poing et l'arc restent ainsi à gauche et sous le réticule.
+const APPUI_VISEE_LOC := Vector3(0.22, 0.2, 0.0)
+## Épaule gauche avancée en visée (repère de la caméra) : le bras d'arc atteint l'allonge.
+const AVANCE_EPAULE_G := Vector3(0.04, 0.06, -0.1)
 ## Vitesse de la levée (1/s) : 1 / 3 ≈ 0,33 s du repos à la visée.
 const VITESSE_LEVEE := 3.0
-## Appui de la flèche en visée (x local de l'arc) : contre le flanc DROIT de la poignée gainée (demi-largeur ~3 cm), pour que la
-## pointe, au réticule, ne soit pas cachée par l'arc (au repos : ArcModele.APPUI, à gauche).
-const APPUI_X_VISEE := 0.055
 ## Début du bandage : décalage de la main de corde (sous et à droite de la ligne de visée, proportionnel à l'allonge : la flèche
 ## pivote d'au plus ~25° sur l'appui), effacé à pleine allonge ; nul dès le lâcher.
 const BAISSE_BANDAGE := Vector3(0.08, -0.26, 0.0)
-## Arc de la 1re personne un peu réduit (1,15 m au lieu de 1,59 m) pour tenir presque entier dans le champ.
+## Arc de la 1re personne un peu réduit (1,15 m au lieu de 1,59 m), même échelle au repos et en visée.
 const ECHELLE_ARC_VM := 0.72
-## En visée l'arc grandit un peu (1,43 m) : l'allonge (encoche à la joue -> poing) devient celle d'un bras tendu, l'arc s'éloigne
-## et tient dans la hauteur de l'écran ; la flèche, plus longue, va de la joue au centre de l'écran.
-const ECHELLE_ARC_VISEE := 0.9
 ## Bras 1re personne (bras_fps.glb) : agrandis (le modèle a un bras de 0,49 m, trop court pour tenir un arc à bout de bras) et
 ## légèrement avancés sous l'œil, les épaules hors champ.
 const ECHELLE_BRAS := 1.3
@@ -94,8 +97,10 @@ var _bras: Node3D
 var _sq: Skeleton3D
 var _pivot_d: Node3D
 var _poing_vm: _Poing
-var _cible_g_vm: Node3D
-var _prise_g_vm := Transform3D()
+## Mesure (tests, films) : positions monde des os des mains de la 1re personne après l'IK (signal skeleton_updated).
+var mesure := false
+var points_mains := {}
+var _rel_epaule_g := Basis()
 # 3e personne
 var _sq_corps: Skeleton3D
 var _ik_corps: Array[TwoBoneIK3D] = []
@@ -152,6 +157,8 @@ class _Poing extends SkeletonModifier3D:
 	## Épaule déplacée (repère du squelette, depuis la pose de repos) : 1re personne, l'épaule droite ramenée à sa vraie place.
 	var os_decale := ""
 	var decalage := Vector3.ZERO
+	## Autres os déplacés {nom: décalage (repère du squelette)}.
+	var decalages := {}
 	func _process_modification_with_delta(_dt: float) -> void:
 		var sq := get_skeleton()
 		if sq == null:
@@ -161,6 +168,10 @@ class _Poing extends SkeletonModifier3D:
 			var parent := sq.get_bone_global_rest(sq.get_bone_parent(i))
 			var g := sq.get_bone_global_rest(i)
 			sq.set_bone_pose_position(i, parent.affine_inverse() * (g.origin + decalage))
+		for nom: String in decalages:
+			var i := sq.find_bone(nom)
+			var parent := sq.get_bone_global_rest(sq.get_bone_parent(i))
+			sq.set_bone_pose_position(i, parent.affine_inverse() * (sq.get_bone_global_rest(i).origin + (decalages[nom] as Vector3)))
 		for i: int in doigts:
 			var f := ferme_d if sq.get_bone_name(i).ends_with("_r") else ferme_g
 			var q: Quaternion = doigts[i]
@@ -278,10 +289,6 @@ func _installer_bras() -> void:
 		c.position = p
 		coudes.append(c)
 	var r := _installer_ik(_bras, _sq, _vm.repere_poignee, _pivot_d, coudes, ECHELLE_BRAS / ECHELLE_ARC_VM, ECHELLE_BRAS)
-	# cible du poing gauche (enfant du repère de la poignée) : son décalage suit l'échelle de l'arc (qui change à la levée)
-	_cible_g_vm = _vm.repere_poignee.get_child(_vm.repere_poignee.get_child_count() - 1)
-	_prise_g_vm = _cible_g_vm.transform.affine_inverse()
-	_prise_g_vm.origin /= ECHELLE_BRAS / ECHELLE_ARC_VM
 	_poing_vm = r[0]
 	_poing_vm.ouvert_repos = true
 	# épaule droite reculée à sa vraie place (le modèle est avancé pour que le bras d'arc atteigne la poignée)
@@ -292,6 +299,9 @@ func _installer_bras() -> void:
 		nd = nd.get_parent()
 	_poing_vm.os_decale = "clavicle_r"
 	_poing_vm.decalage = rel.basis.inverse() * RECUL_EPAULE_D
+	_rel_epaule_g = rel.basis.inverse()
+	_poing_vm.decalages["clavicle_l"] = Vector3.ZERO
+	_sq.skeleton_updated.connect(_sur_squelette)
 	_sq.add_child(TorsionAvantBras.new())   # dernier : torsion des avant-bras répartie, mains inchangées
 
 # ------------------------------------------------------------------ équipement
@@ -513,57 +523,118 @@ func _bruit(k: float) -> float:
 ## Repère de l'arc tel que la flèche (de l'encoche à z_encoche vers l'appui) suive `dir`, l'appui en `appui`, le haut de l'arc
 ## incliné de `incl` (rad, positif = vers la gauche à l'écran) autour de la flèche.
 static func pose_arc(appui: Vector3, dir: Vector3, incl: float, z_encoche: float, ech := 1.0, appui_loc := ArcModele.APPUI) -> Transform3D:
-	var d_loc := (appui_loc - Vector3(0.0, appui_loc.y, z_encoche)).normalized()
+	# l'encoche est décalée comme l'appui (ArcModele.encoche_locale) : la flèche garde l'angle du modèle avec l'arc
+	var d_loc := (appui_loc - Vector3(appui_loc.x - ArcModele.APPUI.x, appui_loc.y, z_encoche)).normalized()
 	var haut := Vector3.UP.rotated(dir.normalized(), -incl)
 	var b := (Basis.looking_at(dir.normalized(), haut) * Basis.looking_at(d_loc, Vector3.UP).inverse()).scaled(Vector3.ONE * ech)
 	return Transform3D(b, appui - b * appui_loc)
 
-## Pointe de la flèche à pleine allonge, sur l'axe de visée (centre de l'écran), à la longueur de la flèche de l'encoche.
+## Pointe de la flèche à pleine allonge, sur l'axe de visée (centre de l'écran).
 static func pointe_visee() -> Vector3:
-	var lp := ArcModele.longueur_pointe() * ECHELLE_ARC_VISEE
+	var lp := ALLONGE_VISEE + DEPASSE_VISEE
 	var e := ENCOCHE_VISEE
 	return Vector3(0.0, 0.0, e.z - sqrt(maxf(0.0, lp * lp - e.x * e.x - e.y * e.y)))
 
-## Appui de la flèche sur l'arc en visée : sur la ligne encoche -> pointe, à la distance de pleine allonge de l'arc.
+## Appui de la flèche sur l'arc en visée : sur la ligne encoche -> pointe, à l'allonge de visée.
 static func appui_visee() -> Vector3:
-	var z1 := float(ArcModele.infos().get("encoche_pleine_z", 0.574))
-	var dist := Vector2(APPUI_X_VISEE, z1).length() * ECHELLE_ARC_VISEE
-	return ENCOCHE_VISEE + (pointe_visee() - ENCOCHE_VISEE).normalized() * dist
+	return ENCOCHE_VISEE + (pointe_visee() - ENCOCHE_VISEE).normalized() * ALLONGE_VISEE
+
+## Os des mains (après l'IK) : mesure de ce que la main cache à l'écran.
+func _sur_squelette() -> void:
+	if not mesure:
+		return
+	for c in ["l", "r"]:
+		var pts := PackedVector3Array()
+		var racine := _sq.find_bone("hand_" + c)
+		for i in _sq.get_bone_count():
+			var k := i
+			while k >= 0 and k != racine:
+				k = _sq.get_bone_parent(k)
+			if k == racine:
+				pts.append(_sq.global_transform * _sq.get_bone_global_pose(i).origin)
+		points_mains[c] = pts
+
+## Mesure à l'écran de la 1re personne (mesure = true depuis au moins une image) : demi-côté `demi` du carré autour du réticule
+## (fraction de la HAUTEUR de l'écran) ; rend le nombre de points de l'arc (sommets) et des mains (os, gonflés de `rayon` m) dans
+## ce carré, et le cadre du poing gauche en fractions de l'écran [gauche, haut, droite, bas] (os gonflés de `rayon`).
+func mesure_ecran(demi := 0.04, rayon := 0.02) -> Dictionary:
+	var cam: Camera3D = joueur.camera
+	var taille := Vector2(cam.get_viewport().get_visible_rect().size)
+	var c := taille * 0.5
+	var h := demi * taille.y
+	var dans := func(p: Vector3, r: float) -> bool:
+		if cam.is_position_behind(p):
+			return false
+		var e := cam.unproject_position(p)
+		var rp := 0.0
+		if r > 0.0:
+			var dist := (cam.global_transform.affine_inverse() * p).z
+			rp = r / maxf(-dist, 0.01) / tan(deg_to_rad(cam.fov) * 0.5) * taille.y * 0.5
+		return absf(e.x - c.x) < h + rp and absf(e.y - c.y) < h + rp
+	var n_arc := 0
+	var t := _vm.mi_arc.global_transform
+	for v in _vm.mi_arc.mesh.get_faces():
+		if dans.call(t * v, 0.0):
+			n_arc += 1
+	var n_mains := 0
+	for k: String in points_mains:
+		for p: Vector3 in points_mains[k]:
+			if dans.call(p, rayon):
+				n_mains += 1
+	var cadre := Rect2()
+	var premier := true
+	for p: Vector3 in points_mains.get("l", PackedVector3Array()):
+		if cam.is_position_behind(p):
+			continue
+		var e := cam.unproject_position(p)
+		var dist := -(cam.global_transform.affine_inverse() * p).z
+		var rp := rayon / maxf(dist, 0.01) / tan(deg_to_rad(cam.fov) * 0.5) * taille.y * 0.5
+		var r := Rect2(e - Vector2(rp, rp), Vector2(rp, rp) * 2.0)
+		cadre = r if premier else cadre.merge(r)
+		premier = false
+	return {"arc": n_arc, "mains": n_mains, "poing": [cadre.position.x / taille.x, cadre.position.y / taille.y, cadre.end.x / taille.x, cadre.end.y / taille.y]}
 
 func _placer_vm() -> void:
-	# pose de visée : la flèche va de l'encoche (contre la joue) à l'appui (poing gauche) et sa pointe au centre de l'écran
+	# pose de visée : la flèche va de l'encoche (contre la joue) à l'appui (au ras du poing gauche), sa pointe au centre de l'écran
 	var appui_vis := appui_visee()
 	var d_vis := (appui_vis - ENCOCHE_VISEE).normalized()
-	var l_loc := appui_vis.distance_to(ENCOCHE_VISEE) / ECHELLE_ARC_VISEE
-	var z_vis := sqrt(maxf(0.0, l_loc * l_loc - APPUI_X_VISEE * APPUI_X_VISEE))
-	var z0 := float(ArcModele.infos().get("encoche_repos_z", 0.16))
-	var z1 := float(ArcModele.infos().get("encoche_pleine_z", 0.56))
-	var a_vm := clampf((z_vis - z0) / (z1 - z0), 0.2, 1.0)
+	var z0 := float(ArcModele.infos().get("encoche_repos_z", 0.174))
+	var z1 := float(ArcModele.infos().get("encoche_pleine_z", 0.574))
+	var l_loc := ALLONGE_VISEE / ECHELLE_ARC_VM
+	var z_vis := sqrt(maxf(0.0, l_loc * l_loc - ArcModele.APPUI.x * ArcModele.APPUI.x))
+	var a_vm := maxf((z_vis - z0) / (z1 - z0), 0.2)
+	_vm.allonge_max = maxf(a_vm, 1.0)
+	_vm.depasse_fleche = DEPASSE_VISEE / ECHELLE_ARC_VM
 	var u := tension * a_vm if etat == BANDE else 0.0
+	var z_u := _vm.encoche_pour(u).z
 	var ph := _phase_recup()
 	var l := smoothstep(0.0, 1.0, _levee)
-	var appui: Vector3 = (POSE_REPOS[0] as Vector3).lerp(appui_vis, l)
 	# en cours de bandage la main de corde part plus bas (sous le champ) et remonte à la joue : la flèche pivote sur l'appui et
 	# n'arrive dans l'axe (pointe au réticule) qu'à pleine allonge
-	var dist_u := Vector2(APPUI_X_VISEE, _vm.encoche_pour(u).z).length() * ECHELLE_ARC_VISEE
-	var dist_plein := appui_vis.distance_to(ENCOCHE_VISEE)
-	var nock_u := appui_vis - d_vis * dist_u + BAISSE_BANDAGE * (dist_u / dist_plein) * (1.0 - smoothstep(0.0, 1.0, u)) * _abaisse
+	var dist_u := Vector2(ArcModele.APPUI.x, z_u).length() * ECHELLE_ARC_VM
+	var nock_u := appui_vis - d_vis * dist_u + BAISSE_BANDAGE * (dist_u / ALLONGE_VISEE) * (1.0 - smoothstep(0.0, 1.0, u / a_vm)) * _abaisse
 	var d_u := (appui_vis - nock_u).normalized()
-	var dir: Vector3 = (POSE_REPOS[1] as Vector3).normalized().slerp(d_u, l)
-	var incl: float = lerpf(POSE_REPOS[2], reglage("inclinaison_visee", 0.0), l)
+	var appui := appui_vis
+	var incl := reglage("inclinaison_visee", 0.0)
 	if tremblement > 0.0:
 		appui += Vector3(_bruit(0.0), _bruit(1.7), 0.0) * 0.006 * tremblement
-		dir = dir.rotated(Vector3.UP, _bruit(3.1) * 0.012 * tremblement)
+		d_u = d_u.rotated(Vector3.UP, _bruit(3.1) * 0.012 * tremblement)
 	if _recul > 0.0:
 		var k := _recul / 0.22
 		appui += Vector3(0.0, 0.01, 0.035) * k * k
 		incl += 0.06 * k
-	var ech := lerpf(ECHELLE_ARC_VM, ECHELLE_ARC_VISEE, l)
-	# en visée la flèche passe à DROITE de la poignée (l'arc reste à gauche du réticule) ; au repos, à gauche (inchangé)
-	_vm.appui = Vector3(lerpf(ArcModele.APPUI.x, APPUI_X_VISEE, l), ArcModele.APPUI.y, ArcModele.APPUI.z)
-	_vm.transform = pose_arc(appui, dir, incl, _vm.encoche_pour(u).z, ech, _vm.appui)
-	if _cible_g_vm != null:
-		_cible_g_vm.transform = Transform3D(_prise_g_vm.basis, _prise_g_vm.origin * (ECHELLE_BRAS / ech)).affine_inverse()
+	# levée : position de l'appui interpolée, ROTATION interpolée (quaternions) entre la pose de repos et celle de visée
+	var t_repos := pose_arc(POSE_REPOS[0], POSE_REPOS[1], POSE_REPOS[2], z_u, ECHELLE_ARC_VM)
+	var t_vis := pose_arc(appui, d_u, incl, z_u, ECHELLE_ARC_VM, APPUI_VISEE_LOC)
+	# l'arc se redresse en tête de levée (aux 3/5 de la course il est droit) pendant que le poing monte : pas de passage couché
+	var l_rot := smoothstep(0.0, 1.0, clampf(_levee / 0.6, 0.0, 1.0))
+	var q := t_repos.basis.get_rotation_quaternion().slerp(t_vis.basis.get_rotation_quaternion(), l_rot)
+	var b := Basis(q).scaled(Vector3.ONE * ECHELLE_ARC_VM)
+	_vm.appui = ArcModele.APPUI.lerp(APPUI_VISEE_LOC, l)
+	var p_appui: Vector3 = (POSE_REPOS[0] as Vector3).lerp(appui, l)
+	_vm.transform = Transform3D(b, p_appui - b * _vm.appui)
+	_poing_vm.decalages["clavicle_l"] = _rel_epaule_g * (AVANCE_EPAULE_G * l)
+	var ech := ECHELLE_ARC_VM
 	_poing_vm.ferme_d = 1.0
 	_vm.fleche_libre = null
 	if ph >= 0.0:

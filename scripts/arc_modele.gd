@@ -23,6 +23,10 @@ const APPUI := Vector3(-0.024, 0.045, 0.0)
 const RAYON_CORDE := 0.0034
 ## Appui de CE modèle (APPUI par défaut) : la 1re personne passe la flèche à droite de la poignée en visée (composition Skyrim).
 var appui := APPUI
+## Allonge permise (1 = celle du modèle ; au-delà la corde suit l'encoche, branches à pleine flexion) ; dépassement de la pointe
+## au-delà de l'appui (local) : la flèche s'allonge côté encoche quand l'allonge dépasse sa longueur (1re personne en visée).
+var allonge_max := 1.0
+var depasse_fleche := 0.0
 
 var mi_arc: MeshInstance3D
 var mi_corde: MeshInstance3D
@@ -107,7 +111,7 @@ static func repere_main(jointures: Vector3, axe := Vector3.UP) -> Basis:
 func _resoudre(u: float) -> void:
 	var z0 := float(infos().get("encoche_repos_z", 0.195))
 	var z1 := float(infos().get("encoche_pleine_z", 0.595))
-	var cible := lerpf(z0, z1, clampf(u, 0.0, 1.0))
+	var cible := lerpf(z0, z1, clampf(u, 0.0, allonge_max))
 	var lo := 0.0
 	var hi := 1.0
 	for i in 18:
@@ -129,14 +133,14 @@ func attache(w: float, haut := true) -> Vector3:
 	return p if haut else Vector3(p.x, -p.y, p.z)
 
 func encoche_locale() -> Vector3:
-	return Vector3(0.0, APPUI.y, _z_encoche + _vibration())
+	return Vector3(appui.x - APPUI.x, appui.y, _z_encoche + _vibration())
 
 ## Point d'encoche (local) pour une allonge donnée, sans changer l'état du modèle.
 func encoche_pour(u: float) -> Vector3:
-	return Vector3(0.0, APPUI.y, lerpf(float(infos().get("encoche_repos_z", 0.195)), float(infos().get("encoche_pleine_z", 0.595)), u))
+	return Vector3(appui.x - APPUI.x, appui.y, lerpf(float(infos().get("encoche_repos_z", 0.195)), float(infos().get("encoche_pleine_z", 0.595)), u))
 
 func regler(u: float, encoche_ := false) -> void:
-	allonge = clampf(u, 0.0, 1.0)
+	allonge = clampf(u, 0.0, allonge_max)
 	encoche = encoche_
 	_resoudre(allonge)
 	_appliquer()
@@ -175,7 +179,8 @@ func _appliquer() -> void:
 	else:
 		# encoche sur la corde, fût posé sur l'appui (à gauche de la poignée, sur le poing)
 		var dir := (appui - n).normalized()
-		fleche.transform = Transform3D(Basis.looking_at(dir, Vector3.UP), n)
+		var k := maxf(1.0, (appui.distance_to(n) + depasse_fleche) / longueur_pointe())
+		fleche.transform = Transform3D(Basis.looking_at(dir, Vector3.UP) * Basis.from_scale(Vector3(1.0, 1.0, k)), n)
 
 func _maille_corde(haut: Vector3, noeud: Vector3, bas: Vector3) -> ArrayMesh:
 	var st := SurfaceTool.new()

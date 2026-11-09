@@ -58,6 +58,8 @@ func _tirer(tenu: float, viser := true) -> Dictionary:
 		m["pointe_cam"] = inv * arc._vm.pointe()
 		m["poignee_ecran"] = j.camera.unproject_position(arc._vm.global_position) / taille
 		m["encoche_cam"] = inv * arc._vm.encoche_monde()
+		m["ecran"] = arc.mesure_ecran(0.04, 0.02)
+		m["echelle"] = arc._vm.transform.basis.get_scale().x
 	arc.relacher()
 	await _sim(DT * 2.0)
 	m["parti"] = arc.tirs > n0
@@ -118,6 +120,7 @@ func _tester() -> void:
 	_verif(arc.equiper() != "" and not arc.actif, "sans arc au sac : refus (« %s »)" % arc.equiper())
 	j.inventaire.ajouter("arc_chasseur", 1)
 	var epee_avant: bool = j.mains._peut_agir()
+	arc.mesure = true
 	_verif(arc.equiper() == "" and arc.actif and epee_avant and not j.mains._peut_agir(), "arc équipé : l'épée ne peut plus frapper")
 	_verif(not j.mains.visible and arc._rig.visible and arc._sq != null, "première personne : mains de l'épée cachées, vrais bras + arc visibles")
 	# pas de flèche
@@ -160,6 +163,11 @@ func _tester() -> void:
 	var ec: Vector3 = r3["encoche_cam"]
 	_verif(Vector2(pc.x, pc.y).length() < 0.002 and pc.z < -0.4, "visée 1re personne : pointe de la flèche au centre de l'écran (écart %.1f mm à %.2f m)" % [Vector2(pc.x, pc.y).length() * 1000.0, -pc.z])
 	_verif(pe.x > 0.35 and pe.x < 0.5 and pe.y > 0.5 and pe.y < 0.68, "visée 1re personne : arc levé, poignée sous le réticule à gauche (%d %% × %d %% de l'écran)" % [roundi(pe.x * 100.0), roundi(pe.y * 100.0)])
+	var me: Dictionary = r3["ecran"]
+	var pg: Array = me["poing"]
+	_verif(me["arc"] == 0 and me["mains"] == 0, "visée 1re personne : la cible reste visible (aucun point de l'arc ni des mains dans le carré de 8 %% autour du réticule : arc %d, mains %d)" % [me["arc"], me["mains"]])
+	_verif(pg[2] - pg[0] <= 0.13 and pg[1] >= 0.53 and pg[1] <= 0.6 and pg[2] < 0.5, "visée 1re personne : poing sous le réticule et à gauche (largeur %d %%, haut à %d %%, bord droit à %d %%)" % [roundi((pg[2] - pg[0]) * 100.0), roundi(pg[1] * 100.0), roundi(pg[2] * 100.0)])
+	_verif(absf(r3["echelle"] - ArcJoueur.ECHELLE_ARC_VM) < 0.001, "visée 1re personne : l'arc garde son échelle (%.2f)" % r3["echelle"])
 	_verif(ec.x > 0.0 and ec.y < 0.0 and ec.z > -0.1 and absf(ec.x / ec.z) > 1.2, "visée 1re personne : encoche à la joue droite, hors du champ (%.2f, %.2f, %.2f)" % [ec.x, ec.y, ec.z])
 	await _sim(1.2)
 	var dern: Dictionary = cible.coups[-1] if cible.coups.size() > 0 else {}
