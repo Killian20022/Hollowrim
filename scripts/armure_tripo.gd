@@ -19,11 +19,12 @@ const TEINTE_MAILLES := Color(0.42, 0.36, 0.3)
 static var _mat: ShaderMaterial
 static var _shader: Shader
 
-## Shader perso du jeu dont l'émission est multipliée par l'albédo (EMISSION = emission * ALBEDO).
+## Shader perso du jeu dont l'émission est multipliée par l'albédo (EMISSION = emission * ALBEDO), en DOUBLE FACE : les pièces
+## Tripo sont des plaques à une seule surface ; l'intérieur des manchettes évasées montre l'or au lieu du cuir sombre de dessous.
 static func shader_or() -> Shader:
 	if _shader == null:
 		_shader = Shader.new()
-		_shader.code = Humain.shader_perso(false).code.replace("EMISSION = emission +", "EMISSION = emission * ALBEDO +")
+		_shader.code = Humain.shader_perso(true).code.replace("EMISSION = emission +", "EMISSION = emission * ALBEDO +")
 	return _shader
 static var _mat_mailles: ShaderMaterial
 
