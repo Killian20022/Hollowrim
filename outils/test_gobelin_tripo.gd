@@ -30,6 +30,11 @@ func _pf() -> void:
 	if film:
 		j.vie = j.vie_max
 		j.esquive_t = 0.0
+		j.mains.visible = false
+		if _cam != null and _suivi != null and is_instance_valid(_suivi):
+			var cb := _suivi.global_position + Vector3(0, 0.75, 0)
+			if cb.distance_to(_cam.global_position) > 0.5:
+				_cam.look_at(cb)
 	await physics_frame
 
 func _att(n: int) -> void:
@@ -41,6 +46,60 @@ func _inter(nom: String) -> Node3D:
 		if n.get("verbe") != null and n.get("nom") == nom:
 			return n
 	return null
+
+## Place la caméra libre : hauteur d'homme, en 3/4 sur le trajet gobelin -> joueur, positions validées par lancers de rayons (aucune roche entre la caméra et la scène, ni au-dessus).
+func _libre(from: Vector3, to: Vector3, ex: Array) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(from, to)
+	q.exclude = ex
+	return root.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+func _placer_camera(cam: Camera3D, pe: Vector3, pj: Vector3) -> void:
+	var ex: Array = [j.get_rid()]
+	if _suivi is CollisionObject3D:
+		ex.append((_suivi as CollisionObject3D).get_rid())
+	var axe := (pj - pe)
+	axe.y = 0.0
+	var lon := axe.length()
+	axe = axe.normalized()
+	var lat := Vector3(-axe.z, 0, axe.x)
+	var cible := pe + Vector3(0, 0.8, 0)
+	var meilleur := Vector3.INF
+	var meilleur_sc := 99.0
+	var espace := root.get_world_3d().direct_space_state
+	for d in [3.4, 2.8, 2.3, 1.8]:
+		for rec in [0.0, 1.5, 3.0, -1.0]:
+			for cote in [1.0, -1.0]:
+				var xz: Vector3 = pe + axe * (lon * 0.45 + rec) + lat * cote * d
+				var q := PhysicsRayQueryParameters3D.create(xz + Vector3(0, 2.0, 0), xz - Vector3(0, 3.0, 0))
+				q.exclude = ex
+				var sol: Dictionary = espace.intersect_ray(q)
+				if sol.is_empty():
+					continue
+				var pos: Vector3 = (sol["position"] as Vector3) + Vector3(0, 1.45, 0)
+				if absf(float(sol["position"].y) - pe.y) > 1.2 or pos.y > pe.y + 2.4:
+					continue
+				var bon := _libre(pos, cible, ex) and _libre(pos, pe + Vector3(0, 0.3, 0), ex) and _libre(pos, pos + Vector3(0, 0.5, 0), ex) \
+					and _libre(pos, pos + lat * 0.5, ex) and _libre(pos, pos - lat * 0.5, ex) and _libre(pos, pos + axe * 0.5, ex) and _libre(pos, pos - axe * 0.5, ex)
+				# le trajet du gobelin vers le joueur doit rester visible de la caméra
+				for f in [0.2, 0.4]:
+					bon = bon and _libre(pos, pe.lerp(pj, f) + Vector3(0, 0.8, 0), ex)
+				if bon:
+					var sc := absf(float(sol["position"].y) - pe.y) + absf(d - 2.3) * 0.15
+					if sc < meilleur_sc:
+						meilleur_sc = sc
+						meilleur = pos
+	print("pj=%s lon=%.2f" % [pj, lon])
+	print("CAM validée : %s pos=%s gobelin=%s" % ["oui" if meilleur != Vector3.INF else "NON (repli)", meilleur, pe])
+	if meilleur == Vector3.INF:
+		meilleur = pe + axe * lon * 0.45 - axe * 1.0 + Vector3(0, 1.45, 0)
+	cam.global_position = meilleur
+	cam.look_at(cible)
+	cam.current = true
+	_cam = cam
+
+var _debug := false
+var _cam: Camera3D = null
+var _suivi: Node3D = null
 
 func _go() -> void:
 	film = OS.get_cmdline_user_args().has("--film")
@@ -100,6 +159,11 @@ func _go() -> void:
 			if n is Node3D:
 				n.visible = false
 		j.camera.fov = 52.0
+	var cam2: Camera3D = null
+	if film:
+		cam2 = Camera3D.new()
+		cam2.fov = 50.0
+		m.add_child(cam2)
 	var vie0: float = j.vie
 	var viser := func() -> void:
 		var v: Vector3 = e.global_position - j.global_position
@@ -110,9 +174,14 @@ func _go() -> void:
 	var dirj: Vector3 = (j.global_position - e.global_position)
 	dirj.y = 0.0
 	dirj = dirj.normalized()
-	j.global_position = Vector3(e.global_position.x + dirj.x * 5.0, e.global_position.y + 0.1, e.global_position.z + dirj.z * 5.0)
+	j.global_position = Vector3(e.global_position.x + dirj.x * 4.5, e.global_position.y + 0.1, e.global_position.z + dirj.z * 4.5)
+	if film:
+		await _att(3)
+		_suivi = e
+		_placer_camera(cam2, e.global_position, j.global_position)
+		print("CAM image %d position %s" % [Engine.get_frames_drawn(), cam2.global_position])
 	print("PLAN idle %d" % img)
-	for i in 45:
+	for i in (300 if film else 45):
 		viser.call()
 		await _pf()
 	e.alerter()
@@ -120,7 +189,7 @@ func _go() -> void:
 	var attaque := false
 	var photo := false
 	var marche := false
-	for i in 420:
+	for i in (480 if film else 420):
 		viser.call()
 		var an := String(e._anim)
 		if an.contains("Walk") or an.contains("Jog"):
@@ -132,7 +201,7 @@ func _go() -> void:
 				await RenderingServer.frame_post_draw
 				root.get_viewport().get_texture().get_image().save_png(sortie.path_join("gobelin_grotte_attaque.png"))
 		await _pf()
-		if attaque and (j.vie < vie0 or film) and i > 240:
+		if attaque and ((j.vie < vie0 and not film) or (film and i > 470)) and i > 240:
 			break
 	ok(marche, "le gobelin marche vers le joueur")
 	ok(attaque, "le gobelin attaque (clip %s)" % e._anim)
@@ -145,7 +214,7 @@ func _go() -> void:
 		"attaque": "legere", "arme": j.mains.arme.id, "stagger": DegatsCombat.stagger(j.mains.arme, "legere"), "collider": e}
 	e.vie = 1.0
 	DegatsCombat.appliquer(e, 999.0, j.global_position, true, info)
-	await _att(100 if film else 30)
+	await _att(210 if film else 30)
 	ok(not e.vivant(), "le gobelin meurt sous un coup létal")
 	print("FIN %d" % img)
 	print("ECHECS : %d" % echecs if echecs > 0 else "TOUT OK")
