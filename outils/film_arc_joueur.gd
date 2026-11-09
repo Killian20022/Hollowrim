@@ -162,7 +162,12 @@ func _poses() -> void:
 	await _photo("lacher")
 	await _attendre(16)
 	await _photo("rechargement")
-	await _attendre(60)
+	for k in 4:
+		await _attendre(7)
+		await _photo("rechargement_%d" % (k + 1))
+	await _attendre(40)
+	await _photo("repos_apres")
+	await _attendre(20)
 
 func _attendre(k: int) -> void:
 	for i in k:

@@ -27,12 +27,12 @@ const ORIENTATION := preload("res://scripts/orientation_main.gd")
 
 ## Première personne (repère de la caméra), d'après la pose d'arc_presentation.png : en visée, l'encoche est sous la joue (en bas,
 ## un peu à droite), la flèche file vers le centre de l'écran (elle converge vers le point visé), le poing gauche tient l'arc
-## juste sous le centre, l'arc incliné (~26°) presque entier dans l'image ; au repos l'arc est baissé à gauche.
+## juste sous le centre, l'arc incliné (~26°) presque entier dans l'image ; au repos l'arc est baissé en bas à gauche, couché vers la droite (même sens d'inclinaison qu'en visée : il ne passe jamais par la verticale).
 ## POSE_REPOS = [appui de la flèche sur l'arc, direction de la flèche, inclinaison (rad, positif = haut vers la gauche)].
 const ENCOCHE_VISEE := Vector3(0.18, -0.24, -0.5)
 ## Appui de la flèche sur l'arc en visée : juste à gauche du centre de l'écran (la flèche passe près du centre).
 const APPUI_VISEE := Vector3(-0.1, -0.07, -0.83)
-const POSE_REPOS := [Vector3(-0.2, -0.27, -0.58), Vector3(0.35, -0.15, -1.0), 0.9]
+const POSE_REPOS := [Vector3(-0.17, -0.34, -0.6), Vector3(0.35, -0.15, -1.0), -1.25]
 ## Arc de la 1re personne un peu réduit (1,13 m) pour tenir presque entier dans le champ.
 const ECHELLE_ARC_VM := 0.82
 ## Bras 1re personne (bras_fps.glb) : agrandis (le modèle a un bras de 0,49 m, trop court pour tenir un arc à bout de bras) et
@@ -435,7 +435,7 @@ func _physics_process(dt: float) -> void:
 				_avis_donne = tenu   # un clic tenu à la fin d'un tir ne ré-affiche pas l'avis en boucle
 	if etat != BANDE:
 		tremblement = maxf(0.0, tremblement - dt * 3.0)
-	var but_levee := 1.0 if etat == BANDE or (etat == RECUP and _t_recup < 0.2) else 0.0
+	var but_levee := 1.0 if etat == BANDE or etat == RECUP else 0.0   # l'arc reste en visée pendant tout le rechargement
 	_levee = move_toward(_levee, but_levee, dt * (4.5 if but_levee > _levee else 1.8))
 	_zoom(dt)
 	_modeles()
@@ -540,7 +540,9 @@ func _placer_vm() -> void:
 			main = CARQUOIS.lerp(nock_cam, k)
 			if fleches() > 0:
 				var vers_appui := (_vm.transform * ArcModele.APPUI - main).normalized()
-				var d := Vector3(0.15, 0.35, -1.0).normalized().slerp(vers_appui, k)
+				# flèche déjà orientée vers l'avant (axe de tir de l'arc), jamais pendante
+				var axe := (_vm.transform * ArcModele.APPUI - nock_cam).normalized()
+				var d := axe.slerp(vers_appui, k)
 				_vm.fleche_libre = _vm.transform.affine_inverse() * Transform3D(Basis.looking_at(d, Vector3.UP).scaled(Vector3.ONE * ECHELLE_ARC_VM), main)
 		_pivot_d.transform = Transform3D(repere, main)
 		_vm._appliquer()
