@@ -21,6 +21,7 @@ var _imp := false
 var _traces: Array = []   # [projectile, ImmediateMesh, points, compteur]
 var _cible_vise := Vector3.ZERO
 var _dernier := ""
+var _plan := ""
 
 func _init() -> void:
 	_go.call_deferred()
@@ -111,7 +112,9 @@ func _go() -> void:
 		cam = Camera3D.new()
 		cam.fov = 58.0
 		s.add_child(cam)
+		# plan « épaule » (derrière l'épaule droite, comme la vue de jeu, un peu plus large) puis plan latéral
 		cam.current = true
+		_plan = _arg("cam", "epaule")
 		croix.visible = false
 	arc.equiper()
 	if mode == "poses":
@@ -131,6 +134,8 @@ func _go() -> void:
 	await _viser(Vector3(0.9, 1.6, -14.0))
 	await _tir(1.3, "Tir plein (tendu) dans le mur à 14 m")
 	await _filmer(48, "")
+	if vue == "3":
+		_plan = "lateral"   # la courbe des trajectoires vue de côté
 	await _viser(Vector3(-0.5, 1.2, -22.0))
 	await _filmer(12, "")
 	await _tir(1.3, "Tir plein : palissade fine à 22 m (pas de traversée)")
@@ -196,14 +201,15 @@ func _viser(c: Vector3) -> void:
 		await process_frame
 
 func _cadre() -> void:
-	if cam != null and _arg("cam") == "cote":
-		var bc: Basis = j.global_transform.basis
-		cam.global_position = j.global_position + bc * Vector3(-1.9, 1.5, -1.7)
-		cam.look_at(j.global_position + Vector3(0, 1.25, 0))
-	elif cam != null:
-		var b: Basis = j.global_transform.basis
-		cam.global_position = j.global_position + b * Vector3(3.0, 1.7, -1.4)
-		cam.look_at(j.global_position + b * Vector3(-0.4, 1.15, -1.3))
+	if cam != null and _plan == "epaule":
+		var be: Basis = Basis(Vector3.UP, j.rotation.y)
+		cam.global_position = j.global_position + be * Vector3(1.4, 1.9, 2.6)
+		cam.look_at(j.global_position + be * Vector3(-0.5, 1.35, -5.0))
+	elif cam != null and cam.current:
+		# plan latéral (côté droit de l'archer, un peu devant) : l'archer à gauche, les flèches filent vers la droite
+		var b: Basis = Basis(Vector3.UP, j.rotation.y)
+		cam.global_position = j.global_position + b * Vector3(2.7, 1.4, -1.9)
+		cam.look_at(j.global_position + b * Vector3(0.0, 1.2, -1.45))
 
 func _sur_tir(info: Dictionary) -> void:
 	var p: Projectile = info["projectile"]

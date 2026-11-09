@@ -57,15 +57,13 @@ def bruit(a=0.06):
     return (random.random() - 0.5) * 2.0 * a
 
 
-BOIS = [hexc(c) for c in ("#2a1a10", "#3b2616", "#4d331e", "#5e4027", "#6e4d31")]
+BOIS = [hexc(c) for c in ("#2a2119", "#3b3025", "#4d3f31", "#5f4f3e", "#6f5e4a")]   # brun sombre désaturé (arc_trois_vues)
 
 
 def bois(u, v, x, y, base=0.5, fibre=1.0):
     # fibres longitudinales (le long de v) + noeuds discrets
     f = math.sin(x * 2.1 + math.sin(y * 0.19 + x) * 1.7) * 0.5 + 0.5
-    t = base + (f - 0.5) * 0.35 * fibre + bruit(0.08)
-    if random.random() < 0.025:
-        t -= 0.25
+    t = base + (f - 0.5) * 0.3 * fibre + bruit(0.035)
     i = max(0.0, min(3.999, t * 4.0))
     return mix(BOIS[int(i)], BOIS[int(i) + 1], i - int(i))
 
@@ -83,34 +81,41 @@ ORDRE = ["fehu", "ansuz", "othala", "algiz", "tiwaz", "gebo"]
 
 
 def peindre_branche():
-    peindre(R_BRANCHE, lambda u, v, x, y: bois(u, v, x, y, 0.45 + 0.1 * math.sin(v * 9.0)))
-    # deux runes par tiers de largeur (3 colonnes de 10 px : une par face visible), entre v 0,14 et 0,46
+    peindre(R_BRANCHE, lambda u, v, x, y: bois(u, v, x, y, 0.42 + 0.1 * math.sin(v * 9.0)))
+    # deux GRANDES runes gravées par branche (gebo « X » et raido « R », comme sur arc_trois_vues), tracées en traits de ~3 px ;
+    # chaque face de la branche reçoit toute la largeur de la bande (u 0..1 par face) : ~13 cm de haut, lisibles à 480x270
     x0, y0, _, _ = R_BRANCHE
-    for col in range(3):
-        cx = x0 + col * 10 + 3
-        for k, (r, ry) in enumerate(((ORDRE[(col * 2) % 6], 14), (ORDRE[(col * 2 + 1) % 6], 38))):
-            g = RUNES[r]
-            for gy in range(18):   # glyphe étiré deux fois en hauteur (la branche est longue : ~4 cm de haut)
-                for gx in range(5):
-                    if g[gy // 2][gx] == "X":
-                        px, py = cx + gx, y0 + ry + gy
-                        PIX[py][px] = mix(hexc("#120a06"), hexc("#1d120a"), random.random())
-                        # lèvre claire de la gravure (à droite et au-dessus : lumière rasante)
-                        if gx + 1 < 5 and g[gy // 2][gx + 1] != "X":
-                            PIX[py][px + 1] = mix(PIX[py][px + 1], hexc("#9a7a54"), 0.5)
-                        if gy == 0 or g[(gy - 1) // 2][gx] != "X":
-                            PIX[py - 1][px] = mix(PIX[py - 1][px], hexc("#9a7a54"), 0.4)
-    # entailles et éraflures
-    for _ in range(14):
+    TRAITS = {"gebo": [((0.0, 0.0), (1.0, 1.0)), ((1.0, 0.0), (0.0, 1.0))],
+              "raido": [((0.15, 0.0), (0.15, 1.0)), ((0.15, 0.0), (0.85, 0.24)), ((0.85, 0.24), (0.15, 0.5)), ((0.15, 0.5), (0.9, 1.0))]}
+    def graver(nom, bx, by, lw, lh):
+        creux = set()
+        for (ax, ay), (bx2, by2) in TRAITS[nom]:
+            n = int(max(abs(bx2 - ax) * lw, abs(by2 - ay) * lh) * 2) + 2
+            for i in range(n + 1):
+                t = i / n
+                cxp, cyp = bx + (ax + (bx2 - ax) * t) * lw, by + (ay + (by2 - ay) * t) * lh
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        if dx * dx + dy * dy <= 1:
+                            creux.add((int(round(cxp)) + dx, int(round(cyp)) + dy))
+        for (px, py) in creux:
+            PIX[py][px] = mix(hexc("#0e0805"), hexc("#1a110b"), random.random())
+        for (px, py) in creux:   # lèvres claires (lumière rasante d'en haut à droite)
+            for q in ((px + 1, py), (px, py - 1)):
+                if q not in creux and x0 <= q[0] < x0 + 32 and 0 <= q[1] < 128:
+                    PIX[q[1]][q[0]] = mix(PIX[q[1]][q[0]], hexc("#b49a78"), 0.65)
+    graver("gebo", x0 + 7, y0 + 10, 18, 30)
+    graver("raido", x0 + 7, y0 + 52, 18, 32)
+    for _ in range(5):
         x = random.randrange(x0, x0 + 32)
-        y = random.randrange(0, 128)
+        y = random.randrange(96, 124)
         for d in range(random.randrange(2, 5)):
             if 0 <= y + d < 128:
                 PIX[y + d][x] = mix(PIX[y + d][x], hexc("#1a100a"), 0.6)
 
 
 def peindre_cuir():
-    C = [hexc(c) for c in ("#2e150d", "#4a2414", "#64321c", "#7a4226")]
+    C = [hexc(c) for c in ("#24120d", "#3a1f16", "#50291d", "#653628")]
 
     def f(u, v, x, y):
         # lanières enroulées en diagonale, bord sombre, milieu clair
@@ -123,7 +128,7 @@ def peindre_cuir():
 
 
 def peindre_cordelette():
-    C = [hexc(c) for c in ("#3a2a1a", "#6e5638", "#94784e", "#b09464")]
+    C = [hexc(c) for c in ("#251c14", "#43352a", "#5e4c3c", "#76644f")]
 
     def f(u, v, x, y):
         d = y % 4
@@ -135,11 +140,11 @@ def peindre_cordelette():
 
 def peindre_corne():
     def f(u, v, x, y):
-        base = mix(hexc("#8c7656"), hexc("#e6dcc4"), min(1.0, v * 1.3))
+        base = mix(hexc("#a89c86"), hexc("#ece6d6"), min(1.0, v * 1.4))
         stries = 0.08 * math.sin(y * 1.3 + x * 0.4)
         c = mix(base, hexc("#5e4a34"), max(0.0, stries + bruit(0.05)))
         if v > 0.85:
-            c = mix(c, hexc("#f2ead8"), 0.4)
+            c = mix(c, hexc("#f6f2e8"), 0.4)
         return c
     peindre(R_CORNE, f)
 
@@ -230,9 +235,9 @@ def catmull(pts, n):
 
 
 # demi-arc (y, z) en m : poignée en retrait, branche qui avance puis revient vers l'archer, corne recourbée vers l'avant
-PROFIL = [(0.0, 0.0), (0.05, 0.0), (0.085, -0.004), (0.13, -0.02), (0.19, -0.034), (0.25, -0.036), (0.31, -0.024),
-          (0.37, 0.004), (0.43, 0.046), (0.48, 0.092), (0.52, 0.134), (0.55, 0.166), (0.575, 0.186), (0.60, 0.198),
-          (0.625, 0.198), (0.645, 0.186), (0.66, 0.166)]
+PROFIL = [(0.0, 0.0), (0.05, 0.0), (0.085, -0.006), (0.13, -0.022), (0.19, -0.036), (0.25, -0.04), (0.31, -0.032),
+          (0.37, -0.012), (0.43, 0.018), (0.48, 0.05), (0.52, 0.082), (0.55, 0.105), (0.575, 0.122), (0.60, 0.133),
+          (0.625, 0.139), (0.648, 0.148), (0.665, 0.162), (0.678, 0.182)]
 FINE = catmull(PROFIL, 8)
 LONG = [0.0]
 for a, b in zip(FINE[:-1], FINE[1:]):
@@ -254,7 +259,7 @@ def sur_courbe(a):
 
 
 # anneaux du demi-arc : (abscisse, demi-largeur x, demi-épaisseur, région, v dans la région)
-A_CORNE = L_DEMI - 0.085      # début de la corne (fin de la ligature de pointe)
+A_CORNE = L_DEMI - 0.11      # début de la corne (fin de la ligature de pointe)
 A_LIG_P = A_CORNE - 0.03      # ligature de pointe (la corde s'y attache)
 A_LIG_Q = 0.30                # ligature du quart
 
@@ -262,19 +267,19 @@ A_LIG_Q = 0.30                # ligature du quart
 def anneaux():
     r = []
     # poignée de cuir (0 -> 0,075), anneaux de cordelette (0,075 -> 0,095)
-    r.append(("cuir", [(0.0, 0.024, 0.026, 0.5), (0.04, 0.0245, 0.0265, 0.75), (0.075, 0.024, 0.026, 1.0)]))
-    r.append(("corde", [(0.075, 0.0265, 0.0285, 0.0), (0.084, 0.0275, 0.0295, 0.5), (0.095, 0.0245, 0.0265, 1.0)]))
-    lim = lambda a: (0.0225 - 0.0075 * (a - 0.095) / (A_LIG_P - 0.095), 0.018 - 0.006 * (a - 0.095) / (A_LIG_P - 0.095))
+    r.append(("cuir", [(0.0, 0.034, 0.05, 0.5), (0.04, 0.035, 0.051, 0.75), (0.075, 0.034, 0.05, 1.0)]))
+    r.append(("corde", [(0.075, 0.037, 0.053, 0.0), (0.084, 0.038, 0.054, 0.5), (0.095, 0.031, 0.047, 1.0)]))
+    lim = lambda a: (0.029 - 0.01 * (a - 0.095) / (A_LIG_P - 0.095), 0.045 - 0.019 * (a - 0.095) / (A_LIG_P - 0.095))
     vb = lambda a: (a - 0.095) / (A_LIG_P - 0.095)
-    seg1 = [0.095, 0.15, 0.21, 0.255, A_LIG_Q]
+    seg1 = [0.095, 0.135, 0.175, 0.215, 0.255, A_LIG_Q]
     r.append(("branche", [(a, *lim(a), vb(a)) for a in seg1]))
     w, t = lim(A_LIG_Q)
     r.append(("corde", [(A_LIG_Q, w + 0.003, t + 0.003, 0.0), (A_LIG_Q + 0.009, w + 0.0035, t + 0.0035, 0.5), (A_LIG_Q + 0.018, w + 0.003, t + 0.003, 1.0)]))
-    seg2 = [A_LIG_Q + 0.018, 0.37, 0.43, 0.48, 0.52, A_LIG_P]
+    seg2 = [A_LIG_Q + 0.018, 0.36, 0.40, 0.44, 0.48, 0.52, A_LIG_P]
     r.append(("branche", [(a, *lim(a), vb(a)) for a in seg2]))
     w, t = lim(A_LIG_P)
     r.append(("corde", [(A_LIG_P, w + 0.0028, t + 0.0028, 0.0), (A_LIG_P + 0.015, w + 0.0034, t + 0.0034, 0.5), (A_CORNE, w + 0.0026, t + 0.0026, 1.0)]))
-    r.append(("corne", [(A_CORNE, w, t, 0.0), (A_CORNE + 0.03, 0.011, 0.011, 0.35), (A_CORNE + 0.06, 0.007, 0.0075, 0.7), (L_DEMI - 0.004, 0.0028, 0.003, 0.97)]))
+    r.append(("corne", [(A_CORNE, w, t, 0.0), (A_CORNE + 0.035, 0.0155, 0.019, 0.35), (A_CORNE + 0.075, 0.0105, 0.012, 0.7), (L_DEMI - 0.004, 0.0035, 0.004, 0.97)]))
     return r
 
 
@@ -343,25 +348,31 @@ def construire_arc(M, A):
             for (a, w, t, v) in ann:
                 (cy, cz), _, (ny, nz) = point_arc(a, signe, pliage)
                 ring = []
-                for k in range(COTES):
-                    ang = 2 * math.pi * k / COTES
-                    ox, on = w * math.cos(ang), t * math.sin(ang)
+                # section : deux flancs plats (±x, là où sont gravées les runes, vus de profil), dos et ventre en toit
+                for ox, on in ((w, -0.62 * t), (w, 0.62 * t), (0.0, t), (-w, 0.62 * t), (-w, -0.62 * t), (0.0, -t)):
                     ring.append((ox, cy + ny * on, cz + nz * on))
                 vv = (0.5 + 0.5 * (a / 0.075) * signe) if nom == "cuir" else v
                 if prec is not None:
                     pr, pv = prec
                     for k in range(COTES):
                         j = (k + 1) % COTES
-                        u0, u1 = (k % 3) / 3.0, (k % 3 + 1) / 3.0
+                        u0, u1 = ((0.0, 1.0) if nom == "branche" else ((k % 3) / 3.0, (k % 3 + 1) / 3.0))
                         q = [pr[k], pr[j], ring[j], ring[k]]
                         uvs = [uvr(reg, u0, pv), uvr(reg, u1, pv), uvr(reg, u1, vv), uvr(reg, u0, vv)]
                         idx = [M.s(p) for p in q]
-                        # sens : normale vers l'extérieur (repère x, tangente, normale direct en haut, indirect en bas)
-                        if signe > 0:
+                        # sens : normale vers l'extérieur de la branche (centre des deux anneaux)
+                        c = [sum(pp[i] for pp in q) / 4.0 for i in range(3)]
+                        cen = [0.0, (pcy + cy) * 0.5, (pcz + cz) * 0.5]
+                        dehors = [c[i] - cen[i] for i in range(3)]
+                        a_ = [q[1][i] - q[0][i] for i in range(3)]
+                        b_ = [q[2][i] - q[0][i] for i in range(3)]
+                        n_ = (a_[1] * b_[2] - a_[2] * b_[1], a_[2] * b_[0] - a_[0] * b_[2], a_[0] * b_[1] - a_[1] * b_[0])
+                        if sum(n_[i] * dehors[i] for i in range(3)) < 0.0:
                             idx.reverse()
                             uvs.reverse()
                         M.face(idx, uvs)
                 prec = (ring, vv)
+                pcy, pcz = cy, cz
             if nom == "corne":
                 # bout de la corne : petit cône fermé
                 (cy, cz), (ty, tz), _ = point_arc(L_DEMI, signe, pliage)
@@ -371,7 +382,13 @@ def construire_arc(M, A):
                     j = (k + 1) % COTES
                     idx = [M.s(pr[k]), M.s(pr[j]), M.s(bout)]
                     uvs = [uvr(R_CORNE, (k % 3) / 3.0, pv), uvr(R_CORNE, (k % 3 + 1) / 3.0, pv), uvr(R_CORNE, 0.5, 1.0)]
-                    if signe > 0:
+                    q = [pr[k], pr[j], bout]
+                    c = [sum(pp[i] for pp in q) / 3.0 for i in range(3)]
+                    dehors = [c[0], c[1] - pcy, c[2] - pcz]
+                    a_ = [q[1][i] - q[0][i] for i in range(3)]
+                    b_ = [q[2][i] - q[0][i] for i in range(3)]
+                    n_ = (a_[1] * b_[2] - a_[2] * b_[1], a_[2] * b_[0] - a_[0] * b_[2], a_[0] * b_[1] - a_[1] * b_[0])
+                    if sum(n_[i] * dehors[i] for i in range(3)) < 0.0:
                         idx.reverse()
                         uvs.reverse()
                     M.face(idx, uvs)
@@ -382,7 +399,7 @@ def attache(A, signe=1):
     pliage = courbe_pliee(A) if A != 0.0 else None
     a = A_LIG_P + 0.012
     (cy, cz), _, (ny, nz) = point_arc(a, signe, pliage)
-    e = 0.017
+    e = 0.033
     return (0.0, cy + ny * e, cz + nz * e)
 
 

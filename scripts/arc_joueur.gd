@@ -25,22 +25,26 @@ const FICHIER := "res://data/arc/arc_joueur.json"
 const BRAS := preload("res://assets/modeles/joueur/bras_fps.glb")
 const ORIENTATION := preload("res://scripts/orientation_main.gd")
 
-## Première personne (repère de la caméra) : en visée, l'encoche est sous la joue droite (en bas à droite de l'écran) et la flèche
-## traverse la vue en diagonale, sa pointe juste sous le centre de l'écran (d'où part le tir) ; au repos l'arc est baissé.
-## POSE_REPOS = [appui de la flèche sur l'arc, direction de la flèche, inclinaison (rad, haut vers la droite)].
-const ENCOCHE_VISEE := Vector3(0.13, -0.14, -0.26)
-const POINTE_VISEE := Vector3(-0.03, -0.045, -1.0)
-const POSE_REPOS := [Vector3(-0.2, -0.26, -0.55), Vector3(0.3, -0.12, -1.0), 0.85]
-## Allonge du modèle atteinte à pleine tension à la 1re personne (le bras d'arc des bras_fps est court : encoche à la joue).
-const ALLONGE_VM := 0.85
-## Bras 1re personne : décalage du modèle (sous l'œil, avancé) : les épaules hors champ, le bras d'arc presque tendu.
-const DECALAGE_BRAS := Vector3(0.0, -0.1, -0.58)
+## Première personne (repère de la caméra), d'après la pose d'arc_presentation.png : en visée, l'encoche est sous la joue (en bas,
+## un peu à droite), la flèche file vers le centre de l'écran (elle converge vers le point visé), le poing gauche tient l'arc
+## juste sous le centre, l'arc incliné (~26°) presque entier dans l'image ; au repos l'arc est baissé à gauche.
+## POSE_REPOS = [appui de la flèche sur l'arc, direction de la flèche, inclinaison (rad, positif = haut vers la gauche)].
+const ENCOCHE_VISEE := Vector3(0.18, -0.24, -0.5)
+## Appui de la flèche sur l'arc en visée : juste à gauche du centre de l'écran (la flèche passe près du centre).
+const APPUI_VISEE := Vector3(-0.1, -0.07, -0.83)
+const POSE_REPOS := [Vector3(-0.2, -0.27, -0.58), Vector3(0.35, -0.15, -1.0), 0.9]
+## Arc de la 1re personne un peu réduit (1,13 m) pour tenir presque entier dans le champ.
+const ECHELLE_ARC_VM := 0.82
+## Bras 1re personne (bras_fps.glb) : agrandis (le modèle a un bras de 0,49 m, trop court pour tenir un arc à bout de bras) et
+## légèrement avancés sous l'œil, les épaules hors champ.
+const ECHELLE_BRAS := 1.3
+const DECALAGE_BRAS := Vector3(0.0, -0.1, -0.42)
 ## Carquois (dos, à droite, hors champ) : la main droite y prend la flèche suivante.
 const CARQUOIS := Vector3(0.3, -0.5, 0.05)
 const COUDE_G := Vector3(-0.7, -0.8, -0.2)
 const COUDE_D := Vector3(0.8, -0.6, 0.1)
 ## Épaule droite ramenée en arrière (repère de la caméra) : le bras de corde se replie naturellement vers la joue.
-const RECUL_EPAULE_D := Vector3(0.05, 0.0, 0.5)
+const RECUL_EPAULE_D := Vector3(0.05, 0.0, 0.3)
 
 static var _r := {}
 
@@ -195,7 +199,7 @@ static func _pose_os(sq: Skeleton3D, nom: String) -> Transform3D:
 	return t
 
 ## Installe sur un squelette : poings, IK à deux os des deux bras vers les cibles, orientation des poignets. Rend [poing, ik_g, ik_d, or_g, or_d].
-static func _installer_ik(racine: Node3D, sq: Skeleton3D, cible_g: Node3D, pivot_d: Node3D, coudes: Array[Node3D]) -> Array:
+static func _installer_ik(racine: Node3D, sq: Skeleton3D, cible_g: Node3D, pivot_d: Node3D, coudes: Array[Node3D], fg := 1.0, fd := 1.0) -> Array:
 	var poing := _Poing.new()
 	poing.doigts = poings(racine, sq)
 	for i: int in poing.doigts:
@@ -204,10 +208,10 @@ static func _installer_ik(racine: Node3D, sq: Skeleton3D, cible_g: Node3D, pivot
 	var prise_d := calculer_prise(sq, "r")
 	var cg := Node3D.new()
 	cible_g.add_child(cg)
-	cg.transform = prise_g.affine_inverse()
+	cg.transform = Transform3D(prise_g.basis, prise_g.origin * fg).affine_inverse()   # fg, fd : échelle main / repère de la cible
 	var cd := Node3D.new()
 	pivot_d.add_child(cd)
-	cd.transform = prise_d.affine_inverse()
+	cd.transform = Transform3D(prise_d.basis, prise_d.origin * fd).affine_inverse()
 	sq.add_child(poing)
 	var r: Array = [poing]
 	for i in 2:
@@ -246,7 +250,7 @@ func _installer_bras() -> void:
 	var tete := _sq.get_bone_global_rest(_sq.find_bone("Head")).origin
 	var yeux := tete + Vector3(0, 0.07, 0.1)
 	var tour := Basis(Vector3.UP, PI)
-	_bras.transform = Transform3D(tour, -(tour * yeux) + DECALAGE_BRAS)
+	_bras.transform = Transform3D(tour.scaled(Vector3.ONE * ECHELLE_BRAS), -(tour * yeux) * ECHELLE_BRAS + DECALAGE_BRAS)
 	_pivot_d = Node3D.new()
 	_rig.add_child(_pivot_d)
 	var coudes: Array[Node3D] = []
@@ -255,7 +259,7 @@ func _installer_bras() -> void:
 		_rig.add_child(c)
 		c.position = p
 		coudes.append(c)
-	var r := _installer_ik(_bras, _sq, _vm.repere_poignee, _pivot_d, coudes)
+	var r := _installer_ik(_bras, _sq, _vm.repere_poignee, _pivot_d, coudes, ECHELLE_BRAS / ECHELLE_ARC_VM, ECHELLE_BRAS)
 	_poing_vm = r[0]
 	_poing_vm.ouvert_repos = true
 	# épaule droite reculée à sa vraie place (le modèle est avancé pour que le bras d'arc atteigne la poignée)
@@ -484,24 +488,28 @@ func _bruit(k: float) -> float:
 	return sin(_t * 17.0 + k) * 0.6 + sin(_t * 29.0 + k * 2.3) * 0.4
 
 ## Repère de l'arc tel que la flèche (de l'encoche à z_encoche vers l'appui) suive `dir`, l'appui en `appui`, le haut de l'arc
-## incliné de `incl` (rad, vers la droite) autour de la flèche.
-static func pose_arc(appui: Vector3, dir: Vector3, incl: float, z_encoche: float) -> Transform3D:
+## incliné de `incl` (rad, positif = vers la gauche à l'écran) autour de la flèche.
+static func pose_arc(appui: Vector3, dir: Vector3, incl: float, z_encoche: float, ech := 1.0) -> Transform3D:
 	var d_loc := (ArcModele.APPUI - Vector3(0.0, ArcModele.APPUI.y, z_encoche)).normalized()
 	var haut := Vector3.UP.rotated(dir.normalized(), -incl)
-	var b := Basis.looking_at(dir.normalized(), haut) * Basis.looking_at(d_loc, Vector3.UP).inverse()
+	var b := (Basis.looking_at(dir.normalized(), haut) * Basis.looking_at(d_loc, Vector3.UP).inverse()).scaled(Vector3.ONE * ech)
 	return Transform3D(b, appui - b * ArcModele.APPUI)
 
 func _placer_vm() -> void:
-	var u := tension * ALLONGE_VM if etat == BANDE else 0.0
+	# pose de visée : la flèche va de l'encoche (sous la joue) à l'appui (juste à gauche du centre) ; l'allonge s'en déduit
+	var d_vis := (APPUI_VISEE - ENCOCHE_VISEE).normalized()
+	var appui_vis := APPUI_VISEE
+	var l_loc := APPUI_VISEE.distance_to(ENCOCHE_VISEE) / ECHELLE_ARC_VM
+	var z_vis := sqrt(maxf(0.0, l_loc * l_loc - ArcModele.APPUI.x * ArcModele.APPUI.x))
+	var z0 := float(ArcModele.infos().get("encoche_repos_z", 0.16))
+	var z1 := float(ArcModele.infos().get("encoche_pleine_z", 0.56))
+	var a_vm := clampf((z_vis - z0) / (z1 - z0), 0.2, 1.0)
+	var u := tension * a_vm if etat == BANDE else 0.0
 	var ph := _phase_recup()
-	# pose de visée : la flèche file de l'encoche (joue) vers le centre de l'écran, au loin
-	var z_vis := _vm.encoche_pour(ALLONGE_VM).z
-	var d_vis := (POINTE_VISEE - ENCOCHE_VISEE).normalized()
-	var appui_vis := ENCOCHE_VISEE + d_vis * Vector2(ArcModele.APPUI.x, z_vis).length()
 	var l := smoothstep(0.0, 1.0, _levee)
 	var appui: Vector3 = (POSE_REPOS[0] as Vector3).lerp(appui_vis, l)
 	var dir: Vector3 = (POSE_REPOS[1] as Vector3).normalized().slerp(d_vis, l)
-	var incl: float = lerpf(POSE_REPOS[2], reglage("inclinaison_visee", 0.3), l)
+	var incl: float = lerpf(POSE_REPOS[2], reglage("inclinaison_visee", -0.38), l)
 	if tremblement > 0.0:
 		appui += Vector3(_bruit(0.0), _bruit(1.7), 0.0) * 0.006 * tremblement
 		dir = dir.rotated(Vector3.UP, _bruit(3.1) * 0.012 * tremblement)
@@ -509,34 +517,37 @@ func _placer_vm() -> void:
 		var k := _recul / 0.22
 		appui += Vector3(0.0, 0.01, 0.035) * k * k
 		incl += 0.06 * k
-	_vm.transform = pose_arc(appui, dir, incl, _vm.encoche_pour(u).z)
+	_vm.transform = pose_arc(appui, dir, incl, _vm.encoche_pour(u).z, ECHELLE_ARC_VM)
 	_poing_vm.ferme_d = 1.0
 	_vm.fleche_libre = null
 	if ph >= 0.0:
 		# rechargement : lâcher (main ouverte qui file en arrière), carquois (hors champ), retour avec une flèche
 		_vm.regler(0.0, false)
 		var nock_cam := _vm.transform * _vm.encoche_locale()
-		var lacher := ENCOCHE_VISEE + Vector3(0.2, 0.02, 0.16)   # la main file vers l'oreille, hors champ
-		var repere: Basis = _vm.transform.basis * _vm.repere_encoche.basis
+		# lâcher : la main file en arrière vers l'oreille et sort du champ en ~4 images, les doigts s'ouvrant en route
+		var lacher := ENCOCHE_VISEE + Vector3(0.3, -0.12, 0.3)
+		var repere: Basis = (_vm.transform.basis * _vm.repere_encoche.basis).orthonormalized()
 		var main: Vector3
-		if ph < 0.22:
-			main = ENCOCHE_VISEE.lerp(lacher, smoothstep(0.0, 1.0, ph / 0.22))
-			_poing_vm.ferme_d = 0.0
+		if ph < 0.12:
+			var k0 := ph / 0.12
+			main = ENCOCHE_VISEE.lerp(lacher, 1.0 - (1.0 - k0) * (1.0 - k0))
+			_poing_vm.ferme_d = 1.0 - 0.45 * k0
 		elif ph < 0.5:
-			main = lacher.lerp(CARQUOIS, smoothstep(0.0, 1.0, (ph - 0.22) / 0.28))
-			_poing_vm.ferme_d = (ph - 0.22) / 0.28
+			main = lacher.lerp(CARQUOIS, smoothstep(0.0, 1.0, (ph - 0.12) / 0.38))
+			_poing_vm.ferme_d = (ph - 0.12) / 0.38
 		else:
 			var k := smoothstep(0.0, 1.0, (ph - 0.5) / 0.5)
 			main = CARQUOIS.lerp(nock_cam, k)
 			if fleches() > 0:
 				var vers_appui := (_vm.transform * ArcModele.APPUI - main).normalized()
 				var d := Vector3(0.15, 0.35, -1.0).normalized().slerp(vers_appui, k)
-				_vm.fleche_libre = _vm.transform.affine_inverse() * Transform3D(Basis.looking_at(d, Vector3.UP), main)
+				_vm.fleche_libre = _vm.transform.affine_inverse() * Transform3D(Basis.looking_at(d, Vector3.UP).scaled(Vector3.ONE * ECHELLE_ARC_VM), main)
 		_pivot_d.transform = Transform3D(repere, main)
 		_vm._appliquer()
 	else:
 		_vm.regler(u, _encochee)
-		_pivot_d.transform = _vm.transform * _vm.repere_encoche.transform
+		var t_enc := _vm.transform * _vm.repere_encoche.transform
+		_pivot_d.transform = Transform3D(t_enc.basis.orthonormalized(), t_enc.origin)
 
 # ------------------------------------------------------------------ 3e personne
 

@@ -32,33 +32,28 @@ func _go() -> void:
 	monde.add_child(so)
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = 1.75
-	cam.position = Vector3(0.0, -0.08, 3.0)
 	monde.add_child(cam)
 	cam.current = true
-	# profil : l'arc tourné de 90° (la corde à droite, comme arc_trois_vues)
-	var repos := ArcModele.new()
-	monde.add_child(repos)
-	repos.position = Vector3(-0.95, 0.0, 0.0)
-	repos.rotation.y = -PI * 0.5
-	repos.regler(0.0, false)
-	var bande := ArcModele.new()
-	monde.add_child(bande)
-	bande.position = Vector3(-0.15, 0.0, 0.0)
-	bande.rotation.y = -PI * 0.5
-	bande.regler(1.0, true)
-	var trois := ArcModele.new()
-	monde.add_child(trois)
-	trois.position = Vector3(0.9, 0.0, 0.0)
-	trois.rotation.y = -PI * 0.5 + 0.6
-	trois.regler(0.0, false)
-	var f := ArcModele.creer_fleche()
-	monde.add_child(f)
-	f.rotation.y = -PI * 0.5
-	f.rotation.x = 0.0
-	f.position = Vector3(0.95, -0.78, 0.2)
-	f.rotation = Vector3(0.0, PI * 0.5, 0.0)
-	f.position = Vector3(0.45, -0.78, 0.2)
+	# comme arc_trois_vues : profil (corde à droite), face, trois quarts ; puis l'arc à pleine allonge avec la flèche encochée
+	cam.size = 1.55
+	cam.position = Vector3(0.0, 1.98, 3.0)   # tout est posé à 2 m de haut : sous le niveau du sol, le shader ps1 met de la neige
+	var vues := [[-1.15, PI * 0.5, 0.0, false], [-0.45, 0.0, 0.0, false], [0.1, PI * 0.5 - 0.55, 0.0, false], [0.75, PI * 0.5, 1.0, true]]
+	for v in vues:
+		var a := ArcModele.new()
+		monde.add_child(a)
+		a.position = Vector3(v[0], 2.0, 0.0)
+		a.rotation.y = v[1]
+		a.regler(v[2], v[3])
+	var fl := ArcModele.creer_fleche()   # la flèche seule, en bas, pointe à droite (comme arc_presentation)
+	monde.add_child(fl)
+	fl.rotation = Vector3(0.0, -PI * 0.5, 0.0)
+	fl.position = Vector3(-0.75, 1.27, 0.3)
+	if _arg("gros") != "":
+		cam.size = 0.45
+		for a2 in monde.get_children():
+			if a2 is ArcModele and _arg("gros") == "2":
+				(a2 as ArcModele).mi_corde.visible = false
+		cam.position = Vector3(-0.45, 1.6, 3.0)
 	for i in 12:
 		await process_frame
 	await RenderingServer.frame_post_draw

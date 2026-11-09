@@ -2,18 +2,18 @@
  "_doc": "Repères de arc_chasseur.glb (sources_blender/scripts/arc_chasseur.py) : repère Godot, arc debout le long de +Y, corde côté +Z. attache_* = attache haute de la corde (la basse est symétrique en y). Clé de forme « bande » = pleine allonge.",
  "attache_repos": [
   0.0,
-  0.5645566520473722,
-  0.1994778822299433
+  0.5539847238064421,
+  0.14791715195294233
  ],
  "attache_bande": [
   0.0,
-  0.4696579347387649,
-  0.28619584044035096
+  0.4623258355158097,
+  0.24270592013879586
  ],
- "demi_corde": 0.5645566520473722,
- "encoche_repos_z": 0.1994778822299433,
- "encoche_pleine_z": 0.5994778822299434,
- "flexion_rad": 0.5045182851672491,
+ "demi_corde": 0.5539847238064421,
+ "encoche_repos_z": 0.14791715195294233,
+ "encoche_pleine_z": 0.5479171519529423,
+ "flexion_rad": 0.5539396541387336,
  "longueur_fleche": 0.72,
  "pointe_fleche_z": -0.7999999999999999,
  "uv_corde": [
@@ -22,7 +22,7 @@
   0.5,
   1.0
  ],
- "hauteur_arc": 1.3338017322260973,
- "tris_arc": 492,
+ "hauteur_arc": 1.3685860695457777,
+ "tris_arc": 540,
  "tris_fleche": 110
 }

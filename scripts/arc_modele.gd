@@ -50,7 +50,7 @@ static func _v(cle: String) -> Vector3:
 
 static func materiau() -> ShaderMaterial:
 	if _mat == null:
-		_mat = Palette.materiau(ATLAS, Vector2.ONE, Color(1.25, 1.18, 1.1), true)
+		_mat = Palette.materiau(ATLAS, Vector2.ONE, Color(1.0, 0.97, 0.94), true)
 		_mat.set_shader_parameter("tex_neige", ATLAS)
 	return _mat
 
