@@ -262,9 +262,9 @@ A_LIG_Q = 0.30                # ligature du quart
 def anneaux():
     r = []
     # poignée de cuir (0 -> 0,075), anneaux de cordelette (0,075 -> 0,095)
-    r.append(("cuir", [(0.0, 0.019, 0.021, 0.5), (0.04, 0.0195, 0.0215, 0.75), (0.075, 0.019, 0.021, 1.0)]))
-    r.append(("corde", [(0.075, 0.0215, 0.0235, 0.0), (0.084, 0.0225, 0.0245, 0.5), (0.095, 0.0205, 0.0225, 1.0)]))
-    lim = lambda a: (0.017 - 0.006 * (a - 0.095) / (A_LIG_P - 0.095), 0.0135 - 0.0045 * (a - 0.095) / (A_LIG_P - 0.095))
+    r.append(("cuir", [(0.0, 0.024, 0.026, 0.5), (0.04, 0.0245, 0.0265, 0.75), (0.075, 0.024, 0.026, 1.0)]))
+    r.append(("corde", [(0.075, 0.0265, 0.0285, 0.0), (0.084, 0.0275, 0.0295, 0.5), (0.095, 0.0245, 0.0265, 1.0)]))
+    lim = lambda a: (0.0225 - 0.0075 * (a - 0.095) / (A_LIG_P - 0.095), 0.018 - 0.006 * (a - 0.095) / (A_LIG_P - 0.095))
     vb = lambda a: (a - 0.095) / (A_LIG_P - 0.095)
     seg1 = [0.095, 0.15, 0.21, 0.255, A_LIG_Q]
     r.append(("branche", [(a, *lim(a), vb(a)) for a in seg1]))
@@ -274,7 +274,7 @@ def anneaux():
     r.append(("branche", [(a, *lim(a), vb(a)) for a in seg2]))
     w, t = lim(A_LIG_P)
     r.append(("corde", [(A_LIG_P, w + 0.0028, t + 0.0028, 0.0), (A_LIG_P + 0.015, w + 0.0034, t + 0.0034, 0.5), (A_CORNE, w + 0.0026, t + 0.0026, 1.0)]))
-    r.append(("corne", [(A_CORNE, w, t, 0.0), (A_CORNE + 0.03, 0.0085, 0.0085, 0.35), (A_CORNE + 0.06, 0.0055, 0.006, 0.7), (L_DEMI - 0.004, 0.0022, 0.0025, 0.97)]))
+    r.append(("corne", [(A_CORNE, w, t, 0.0), (A_CORNE + 0.03, 0.011, 0.011, 0.35), (A_CORNE + 0.06, 0.007, 0.0075, 0.7), (L_DEMI - 0.004, 0.0028, 0.003, 0.97)]))
     return r
 
 
@@ -382,7 +382,7 @@ def attache(A, signe=1):
     pliage = courbe_pliee(A) if A != 0.0 else None
     a = A_LIG_P + 0.012
     (cy, cz), _, (ny, nz) = point_arc(a, signe, pliage)
-    e = 0.012
+    e = 0.017
     return (0.0, cy + ny * e, cz + nz * e)
 
 

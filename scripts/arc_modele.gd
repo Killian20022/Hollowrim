@@ -20,7 +20,7 @@ const ATLAS := preload("res://assets/modeles/armes/arc_chasseur.png")
 const INFOS := "res://assets/modeles/armes/arc_chasseur.json"
 ## La flèche repose sur le poing, à gauche de la poignée (archer droitier) et au-dessus de son centre.
 const APPUI := Vector3(-0.024, 0.045, 0.0)
-const RAYON_CORDE := 0.0028
+const RAYON_CORDE := 0.0034
 
 var mi_arc: MeshInstance3D
 var mi_corde: MeshInstance3D

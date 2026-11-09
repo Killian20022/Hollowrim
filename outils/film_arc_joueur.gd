@@ -202,8 +202,8 @@ func _cadre() -> void:
 		cam.look_at(j.global_position + Vector3(0, 1.25, 0))
 	elif cam != null:
 		var b: Basis = j.global_transform.basis
-		cam.global_position = j.global_position + b * Vector3(2.3, 1.75, 2.6)
-		cam.look_at(j.global_position + b * Vector3(-0.2, 1.1, -6.5))
+		cam.global_position = j.global_position + b * Vector3(3.0, 1.7, -1.4)
+		cam.look_at(j.global_position + b * Vector3(-0.4, 1.15, -1.3))
 
 func _sur_tir(info: Dictionary) -> void:
 	var p: Projectile = info["projectile"]
@@ -222,11 +222,11 @@ func _sur_tir(info: Dictionary) -> void:
 
 func _maj_traces() -> void:
 	for t in _traces:
-		var p: Projectile = t[0]
+		var p: Variant = t[0]
 		var pts: Array = t[2]
-		if is_instance_valid(p) and not p.plantee:
+		if is_instance_valid(p) and not (p as Projectile).plantee:
 			t[3] += 1
-			pts.append(p.global_position)
+			pts.append((p as Projectile).global_position)
 		var im: ImmediateMesh = t[1]
 		im.clear_surfaces()
 		if pts.size() < 2:

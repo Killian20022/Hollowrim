@@ -361,7 +361,7 @@ func clip_tps() -> String:
 	if etat == BANDE:
 		return "Pistol_Aim_Neutral"
 	if _clip_tir > 0.0:
-		return "Pistol_Shoot"
+		return "Pistol_Aim_Neutral"   # après le lâcher le buste reste de profil (Pistol_Shoot tendait le bras droit comme un pistolet)
 	return ""
 
 ## Lacet du corps pendant le tir (corps_joueur.gd) : de profil, l'épaule gauche vers la cible.
@@ -516,7 +516,7 @@ func _placer_vm() -> void:
 		# rechargement : lâcher (main ouverte qui file en arrière), carquois (hors champ), retour avec une flèche
 		_vm.regler(0.0, false)
 		var nock_cam := _vm.transform * _vm.encoche_locale()
-		var lacher := ENCOCHE_VISEE + Vector3(0.07, 0.03, 0.1)
+		var lacher := ENCOCHE_VISEE + Vector3(0.2, 0.02, 0.16)   # la main file vers l'oreille, hors champ
 		var repere: Basis = _vm.transform.basis * _vm.repere_encoche.basis
 		var main: Vector3
 		if ph < 0.22:
@@ -599,10 +599,20 @@ func _placer_tp() -> void:
 	if ok:
 		_coudes_corps[0].global_position = epaule + b_j * Vector3(-0.5, -0.5, 0.2)
 		_coudes_corps[1].global_position = _os_monde("upperarm_r") + b_j * Vector3(0.5, 0.15, 0.5)
-		var main_d := etat == BANDE
+		var ph_tp := _phase_recup()
+		var lache := ph_tp >= 0.0
+		var main_d := etat == BANDE or lache
 		_ik_corps[1].active = main_d
 		_or_corps[1].active = main_d
-		_poing_corps.ferme_d = 1.0 if main_d else 0.0
+		_poing_corps.ferme_d = 1.0 if etat == BANDE else 0.0
+		if lache:
+			# lâcher : la main ouverte file en arrière, le long de la joue, puis l'animation la reprend
+			# puis elle redescend vers la hanche droite (carquois) le temps du rechargement
+			var n0 := _tp.encoche_pour(a_max)
+			var arriere := n0 + Vector3(0.05, 0.03, 0.22)
+			var hanche := _tp.global_transform.affine_inverse() * (joueur.global_position + b_j * Vector3(0.28, 0.95, 0.05))
+			var pos := n0.lerp(arriere, smoothstep(0.0, 0.35, ph_tp)) if ph_tp < 0.35 else arriere.lerp(hanche, smoothstep(0.35, 1.0, ph_tp))
+			_pivot_corps_d.transform = Transform3D(_tp.repere_encoche.basis, pos)
 
 # ------------------------------------------------------------------ tir
 

@@ -259,6 +259,7 @@ func _physics_process(dt: float) -> void:
 		var dir_v := vitesse.normalized()
 		var v := vitesse.length()
 		var p_imp: Vector3 = r["position"]
+		vitesse_impact = v
 		if cible != null and cible != joueur and cible.has_method("recevoir_coup"):
 			degats_impact = degats_pour(v)
 			var info := {"type": "perforant", "point": p_imp, "direction": dir_v, "normale": r["normal"],
