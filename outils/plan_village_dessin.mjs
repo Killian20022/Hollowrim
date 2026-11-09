@@ -68,7 +68,7 @@ const champs = [
   [[57, -11], [70, -11], [70, -3], [57, -3]],
 ];
 const pnj = [ // [nom, x, z, poste]
-  ['Gunnhild (cheffe)', 44, 26, 'longue_maison'], ['Brodd (forgeron)', 25.2, 37.6, 'forge'],
+  ['Gunnar (cheffe)', 44, 26, 'longue_maison'], ['Brodd (forgeron)', 25.2, 37.6, 'forge'],
   ['Ylva (chasseuse)', 66, 38.5, 'enclos'], ['Sigrún (völva)', 39.5, 42, 'place'],
   ['Haldor (garde)', 30.5, 28.4, 'porte'], ['Grima (doyenne)', 44.6, 39.6, 'puits'],
 ];

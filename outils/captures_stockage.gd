@@ -1,7 +1,7 @@
 extends SceneTree
 ## Captures du lot E RPG « stockage, marchands, forge » (FENÊTRE hors écran via godot_slot.sh) :
 ##   godot --path . --fixed-fps 60 --audio-driver Dummy --script res://outils/captures_stockage.gd -- --nouvelle --paisible --sortie=<dossier>
-## Vues : coffre loué chez Grima (objet dans l'intérieur, puis fenêtre coffre ↔ sac, aussi en 480x270), Gunnhild (« Acheter la
+## Vues : coffre loué chez Grima (objet dans l'intérieur, puis fenêtre coffre ↔ sac, aussi en 480x270), Gunnar (« Acheter la
 ## maison »), maison des Frostmark achetée (râtelier garni, coffre de la maison), boutique de Brodd (Acheter, Vendre filtré),
 ## forge de Brodd, fenêtre de butin d'un coffre du monde.
 const SCENE := preload("res://scenes/foret_test.tscn")
@@ -104,7 +104,7 @@ func _go() -> void:
 	get_root().content_scale_size = Vector2i(640, 360)
 	fc.fermer()
 	await _images(4)
-	# --- 3. Gunnhild : acheter la maison
+	# --- 3. Gunnar : acheter la maison
 	var d: Control = m.dialogue
 	var chef := _pnj("chef")
 	_devant(chef)
@@ -129,7 +129,7 @@ func _go() -> void:
 	var im: Interieur = m.village.interieur(Stockage.MAISON)
 	im.basculer(true, false)
 	_dans(im, Vector3(-1.7, 0.5, -0.1), ServicesPnj.RATELIER + Vector3(0, 0.95, 0))
-	await _images(420)          # bandeau « Nouvelle quête » (Gunnhild) et avis du HUD effacés
+	await _images(420)          # bandeau « Nouvelle quête » (Gunnar) et avis du HUD effacés
 	_jour()
 	await _capturer("7_maison_ratelier")
 	_dans(im, Vector3(1.45, 0.5, 1.0), ServicesPnj.COFFRE_MAISON + Vector3(0, 0.2, 0))

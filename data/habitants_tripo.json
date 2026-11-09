@@ -1,0 +1,104 @@
+{
+ "note": "Essai Tripo (branche essai/tripo) : le jarl animé (scripts/jarl_tripo.gd, argument --jarl-tripo) et trois gardes animés (scripts/garde_tripo.gd, argument --gardes-tripo), des habitants de plus ; sans ces arguments le jeu est inchangé. Mêmes champs que data/habitants.json.",
+ "habitants": [
+  {
+   "id": "hab_jarl_tripo",
+   "type": "jarl",
+   "pnj": "jarl_tripo",
+   "nom": "Jarl Eskil",
+   "role": "Jarl",
+   "pos": [
+    41.0,
+    41.5
+   ],
+   "cap": 180,
+   "activite": "Idle",
+   "sedentaire": true,
+   "interpellations": [
+    "Approche, étranger. Un jarl n'a pas l'habitude d'attendre.",
+    "Ce manteau a vu plus d'hivers que toi."
+   ],
+   "lignes": [
+    "Les loups rôdent près des remparts et mes hommes se plaignent du froid.",
+    "Si tu cherches de l'ouvrage, la garde manque toujours de bras.",
+    "Ne traîne pas dehors après la tombée de la nuit."
+   ],
+   "apres": [
+    "Va, et ne reviens pas les mains vides.",
+    "Les dieux regardent. Ne leur donne pas de raisons de rire."
+   ]
+  },
+  {
+   "id": "hab_garde_lance_tripo",
+   "type": "garde",
+   "pnj": "tripo_garde_lance",
+   "nom": "Garde Halvard",
+   "role": "Lancier",
+   "pos": [
+    43.5,
+    41.5
+   ],
+   "cap": 180,
+   "activite": "Idle",
+   "sedentaire": true,
+   "interpellations": [
+    "Halte. Dis ton nom et ton affaire."
+   ],
+   "lignes": [
+    "Cette lance a repoussé des loups plus gros que toi.",
+    "La porte ferme au crépuscule, sois rentré."
+   ],
+   "apres": [
+    "Passe. Et reste prudent."
+   ]
+  },
+  {
+   "id": "hab_garde_epee_tripo",
+   "type": "garde",
+   "pnj": "tripo_garde_epee",
+   "nom": "Garde Sigurd",
+   "role": "Garde",
+   "pos": [
+    39.0,
+    41.5
+   ],
+   "cap": 180,
+   "activite": "Idle",
+   "sedentaire": true,
+   "interpellations": [
+    "Tu cherches querelle ?"
+   ],
+   "lignes": [
+    "Mon épée est lasse d'attendre. Pas moi.",
+    "Le jarl veut des hommes sûrs, pas des rêveurs."
+   ],
+   "apres": [
+    "Va. Je t'ai à l'œil."
+   ]
+  },
+  {
+   "id": "hab_archer_tripo",
+   "type": "garde",
+   "pnj": "tripo_archer",
+   "nom": "Archer Ingrid",
+   "role": "Archère",
+   "pos": [
+    41.0,
+    43.5
+   ],
+   "cap": 180,
+   "activite": "Idle",
+   "sedentaire": true,
+   "interpellations": [
+    "Doucement, étranger. J'ai une flèche pour chaque imprudent."
+   ],
+   "lignes": [
+    "Du rempart, je vois tout ce qui bouge dans la neige.",
+    "Mon arc ne rate pas deux fois."
+   ],
+   "apres": [
+    "File. La nuit tombe vite ici."
+   ]
+  }
+ ]
+}

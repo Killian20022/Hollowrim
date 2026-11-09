@@ -58,6 +58,10 @@ static func vider() -> void:
 
 # ======================================================================================================== fabrique
 static func creer(id: String) -> Node3D:
+	if id == "jarl_tripo":      # essai Tripo : modèle skinné sur le squelette nordique + cape à ressorts (scripts/jarl_tripo.gd), pas de cache disque
+		return JarlTripo.creer()
+	if id.begins_with("tripo_"):      # gardes Tripo (lancier, épée, archer) : scripts/garde_tripo.gd
+		return GardeTripo.creer(id)
 	var c := CachePersos.lire("pnj_" + id, "res://scripts/pnj_nordique.gd", {})   # PNJ déjà bâti et teint (cache disque, cache_persos.gd)
 	if c != null:
 		return c
@@ -176,7 +180,7 @@ static func _ancienne() -> Node3D:
 	_canne(sq)
 	return n
 
-## Gunnhild, la cheffe : la Chasseresse ENTIÈRE sans arc, carquois ni couteau ; cheveux et nattes gris cendré, tenue lie-de-vin.
+## Gunnar, le chef : la Chasseresse ENTIÈRE sans arc, carquois ni couteau ; cheveux et nattes gris cendré, tenue lie-de-vin.
 static func _chef() -> Node3D:
 	var n := archetype_seul("chef")
 	n.name = "PnjChef"

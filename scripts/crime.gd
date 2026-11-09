@@ -497,7 +497,7 @@ func _frele(n: Node) -> bool:
 	for k: String in COSTAUDS:
 		if id == k or type == k:
 			return false
-	return true       # par défaut (cheffe, inconnus) : on fuit et on appelle la garde
+	return true       # par défaut (chef, inconnus) : on fuit et on appelle la garde
 
 ## La victime d'une agression : un costaud se défend, un frêle fuit (dans les deux cas il devient un PnjCombat : il peut mourir).
 func _reagir_victime(v: Node3D) -> void:

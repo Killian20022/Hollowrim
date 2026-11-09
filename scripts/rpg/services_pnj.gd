@@ -6,7 +6,7 @@ extends Node
 ##   - pose dans les intérieurs : le COFFRE LOUÉ chez Grima (son coffre près de la porte, dès le début), le coffre et le RÂTELIER
 ##     de la maison des Frostmark (Stockage.MAISON, accessibles après l'achat) ; le râtelier montre les armes rangées dans le
 ##     coffre de la maison (4 au plus, modèles 3D des armes) ;
-##   - options de dialogue (Dialogue : liste de choix sur la dernière réplique) : Brodd « Forge », Gunnhild « Acheter la maison »,
+##   - options de dialogue (Dialogue : liste de choix sur la dernière réplique) : Brodd « Forge », Gunnar « Acheter la maison »,
 ##     Sigrún « Réinitialiser l'arbre » (Progression.reinitialiser_perks, lot B ; Progression.PRIX_REINITIALISATION pièces).
 
 const GROUPE := "services_pnj"
@@ -71,7 +71,7 @@ func options(id_pnj: String) -> Array:
 		r.append_array((rg as Rangs).options(id_pnj))   # chefs de faction : rejoindre / demander une promotion (scripts/rangs.gd)
 	return r
 
-## Gunnhild vend la maison des Frostmark.
+## Gunnar vend la maison des Frostmark.
 func acheter_maison() -> String:
 	var r := Stockage.acheter_maison(joueur.inventaire)
 	if r != "":

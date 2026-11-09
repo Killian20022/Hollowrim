@@ -36,6 +36,9 @@ var _t_alerte := 0.0
 var _t_parole := 0.0
 var _bus := {}                     # id d'ennemi -> {"n": ennemi, "t": date} : dangers annoncés par Vie (bus d'événements, lot vie_pnj)
 const MEMOIRE_BUS := 6.0           # s pendant lesquelles un danger annoncé compte comme menace
+## Essai Tripo (branche essai/tripo), argument utilisateur `--gardes-tripo` : trois gardes du village changent de corps (lancier, garde à l'épée, archère, scripts/garde_tripo.gd) ;
+## ils gardent leur id, poste ou ronde, répliques, alerte et rôle dans Crime (même scripts/garde_village.gd). Sans l'argument : rien ne change.
+const GARDES_TRIPO := {"halle_o": "tripo_garde_lance", "ronde_place": "tripo_garde_epee", "ronde_nord": "tripo_archer"}
 static var _mats := {}
 static var _bases := {}   # bouclier -> Gardien de référence (hors arbre, jamais affiché)
 static var _cache_donnees := {}
@@ -93,7 +96,10 @@ static func peupler(monde_: Node3D) -> GardesVillage:
 		v.dialogue = monde_.dialogue
 		v.gestion = gv
 		v.route = route
-		v.modele = creer_modele(g)
+		if GARDES_TRIPO.has(String(g.get("id", ""))) and OS.get_cmdline_user_args().has("--gardes-tripo"):
+			v.modele = GardeTripo.creer(GARDES_TRIPO[String(g["id"])])
+		else:
+			v.modele = creer_modele(g)
 		if g.get("type", "poste") == "vigie":
 			v.position = _place_vigie(monde_.village, g)
 		else:

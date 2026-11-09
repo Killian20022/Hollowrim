@@ -5,7 +5,7 @@ class_name PersoDefs
 static var _cache := {}
 
 const VILLAGEOIS := {
-	# Gunnhild, la cheffe : robe bleue sur tunique de lin, mante de fourrure blanche, cuir clair
+	# Gunnar, le chef : robe bleue sur tunique de lin, mante de fourrure blanche, cuir clair
 	"chef": {"corps": "femme", "tete": 2, "cheveux": 2, "couleur_cheveux": Color("#d9b46e"), "tunique": "lin", "sur": "bleu", "pantalon": "bleu",
 		"cuir": "cuir_c", "fourrure": "blanc", "accessoires": ["robe", "cape_courte"], "iris": Color("#3f6f9a")},
 	# Brodd, le forgeron : bras nus massifs, tablier de cuir, barbe courte, bourse

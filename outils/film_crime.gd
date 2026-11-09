@@ -2,7 +2,7 @@ extends SceneTree
 ## Films du système de crime (≤ 18 s), lot de preuves « crime » :
 ##   --plan=vol      : le joueur prend une coupe d'argent sous les yeux de son propriétaire, qui crie et l'attaque ;
 ##   --plan=gardes   : un premier coup sur un garde (avertissement), un second (agression) : toute la garde accourt et frappe ;
-##   --plan=crochet  : le coffre de Gunnhild dans la longue maison : mini-jeu, un crochet cassé, la serrure cède, on fouille.
+##   --plan=crochet  : le coffre de Gunnar dans la longue maison : mini-jeu, un crochet cassé, la serrure cède, on fouille.
 ##   godot --path . --write-movie <f.avi> --fixed-fps 30 --resolution 960x540 --script res://outils/film_crime.gd -- --nouvelle --plan=vol
 ## (fenêtre hors écran via godot_slot.sh).
 const SCENE := "res://scenes/foret_test.tscn"
@@ -142,14 +142,14 @@ func _gardes() -> void:
 			n += 1
 	print("FILM gardes : %d gardes hostiles à la fin" % n)
 
-# ------------------------------------------------------------------ crochetage du coffre de Gunnhild
+# ------------------------------------------------------------------ crochetage du coffre de Gunnar
 func _crochet() -> void:
 	var ip: Node3D = m.village.interieur("halle")
 	var coffre: Node3D = ip.find_child("coffre_gunnhild", true, false)
 	var p := ip.to_global(Vector3(5.0, Interieurs.F, 1.2))
 	j.global_position = p + Vector3(0, 0.1, 0)
 	j.inventaire.ajouter("crochet", 4)
-	m.cycle.heure = 3.0     # la nuit : la halle est vide (Gunnhild dort), personne ne voit
+	m.cycle.heure = 3.0     # la nuit : la halle est vide (Gunnar dort), personne ne voit
 	m.cycle._process(0.0)
 	await _images(50, func(_i: int) -> void: _viser(coffre.global_position))
 	coffre.parler()

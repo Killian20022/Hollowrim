@@ -6,7 +6,7 @@ extends RefCounted
 ## LOT 0 : registre, transfert, sauvegarde. LOT E (propriétaire de ce fichier) : fenêtre de transfert à deux pages (FenetreCoffre),
 ## coffres posés dans les intérieurs, achat de la maison, râtelier (ServicesPnj). Contrat : docs/RPG.md §4.
 ## Maison à acheter : la maison des Frostmark (intérieur « chasseurs » du village : Ylva loge aux séchoirs depuis qu'Eirik a
-## disparu), vendue par Gunnhild, la cheffe, PRIX_MAISON pièces ; l'acheteur reçoit la clé (objet de quête cle_maison,
+## disparu), vendue par Gunnar, le chef, PRIX_MAISON pièces ; l'acheteur reçoit la clé (objet de quête cle_maison,
 ## data/objets/stockage.json) ; coffre et râtelier de la maison accessibles ensuite.
 
 

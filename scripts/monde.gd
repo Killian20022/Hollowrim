@@ -258,7 +258,7 @@ func _ready() -> void:
 		_aller_grotte(_arguments()["grotte"])
 
 ## Accueil du joueur. Nouvelle partie (jamais en mode outil/test, sauf --prologue) : courte arrivée passable, puis le premier
-## objectif (quête « bienvenue » : aller voir Gunnhild, marqueur de la boussole), le cartouche des touches et les bulles d'aide.
+## objectif (quête « bienvenue » : aller voir Gunnar, marqueur de la boussole), le cartouche des touches et les bulles d'aide.
 ## Partie chargée : comme avant (cartouche 60 s) ; les aides ne reviennent que si la sauvegarde les connaît.
 func _accueil() -> void:
 	var narre := not Jeu.mode_outil() or _arguments().has("prologue")
@@ -275,7 +275,7 @@ func _accueil() -> void:
 	hud.demarrer()
 	aides.actif = narre or _arguments().has("aides")
 
-## Fin de l'histoire du premier chapitre : une fois l'anneau rendu et Gunnhild écoutée, court écran de fin avec le teaser du sud.
+## Fin de l'histoire du premier chapitre : une fois l'anneau rendu et Gunnar écoutée, court écran de fin avec le teaser du sud.
 func _sur_evenement_histoire(evt: String) -> void:
 	if evt != "fini:anneau_givre" or quetes.vus.has("epilogue_vu") or (Jeu.mode_outil() and not _arguments().has("prologue")):
 		return

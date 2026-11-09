@@ -2,7 +2,7 @@ extends SceneTree
 ## Captures de l'accueil du joueur (FENÊTRE, via godot_slot.sh : hors écran) :
 ##   godot --path . --script res://outils/captures_accueil.gd -- --nouvelle --prologue --aides --sortie=<dossier>
 ## Écrit : arrivée (pages 1 et 3), premier objectif + cartouche des touches, bulles d'aide (combat, coffre, menu),
-## dialogue « après » (Gunnhild une fois l'anneau rendu), fin du premier chapitre.
+## dialogue « après » (Gunnar une fois l'anneau rendu), fin du premier chapitre.
 const SCENE := preload("res://scenes/foret_test.tscn")
 
 var m: Node
@@ -62,7 +62,7 @@ func _go() -> void:
 		await create_timer(1.2).timeout
 		await _capturer("04_bulle_" + cle)
 	a._cle = ""
-	# dialogue « après » : l'anneau est rendu, Gunnhild parle du hameau et de Kaldborg
+	# dialogue « après » : l'anneau est rendu, Gunnar parle du hameau et de Kaldborg
 	m.quetes.importer({"etat": {"anneau_givre": 6, "bienvenue": 2, "horizon_sud": 2}, "vus": ["fini:anneau_givre"], "journal": []})
 	var chef := _villageois("chef")
 	chef.deja_parle = true

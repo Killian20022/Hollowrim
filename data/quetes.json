@@ -10,7 +10,7 @@
           "id": "debut",
           "declencheur": "parle:chef",
           "objectif": "Se rendre au cercle runique, au nord-ouest",
-          "journal": "Gunnhild m’a chargé de retrouver l’anneau volé dans la tombe de Svanhild. Le cercle runique est au nord-ouest du hameau. Les morts y bougent."
+          "journal": "Gunnar m’a chargé de retrouver l’anneau volé dans la tombe de Svanhild. Le cercle runique est au nord-ouest du hameau. Les morts y bougent."
         },
         {
           "id": "tertre",
@@ -39,8 +39,8 @@
         {
           "id": "fin",
           "declencheur": "parle:chef",
-          "objectif": "Raconter tout à Gunnhild",
-          "journal": "J’ai tout raconté à Gunnhild : Eirik, la note, la lettre au sceau de cire en croissant fendu, Svanhild. Elle a gardé le silence un long moment, puis a reconnu le sceau : celui de la dîme de Kaldborg. Elle m’a remis sa récompense. Les morts dorment."
+          "objectif": "Raconter tout à Gunnar",
+          "journal": "J’ai tout raconté à Gunnar : Eirik, la note, la lettre au sceau de cire en croissant fendu, Svanhild. Il a gardé le silence un long moment, puis a reconnu le sceau : celui de la dîme de Kaldborg. Il m’a remis sa récompense. Les morts dorment."
         }
       ],
       "recompense": { "xp": 200, "pieces": 150, "objets": { "amulette_givre": 1 }, "reputation": { "garde_jarl": 10, "cercle_sigrun": 10 } }
@@ -54,15 +54,15 @@
         {
           "id": "arrivee",
           "declencheur": "prologue_vu",
-          "objectif": "Parler à Gunnhild, à la longue maison",
+          "objectif": "Parler à Gunnar, à la longue maison",
           "carte": "skarnholt",
-          "journal": "Je suis arrivé de nuit près d’un feu de camp, dans la neige. Au sud-est, les toits bas de Skarnholt. Sa cheffe, Gunnhild, dispose de la longue maison : c’est elle qu’il faut voir."
+          "journal": "Je suis arrivé de nuit près d’un feu de camp, dans la neige. Au sud-est, les toits bas de Skarnholt. Son chef, Gunnar, dispose de la longue maison : c’est lui qu’il faut voir."
         },
         {
           "id": "gunnhild",
           "declencheur": "parle:chef",
-          "objectif": "Écouter Gunnhild",
-          "journal": "J’ai franchi le seuil de la longue maison. Gunnhild m’a offert une place au feu, puis ses ennuis."
+          "objectif": "Écouter Gunnar",
+          "journal": "J’ai franchi le seuil de la longue maison. Gunnar m’a offert une place au feu, puis ses ennuis."
         }
       ],
       "recompense": { "xp": 0, "pieces": 0, "objets": {} }
@@ -270,7 +270,7 @@
           "declencheur": "fini:anneau_givre",
           "objectif": "Écouter Sigrún, sur la place",
           "carte": "skarnholt",
-          "journal": "Svanhild dort de nouveau, mais Gunnhild m’a glissé en me payant que le ciel avait changé de côté. Elle veut que je voie Sigrún avant de me reposer."
+          "journal": "Svanhild dort de nouveau, mais Gunnar m’a glissé en me payant que le ciel avait changé de côté. Il veut que je voie Sigrún avant de me reposer."
         },
         {
           "id": "cendres",
@@ -422,7 +422,7 @@
       "Tu marches depuis des jours. La route s’est perdue sous la neige, et la nuit a fini par te rattraper.",
       "Devant toi, un feu de camp. Plus loin, les toits bas d’un hameau : Skarnholt, au bout de la dernière forêt, où l’on ne pose pas de questions aux étrangers qui arrivent à pied.",
       "Au nord-ouest, des lueurs vertes dansent au-dessus de vieilles pierres. Les anciens disent que les morts y dorment. Ils dorment moins bien, depuis peu.",
-      "Va voir Gunnhild, la cheffe. Sa longue maison est au cœur du hameau."
+      "Va voir Gunnar, le chef. Sa longue maison est au cœur du hameau."
     ],
     "epilogue_titre": ["Svanhild dort"],
     "epilogue_sous_titre": ["Fin du premier chapitre"],

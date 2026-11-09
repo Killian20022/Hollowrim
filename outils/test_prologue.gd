@@ -57,23 +57,23 @@ func _tester() -> void:
 	await create_timer(1.0).timeout
 	_verif(not n.actif and not j.en_dialogue, "arrivée passable : écran refermé, joueur libre")
 
-	print("2. Premier objectif : aller voir Gunnhild")
+	print("2. Premier objectif : aller voir Gunnar")
 	_verif(q.vus.has("prologue_vu") and q.etat.get("bienvenue", 0) == 1, "quête « Skarnholt » lancée à la fin de l'arrivée")
 	var obj: Array = q.objectifs()
-	_verif(not obj.is_empty() and String(obj[-1][1]).contains("Gunnhild"), "objectif affiché : « %s »" % (obj[-1][1] if not obj.is_empty() else ""))
+	_verif(not obj.is_empty() and String(obj[-1][1]).contains("Gunnar"), "objectif affiché : « %s »" % (obj[-1][1] if not obj.is_empty() else ""))
 	var cibles: Array = Lieux.cibles_quetes(q, m)
 	var chef: Node3D = _villageois("chef")
 	var ok_cible := false
 	for c: Dictionary in cibles:
 		if c["quete"] == "bienvenue" and (c["pos"] as Vector3).distance_to(chef.global_position) < 1.0:
 			ok_cible = true
-	_verif(ok_cible, "la boussole vise Gunnhild elle-même (marqueur de quête)")
+	_verif(ok_cible, "la boussole vise Gunnar elle-même (marqueur de quête)")
 	_verif(m.hud.aide_t > 0.0 and a.actif, "cartouche des touches affiché, bulles d'aide actives")
 
-	print("3. Gunnhild renvoie vers Sigrún, Sigrún donne les sceaux")
+	print("3. Gunnar renvoie vers Sigrún, Sigrún donne les sceaux")
 	var l_chef := _parler("chef")
-	_verif(q.etat.get("anneau_givre", 0) == 1 and q.etat.get("bienvenue", 0) == 2, "parler à Gunnhild : anneau de givre lancée, « Skarnholt » terminée")
-	_verif(_contient(l_chef, "Sigrún") and _contient(l_chef, "sceaux"), "Gunnhild renvoie vers Sigrún avant le tertre")
+	_verif(q.etat.get("anneau_givre", 0) == 1 and q.etat.get("bienvenue", 0) == 2, "parler à Gunnar : anneau de givre lancée, « Skarnholt » terminée")
+	_verif(_contient(l_chef, "Sigrún") and _contient(l_chef, "sceaux"), "Gunnar renvoie vers Sigrún avant le tertre")
 	_verif(q.etat.get("sceaux_brises", -1) == -1, "les sceaux ne démarrent pas tout seuls")
 	var l_volva := _parler("volva")
 	_verif(q.etat.get("sceaux_brises", 0) == 1 and _contient(l_volva, "Os") and _contient(l_volva, "socles"), "Sigrún donne la quête des sceaux brisés")
@@ -98,7 +98,7 @@ func _tester() -> void:
 	var recs := {}
 	for qd: Dictionary in q.donnees["quetes"]:
 		recs[qd["id"]] = qd.get("recompense", {}).get("objets", {})
-	_verif(recs["anneau_givre"].has("amulette_givre") and Inventaire.OBJETS.has("amulette_givre"), "Gunnhild : l'amulette de givre, devenue unique")
+	_verif(recs["anneau_givre"].has("amulette_givre") and Inventaire.OBJETS.has("amulette_givre"), "Gunnar : l'amulette de givre, devenue unique")
 	_verif(recs["frere_ylva"].has("manteau_loup_ylva"), "Ylva : la peau de loup promise (Manteau de loup d'Ylva)")
 	_verif(recs["repaire_hrafn"].has("potion_soin") and recs["expedition_sigrun"].has("potion_soin_forte") and recs["sceaux_brises"].has("potion_mana"), "Haldor, Grima, Sigrún remettent aussi un objet")
 	_verif(Inventaire.OBJETS["manteau_loup_ylva"].get("nom", "") == "Manteau de loup d’Ylva", "nom affiché du manteau")
@@ -130,8 +130,8 @@ func _tester() -> void:
 	q.importer({"etat": {"anneau_givre": 5, "bienvenue": 2}, "vus": [], "journal": []})
 	_verif(not q.fini("anneau_givre") and q.en_cours("anneau_givre"), "anneau de givre à une étape de la fin")
 	var l_fin := _parler("chef")
-	_verif(q.fini("anneau_givre") and q.etat.get("horizon_sud", 0) == 1, "anneau rendu à Gunnhild → « La lueur du sud » commence")
-	_verif(_contient(l_fin, "croissant") and _contient(l_fin, "Kaldborg") and _contient(l_fin, "Sigrún"), "Gunnhild reconnaît le sceau de la dîme (Kaldborg) et envoie vers Sigrún")
+	_verif(q.fini("anneau_givre") and q.etat.get("horizon_sud", 0) == 1, "anneau rendu à Gunnar → « La lueur du sud » commence")
+	_verif(_contient(l_fin, "croissant") and _contient(l_fin, "Kaldborg") and _contient(l_fin, "Sigrún"), "Gunnar reconnaît le sceau de la dîme (Kaldborg) et envoie vers Sigrún")
 	_verif(j.inventaire.a("amulette_givre"), "l'amulette de givre est dans le sac")
 	await create_timer(2.0).timeout
 	_verif(n.actif and n.titre == "Svanhild dort" and n.sous_titre == "Fin du premier chapitre", "écran de fin du premier chapitre")
@@ -145,7 +145,7 @@ func _tester() -> void:
 		if c["quete"] == "horizon_sud" and c["lieu"] == "chateau":
 			vers_chateau = true
 	_verif(vers_chateau and String(q.objectifs()[-1][1]).contains("Kaldborg"), "objectif « À suivre » + boussole vers le château")
-	_verif(_contient(q.apres("chef"), "Kaldborg"), "Gunnhild commente le château ensuite")
+	_verif(_contient(q.apres("chef"), "Kaldborg"), "Gunnar commente le château ensuite")
 	var fini_avant: bool = q.fini("anneau_givre")
 	q.importer(JSON.parse_string(JSON.stringify(q.exporter())))
 	_verif(q.fini("anneau_givre") == fini_avant and q.etat.get("horizon_sud", 0) == 2, "sauvegarde → rechargement : même état")

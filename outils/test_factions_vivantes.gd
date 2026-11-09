@@ -120,7 +120,7 @@ func _repliques_de_rang() -> void:
 			if String(r.get("sujet", "")) == "rang" and String(fl.get("rang_faction", "")) == f and String(fl.get("pnj", "")) != chef_id:
 				autres[String(fl.get("pnj", "gardes du village"))] = true
 		_verif(autres.size() >= 1, "%s : reconnue aussi par %s" % [rg.nom(f), str(autres.keys())])
-	# 2 à 3 PNJ en tout pour la Garde (Haldor, Brodd, Gunnhild, gardes) : Brodd parle selon le rang
+	# 2 à 3 PNJ en tout pour la Garde (Haldor, Brodd, Gunnar, gardes) : Brodd parle selon le rang
 	_etat({G: [60.0, 4]})
 	var brodd := _pnj("forgeron")
 	var l4: Array = m.quetes.rang("forgeron", brodd)

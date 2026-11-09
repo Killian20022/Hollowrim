@@ -1499,7 +1499,7 @@ func _regler_lueurs(n: float) -> void:
 
 ## Noms affichés (porte) des bâtiments enterables.
 const NOMS_BATIMENTS := {
-	"halle": "Halle de Gunnhild",
+	"halle": "Halle de Gunnar",
 	"sigrun": "Maison de Sigrún la Voyante",
 	"chasseurs": "Maison des chasseurs",
 	"grima": "Maison de Grima Cendrefroide",

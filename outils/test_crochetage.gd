@@ -46,7 +46,7 @@ func _tester() -> void:
 	# --- coffre de démo
 	var ip: Node3D = m.village.interieur("halle")
 	var coffre: Node3D = ip.find_child("coffre_gunnhild", true, false) if ip != null else null
-	_verif(coffre != null and int(coffre.get_meta("verrou", 0)) == 2, "coffre verrouillé de Gunnhild (Adepte) posé dans la longue maison")
+	_verif(coffre != null and int(coffre.get_meta("verrou", 0)) == 2, "coffre verrouillé de Gunnar (Adepte) posé dans la longue maison")
 	if coffre == null:
 		_fin()
 		return
