@@ -19,7 +19,7 @@ static var EPEE_INCL := -35.0
 static var EPEE_DIR := Vector3(0.0, 0.93, -0.2)
 static var EPEE_ECH := 1.15
 ## Centre du poing du maillage Tripo dans le repère de hand_r (mesuré à l'image : le gantelet du modèle est plus bas / plus en arrière que l'os, la prise du joueur y tombe à côté).
-static var CENTRE_POING := Vector3(0.0025, 0.175, -0.013)
+static var CENTRE_POING := Vector3(0.0025, 0.20, -0.013)
 static var PRISE := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 const CHAINES := ["tab_f", "tab_b"]
 ## Tabard de laine : plus léger que la cape du jarl, mais amorti.

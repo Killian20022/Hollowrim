@@ -129,14 +129,14 @@ if "retirer" in CONF:       # arme du modèle retirée du maillage (remplacée p
         bm.verts.ensure_lookup_table()
         nvs = [v for v in nvs if v.is_valid]
         uv_l = bm.loops.layers.uv.active
-        haut = [v for v in nvs if 0.965 <= v.co.z < 1.0]
+        haut = [v for v in nvs if 1.0 <= v.co.z < 1.03]
         cx = float(np.mean([v.co.x for v in haut])); cy = float(np.mean([v.co.y for v in haut]))
         ref = next(l for f in nfs if f.is_valid for l in f.loops if 0.99 < l.vert.co.z < 1.03)
         uv_ref = ref[uv_l].uv.copy()
-        bmesh.ops.delete(bm, geom=[v for v in nvs if v.co.z < 0.965], context="VERTS")
+        bmesh.ops.delete(bm, geom=[v for v in nvs if v.co.z < 1.025], context="VERTS")
         sph = bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=7, radius=1.0)
         for v in sph["verts"]:
-            v.co = Vector((cx + v.co.x * 0.037, cy + v.co.y * 0.041, 0.915 + v.co.z * 0.048))
+            v.co = Vector((cx + v.co.x * 0.045, cy + v.co.y * 0.050, 0.975 + v.co.z * 0.07))
         for f in bm.faces:
             if all(v in sph["verts"] for v in f.verts):
                 for l in f.loops: l[uv_l].uv = uv_ref
@@ -161,6 +161,17 @@ if "retirer" in CONF:       # arme du modèle retirée du maillage (remplacée p
         eclats = [v for vs in comp.values() if len(vs) < 100 and np.mean([w.co.x for w in vs]) < -0.15 and np.mean([w.co.z for w in vs]) < 1.2 for v in vs]
         bmesh.ops.delete(bm, geom=eclats, context="VERTS")
         print("ÉCLATS SUPPRIMÉS :", len(eclats))
+        bm.verts.ensure_lookup_table()
+        gardes_ = set(nvs) | set(sph["verts"])
+        spike = [v for v in bm.verts if v not in gardes_ and v.co.x < -0.17 and v.co.y > 0.03 and 0.78 < v.co.z < 1.04]
+        print("POINTE_SOUS_MAIN supprimee :", len(spike))
+        bmesh.ops.delete(bm, geom=spike, context="VERTS")
+        bm.verts.ensure_lookup_table()
+        rest = [v for v in bm.verts if v.co.x < -0.2 and v.co.y > 0.0 and v.co.z < 0.97 and v.co.z > 0.3 and (v.co - Vector((cx, cy, 0.96))).length > 0.06]
+        if rest:
+            A = np.array([[v.co.x, v.co.y, v.co.z] for v in rest])
+            print("RESTE_BAS_MAIN n=%d min %s max %s" % (len(rest), A.min(0).round(3), A.max(0).round(3)))
+            for zz in np.arange(0.3, 0.97, 0.05): m_ = (A[:,2]>=zz)&(A[:,2]<zz+0.05); print("  z%.2f n=%d" % (zz, m_.sum()), A[m_].mean(0).round(3) if m_.any() else "")
         bm.to_mesh(me); bm.free()
         nv = len(me.vertices)
         P = np.array([v.co[:] for v in me.vertices])
@@ -285,6 +296,8 @@ for i in range(nv):
     pts = kd2.find_range(Vector(P[i]), 0.10)
     cs[i] = sum(c0[j] for _, j, _ in pts) / len(pts)
 c = sstep(0.20, 0.45, cs) * np.clip((J[0] + 0.05 - z) / 0.06, 0.0, 1.0) * (~arme)
+if MODELE == "garde_epee":      # brassard et poing droits : jamais pondérés sur les chaînes du tabard (sinon étirés en pointes quand le bras bouge)
+    c = c * (~((x < -0.17) & (y > 0.03) & (z > 0.80)))
 print("tabard : sommets (c>0.5) :", int((c > 0.5).sum()))
 sel = c > 0.6
 zbas = float(z[sel].min()) if sel.any() else J[-1]
