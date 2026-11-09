@@ -13,6 +13,7 @@ uniform float sol_y = 0.0;          // hauteur monde du terrain sous le puits
 uniform float biais = 0.3;          // le terrain rendu (relief fin, neige) dépasse le maillage : le plan de profondeur est relevé d'autant
 uniform float haut = 0.81;           // hauteur de la margelle au-dessus du sol (ouverture du puits)
 uniform float rayon = 0.64;          // rayon de l'ouverture
+uniform float devant = 0.0;        // > 0 : objet pendu dans le conduit (seau, corde) : devant la paroi (plan - devant), mais l'ordre entre ses pièces est gardé
 uniform float clair = 0.0;          // diagnostic : 1 = pas de dégradé vers le noir
 uniform float grille = 135.0;
 uniform float affine = 1.0;
@@ -30,7 +31,11 @@ void vertex() {
 		vec3 g0 = (VIEW_MATRIX * vec4(0.0, sol_y + biais, 0.0, 1.0)).xyz;
 		vec3 n = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
 		float t = dot(g0, n) / min(dot(rv, n), -0.02);
-		vec4 cb = PROJECTION_MATRIX * vec4(rv * (t - 0.01), 1.0);
+		float td = t - 0.01;
+		if (devant > 0.0) {
+			td = t - devant + max(length(vp) - t, 0.0) * 0.0015;
+		}
+		vec4 cb = PROJECTION_MATRIX * vec4(rv * td, 1.0);
 		clip.z = cb.z / cb.w * clip.w;
 	}
 	if (grille > 0.0 && PROJECTION_MATRIX[3][3] < 0.5) {

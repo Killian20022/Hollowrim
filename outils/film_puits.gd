@@ -79,6 +79,9 @@ func _habitant_a_cote() -> void:
 func _stills() -> void:
 	var dos := String(args.get("sortie", "/tmp/puits"))
 	DirAccess.make_dir_recursive_absolute(dos)
+	if args.has("seau"):
+		await _seau(dos)
+		return
 	cam.fov = 55.0
 	_vue(c + Vector3(6.5, 2.6, 7.0), c + Vector3(0.3, 1.2, 0.2))
 	await _capt(dos + "/village.png")
@@ -122,28 +125,56 @@ func _stills() -> void:
 	_vue(c + Vector3(0.0, 1.3, 1.5), c + Vector3(0.0, -0.4, -0.3))
 	await _capt(dos + "/plongee_oblique.png")
 
+## Gros plans du seau (v4) : normal (sombre, comme en jeu) puis avec le noir levé (clair=1) pour lire la forme.
+func _seau(dos: String) -> void:
+	var cible := c + Vector3(0, -0.95, 0)
+	for pass_clair in [0.0, 1.0]:
+		for mi: MeshInstance3D in m.find_child("PuitsTripo", true, false).find_children("*", "MeshInstance3D", true, false):
+			for k in mi.mesh.get_surface_count():
+				var mt := mi.get_active_material(k)
+				if mt is ShaderMaterial and (mt as ShaderMaterial).shader.resource_path.ends_with("puits_conduit.gdshader"):
+					(mt as ShaderMaterial).set_shader_parameter("clair", pass_clair)
+		var suf := "_clair" if pass_clair > 0.5 else ""
+		cam.fov = 20.0
+		_vue(c + Vector3(0.62, 1.2, 0.0), cible)
+		await _capt(dos + "/seau_face%s.png" % suf)
+		_vue(c + Vector3(0.45, 1.3, 0.4), cible)
+		await _capt(dos + "/seau_34%s.png" % suf)
+		cam.fov = 22.0
+		_vue(c + Vector3(0.2, 1.6, 0.16), cible)
+		await _capt(dos + "/seau_plongee%s.png" % suf)
+		cam.fov = 55.0
+		_vue(c + Vector3(0.45, 1.5, 0.6), c + Vector3(0, -0.6, 0))
+		await _capt(dos + "/seau_corde%s.png" % suf)
+	cam.fov = 55.0
+	_vue(c + Vector3(6.5, 2.6, 7.0), c + Vector3(0.3, 1.2, 0.2))
+	await _capt(dos + "/village.png")
+	cam.fov = 50.0
+	_vue(c + Vector3(3.6, 1.6, 4.0), c + Vector3(0.2, 1.0, 0.1))
+	await _capt(dos + "/puits.png")
+
 func _film() -> void:
 	print("FILM debut")
-	var T := 14.0
+	var T := 10.0
 	var n := int(T / DT)
 	var a := deg_to_rad(float(args.get("ang", "35")))
 	var dir := Vector3(sin(a), 0, cos(a))
-	var depart := c + dir * 9.0
+	var depart := c + dir * 5.5
 	var bord := c + dir * 1.25
 	cam.fov = 70.0
 	for i in n:
 		var t := i * DT
 		var pos: Vector3
 		var vise: Vector3
-		if t < 8.0:        # marche vers le puits, regard à hauteur d'yeux sur le toit
-			var k := smoothstep(0.0, 1.0, t / 8.0)
+		if t < 4.0:        # marche vers le puits, regard à hauteur d'yeux sur le toit
+			var k := smoothstep(0.0, 1.0, t / 4.0)
 			var p := depart.lerp(bord, k)
 			pos = Vector3(p.x, m.hauteur(p.x, p.z) + 1.7, p.z)
 			vise = c + Vector3(0, 1.6 - 0.8 * k, 0)
 		else:              # arrêt au bord, la tête s'incline vers le fond
-			var k := smoothstep(0.0, 1.0, (t - 8.0) / 4.0)
+			var k := smoothstep(0.0, 1.0, (t - 4.0) / 3.0)
 			pos = Vector3(bord.x, c.y + 1.7, bord.z)
-			vise = c + Vector3(0, lerpf(0.8, -3.5, k), 0) - dir * lerpf(0.0, 0.1, k)
+			vise = c + Vector3(0, lerpf(0.8, -0.95, k), 0) - dir * lerpf(0.0, 0.1, k)
 		_vue(pos, vise)
 		await process_frame
 	print("FILM fin")

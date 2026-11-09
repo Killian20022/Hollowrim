@@ -2,13 +2,12 @@ class_name PuitsTripo
 ## ESSAI Tripo (branche essai/puits) : le puits de la place du village (mobilier_village.gd, module « puits ») devient le modèle Tripo
 ## allégé (assets/essai_tripo/puits.glb : margelle, 4 poteaux, treuil à manivelle, toit de bardeaux ; texture cuite 256 px, shader ps1)
 ## prolongé d'un VRAI conduit qui descend de 5 m : cylindre de moellons construit ici (aucune ressource en plus), assombri vers le bas
-## par la couleur de sommet, avec la corde et le seau (puits_seau.glb) pendus dans le conduit au-dessus d'un disque d'eau noir et
+## par la couleur de sommet, avec la corde et le seau (construits ici, rigides) pendus dans le conduit au-dessus d'un disque d'eau noir et
 ## IMMOBILE (aucun effet sur l'eau). Le terrain n'est pas troué : le shader du conduit ramène les sommets sous le sol sur le plan du sol
 ## pour la profondeur seule (shaders/puits_conduit.gdshader, même astuce que le creux de neige de ps1.gdshader).
 ## `-- --sans-tripo` ou `--puits-ancien` rend le puits d'avant (kitbash Quaternius).
 static var actif := not (OS.get_cmdline_user_args().has("--sans-tripo") or OS.get_cmdline_user_args().has("--puits-ancien"))
 const MODELE := "res://assets/essai_tripo/puits.glb"
-const MODELE_SEAU := "res://assets/essai_tripo/puits_seau.glb"
 const TEXTURE := "res://assets/essai_tripo/puits_tex.png"
 const SHADER := preload("res://shaders/puits_conduit.gdshader")
 
@@ -42,17 +41,8 @@ static func poser(parent: Node3D, corps: StaticBody3D, xf: Transform3D, sol_y_mo
 	cond[0].position.y = dy
 	racine.add_child(cond[0])
 	tris += cond[1]
-	if ResourceLoader.exists(MODELE_SEAU) and ResourceLoader.exists(TEXTURE):
-		var s := (load(MODELE_SEAU) as PackedScene).instantiate() as Node3D
-		s.name = "SeauEtCorde"
-		var mat_seau := _materiau_conduit(load(TEXTURE) as Texture2D, sol_y_monde, Color(1.35, 1.35, 1.35))
-		for mi: MeshInstance3D in s.find_children("*", "MeshInstance3D", true, false):
-			for k in mi.mesh.get_surface_count():
-				mi.set_surface_override_material(k, mat_seau)
-			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			tris += _tris(mi.mesh)
-		s.position.y = dy
-		racine.add_child(s)
+	if ResourceLoader.exists(TEXTURE):
+		tris += _seau_et_corde(racine, dy, sol_y_monde)
 	var forme := CollisionShape3D.new()
 	forme.set_meta("objet", "puits#%d" % num)
 	var cy := CylinderShape3D.new()
@@ -62,6 +52,92 @@ static func poser(parent: Node3D, corps: StaticBody3D, xf: Transform3D, sol_y_mo
 	forme.transform = xf * Transform3D(Basis(), Vector3(0, H_COLLISION * ECHELLE * 0.5, 0))
 	corps.add_child(forme)
 	return tris
+
+const SEAU_H := 0.24         # unités du modèle (x ECHELLE = 30 cm réels)
+const SEAU_R := 0.112        # rayon haut (x ECHELLE = diamètre 28 cm)
+const SEAU_HAUT_Y := -0.6    # haut du seau (unités du modèle, sol = 0)
+const CORDE_HAUT_Y := 1.48   # point d'attache de la corde sur le treuil
+
+## Seau rigide + corde, deux meshes SANS lien l'un avec l'autre : seule la corde a une longueur (cylindre fin), le seau est un solide
+## d'échelle 1 (ancien défaut : seau et corde étaient un seul maillage déformé d'un bloc, ce qui étirait le seau sur 3,8 m).
+static func _seau_et_corde(racine: Node3D, dy: float, sol_y_monde: float) -> int:
+	var n := Node3D.new()
+	n.name = "SeauEtCorde"
+	n.position.y = dy
+	racine.add_child(n)
+	var tris := 0
+	var m_bois := _materiau_conduit(_tex_unie([Color(0.42, 0.28, 0.16), Color(0.34, 0.22, 0.12)], [Color(0.2, 0.2, 0.22)]), sol_y_monde, Color(1.35, 1.35, 1.35))
+	var m_fer := _materiau_conduit(_tex_unie([Color(0.18, 0.18, 0.2)], []), sol_y_monde, Color(1.35, 1.35, 1.35))
+	var m_corde := _materiau_conduit(_tex_unie([Color(0.62, 0.5, 0.3), Color(0.5, 0.4, 0.24)], []), sol_y_monde, Color(1.35, 1.35, 1.35))
+	for mt: ShaderMaterial in [m_bois, m_fer, m_corde]:
+		mt.set_shader_parameter("devant", 0.02)
+	# seau : tronc de cône, douves + deux cerclages (texture), dessus plein (l'eau/le vide vu d'en haut)
+	var seau := MeshInstance3D.new()
+	seau.name = "Seau"
+	var cm := CylinderMesh.new()
+	cm.top_radius = SEAU_R
+	cm.bottom_radius = SEAU_R * 0.86
+	cm.height = SEAU_H
+	cm.radial_segments = 12
+	cm.rings = 1
+	# les positions sont cuites DANS les mesh : l'origine de chaque nœud reste celle du puits (le shader s'en sert pour la profondeur)
+	seau.mesh = _cuire(cm, Transform3D(Basis(), Vector3(0, SEAU_HAUT_Y - SEAU_H * 0.5, 0)))
+	seau.material_override = m_bois
+	# anse : anneau vertical ancré aux bords du seau
+	var anse := MeshInstance3D.new()
+	anse.name = "Anse"
+	var tm := TorusMesh.new()
+	tm.outer_radius = SEAU_R * 1.0
+	tm.inner_radius = SEAU_R * 0.9
+	tm.rings = 12
+	tm.ring_segments = 4
+	anse.mesh = _cuire(tm, Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, SEAU_HAUT_Y + 0.02, 0)))
+	anse.material_override = m_fer
+	var haut_anse := SEAU_HAUT_Y + 0.02 + SEAU_R
+	for mi in [seau, anse]:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		n.add_child(mi)
+		tris += _tris(mi.mesh)
+	# corde : cylindre fin du treuil à l'anse ; c'est la SEULE pièce dont la longueur change
+	var corde := MeshInstance3D.new()
+	corde.name = "Corde"
+	corde.material_override = m_corde
+	corde.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	n.add_child(corde)
+	regler_corde(corde, haut_anse)
+	tris += _tris(corde.mesh)
+	return tris
+
+## Longueur de la corde : on ne refait que le mesh de la corde (cylindre fin), jamais le seau (aucune échelle ni lien de poids).
+static func regler_corde(corde: MeshInstance3D, y_bas: float) -> void:
+	var cc := CylinderMesh.new()
+	cc.top_radius = 0.022
+	cc.bottom_radius = 0.022
+	cc.radial_segments = 5
+	cc.rings = 1
+	cc.cap_top = false
+	cc.cap_bottom = false
+	cc.height = CORDE_HAUT_Y - y_bas
+	corde.mesh = _cuire(cc, Transform3D(Basis(), Vector3(0, y_bas + cc.height * 0.5, 0)))
+
+## Cuit une transformation dans les sommets d'un mesh primitif.
+static func _cuire(m: Mesh, xf: Transform3D) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.append_from(m, 0, xf)
+	return st.commit()
+
+## Petite texture à bandes verticales (douves) ; `cerclages` : couleurs des bandes horizontales en haut et en bas.
+static func _tex_unie(douves: Array, cerclages: Array) -> Texture2D:
+	var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	for x in 8:
+		var c: Color = douves[x % douves.size()]
+		for y in 8:
+			img.set_pixel(x, y, c)
+	if not cerclages.is_empty():
+		for x in 8:
+			for y in [1, 6]:
+				img.set_pixel(x, y, cerclages[0])
+	return ImageTexture.create_from_image(img)
 
 static func _materiau_conduit(tex: Texture2D, sol_y_monde: float, teinte: Color) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
