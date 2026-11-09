@@ -1,5 +1,5 @@
 class_name InterieurHalle
-## Halle de Gunnhild Aldrsdotir, cheffe de Skarnholt (longue maison 14 × 7 m, repère local : X grand axe, porte côté +Z).
+## Halle de Gunnar Aldrsson, chef de Skarnholt (longue maison 14 × 7 m, repère local : X grand axe, porte côté +Z).
 ##
 ## Macro : nef de rondins entre deux files de poteaux octogonaux, foyer long au centre sous le trou à fumée, estrade du
 ##   trône face à la porte, plafond sous charpente.
@@ -105,7 +105,7 @@ static func construire(b: Interieurs) -> void:
 		b.nq("q_jarre", Vector3(xw + 0.2, F + b.niv(2), 3.05), 2.4, 0.8)
 	b.tenture(Vector3(xw + 0.04, 1.7, -0.3), PI * 0.5, 1.5, 2.0, "tenture_r")
 
-	# --- bout est (x = +6.85, lacet -PI/2) : lit clos de la cheffe, coffre, trophées
+	# --- bout est (x = +6.85, lacet -PI/2) : lit clos du chef, coffre, trophées
 	var xe := 6.8
 	_lit_clos(b, xe)
 	b.coffre(Vector3(xe - 0.38, F, 1.2), -PI * 0.5, Vector3(1.0, 0.55, 0.6))
@@ -168,7 +168,7 @@ static func _foyer(b: Interieurs, xh: float) -> void:
 	b.cyl(Vector3(xh + 1.2, b.y0 + 0.6, 0), 0.02, 2.4, "fer_noir", 4)
 	b.chaudron(Vector3(xh + 1.2, F + 0.62, 0), 0.28)
 
-## Estrade de planches à deux marches et haut-siège sculpté de la cheffe (modules Blender L6 : estrade_halle, trone_halle) ;
+## Estrade de planches à deux marches et haut-siège sculpté du chef (modules Blender L6 : estrade_halle, trone_halle) ;
 ## collisions inchangées (marches, assise, bloc du dossier).
 static func _estrade(b: Interieurs) -> void:
 	var F := Interieurs.F

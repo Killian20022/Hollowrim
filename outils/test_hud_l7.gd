@@ -57,7 +57,7 @@ func _tester() -> void:
 	# --- 1. police des titres
 	var textes := "Draugr ancien Gardien des Os Tertre de Svanhild Grotte des bandits Skarnholt Cercle des pierres runiques " \
 		+ "Lieu découvert Nouvelle quête Quête terminée Compétences Épée Parade Athlétisme Sac Quêtes Commandes L’anneau de givre " \
-		+ "Le frère d’Ylva Reliquaire Coffre givré Coffre du jarl Urne funéraire Bandelettes cousues Troll de givre Gunnhild Brodd Ægir"
+		+ "Le frère d’Ylva Reliquaire Coffre givré Coffre du jarl Urne funéraire Bandelettes cousues Troll de givre Gunnar Brodd Ægir"
 	for grande in [false, true]:
 		var p := MenuStyle.police_gothique(grande)
 		var manque := ""

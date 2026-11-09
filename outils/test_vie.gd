@@ -103,7 +103,7 @@ func _tester() -> void:
 	_verif(endormis == 0, "20 h : personne ne dort encore (%d)" % endormis)
 	_verif(au_feu >= 6, "20 h : au moins 6 civils autour du feu de la place (%d)" % au_feu)
 	var chef: Node3D = vie.civil("chef")["n"]
-	_verif(chef.global_position.distance_to(m.village.lieux["longue_maison"]) < 3.5, "20 h : Gunnhild devant la longue maison")
+	_verif(chef.global_position.distance_to(m.village.lieux["longue_maison"]) < 3.5, "20 h : Gunnar devant la longue maison")
 	var brodd: Node3D = vie.civil("forgeron")["n"]
 	_verif(brodd.global_position.distance_to(brodd.points[0]) < 1.0 and not brodd.est_endormi(), "20 h : le forgeron est encore à sa forge (services ouverts)")
 
@@ -214,7 +214,7 @@ func _tester() -> void:
 	_verif(ligne_danger != "" and vie.contexte_de(chef) == "danger", "dialogue : contexte « danger » (« %s »)" % ligne_danger)
 	var repl: Dictionary = vie._repliques
 	var danger_chef: Array = repl["pnj"]["chef"]["danger"]
-	_verif(ligne_danger in danger_chef, "dialogue : réplique propre à Gunnhild")
+	_verif(ligne_danger in danger_chef, "dialogue : réplique propre à Gunnar")
 	# retour une fois le danger passé
 	loup.queue_free()
 	await _attendre(DELAI_RETOUR_S + 4.0)
@@ -237,7 +237,7 @@ func _tester() -> void:
 	var l_nuit: Array = chef.parler()
 	chef.fin_conversation()
 	var nuits: Array = repl["pnj"]["chef"]["nuit"]
-	_verif(l_nuit.size() >= 2 and String(l_nuit[0]) in nuits, "20 h : Gunnhild ouvre sur une réplique de soirée (« %s »)" % str(l_nuit[0]))
+	_verif(l_nuit.size() >= 2 and String(l_nuit[0]) in nuits, "20 h : Gunnar ouvre sur une réplique de soirée (« %s »)" % str(l_nuit[0]))
 	m.cycle.heure = 12.0
 	var l_jour: Array = chef.parler()
 	chef.fin_conversation()

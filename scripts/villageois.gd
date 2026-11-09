@@ -245,7 +245,7 @@ func _ready() -> void:
 ## Avec --persos-kit, les villageois utilisent PersoDefs.villageois() à la place.
 const C := Color.WHITE
 const APPARENCES := {
-	# Gunnhild, la cheffe : longue robe bleue brodée sur tunique de lin, manteau de fourrure blanche, bijoux de cuir clair
+	# Gunnar, le chef : longue robe bleue brodée sur tunique de lin, manteau de fourrure blanche, bijoux de cuir clair
 	"chef": {"corps": "femme", "tenue": {"tunique": C, "robe": C, "mante": C, "brassards": C, "pantalon": C, "bottes": C, "ceinture": C},
 		"etoffes": {"tunique": "lin", "robe": "bleu", "mante": "blanc", "pantalon": "bleu", "bottes": "cuir_c", "ceinture": "cuir_c", "brassards": "cuir_c"},
 		"cheveux": "Hair_Long", "teinte_cheveux": Color(1.0, 0.82, 0.55)},

@@ -3,7 +3,7 @@ extends Node3D
 ## OBJETS DE DÉCOR VIVANTS (retours exe 5 : « faire vivre les verres, la nourriture… », comme dans Skyrim) : FABRIQUE UNIQUE et gestion.
 ##
 ## RECENSEMENT (2026-11-05) — petits objets du décor, tous des props Quaternius fondus dans les lots (aucun nœud par objet) :
-##   - intérieurs (halle de Gunnhild, maisons de Sigrún, des chasseurs, de Grima, forge de Brodd) : Interieurs.q / qf / nq et les
+##   - intérieurs (halle de Gunnar, maisons de Sigrún, des chasseurs, de Grima, forge de Brodd) : Interieurs.q / qf / nq et les
 ##     raccourcis chope, assiette, bol, cruche, livre, parchemin, mets, fromage ;
 ##   - marché (MobilierVillage.POSES_Q / POSES_L4) : primeurs, viandes, poissons, bouteilles des trois étals ;
 ##   - étals de Brodd et de Grima (EtalMarchand) : pièces du stock exposées (glb / primitives d'ObjetMonde).

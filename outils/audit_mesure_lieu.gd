@@ -56,7 +56,7 @@ func _go() -> void:
 			pass   # --pose passé au jeu
 		"foret":
 			_vers_foret()
-		"halle":      # intérieur le plus chargé (halle de Gunnhild : tables servies) ; A/B des objets vivants : -- --sans-objets-vivants
+		"halle":      # intérieur le plus chargé (halle de Gunnar : tables servies) ; A/B des objets vivants : -- --sans-objets-vivants
 			var th := Time.get_ticks_msec()
 			while m.village.get("prets") != true and Time.get_ticks_msec() - th < 90000:
 				await process_frame

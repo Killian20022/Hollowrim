@@ -111,6 +111,36 @@ if "retirer" in CONF:       # arme du modèle retirée du maillage (remplacée p
             v.co.x = -v.co.x + dx
             v.co.y += dy
         bmesh.ops.reverse_faces(bm, faces=nfs)
+        bmesh.ops.recalc_face_normals(bm, faces=nfs)
+        # soudure au coude : l'anneau haut du miroir (z > 1,0) est ramené sur les sommets du bras droit les plus proches (au-dessus de z 1,04), puis fusion
+        bm.verts.ensure_lookup_table()
+        haut_droit = [v for v in bm.verts if v.co.x < -XM and v.co.z >= ZC and v.co.z < ZC + 0.05 and v not in nvs]
+        if haut_droit:
+            kdh = kdtree.KDTree(len(haut_droit))
+            for i, v in enumerate(haut_droit): kdh.insert(v.co, i)
+            kdh.balance()
+            for v in nvs:
+                if v.co.z > 0.99:
+                    t = min(1.0, (v.co.z - 0.99) / 0.05)
+                    co, i, d = kdh.find(v.co)
+                    if d < 0.08: v.co = v.co.lerp(co, t)
+            bmesh.ops.remove_doubles(bm, verts=nvs + haut_droit, dist=0.004)
+        # la main Tripo n'est qu'une coque mince (lanières, cavité) : on garde le brassard (z >= 0,93) et on la remplace par un poing plein en cuir sombre
+        bm.verts.ensure_lookup_table()
+        nvs = [v for v in nvs if v.is_valid]
+        uv_l = bm.loops.layers.uv.active
+        haut = [v for v in nvs if 0.965 <= v.co.z < 1.0]
+        cx = float(np.mean([v.co.x for v in haut])); cy = float(np.mean([v.co.y for v in haut]))
+        ref = next(l for f in nfs if f.is_valid for l in f.loops if 0.99 < l.vert.co.z < 1.03)
+        uv_ref = ref[uv_l].uv.copy()
+        bmesh.ops.delete(bm, geom=[v for v in nvs if v.co.z < 0.965], context="VERTS")
+        sph = bmesh.ops.create_uvsphere(bm, u_segments=10, v_segments=7, radius=1.0)
+        for v in sph["verts"]:
+            v.co = Vector((cx + v.co.x * 0.037, cy + v.co.y * 0.041, 0.915 + v.co.z * 0.048))
+        for f in bm.faces:
+            if all(v in sph["verts"] for v in f.verts):
+                for l in f.loops: l[uv_l].uv = uv_ref
+        print("POING cree en", cx, cy, "uv", uv_ref)
         hl = np.array([[v.co.x, v.co.y, v.co.z] for v in gv if v.co.z < 0.93]).mean(axis=0)
         CONF["mains"]["r"] = (-hl[0] + dx, hl[1] + dy, hl[2])
         print("BRAS DROIT SYMETRISE : %d sommets supprimes, %d faces copiees ; main droite cible" % (len(droit), len(nfs)), CONF["mains"]["r"])

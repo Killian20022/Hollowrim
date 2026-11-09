@@ -18,6 +18,9 @@ func _fixe(nom: String) -> void:
 func _go() -> void:
 	DirAccess.make_dir_recursive_absolute(_arg("sortie", "user://tripo"))
 	GardeTripo.EPEE_INCL = float(_arg("incl", str(GardeTripo.EPEE_INCL)))
+	if _arg("dir") != "":
+		var dd := _arg("dir").split_floats(",")
+		GardeTripo.EPEE_DIR = Vector3(dd[0], dd[1], dd[2])
 	GardeTripo.EPEE_ECH = float(_arg("ech", str(GardeTripo.EPEE_ECH)))
 	var o := _arg("centre")
 	if o != "":
@@ -66,6 +69,12 @@ func _go() -> void:
 		anim.pause()
 		await _att(6)
 		var bm := sq.global_transform.basis.inverse() * sq.global_transform.basis * sq.get_bone_global_pose(sq.find_bone("hand_r")).basis
+		var arme := sq.find_child("EpeeJeu", true, false) as Node3D
+		var gb := g.global_basis.inverse()
+		var m_ := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("hand_r")).origin
+		var e_ := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("lowerarm_r")).origin
+		print("DIR ", nom, " lame(local garde) ", gb * arme.global_basis.y, " avant-bras ", gb * (m_ - e_).normalized(), " devant ", gb * Vector3.BACK)
+		print("AXE_AVANT_BRAS_DANS_MAIN ", nom, " ", (sq.global_transform.basis * sq.get_bone_global_pose(sq.find_bone("hand_r")).basis).inverse() * (m_ - e_).normalized())
 		var dm := _arg("delta_monde")
 		if dm != "":
 			var qd := dm.split(",")

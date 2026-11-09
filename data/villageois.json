@@ -3,13 +3,13 @@
   "villageois": [
     {
       "id": "chef",
-      "nom": "Gunnhild Aldrsdotir",
-      "role": "Cheffe du hameau",
+      "nom": "Gunnar Aldrsson",
+      "role": "Chef du hameau",
       "modele": "Knight",
       "lieu": "longue_maison",
       "interpellations": ["Approche du feu, étranger.", "Les nuits sont longues ici.", "Pas de bagarre chez moi."],
       "lignes": [
-        "Je suis Gunnhild, cheffe de Skarnholt. Tu as vu notre feu de loin ?",
+        "Je suis Gunnar, chef de Skarnholt. Tu as vu notre feu de loin ?",
         "Une quarantaine d’âmes, une forêt, de la neige. Voilà tout le royaume.",
         "Tu es le bienvenu. Tant que tu ne voles pas nos réserves de bière.",
         "Ces dernières nuits, des lueurs bougent au cercle de pierres, au nord-ouest.",

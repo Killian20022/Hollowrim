@@ -2,10 +2,10 @@ extends SceneTree
 ## Lot E RPG « stockage, marchands, forge » (scripts/rpg/stockage.gd, fenetre_coffre.gd, forge.gd, services_pnj.gd, docs/RPG.md) :
 ##   - COFFRE LOUÉ chez Grima (objet E dans son intérieur) : fenêtre coffre ↔ sac (ranger 1, la pile, tout ; prendre ; pièces par 100),
 ##     objets de quête refusés (gardés au sac par « tout ranger »), poids avant / après, arme tenue rangée = main vide, pause, touches ;
-##   - MAISON : refus sans 1500 pièces, achat chez Gunnhild (option de dialogue), clé, coffre et râtelier de la maison (arme exposée) ;
+##   - MAISON : refus sans 1500 pièces, achat chez Gunnar (option de dialogue), clé, coffre et râtelier de la maison (arme exposée) ;
 ##   - FORGE de Brodd : +1/+2/+3 contre pièces + minerais, identifiant « id+n », fiche (nom, valeur), dégâts relevés, arme tenue
 ##     rééquipée, armure portée rééquipée et relevée, refus (minerais, +3, quête), fenêtre (E) ;
-##   - DIALOGUE : Brodd « Commercer / Forge / Au revoir », Gunnhild « Acheter la maison », Sigrún « Oublier mes talents » (500 pièces,
+##   - DIALOGUE : Brodd « Commercer / Forge / Au revoir », Gunnar « Acheter la maison », Sigrún « Oublier mes talents » (500 pièces,
 ##     Progression.reinitialiser_perks) ; MARCHAND : de_quete → Inventaire.est_quete, objet forgé vendu à sa valeur relevée,
 ##     armures rachetées par Brodd, filtre de catégorie ;
 ##   - SAUVEGARDE : monde.sauvegarder → charger (fichier de test) : coffres, maison, arme forgée au sac ET en main.
@@ -125,7 +125,7 @@ func _tester() -> void:
 	d._fermer()
 	j.global_position = _pnj("chef").global_position + Vector3(0, 0, 1.5)
 	d._ouvrir(_pnj("chef"))
-	_verif(_textes(d).size() == 2 and String(_textes(d)[0]).begins_with("Acheter la maison"), "Gunnhild : %s" % str(_textes(d)))
+	_verif(_textes(d).size() == 2 and String(_textes(d)[0]).begins_with("Acheter la maison"), "Gunnar : %s" % str(_textes(d)))
 	# --- achat de la maison (par le dialogue)
 	var tours := 0
 	while d._ouvert and not d._choix_vis and tours < 40:

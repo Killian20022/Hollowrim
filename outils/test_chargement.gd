@@ -48,7 +48,7 @@ func _go() -> void:
 		var ids: Array = []
 		for v in get_nodes_in_group("villageois"):
 			ids.append(v.donnees.get("id", "?"))
-		_verif(ids.has("forgeron") and ids.has("chef"), "Brodd et Gunnhild sont là")
+		_verif(ids.has("forgeron") and ids.has("chef"), "Brodd et Gunnar sont là")
 	_verif(RuesVillage.cache_statut == "lu", "rues du village : cache valide (statut « %s »)" % RuesVillage.cache_statut)
 	_verif(Sol.cache_statut == "lu", "carte de sol : cache valide (statut « %s »)" % Sol.cache_statut)
 	_verif(m.arbres.size() > 500, "%d arbres" % m.arbres.size())

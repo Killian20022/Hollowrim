@@ -10,6 +10,7 @@ func _init() -> void:
 		if mi.skin == null:
 			continue
 		var res := {}
+		var pts: Array = []
 		for s in mi.mesh.get_surface_count():
 			var a := mi.mesh.surface_get_arrays(s)
 			var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
@@ -32,10 +33,32 @@ func _init() -> void:
 				if not res.has(nom):
 					res[nom] = [0, Vector3.ZERO, Vector3(1e9, 1e9, 1e9), Vector3(-1e9, -1e9, -1e9)]
 				var r: Array = res[nom]
+				if nom == "lowerarm_r":
+					pts.append(l)
 				r[0] += 1
 				r[1] += l
 				r[2] = (r[2] as Vector3).min(l)
 				r[3] = (r[3] as Vector3).max(l)
+		if pts.size() > 0:
+			var lo := 1e9
+			var hi := -1e9
+			for q: Vector3 in pts:
+				lo = minf(lo, q.y)
+				hi = maxf(hi, q.y)
+			for tranche in [[0.0, 0.5], [0.5, 1.0], [0.7, 1.0]]:
+				var c := Vector3.ZERO
+				var n := 0
+				for q: Vector3 in pts:
+					var t := (q.y - lo) / maxf(hi - lo, 1e-6)
+					if t >= tranche[0] and t <= tranche[1]:
+						c += q
+						n += 1
+				var cl: Vector3 = c / maxf(n, 1)
+				var ib := sq.find_bone("lowerarm_r")
+				var ih := sq.find_bone("hand_r")
+				var dansmain := sq.get_bone_global_rest(ih).affine_inverse() * (sq.get_bone_global_rest(ib) * cl)
+				print("TRANCHE_Y ", tranche, " n=", n, " centre(lowerarm) ", cl, " centre(hand_r) ", dansmain)
+			print("Y local ", lo, " ", hi)
 		for nom in res:
 			var r: Array = res[nom]
 			print(mi.name, " ", nom, " n=", r[0], " centre ", (r[1] as Vector3) / float(r[0]), " min ", r[2], " max ", r[3])

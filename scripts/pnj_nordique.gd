@@ -180,7 +180,7 @@ static func _ancienne() -> Node3D:
 	_canne(sq)
 	return n
 
-## Gunnhild, la cheffe : la Chasseresse ENTIÈRE sans arc, carquois ni couteau ; cheveux et nattes gris cendré, tenue lie-de-vin.
+## Gunnar, le chef : la Chasseresse ENTIÈRE sans arc, carquois ni couteau ; cheveux et nattes gris cendré, tenue lie-de-vin.
 static func _chef() -> Node3D:
 	var n := archetype_seul("chef")
 	n.name = "PnjChef"

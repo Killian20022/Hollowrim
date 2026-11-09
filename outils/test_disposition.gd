@@ -117,7 +117,7 @@ func _tester() -> void:
 	_verif(absf(float(dp.memoire.get(cle, 0.0)) - float((ex["disposition"] as Dictionary).get(cle, 0.0))) < 0.01, "sauvegarde : mémoire des PNJ relue")
 	dp.memoire.clear()
 	dp._sur_quete("anneau_givre")
-	_verif(float(dp.memoire.get("pnj:chef", 0.0)) > 0.0, "quête rendue : sa donneuse (Gunnhild) s'en souvient (+%.0f)" % float(dp.memoire.get("pnj:chef", 0.0)))
+	_verif(float(dp.memoire.get("pnj:chef", 0.0)) > 0.0, "quête rendue : sa donneuse (Gunnar) s'en souvient (+%.0f)" % float(dp.memoire.get("pnj:chef", 0.0)))
 	dp.memoire.clear()
 	# ------------------------------------------------------------------ prix du marchand
 	cr.reputation[Crime.JURIDICTION] = 50.0

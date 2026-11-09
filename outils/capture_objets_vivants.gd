@@ -1,5 +1,5 @@
 extends SceneTree
-## Captures « avant | après » des objets vivants (même cadrage, même heure) : halle de Gunnhild (table servie) et étal des primeurs.
+## Captures « avant | après » des objets vivants (même cadrage, même heure) : halle de Gunnar (table servie) et étal des primeurs.
 ##   godot --path . --disable-vsync --script res://outils/capture_objets_vivants.gd -- --nouvelle --paisible --sortie=<dossier> --nom=apres
 ##   (avant : même commande avec -- --sans-objets-vivants --nom=avant : tout reste fondu dans le décor)
 ## Images : <dossier>/<nom>_halle.png, <nom>_marche.png.

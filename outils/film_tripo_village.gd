@@ -111,8 +111,8 @@ func _jarl() -> void:
 	var t := 0.0
 	await _images(int(15.0 * 30), func(i: int) -> void:
 		var k := float(i) / 450.0
-		var sens := -1.0 if c.global_transform.basis.z.z < 0.0 else 1.0      # côté sud (hors de la longue maison) : +Z du monde
-		var p := c.global_position + Vector3(lerpf(-1.6, 1.4, k), 0.0, lerpf(4.2, 2.4, k))
+		var b := c.global_transform.basis          # +Z local = devant le jarl : caméra de face puis 3/4
+		var p := c.global_position + b.z * lerpf(4.2, 2.6, k) + b.x * lerpf(1.8, -1.4, k)
 		p.y = c.global_position.y + 1.5
 		cam.global_position = p
 		cam.look_at(c.global_position + Vector3(0, 1.15, 0), Vector3.UP))
@@ -130,10 +130,7 @@ func _reaction() -> void:
 	j.rotation.y = atan2(-d.x, -d.z)
 	j.tete.rotation.x = atan2(d.y, Vector2(d.x, d.z).length())
 	var suit := func(_i: int) -> void:
-		var e: Node3D = g
-		var combattant := cr.combattant_de(g)
-		if combattant != null and is_instance_valid(combattant):
-			e = combattant
+		var e: Node3D = g      # on garde le modèle Tripo à l'image (le combattant sans texture reste hors cadre)
 		var p := j.global_position - av * 0.0 + Vector3(0, 1.7, 0) + (j.global_transform.basis.x * 1.2) + j.global_transform.basis.z * 1.8
 		cam.global_position = p
 		cam.look_at(e.global_position + Vector3(0, 1.2, 0), Vector3.UP)

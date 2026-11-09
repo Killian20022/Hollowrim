@@ -10,7 +10,7 @@ const EMPREINTE := "res://outils/donnees_test/butin_empreinte.json"
 ## Identifiants du registre AVANT le lot 0 (ancienne constante Inventaire.OBJETS + data/butin/objets.json) : aucun ne doit
 ## disparaître ni changer de nom / poids / valeur. Lot A RPG : armes allégées (Q5 a) — épées / hache du registre et lame antique
 ## ont un poids neuf (ancien 9 / 7 / 9 / 9 / 7 / 10 / 9, lame 8) ; identifiants et valeurs inchangés.
-## Exception VOULUE (lot quêtes, 2026-11) : amulette_givre devient UNIQUE (cadeau de Gunnhild) : valeur 40 -> 120 (poids inchangé) ; elle
+## Exception VOULUE (lot quêtes, 2026-11) : amulette_givre devient UNIQUE (cadeau de Gunnar) : valeur 40 -> 120 (poids inchangé) ; elle
 ## quitte les tables de butin, remplacée À LA MÊME POSITION (donc tirages à graine fixe intacts) par SUBSTITUTIONS.
 const SUBSTITUTIONS := {"amulette_givre": ["pendentif_mineur", "talisman_os"]}
 const ANCIENS := {

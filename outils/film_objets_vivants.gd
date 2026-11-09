@@ -1,5 +1,5 @@
 extends SceneTree
-## Film des OBJETS VIVANTS (preuves, lot « objets ») dans la halle de Gunnhild, vue du joueur (FPS) :
+## Film des OBJETS VIVANTS (preuves, lot « objets ») dans la halle de Gunnar, vue du joueur (FPS) :
 ##   1. un sort de feu frappe une table servie : chopes, assiettes et vivres sont projetés, retombent et se rendorment ;
 ##   2. on vise une miche : « Voler Pain de seigle (3) » en rouge, E : elle part au sac ;
 ##   3. on saisit une pomme (E maintenu), on la lance à travers la halle.

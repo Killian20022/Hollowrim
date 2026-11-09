@@ -3,7 +3,7 @@
 // Besoin de sharp (bun add sharp dans un dossier de travail hors du dépôt).
 import sharp from "sharp";
 
-const PERSOS: [string, string][] = [["chef", "Gunnhild (cheffe)"], ["forgeron", "Brodd (forgeron)"], ["garde", "Haldor (garde)"], ["chasseuse", "Ylva (chasseuse)"],
+const PERSOS: [string, string][] = [["chef", "Gunnar (cheffe)"], ["forgeron", "Brodd (forgeron)"], ["garde", "Haldor (garde)"], ["chasseuse", "Ylva (chasseuse)"],
   ["volva", "Sigrún (völva)"], ["ancienne", "Grima (ancienne)"], ["bandit", "Bandit casqué"], ["joueur", "Joueur (3e pers.)"]];
 const W = 640, H = 360, ETIQ = 170, TETE = 64, MARGE = 12;
 const [sortie, ...groupes] = process.argv.slice(2);

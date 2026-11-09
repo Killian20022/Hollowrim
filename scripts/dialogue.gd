@@ -9,7 +9,7 @@ extends Control
 ## = valider ; T = commercer tout de suite) ; « Commercer » ferme le dialogue et ouvre la boutique (Marchand.ouvrir).
 ## Manette : A = suite / valider, B = fermer, X = commercer, croix haut/bas = choisir.
 ## Lot E (RPG) : la liste de choix de la dernière réplique est ouverte aux SERVICES (ServicesPnj.options : Brodd « Forge »,
-## Gunnhild « Acheter la maison », Sigrún « Oublier mes talents ») ; « Commercer » d'abord, « Au revoir » en dernier ; un PNJ
+## Gunnar « Acheter la maison », Sigrún « Oublier mes talents ») ; « Commercer » d'abord, « Au revoir » en dernier ; un PNJ
 ## sans marchand ni service n'a pas de choix (inchangé).
 
 const VITESSE_TEXTE := 45.0  # caractères par seconde

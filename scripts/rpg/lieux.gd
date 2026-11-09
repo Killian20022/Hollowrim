@@ -29,7 +29,7 @@ const TYPES := {
 ## EauVillage.LAC_CENTRE, ArrierePlan.CHATEAU_AZIMUT / CHATEAU_DIST) recopiées ici ; test_onglet_carte vérifie qu'elles
 ## n'ont pas bougé.
 const LIEUX := [
-	["skarnholt", "Skarnholt", "village", 44.0, 40.0, 30.0, true, true, "Hameau de Gunnhild", "à Skarnholt", "aux portes de Skarnholt"],
+	["skarnholt", "Skarnholt", "village", 44.0, 40.0, 30.0, true, true, "Hameau de Gunnar", "à Skarnholt", "aux portes de Skarnholt"],
 	["cercle", "Cercle des pierres runiques", "cercle", -38.0, -34.0, 12.0, true, true, "Les morts y bougent", "au cercle runique", "près du cercle runique"],
 	["tertre", "Tertre de Svanhild", "tertre", -38.0, -48.0, 8.0, true, true, "Crypte de la reine-guerrière", "au tertre de Svanhild", "près du tertre de Svanhild"],
 	["grotte", "Grotte des bandits", "grotte", 92.0, -27.0, 10.0, true, true, "La vieille mine", "à la grotte des bandits", "près de la vieille mine"],

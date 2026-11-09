@@ -1,7 +1,7 @@
 class_name DemoCrime
 extends RefCounted
 ## Serrures du village pour le système de crime (crime.gd, crochetage.gd) :
-##   - deux COFFRES VERROUILLÉS posés sur des coffres du décor des intérieurs : celui de Gunnhild au bout est de la longue maison
+##   - deux COFFRES VERROUILLÉS posés sur des coffres du décor des intérieurs : celui de Gunnar au bout est de la longue maison
 ##     (Adepte, 40 pièces et une coupe d'argent) et celui de Sigrún chez elle (Expert, un collier d'or) ; on les crochète (E), puis on
 ##     les fouille : leur contenu est VOLÉ (Crime.signaler_vol : prime si quelqu'un voit, confisqué à l'arrestation) ;
 ##   - `--demo-crime` (argument utilisateur : tests, films) : la porte de la maison de Sigrún est verrouillée (Apprenti) ; crochetée, elle
@@ -11,7 +11,7 @@ extends RefCounted
 
 const COFFRES := [
 	{"id": "coffre_gunnhild", "interieur": "halle", "pos": Vector3(6.42, Interieurs.F + 0.6, 1.2), "verrou": 2, "proprietaire": "chef",
-		"nom": "Coffre de Gunnhild", "contenu": {"pieces": 40, "coupe_argent": 1}},
+		"nom": "Coffre de Gunnar", "contenu": {"pieces": 40, "coupe_argent": 1}},
 	{"id": "coffre_sigrun", "interieur": "sigrun", "pos": Vector3(3.5, Interieurs.F + 0.6, -1.9), "verrou": 3, "proprietaire": "volva",
 		"nom": "Coffre de Sigrún", "contenu": {"pieces": 15, "collier_or": 1}},
 ]

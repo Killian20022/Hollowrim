@@ -15,9 +15,11 @@ const EPEE := preload("res://assets/modeles/joueur/epee_nordique.glb")
 ## Prise de la main droite : celle du corps du joueur (corps_joueur.gd, PRISE) : milieu de la poignée dans le poing, lame dans l'axe de l'avant-bras.
 ## Inclinaison de la lame autour de l'axe de la main (degrés, + = pointe vers l'avant-bas) et échelle de l'épée (le garde est plus massif que le joueur).
 static var EPEE_INCL := -35.0
+## Direction de la lame dans le repère de la main (axe de l avant-bras = +y local, vers les doigts : pointe vers le sol bras le long du corps, légèrement vers l'avant) ; (0,0,0) = ancienne inclinaison.
+static var EPEE_DIR := Vector3(0.0, 0.93, -0.2)
 static var EPEE_ECH := 1.15
 ## Centre du poing du maillage Tripo dans le repère de hand_r (mesuré à l'image : le gantelet du modèle est plus bas / plus en arrière que l'os, la prise du joueur y tombe à côté).
-static var CENTRE_POING := Vector3(-0.13, -0.058, -0.008)
+static var CENTRE_POING := Vector3(0.0025, 0.175, -0.013)
 static var PRISE := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 const CHAINES := ["tab_f", "tab_b"]
 ## Tabard de laine : plus léger que la cape du jarl, mais amorti.
@@ -139,12 +141,18 @@ class LanceDroite extends SkeletonModifier3D:
 static func _epee_au_flanc(sq: Skeleton3D) -> void:
 	var acc := BoneAttachment3D.new()
 	acc.name = "EpeeMain"
-	acc.bone_name = "hand_r"
+	acc.bone_name = "lowerarm_r"      # le poing plein est lié à l'avant-bras : l'épée le suit sans écart, quel que soit le clip
 	sq.add_child(acc)
 	var arme: Node3D = EPEE.instantiate()
 	arme.name = "EpeeJeu"
 	var prise := PRISE
-	prise.basis = Basis(Vector3.RIGHT, deg_to_rad(EPEE_INCL)) * prise.basis
+	if EPEE_DIR.length() > 0.01:
+		var d := EPEE_DIR.normalized()
+		var bx: Vector3 = prise.basis.x
+		bx = (bx - d * bx.dot(d)).normalized()
+		prise.basis = Basis(bx, d, bx.cross(d))
+	else:
+		prise.basis = Basis(Vector3.RIGHT, deg_to_rad(EPEE_INCL)) * prise.basis
 	prise.basis = prise.basis.scaled(Vector3.ONE * EPEE_ECH)
 	prise.origin = CENTRE_POING - prise.basis.y.normalized() * 0.04 * EPEE_ECH      # le centre du poing est à 4 cm du pommeau le long de la lame
 	arme.transform = prise
