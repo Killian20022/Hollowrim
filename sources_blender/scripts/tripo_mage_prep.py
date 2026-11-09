@@ -42,6 +42,15 @@ s = TAILLE / float(P[:, 2].max())
 for v in me.vertices:
     v.co = Vector(((v.co.x - cx) * s, (v.co.y - cy) * s, v.co.z * s))
 print("échelle x%.3f" % s)
+# doigts nus du modèle = longues pointes pâles (griffes) : raccourcis à 40 % et repeints en cuir de gant sombre (mains gantées)
+GANT = (0.11, 0.08, 0.07, 1.0)
+ZG = 0.915
+nd = 0
+for v in me.vertices:
+    if abs(v.co.x) > 0.30 and 0.70 < v.co.z < ZG:
+        v.co.z = ZG - (ZG - v.co.z) * 0.4
+        nd += 1
+print("doigts raccourcis : %d sommets" % nd)
 
 # 3. UV repackés (calque 2), puis recuit de la texture
 old = me.uv_layers[0]
@@ -98,6 +107,9 @@ for r_, lis, mn, sz in boites:
 for i in range(len(me.loops)):
     new.data[i].uv = UVn[i]
 print("densité UV x%.3f, UV neufs : min" % f, UVn.min(0).round(3), "max", UVn.max(0).round(3))
+P2 = np.array([v.co[:] for v in me.vertices])
+doigt = [(abs(P2[list(p.vertices)][:, 0]).mean() > 0.30) and (P2[list(p.vertices)][:, 2].mean() < ZG + 0.035) and (P2[list(p.vertices)][:, 2].mean() > 0.70) for p in me.polygons]
+print("triangles de doigts repeints :", sum(doigt))
 R = TEX * SS
 out = np.zeros((R, R, 4), dtype=np.float32)
 cov = np.zeros((R, R), dtype=bool)
@@ -125,6 +137,8 @@ for p in me.polygons:
         v = np.clip(l1[m] * oa[1] + l2[m] * ob_[1] + l3[m] * oc[1], 0, 0.9999)
         ys_, xs_ = gy[m].astype(int), gx[m].astype(int)
         out[ys_, xs_] = tex[(v * H0).astype(int), (u * W0).astype(int)]
+        if doigt[p.index]:
+            out[ys_, xs_] = GANT
         cov[ys_, xs_] = True
 # réduction (moyenne sur les texels couverts), puis dilatation de 4 texels (pas de bord noir au filtrage)
 cf = cov.astype(np.float32)
@@ -141,6 +155,7 @@ for _ in range(4):
     nw = (~ok) & (n > 0)
     img[nw] = acc[nw] / n[nw][:, None]
     ok = ok | nw
+img[..., :3] = np.clip(img[..., :3], 0, 1) ** float(arg('gamma', '0.92'))     # texture un peu relevée (les Tripo sont sombres)
 img[..., 3] = 1.0
 print("couverture texture : %.1f %%" % (100 * float((cs > 0).mean())))
 png = os.path.join(BASE, "assets", "pnj", "tripo_mage_%d.png" % TEX)

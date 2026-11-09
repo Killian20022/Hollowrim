@@ -15,7 +15,7 @@ static var RAIDEUR := 0.12
 static var AMORTI := 0.45
 static var GRAVITE := 1.8
 ## Teinte de la texture : les modèles Tripo sont sombres (robe anthracite) ; léger éclaircissement pour rester lisible au village et en intérieur.
-static var TEINTE := Color(1.25, 1.25, 1.3)
+static var TEINTE := Color(1.35, 1.35, 1.4)
 
 static func actif() -> bool:
 	return OS.get_cmdline_user_args().has("--mage-tripo")

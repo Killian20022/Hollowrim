@@ -13,6 +13,7 @@ var origine := Vector3.ZERO
 var lat := Vector3.RIGHT      # axe latéral de la caméra
 var dirc := Vector3.FORWARD   # direction caméra -> sujets
 var img := 0
+var main_g: BoneAttachment3D
 
 func _init() -> void:
 	_go.call_deferred()
@@ -86,7 +87,7 @@ func _go() -> void:
 	if m.get("dialogue") != null:
 		m.dialogue.set_process(false)
 	_cacher()
-	_heure(11.0)
+	_heure(float(_arg("heure", "11.0")))
 	await _att(2.0)
 	# emplacement : place libre du village (autour de l'habitant « hab_mage_tripo »), soleil dans le dos de la caméra, 3 voies de 1,5 m et 5 m de recul
 	var v: Node3D = null
@@ -145,8 +146,15 @@ func _go() -> void:
 	cam.fov = 38.0
 	m.add_child(cam)
 	cam.current = true
+	var sqm := modeles[1].find_child("Skeleton3D", true, false) as Skeleton3D
+	main_g = BoneAttachment3D.new()
+	main_g.name = "MainSort"
+	main_g.bone_name = "hand_l"
+	sqm.add_child(main_g)
 	if _arg("mode", "photos") == "photos":
 		await _photos()
+	elif _arg("mode") == "interieur":
+		await _interieur()
 	else:
 		await _film()
 	print("FIN %d" % img)
@@ -198,7 +206,60 @@ func _photos() -> void:
 	cam.look_at(c, Vector3.UP)
 	await _att(0.5)
 	await _fixe("gros_plan_mage")
+	# gros plan des mains (mage de face, mains le long du corps)
+	var hc := _sol(modeles[1].global_position) + Vector3(0, 0.95, 0)
+	cam.global_position = _sol(modeles[1].global_position) - dirc * 1.25 + Vector3(0, 1.05, 0)
+	cam.look_at(hc, Vector3.UP)
+	await _att(0.5)
+	await _fixe("gros_plan_mains")
+	_orienter(90.0)
+	await _att(0.5)
+	await _fixe("gros_plan_mains_profil")
+	_orienter(0.0)
 	_heure(11.0)
+
+func _aura(sec: float, k_deb: float, k_fin: float) -> void:
+	var n := roundi(sec * 30.0)
+	for i in n:
+		EffetsMagie.aura_main(main_g, "glace", lerpf(k_deb, k_fin, float(i) / maxf(n - 1, 1)))
+		await _pf()
+
+func _interieur() -> void:
+	var ip: Interieur = m.village.interieur("h1")
+	var a := ip.demi
+	j.set_physics_process(false)
+	j.global_position = ip.to_global(Vector3(0, ip.sol_y + 0.02, a.y - 0.4))
+	for i in 40:
+		await process_frame
+	if not ip.construit:
+		m.village.construire_interieur_maintenant(ip)
+	for i in 30:
+		await process_frame
+	for n: Node3D in modeles:
+		n.visible = false
+	var mt: Node3D = modeles[1]
+	var gt: Node3D = modeles[2]
+	mt.visible = true
+	gt.visible = true
+	mt.global_position = ip.to_global(Vector3(-0.7, ip.sol_y, -0.2))
+	gt.global_position = ip.to_global(Vector3(0.7, ip.sol_y, -0.2))
+	var face := ip.to_global(Vector3(0, 0, a.y)) - ip.to_global(Vector3(0, 0, 0))
+	face.y = 0
+	_cap(mt, face.normalized())
+	_cap(gt, face.normalized())
+	cam.global_position = ip.to_global(Vector3(0, ip.sol_y + 1.45, a.y - 0.35))
+	cam.look_at(ip.to_global(Vector3(0, ip.sol_y + 1.0, -0.2)), Vector3.UP)
+	cam.fov = 60.0
+	for hh in [12.0, 20.0]:
+		_heure(hh)
+		await _att(0.8)
+		await _fixe("interieur_%02d" % int(hh))
+	# incantation à l'intérieur, de nuit
+	_jouer(mt, "Spell_Simple_Enter", 0.1)
+	await _aura(1.1, 0.0, 1.0)
+	_jouer(mt, "Spell_Simple_Idle", 0.1)
+	await _aura(0.5, 1.0, 1.0)
+	await _fixe("interieur_20_sort")
 
 func _film() -> void:
 	var mt: Node3D = modeles[1]
@@ -243,12 +304,13 @@ func _film() -> void:
 	# 3. incantation
 	print("PLAN incantation debut %d" % img)
 	_jouer(mt, "Spell_Simple_Enter", 0.1)
-	await _att(1.1)
+	await _aura(1.1, 0.0, 1.0)
 	_jouer(mt, "Spell_Simple_Idle", 0.1)
-	await _att(1.0)
+	await _aura(1.0, 1.0, 1.0)
 	_jouer(mt, "Spell_Simple_Shoot", 0.05)
-	await _att(1.0)
+	GerbePixels.emettre(m, main_g.global_position, Vector3.UP, "givre_lueur", 0.8)
+	await _aura(1.0, 1.0, 0.6)
 	_jouer(mt, "Spell_Simple_Exit", 0.1)
-	await _att(1.2)
+	await _aura(1.2, 0.5, 0.0)
 	_jouer(mt, "Idle")
 	await _att(0.8)
