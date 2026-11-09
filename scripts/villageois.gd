@@ -183,13 +183,14 @@ static func habitants() -> Array:
 static func habitants_essai() -> Array:
 	var chemin := "res://data/habitants_tripo.json"
 	var args := OS.get_cmdline_user_args()
-	if not (args.has("--jarl-tripo") or args.has("--gardes-tripo")) or not FileAccess.file_exists(chemin):
+	if not (args.has("--jarl-tripo") or args.has("--gardes-tripo") or args.has("--mage-tripo")) or not FileAccess.file_exists(chemin):
 		return []
 	var json: Variant = JSON.parse_string(FileAccess.get_file_as_string(chemin))
 	if json is Dictionary and (json as Dictionary).get("habitants") is Array:
 		var out: Array = []
 		for h: Variant in (json as Dictionary)["habitants"]:
-			var drapeau := "--jarl-tripo" if String((h as Dictionary).get("pnj", "")) == "jarl_tripo" else "--gardes-tripo"
+			var pnj_id := String((h as Dictionary).get("pnj", ""))
+			var drapeau := "--jarl-tripo" if pnj_id == "jarl_tripo" else ("--mage-tripo" if pnj_id == "tripo_mage" else "--gardes-tripo")
 			if args.has(drapeau):
 				out.append(h)
 		return out

@@ -51,6 +51,8 @@ static func vider() -> void:
 	GuerrierNordique.vider()
 
 static func creer(options := {}) -> Node3D:
+	if MageTripo.actif() and options.get("corps", "homme") != "femme" and not options.get("ancien", false):      # essai Tripo (--mage-tripo) : le mage Tripo remplace le mage homme
+		return MageTripo.creer(options)
 	var C := Color.WHITE
 	var tenue := {"tunique": C, "pantalon": C, "bottes": C, "ceinture": C, "mante": C}
 	if options.get("capuche", true):

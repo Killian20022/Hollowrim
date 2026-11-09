@@ -99,6 +99,30 @@
    "apres": [
     "File. La nuit tombe vite ici."
    ]
+  },
+  {
+   "id": "hab_mage_tripo",
+   "type": "garde",
+   "pnj": "tripo_mage",
+   "nom": "Mage Eirwen",
+   "role": "Mage",
+   "pos": [
+    41.0,
+    39.5
+   ],
+   "cap": 180,
+   "activite": "Idle",
+   "sedentaire": true,
+   "interpellations": [
+    "Le givre murmure ton nom, voyageur."
+   ],
+   "lignes": [
+    "Les runes ne mentent jamais, contrairement aux hommes.",
+    "Ce bâton a gelé des rivières entières."
+   ],
+   "apres": [
+    "Que le froid te soit léger."
+   ]
   }
  ]
 }
