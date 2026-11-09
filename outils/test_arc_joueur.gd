@@ -39,6 +39,44 @@ func _viser_point(c: Vector3) -> void:
 	j.tete.rotation.x = atan2(d.y, Vector2(d.x, d.z).length())
 	await physics_frame
 
+## Distance (m, monde) du fût de la flèche encochée (segment encoche -> pointe) au sommet de l'arc le plus proche.
+func _fut_arc(a: ArcModele) -> float:
+	var n := a.encoche_monde()
+	var p := a.pointe()
+	var t := a.mi_arc.global_transform
+	var d := INF
+	for v in a.mi_arc.mesh.get_faces():
+		var w := t * v
+		d = minf(d, w.distance_to(Geometry3D.get_closest_point_to_segment(w, n, p)))
+	return d
+
+## Corde : "" si elle est faite de 2 segments droits (encoche -> attache haute, encoche -> attache basse) et si ses attaches sont sur
+## les branches (à moins de 2 cm d'un sommet de l'arc fléchi par la clé de forme) ; sinon ce qui ne va pas.
+func _corde(a: ArcModele) -> String:
+	var w := a.mi_arc.get_blend_shape_value(a._cle)
+	var haut := a.attache(w, true)
+	var bas := a.attache(w, false)
+	var nk := a.encoche_locale()
+	var ecart := 0.0
+	for v in a.mi_corde.mesh.get_faces():
+		var e1 := v.distance_to(Geometry3D.get_closest_point_to_segment(v, bas, nk))
+		var e2 := v.distance_to(Geometry3D.get_closest_point_to_segment(v, nk, haut))
+		ecart = maxf(ecart, minf(e1, e2))
+	if ecart > ArcModele.RAYON_CORDE * 1.6:
+		return "(sommet de la corde à %.1f mm de ses 2 segments)" % (ecart * 1000.0)
+	var m := a.mi_arc.mesh as ArrayMesh
+	var base: PackedVector3Array = m.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var fl: PackedVector3Array = m.surface_get_blend_shape_arrays(0)[a._cle][Mesh.ARRAY_VERTEX]
+	var dh := INF
+	var db := INF
+	for i in base.size():
+		var q := base[i].lerp(fl[i], w)
+		dh = minf(dh, q.distance_to(haut))
+		db = minf(db, q.distance_to(bas))
+	if maxf(dh, db) > 0.02:
+		return "(attaches à %.1f / %.1f cm des branches)" % [dh * 100.0, db * 100.0]
+	return ""
+
 func _viser() -> void:
 	await _viser_point(cible.global_position + Vector3(0, 1.1, 0))
 
@@ -60,6 +98,11 @@ func _tirer(tenu: float, viser := true) -> Dictionary:
 		m["encoche_cam"] = inv * arc._vm.encoche_monde()
 		m["ecran"] = arc.mesure_ecran(0.04, 0.02)
 		m["echelle"] = arc._vm.transform.basis.get_scale().x
+		m["fut_arc"] = _fut_arc(arc._vm)
+		m["allonge"] = arc._vm.allonge
+		m["z_encoche"] = arc._vm.encoche_locale().z
+		m["echelle_fleche"] = arc._vm.fleche.global_transform.basis.get_scale().z
+		m["corde"] = _corde(arc._vm)
 	arc.relacher()
 	await _sim(DT * 2.0)
 	m["parti"] = arc.tirs > n0
@@ -162,11 +205,17 @@ func _tester() -> void:
 	var pe: Vector2 = r3["poignee_ecran"]
 	var ec: Vector3 = r3["encoche_cam"]
 	_verif(Vector2(pc.x, pc.y).length() < 0.002 and pc.z < -0.4, "visée 1re personne : pointe de la flèche au centre de l'écran (écart %.1f mm à %.2f m)" % [Vector2(pc.x, pc.y).length() * 1000.0, -pc.z])
-	_verif(pe.x > 0.35 and pe.x < 0.5 and pe.y > 0.5 and pe.y < 0.68, "visée 1re personne : arc levé, poignée sous le réticule à gauche (%d %% × %d %% de l'écran)" % [roundi(pe.x * 100.0), roundi(pe.y * 100.0)])
+	_verif(pe.x > 0.4 and pe.x < 0.65 and pe.y > 0.5 and pe.y < 0.75, "visée 1re personne : arc levé, poignée sous le réticule (%d %% × %d %% de l'écran)" % [roundi(pe.x * 100.0), roundi(pe.y * 100.0)])
 	var me: Dictionary = r3["ecran"]
 	var pg: Array = me["poing"]
 	_verif(me["arc"] == 0 and me["mains"] == 0, "visée 1re personne : la cible reste visible (aucun point de l'arc ni des mains dans le carré de 8 %% autour du réticule : arc %d, mains %d)" % [me["arc"], me["mains"]])
-	_verif(pg[2] - pg[0] <= 0.13 and pg[1] >= 0.53 and pg[1] <= 0.6 and pg[2] < 0.5, "visée 1re personne : poing sous le réticule et à gauche (largeur %d %%, haut à %d %%, bord droit à %d %%)" % [roundi((pg[2] - pg[0]) * 100.0), roundi(pg[1] * 100.0), roundi(pg[2] * 100.0)])
+	_verif(pg[1] >= 0.53 and pg[1] <= 0.62, "visée 1re personne : poing sous le repose-flèche, la cible au-dessus reste visible (haut du poing à %d %% de la hauteur)" % roundi(pg[1] * 100.0))
+	_verif(r3["fut_arc"] < 0.01, "visée 1re personne : la flèche repose sur l'arc (fût à %.1f mm du flanc de la poignée)" % (r3["fut_arc"] * 1000.0))
+	_verif(r3["allonge"] <= 1.0 + 1e-4 and r3["z_encoche"] <= float(ArcModele.infos()["encoche_pleine_z"]) + 1e-4 and absf(r3["echelle_fleche"] - ArcJoueur.ECHELLE_ARC_VM) < 0.001,
+		"visée 1re personne : allonge %.2f au plus celle du modèle (encoche à %.3f), flèche ni corde étirées" % [r3["allonge"], r3["z_encoche"]])
+	_verif(String(r3["corde"]) == "", "visée 1re personne : corde en 2 segments droits finissant aux bouts de branche, à pleine tension %s" % r3["corde"])
+	var corde_tir := _corde(arc._vm)
+	_verif(corde_tir == "" and arc._vm.claque_en_cours(), "au lâcher : la corde claque en restant droite entre les bouts de branche %s" % corde_tir)
 	_verif(absf(r3["echelle"] - ArcJoueur.ECHELLE_ARC_VM) < 0.001, "visée 1re personne : l'arc garde son échelle (%.2f)" % r3["echelle"])
 	_verif(ec.x > 0.0 and ec.y < 0.0 and ec.z > -0.1 and absf(ec.x / ec.z) > 1.2, "visée 1re personne : encoche à la joue droite, hors du champ (%.2f, %.2f, %.2f)" % [ec.x, ec.y, ec.z])
 	await _sim(1.2)

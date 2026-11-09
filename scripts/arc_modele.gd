@@ -23,10 +23,6 @@ const APPUI := Vector3(-0.024, 0.045, 0.0)
 const RAYON_CORDE := 0.0034
 ## Appui de CE modèle (APPUI par défaut) : la 1re personne passe la flèche à droite de la poignée en visée (composition Skyrim).
 var appui := APPUI
-## Allonge permise (1 = celle du modèle ; au-delà la corde suit l'encoche, branches à pleine flexion) ; dépassement de la pointe
-## au-delà de l'appui (local) : la flèche s'allonge côté encoche quand l'allonge dépasse sa longueur (1re personne en visée).
-var allonge_max := 1.0
-var depasse_fleche := 0.0
 
 var mi_arc: MeshInstance3D
 var mi_corde: MeshInstance3D
@@ -111,7 +107,7 @@ static func repere_main(jointures: Vector3, axe := Vector3.UP) -> Basis:
 func _resoudre(u: float) -> void:
 	var z0 := float(infos().get("encoche_repos_z", 0.195))
 	var z1 := float(infos().get("encoche_pleine_z", 0.595))
-	var cible := lerpf(z0, z1, clampf(u, 0.0, allonge_max))
+	var cible := lerpf(z0, z1, clampf(u, 0.0, 1.0))
 	var lo := 0.0
 	var hi := 1.0
 	for i in 18:
@@ -133,14 +129,14 @@ func attache(w: float, haut := true) -> Vector3:
 	return p if haut else Vector3(p.x, -p.y, p.z)
 
 func encoche_locale() -> Vector3:
-	return Vector3(appui.x - APPUI.x, appui.y, _z_encoche + _vibration())
+	return Vector3(0.0, appui.y, _z_encoche + _vibration())
 
 ## Point d'encoche (local) pour une allonge donnée, sans changer l'état du modèle.
 func encoche_pour(u: float) -> Vector3:
-	return Vector3(appui.x - APPUI.x, appui.y, lerpf(float(infos().get("encoche_repos_z", 0.195)), float(infos().get("encoche_pleine_z", 0.595)), u))
+	return Vector3(0.0, appui.y, lerpf(float(infos().get("encoche_repos_z", 0.195)), float(infos().get("encoche_pleine_z", 0.595)), u))
 
 func regler(u: float, encoche_ := false) -> void:
-	allonge = clampf(u, 0.0, allonge_max)
+	allonge = clampf(u, 0.0, 1.0)
 	encoche = encoche_
 	_resoudre(allonge)
 	_appliquer()
@@ -154,8 +150,14 @@ func claque_en_cours() -> bool:
 func _vibration() -> float:
 	if _claque < 0.0:
 		return 0.0
-	# la corde dépasse sa position de repos (vers l'arc) puis vibre, amortie en ~0,25 s
-	return -0.04 * exp(-_claque * 16.0) * cos(_claque * 75.0)
+	# la corde suit les branches qui rebondissent : elle reste DROITE entre leurs bouts (l'encoche sur la ligne des attaches)
+	return attache(_poids_claque()).z - attache(_poids).z
+
+## Poids de la clé de forme pendant le claquement : les branches rebondissent un peu au-delà du repos, amorties en ~0,25 s.
+func _poids_claque() -> float:
+	if _claque < 0.0:
+		return _poids
+	return clampf(_poids - 0.07 * exp(-_claque * 16.0) * cos(_claque * 75.0), -0.2, 1.0)
 
 func _process(dt: float) -> void:
 	if _claque >= 0.0:
@@ -166,12 +168,10 @@ func _process(dt: float) -> void:
 
 func _appliquer() -> void:
 	if _cle >= 0:
-		var w := _poids
-		if _claque >= 0.0:
-			w += -0.07 * exp(-_claque * 16.0) * cos(_claque * 75.0)   # les branches rebondissent un peu au-delà du repos
-		mi_arc.set_blend_shape_value(_cle, clampf(w, -0.2, 1.0))
+		mi_arc.set_blend_shape_value(_cle, _poids_claque())
 	var n := encoche_locale()
-	mi_corde.mesh = _maille_corde(attache(_poids, true), n, attache(_poids, false))
+	var w := _poids_claque()
+	mi_corde.mesh = _maille_corde(attache(w, true), n, attache(w, false))
 	repere_encoche.position = n
 	fleche.visible = encoche or fleche_libre != null
 	if fleche_libre != null:
@@ -179,8 +179,7 @@ func _appliquer() -> void:
 	else:
 		# encoche sur la corde, fût posé sur l'appui (à gauche de la poignée, sur le poing)
 		var dir := (appui - n).normalized()
-		var k := maxf(1.0, (appui.distance_to(n) + depasse_fleche) / longueur_pointe())
-		fleche.transform = Transform3D(Basis.looking_at(dir, Vector3.UP) * Basis.from_scale(Vector3(1.0, 1.0, k)), n)
+		fleche.transform = Transform3D(Basis.looking_at(dir, Vector3.UP), n)
 
 func _maille_corde(haut: Vector3, noeud: Vector3, bas: Vector3) -> ArrayMesh:
 	var st := SurfaceTool.new()
