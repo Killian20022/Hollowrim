@@ -157,7 +157,7 @@ def peindre_corde():
 
 
 def peindre_fleche():
-    peindre(R_FUT, lambda u, v, x, y: mix(hexc("#6a4c30"), hexc("#a07c54"), 0.5 + 0.35 * math.sin(x * 1.9 + y * 0.07) + bruit(0.08)))
+    peindre(R_FUT, lambda u, v, x, y: mix(hexc("#7e5c3c"), hexc("#b89066"), 0.5 + 0.35 * math.sin(x * 1.9 + y * 0.07) + bruit(0.08)))
 
     def fer(u, v, x, y):
         # u : le long de la lame (talon -> pointe), v : travers ; arête centrale sombre, tranchants clairs
@@ -238,6 +238,9 @@ def catmull(pts, n):
 PROFIL = [(0.0, 0.0), (0.05, 0.0), (0.085, -0.006), (0.13, -0.022), (0.19, -0.036), (0.25, -0.04), (0.31, -0.032),
           (0.37, -0.012), (0.43, 0.018), (0.48, 0.05), (0.52, 0.082), (0.55, 0.105), (0.575, 0.122), (0.60, 0.133),
           (0.625, 0.139), (0.648, 0.148), (0.665, 0.162), (0.678, 0.182)]
+# allongé de 18 % hors poignée (retour joueur : plus long, plus fin)
+S_LONG = 1.18
+PROFIL = [(y if y <= 0.05 else 0.05 + (y - 0.05) * S_LONG, z * S_LONG) for y, z in PROFIL]
 FINE = catmull(PROFIL, 8)
 LONG = [0.0]
 for a, b in zip(FINE[:-1], FINE[1:]):
@@ -261,25 +264,26 @@ def sur_courbe(a):
 # anneaux du demi-arc : (abscisse, demi-largeur x, demi-épaisseur, région, v dans la région)
 A_CORNE = L_DEMI - 0.11      # début de la corne (fin de la ligature de pointe)
 A_LIG_P = A_CORNE - 0.03      # ligature de pointe (la corde s'y attache)
-A_LIG_Q = 0.30                # ligature du quart
+A_LIG_Q = 0.05 + 0.25 * S_LONG                # ligature du quart
 
 
 def anneaux():
     r = []
     # poignée de cuir (0 -> 0,075), anneaux de cordelette (0,075 -> 0,095)
-    r.append(("cuir", [(0.0, 0.034, 0.05, 0.5), (0.04, 0.035, 0.051, 0.75), (0.075, 0.034, 0.05, 1.0)]))
-    r.append(("corde", [(0.075, 0.037, 0.053, 0.0), (0.084, 0.038, 0.054, 0.5), (0.095, 0.031, 0.047, 1.0)]))
-    lim = lambda a: (0.029 - 0.01 * (a - 0.095) / (A_LIG_P - 0.095), 0.045 - 0.019 * (a - 0.095) / (A_LIG_P - 0.095))
+    r.append(("cuir", [(0.0, 0.028, 0.042, 0.5), (0.04, 0.029, 0.043, 0.75), (0.075, 0.028, 0.042, 1.0)]))
+    r.append(("corde", [(0.075, 0.031, 0.045, 0.0), (0.084, 0.032, 0.046, 0.5), (0.095, 0.021, 0.031, 1.0)]))
+    # branches ~65 % de l'épaisseur de la v2 (toujours plus épaisses que la v1)
+    lim = lambda a: (0.019 - 0.0065 * (a - 0.095) / (A_LIG_P - 0.095), 0.029 - 0.012 * (a - 0.095) / (A_LIG_P - 0.095))
     vb = lambda a: (a - 0.095) / (A_LIG_P - 0.095)
-    seg1 = [0.095, 0.135, 0.175, 0.215, 0.255, A_LIG_Q]
+    seg1 = [0.095 + (A_LIG_Q - 0.095) * i / 5 for i in range(6)]
     r.append(("branche", [(a, *lim(a), vb(a)) for a in seg1]))
     w, t = lim(A_LIG_Q)
     r.append(("corde", [(A_LIG_Q, w + 0.003, t + 0.003, 0.0), (A_LIG_Q + 0.009, w + 0.0035, t + 0.0035, 0.5), (A_LIG_Q + 0.018, w + 0.003, t + 0.003, 1.0)]))
-    seg2 = [A_LIG_Q + 0.018, 0.36, 0.40, 0.44, 0.48, 0.52, A_LIG_P]
+    seg2 = [A_LIG_Q + 0.018 + (A_LIG_P - A_LIG_Q - 0.018) * i / 7 for i in range(8)]
     r.append(("branche", [(a, *lim(a), vb(a)) for a in seg2]))
     w, t = lim(A_LIG_P)
     r.append(("corde", [(A_LIG_P, w + 0.0028, t + 0.0028, 0.0), (A_LIG_P + 0.015, w + 0.0034, t + 0.0034, 0.5), (A_CORNE, w + 0.0026, t + 0.0026, 1.0)]))
-    r.append(("corne", [(A_CORNE, w, t, 0.0), (A_CORNE + 0.035, 0.0155, 0.019, 0.35), (A_CORNE + 0.075, 0.0105, 0.012, 0.7), (L_DEMI - 0.004, 0.0035, 0.004, 0.97)]))
+    r.append(("corne", [(A_CORNE, w, t, 0.0), (A_CORNE + 0.035, 0.0115, 0.0135, 0.35), (A_CORNE + 0.075, 0.008, 0.009, 0.7), (L_DEMI - 0.004, 0.003, 0.0035, 0.97)]))
     return r
 
 
@@ -399,7 +403,7 @@ def attache(A, signe=1):
     pliage = courbe_pliee(A) if A != 0.0 else None
     a = A_LIG_P + 0.012
     (cy, cz), _, (ny, nz) = point_arc(a, signe, pliage)
-    e = 0.033
+    e = 0.024
     return (0.0, cy + ny * e, cz + nz * e)
 
 
@@ -416,7 +420,7 @@ def construire_fleche(M):
             idx = [M.s(b[k]), M.s(b[j]), M.s(a[j]), M.s(a[k])]
             M.face(idx, [uvr(reg, k / n, v1), uvr(reg, (k + 1) / n, v1), uvr(reg, (k + 1) / n, v0), uvr(reg, k / n, v0)])
         return a, b
-    rf = 0.0042
+    rf = 0.0052   # un peu épais : le fût reste lisible en basse résolution
     # encoche (corne) puis fût en deux tronçons
     a, _ = tube(0.004, -0.014, 0.0052, 0.0052, R_ENCOCHE)
     c = M.s((0.0, 0.0, 0.006))

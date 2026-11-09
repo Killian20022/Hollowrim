@@ -25,23 +25,23 @@ const FICHIER := "res://data/arc/arc_joueur.json"
 const BRAS := preload("res://assets/modeles/joueur/bras_fps.glb")
 const ORIENTATION := preload("res://scripts/orientation_main.gd")
 
-## Première personne (repère de la caméra), d'après la pose d'arc_presentation.png : en visée, l'encoche est sous la joue (en bas,
-## un peu à droite), la flèche file vers le centre de l'écran (elle converge vers le point visé), le poing gauche tient l'arc
-## juste sous le centre, l'arc incliné (~26°) presque entier dans l'image ; au repos l'arc est baissé en bas à gauche, couché vers la droite (même sens d'inclinaison qu'en visée : il ne passe jamais par la verticale).
+## Première personne (repère de la caméra) : en visée l'arc est VERTICAL, l'encoche juste sous l'œil et la flèche file droit
+## devant, dans l'axe de visée (elle pointe vers le centre de l'écran) ; le poing gauche tient l'arc sous le centre. Au repos
+## l'arc est baissé en bas à gauche, couché vers la droite : la levée se termine droite sans jamais basculer de l'autre côté.
 ## POSE_REPOS = [appui de la flèche sur l'arc, direction de la flèche, inclinaison (rad, positif = haut vers la gauche)].
-const ENCOCHE_VISEE := Vector3(0.18, -0.24, -0.5)
-## Appui de la flèche sur l'arc en visée : juste à gauche du centre de l'écran (la flèche passe près du centre).
-const APPUI_VISEE := Vector3(-0.1, -0.07, -0.83)
+const ENCOCHE_VISEE := Vector3(-0.085, -0.25, -0.3)
+## Appui de la flèche sur l'arc en visée : sous le centre de l'écran, dans l'axe de l'encoche (flèche droit devant).
+const APPUI_VISEE := Vector3(-0.085, -0.215, -0.73)
 const POSE_REPOS := [Vector3(-0.17, -0.34, -0.6), Vector3(0.35, -0.15, -1.0), -1.25]
-## Arc de la 1re personne un peu réduit (1,13 m) pour tenir presque entier dans le champ.
-const ECHELLE_ARC_VM := 0.82
+## Arc de la 1re personne un peu réduit (1,15 m au lieu de 1,59 m) pour tenir presque entier dans le champ.
+const ECHELLE_ARC_VM := 0.72
 ## Bras 1re personne (bras_fps.glb) : agrandis (le modèle a un bras de 0,49 m, trop court pour tenir un arc à bout de bras) et
 ## légèrement avancés sous l'œil, les épaules hors champ.
 const ECHELLE_BRAS := 1.3
 const DECALAGE_BRAS := Vector3(0.0, -0.1, -0.42)
 ## Carquois (dos, à droite, hors champ) : la main droite y prend la flèche suivante.
 const CARQUOIS := Vector3(0.3, -0.5, 0.05)
-const COUDE_G := Vector3(-0.7, -0.8, -0.2)
+const COUDE_G := Vector3(-0.6, -1.2, -0.3)
 const COUDE_D := Vector3(0.8, -0.6, 0.1)
 ## Épaule droite ramenée en arrière (repère de la caméra) : le bras de corde se replie naturellement vers la joue.
 const RECUL_EPAULE_D := Vector3(0.05, 0.0, 0.3)
@@ -509,7 +509,7 @@ func _placer_vm() -> void:
 	var l := smoothstep(0.0, 1.0, _levee)
 	var appui: Vector3 = (POSE_REPOS[0] as Vector3).lerp(appui_vis, l)
 	var dir: Vector3 = (POSE_REPOS[1] as Vector3).normalized().slerp(d_vis, l)
-	var incl: float = lerpf(POSE_REPOS[2], reglage("inclinaison_visee", -0.38), l)
+	var incl: float = lerpf(POSE_REPOS[2], reglage("inclinaison_visee", 0.0), l)
 	if tremblement > 0.0:
 		appui += Vector3(_bruit(0.0), _bruit(1.7), 0.0) * 0.006 * tremblement
 		dir = dir.rotated(Vector3.UP, _bruit(3.1) * 0.012 * tremblement)
@@ -598,14 +598,14 @@ func _placer_tp() -> void:
 	var joue := tete + b_j * Vector3(0.05, -0.06, -0.06)
 	var appui_r := joueur.global_position + b_j * Vector3(-0.32, 0.92, -0.2)
 	var dir_r := (b_j * Vector3(0.15, -0.55, -1.0)).normalized()
-	var dir_v := (appui_v - joue).normalized()
+	var dir_v := visee   # flèche exactement dans l'axe du tir
 	var appui := appui_r.lerp(appui_v, l)
 	var dir := dir_r.slerp(dir_v, l)
 	var z0 := float(ArcModele.infos().get("encoche_repos_z", 0.195))
 	var z1 := float(ArcModele.infos().get("encoche_pleine_z", 0.595))
 	var a_max := clampf((joue.distance_to(appui_v) - z0) / (z1 - z0), 0.3, 1.0)
 	var uu := u * a_max
-	_tp.global_transform = pose_arc(appui, dir, lerpf(0.5, 0.15, l), _tp.encoche_pour(uu).z)
+	_tp.global_transform = pose_arc(appui, dir, lerpf(0.5, 0.0, l), _tp.encoche_pour(uu).z)   # arc vertical en visée
 	_tp.fleche_libre = null
 	_tp.regler(uu, _encochee and etat == BANDE)
 	_pivot_corps_d.transform = _tp.repere_encoche.transform

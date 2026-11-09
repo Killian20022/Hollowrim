@@ -13,7 +13,7 @@
 	"tremble_apres": 2.5,
 	"tremble_ecart": 1.6,
 	"lacet_tps": -1.4,
-	"inclinaison_visee": -0.38,
+	"inclinaison_visee": 0.0,
 	"id_arc": "arc_chasseur",
 	"id_fleche": "fleche"
 }

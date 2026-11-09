@@ -35,7 +35,7 @@ func _go() -> void:
 	monde.add_child(cam)
 	cam.current = true
 	# comme arc_trois_vues : profil (corde à droite), face, trois quarts ; puis l'arc à pleine allonge avec la flèche encochée
-	cam.size = 1.55
+	cam.size = 1.78
 	cam.position = Vector3(0.0, 1.98, 3.0)   # tout est posé à 2 m de haut : sous le niveau du sol, le shader ps1 met de la neige
 	var vues := [[-1.15, PI * 0.5, 0.0, false], [-0.45, 0.0, 0.0, false], [0.1, PI * 0.5 - 0.55, 0.0, false], [0.75, PI * 0.5, 1.0, true]]
 	for v in vues:
