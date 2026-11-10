@@ -74,8 +74,10 @@ func _tester() -> void:
 		categories[Inventaire.categorie_de(id)] = true
 	for c in ["arme", "bijou", "consommable", "ingredient", "quete", "divers"]:
 		_verif(categories.has(c), "atlas : catégorie « %s » représentée" % c)
-	_verif(IconesObjets.icone("cle_maison") == null and MenuStyle.icone_objet("cle_maison") != null,
-		"objet sans modèle (clé de la maison) : pas d'icône dessinée, repli sur l'ancienne icône pixel")
+	_verif(IconesObjets.icone("crochet") == null and MenuStyle.icone_objet("crochet") != null,
+		"objet sans modèle (crochet) : pas d'icône dessinée, repli sur l'ancienne icône pixel")
+	_verif(IconesObjets.icone("cle_maison") != null and IconesObjets.icone("cle_archives") != null and IconesObjets.icone("chope") != null,
+		"objets en props Quaternius (modele_quat : clé de la maison, clé des archives, chope) : icône dessinée depuis le prop")
 	_verif(IconesObjets.icone_main("torche") == IconesCombat.icone("torche") and IconesObjets.icone_main("boule_feu") == IconesCombat.icone("boule_feu")
 		and IconesObjets.icone_main("") == IconesCombat.icone("vide"), "barre : torche, sorts et main nue gardent les icônes d'IconesCombat")
 	_verif(IconesObjets.icone_main("epee") == IconesObjets.icone("epee_metal") and IconesObjets.icone_main("epee") != null,
@@ -98,7 +100,7 @@ func _tester() -> void:
 	var j: CharacterBody3D = s.joueur
 	var ui: InventaireMains = s.inventaire_ui
 	var inv: Inventaire = j.inventaire
-	for id in ["epee_rubis", "potion_soin", "anneau_braise", "cle_maison"]:
+	for id in ["epee_rubis", "potion_soin", "anneau_braise", "crochet"]:
 		inv.ajouter(id, 1)
 	j.mains.magie.equiper("droite", "epee_rubis")
 	_verif(_studios() == 0, "menu fermé : aucun studio 3D (coût nul)")
@@ -131,10 +133,10 @@ func _tester() -> void:
 	sac.queue_redraw()
 	await _images(4)
 	_verif(ap.visible and ap.rendu != null and ap.rendu.id == "epee_rubis", "Sac : changer d'objet change l'aperçu (épée en rubis)")
-	sac.choisir("cle_maison")
+	sac.choisir("crochet")
 	sac.queue_redraw()
 	await _images(4)
-	_verif(not ap.visible, "objet sans modèle 3D (clé de la maison) : pas d'aperçu, l'icône à la place")
+	_verif(not ap.visible, "objet sans modèle 3D (crochet) : pas d'aperçu, l'icône à la place")
 	sac.choisir("potion_soin")
 	sac.queue_redraw()
 	await _images(4)

@@ -1,0 +1,5 @@
+# props/quaternius : intérieurs (lancer avec -- --essai-props-quat --essai-pq-int=sigrun,0,2.0,0)
+s_porte interieur 0,2.0,0,-10 bat=sigrun heure=12
+s_pres interieur 0.5,0.9,10,-24 bat=sigrun heure=12
+s_est interieur 3.0,1.5,115,-6 bat=sigrun heure=12
+s_ouest interieur -3.0,-0.5,-60,-4 bat=sigrun heure=12

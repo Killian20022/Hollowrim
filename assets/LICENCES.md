@@ -135,3 +135,9 @@ Convertis par `sources_blender/scripts/pq_convertir.py` (couleurs accrochées à
 |---|---|---|
 | pq_villageois, pq_villageoise, pq_chasseur, pq_chasseresse | Modular Character Outfits - Fantasy [Standard], Quaternius (quaternius.itch.io/modular-character-outfits-fantasy) + tête/cheveux UBC déjà dans le jeu | CC0 1.0 (License_Standard.txt du pack) |
 | pq_loup, pq_araignee, pq_cerf | Quaternius sur Poly Pizza (poly.pizza/u/Quaternius : Wolf P1gU3Qkr9r, Spider yRYJiAJyiM, Stag tQdzbZ1Cmw) | CC0 1.0 (champ « Licence » de chaque page) |
+
+## Props Quaternius TEXTURÉS PS1 (branche props/quaternius, 2026-11-10)
+
+| Fichiers | Source | Licence |
+|---|---|---|
+| modeles/props_quat/**/pq_*.glb, modeles/props_quat/textures/pq_*.png (94 props + 8 atlas réduits) | Fantasy Props MegaKit [Standard, version gratuite], Quaternius (quaternius.com) ; installé dans Jeux/sources_quaternius/fantasy_props_megakit/ ; converti par sources_blender/scripts/props_quaternius.py | CC0 1.0 (License_Standard.txt du pack) |

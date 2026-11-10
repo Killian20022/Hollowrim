@@ -1,0 +1,42 @@
+{
+ "bois": {
+  "taille": 128,
+  "source": "T_Trim_Furniture_BaseColor.png",
+  "facteur": 16
+ },
+ "fer": {
+  "taille": 128,
+  "source": "T_Trim_Metal_BaseColor.png",
+  "facteur": 16
+ },
+ "fer_v": {
+  "taille": 128,
+  "source": "T_Trim_Metal_BaseColor.png",
+  "facteur": 16
+ },
+ "tissu": {
+  "taille": 256,
+  "source": "T_Trim_Cloth_BaseColor.png",
+  "facteur": 8
+ },
+ "tissu_v": {
+  "taille": 256,
+  "source": "T_Trim_Cloth_BaseColor.png",
+  "facteur": 8
+ },
+ "props": {
+  "taille": 128,
+  "source": "T_Trim_Props_BaseColor.png",
+  "facteur": 16
+ },
+ "props_v": {
+  "taille": 128,
+  "source": "T_Trim_Props_BaseColor.png",
+  "facteur": 16
+ },
+ "page": {
+  "taille": 32,
+  "source": "T_Page_Noise.png",
+  "facteur": 128
+ }
+}

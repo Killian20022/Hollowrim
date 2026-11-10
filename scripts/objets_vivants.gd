@@ -42,12 +42,19 @@ const OBJETS := {"q_chope": "chope", "q_assiette": "assiette_etain", "q_ecuelle"
 	"q_pain": "pain_seigle", "q_tranche_pain": "tranche_pain", "q_cuisse": "cuisse_rotie", "q_viande": "viande_crue", "q_lard": "lard",
 	"q_saucisse": "saucisse", "q_saucisse_crue": "saucisse", "q_poisson": "poisson", "q_oeuf": "oeuf", "q_oeuf_blanc": "oeuf",
 	"q_champignon": "champignon", "q_bouteille_1": "hydromel", "q_bouteille_2": "hydromel", "q_bouteille": "hydromel",
-	"q_potion_1": "potion_soin", "q_potion_4": "potion_mana", "fromage": "fromage"}
+	"q_potion_1": "potion_soin", "q_potion_4": "potion_mana", "fromage": "fromage",
+	# props TEXTURÉS (PropsQuat, data/props_quaternius.json) : un décor posé en pq_* reste vivant (même objet du registre)
+	"pq_chope": "chope", "pq_assiette": "assiette_etain", "pq_marmite": "pot_argile", "pq_vase_2": "cruche", "pq_vase_4": "cruche",
+	"pq_couteau_table": "couteau_table", "pq_fourchette": "fourchette", "pq_cuillere": "cuillere_bois", "pq_livre_7": "livre_relie",
+	"pq_parchemin": "parchemin", "pq_seau_bois": "seau_bois", "pq_seau_fer": "seau_fer", "pq_pierre_aiguiser": "pierre_aiguiser",
+	"pq_chandelier_table": "chandelier", "pq_carotte": "carotte", "pq_bouteille": "hydromel", "pq_potion_1": "potion_soin", "pq_potion_4": "potion_mana"}
 ## Forme de collision (défaut : boîte de l'emprise du prop).
 const FORMES := {"q_pomme": "sphere", "q_pomme_verte": "sphere", "q_chou": "sphere", "q_oeuf": "sphere", "q_oeuf_blanc": "sphere",
 	"q_chope": "cyl", "q_bouteille_1": "cyl", "q_bouteille_2": "cyl", "q_bouteille": "cyl", "q_vase_2": "cyl", "q_vase_4": "cyl", "q_seau_bois": "cyl",
 	"q_seau_fer": "cyl", "q_marmite": "cyl", "q_assiette": "cyl", "q_ecuelle": "cyl", "q_ecuelle_2": "cyl", "fromage": "cyl", "q_chandelier_table": "cyl",
-	"q_potion_1": "cyl", "q_potion_4": "cyl"}
+	"q_potion_1": "cyl", "q_potion_4": "cyl",
+	"pq_chope": "cyl", "pq_bouteille": "cyl", "pq_vase_2": "cyl", "pq_vase_4": "cyl", "pq_seau_bois": "cyl", "pq_seau_fer": "cyl", "pq_marmite": "cyl",
+	"pq_assiette": "cyl", "pq_chandelier_table": "cyl", "pq_potion_1": "cyl", "pq_potion_4": "cyl"}
 
 static var tous: Array = []          ## ObjetVivant créés (les libérés sont retirés au passage)
 static var _eveilles: Array = []
@@ -94,6 +101,12 @@ static func spec(genre: String, xf: Transform3D, morceaux: Array) -> Dictionary:
 ## Morceaux d'un prop Quaternius, matière du prop -> Material par `choisir` (Callable(matière: String) -> Material).
 static func morceaux_q(nom: String, choisir: Callable) -> Array:
 	var res := []
+	if nom.begins_with("pq_"):           # prop texturé : ses matériaux partagés d'intérieur (PropsQuat), `choisir` sans objet
+		var mq := PropsQuat.maillage(nom, "interieur")
+		if mq != null:
+			for k in mq.get_surface_count():
+				res.append([mq.surface_get_arrays(k), mq.surface_get_material(k)])
+		return res
 	for m: Array in PropsQuaternius.morceaux(nom):
 		res.append([m[1], choisir.call(String(m[0]))])
 	return res
@@ -162,6 +175,28 @@ static func maillage(cle: String, morceaux: Array) -> ArrayMesh:
 	_maillages[cle] = am
 	return am
 
+## Contexte de matériau des props texturés d'un lieu : étals du marché (« marche_* ») dehors, le reste dans un intérieur.
+static func contexte_lieu(lieu: String) -> String:
+	return "exterieur" if lieu.begins_with("marche") else "interieur"
+
+## Visuel pq_* de l'objet `oid` (ObjetsQuat : modele_quat de sa fiche) recalé dans le repère de l'ancien prop : même pied (bas de sa
+## boîte, centre de l'emprise), donc même place sur la table / l'étagère ; la collision garde la boîte de l'ancien prop.
+static func morceaux_quat(oid: String, contexte: String, anciens: Array, pq := "") -> Array:
+	var nv := ObjetsQuat.morceaux(oid, contexte, pq)
+	if nv.is_empty():
+		return anciens
+	var bb := boite_morceaux(anciens)
+	var dec := Vector3(bb.get_center().x, bb.position.y, bb.get_center().z)
+	var res := []
+	for m: Array in nv:
+		var a: Array = (m[0] as Array).duplicate()
+		var v: PackedVector3Array = (a[Mesh.ARRAY_VERTEX] as PackedVector3Array).duplicate()
+		for i in v.size():
+			v[i] += dec
+		a[Mesh.ARRAY_VERTEX] = v
+		res.append([a, m[1]])
+	return res
+
 ## Crée les objets de `specs` sous `parent` (pièce d'un intérieur, étal…) ; `lieu` préfixe les identifiants (sauvegarde). Fil principal.
 static func peupler(parent: Node3D, specs: Array, lieu: String) -> Array:
 	var res := []
@@ -169,20 +204,27 @@ static func peupler(parent: Node3D, specs: Array, lieu: String) -> Array:
 		return res
 	var groupes := {}          # apparence -> [morceaux, [[spec, ident]]]
 	var compte := {}
+	var ctx := contexte_lieu(lieu)
 	for s: Dictionary in specs:
 		var g := String(s["genre"])
 		var k := int(compte.get(g, 0))
 		compte[g] = k + 1
 		var cle := _cle(g, s["morceaux"])
+		var oid := String(OBJETS.get(g, g))
+		var vis: Array = s["morceaux"]
+		if ObjetsQuat.a(oid) and not g.begins_with("pq_"):
+			var meme := ObjetsQuat.pq_de_ancien(g)       # prop texturé du même modèle que le décor posé (q_vase_4 -> pq_vase_4), sinon celui de la fiche
+			cle = "%s|quat:%s:%s" % [cle, meme if meme != "" else ObjetsQuat.id_de(oid), ctx]
+			vis = morceaux_quat(oid, ctx, s["morceaux"], meme)
 		if not groupes.has(cle):
-			groupes[cle] = [s["morceaux"], []]
+			groupes[cle] = [s["morceaux"], [], vis]
 		(groupes[cle][1] as Array).append([s, "%s:%s:%d" % [lieu, g, k]])
 	for cle: String in groupes:
 		var morceaux: Array = groupes[cle][0]
 		var liste: Array = groupes[cle][1]
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = maillage(cle, morceaux)
+		mm.mesh = maillage(cle, groupes[cle][2])
 		mm.instance_count = liste.size()
 		var mmi := MultiMeshInstance3D.new()
 		mmi.name = "Vivants_" + cle.get_slice("|", 0)
