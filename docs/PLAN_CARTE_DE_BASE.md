@@ -11,7 +11,7 @@ Objectif utilisateur : que TOUT soit propre sur la carte actuelle (240 m) avant 
 3. Troncs d'arbres « réalisme 32 bits » : écorce plus fine et plus nuancée, relief, racines, AO, mousse/neige
    (nordique_lot2 ; arbres.gd / textures_arbres.gd ; rameaux inchangés).
 4. Intérieurs des maisons, SANS chargement (on passe la porte, on est dedans) : les 5 bâtiments du village
-   (longue maison de la cheffe, 3 maisons, forge), chacun cohérent avec son occupant, même style que la crypte et le
+   (longue maison du chef, 3 maisons, forge), chacun cohérent avec son occupant, même style que la crypte et le
    village (kit modulaire nordique, Macro/Méso/Micro, lumières seulement actives quand on est dedans). Après fusion
    de la 2e passe du village (village.gd partagé). Worktree nordique_kit.
 5. Crypte agrandie ×7-8 : les salles actuelles deviennent l'entrée d'un vrai donjon (ailes, ossuaire, galeries

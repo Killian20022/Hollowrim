@@ -114,7 +114,7 @@ toutes les entrées de donjons sont inchangés**. L'enceinte passe de ~1 520 à 
 
 | Id | Bâtiment (`_maison` / `_forge`) | Ancienne position (repère local) | Nouvelle position monde | Porte |
 |---|---|---|---|---|
-| I1 | halle (cheffe) 14 × 7 | (0 ; -12) | (44 ; 21), long axe est-ouest | sud, sur la place |
+| I1 | halle (chef) 14 × 7 | (0 ; -12) | (44 ; 21), long axe est-ouest | sud, sur la place |
 | I2 | forge 7 × 6 | (-12,5 ; 6) | (27 ; 36) | côté est ouvert, rue principale |
 | I3 | grima 7 × 5 | (-9,5 ; 13) | (28 ; 47,5), long axe nord-sud | est, sur la place |
 | I4 | chasseurs 8 × 5,5 | (11,5 ; 7,5) | (63 ; 29), long axe nord-sud | ouest, rue de la porte E |
@@ -127,7 +127,7 @@ local y = 0 ; choix n° 3). Façades seules (portes closes, pas d'intérieur) : 
 
 | PNJ | Poste (`lieux`) | Nouvelle position monde |
 |---|---|---|
-| Gunnhild (cheffe) | `longue_maison` | (44 ; 26), devant la porte de la halle |
+| Gunnar (chef) | `longue_maison` | (44 ; 26), devant la porte de la halle |
 | Brodd (forgeron, sédentaire) | `forge` | (25,2 ; 37,6), à genoux devant l'enclume (même repère local que la forge) |
 | Ylva (chasseuse) | `enclos` | (66 ; 38,5), devant l'enclos/séchoirs (61–67 ; 37,5–42,5) |
 | Sigrún (völva) | `place` | (39,5 ; 42) |

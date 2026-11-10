@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b437a1m5w56iu"
-path="res://.godot/imported/cuirasse_obsidienne_enchante_cuirasse_obsidienne_enchante.png-72cce2776f8b88438660b2aeeee23589.ctex"
+path.bptc="res://.godot/imported/cuirasse_obsidienne_enchante_cuirasse_obsidienne_enchante.png-72cce2776f8b88438660b2aeeee23589.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "9f63501b1bc0be348c1f67c4229aa655"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/cuirasse_obsidienne_enchante_cuirasse_obsidienne_enchante.png"
-dest_files=["res://.godot/imported/cuirasse_obsidienne_enchante_cuirasse_obsidienne_enchante.png-72cce2776f8b88438660b2aeeee23589.ctex"]
+dest_files=["res://.godot/imported/cuirasse_obsidienne_enchante_cuirasse_obsidienne_enchante.png-72cce2776f8b88438660b2aeeee23589.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

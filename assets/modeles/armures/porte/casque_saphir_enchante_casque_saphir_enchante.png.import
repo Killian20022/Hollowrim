@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://x23qcpqfhvyg"
-path="res://.godot/imported/casque_saphir_enchante_casque_saphir_enchante.png-32cd31f9fddf6f2df2b5883ee5ab398e.ctex"
+path.bptc="res://.godot/imported/casque_saphir_enchante_casque_saphir_enchante.png-32cd31f9fddf6f2df2b5883ee5ab398e.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "de7bfb7d349a14343be565740539ca58"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/casque_saphir_enchante_casque_saphir_enchante.png"
-dest_files=["res://.godot/imported/casque_saphir_enchante_casque_saphir_enchante.png-32cd31f9fddf6f2df2b5883ee5ab398e.ctex"]
+dest_files=["res://.godot/imported/casque_saphir_enchante_casque_saphir_enchante.png-32cd31f9fddf6f2df2b5883ee5ab398e.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

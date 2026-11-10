@@ -103,11 +103,11 @@ Les trois sceaux sont aussi des repères thématiques :
 - Givre = silence. Ce qu'on tait.
 - Eau = oubli. Ce qu'on laisse partir.
 
-### 2.5 Le fil Gunnhild → Sigrún → crypte → château
-1. **Gunnhild** envoie au cercle chercher qui a pris l'anneau (réplique ajoutée : « Va voir Sigrún d'abord. Elle sait lire ce qui dort là-bas. »).
+### 2.5 Le fil Gunnar → Sigrún → crypte → château
+1. **Gunnar** envoie au cercle chercher qui a pris l'anneau (réplique ajoutée : « Va voir Sigrún d'abord. Elle sait lire ce qui dort là-bas. »).
 2. **Sigrún** donne la quête des sceaux (elle devient donneuse, le démarrage automatique reste en secours). Elle explique les trois sceaux *avant* l'entrée, et lâche la clé de l'acte II : « L'anneau n'a pas été volé pour sa valeur. Quelqu'un voulait ce qu'il commande. »
 3. **Crypte** : sceaux → Svanhild → anneau rendu. Dans la bourse d'Eirik, une lettre porte le **croissant fendu**.
-4. **Retour** : Gunnhild reconnaît le sceau, c'est celui de la dîme. Elle avoue ce qu'elle cachait (voir fiche Gunnhild). Le château devient une direction, pas un décor.
+4. **Retour** : Gunnar reconnaît le sceau, c'est celui de la dîme. Il avoue ce qu'il cachait (voir fiche Gunnar). Le château devient une direction, pas un décor.
 5. Le **registre de Hrafn** porte le même croissant : la piste est confirmée.
 
 ### 2.6 Les trois actes et leurs jalons jouables
@@ -116,11 +116,11 @@ Les trois sceaux sont aussi des repères thématiques :
 - Zones : Val de Skarnholt, Landes des Gisants (cercle, tertre), crypte.
 - Jalons :
   1. Arrivée au feu (prologue court, objectif : la longue maison).
-  2. Gunnhild → Sigrún → cercle.
+  2. Gunnar → Sigrún → cercle.
   3. Premier combat guidé (un draugr isolé).
   4. Camp d'Eirik, tertre, vestibule, fresque.
   5. Trois éclats, socles, arène de Svanhild.
-  6. Anneau rendu, scène à l'aube avec Gunnhild et Sigrún.
+  6. Anneau rendu, scène à l'aube avec Gunnar et Sigrún.
 - Fin d'acte : la lettre au croissant fendu, et une première lueur rouge au sud.
 
 **Acte II — « Ce qui se paie »** (≈ 2-3 h, surtout nouveau contenu)
@@ -144,7 +144,7 @@ Les trois sceaux sont aussi des repères thématiques :
   4. **Choix du sort de l'anneau**, trois voies :
      - *Rendre* : le sommeil reprend, mais l'oubli guette.
      - *Briser* : les morts partent en paix, mais plus rien ne protège contre le froid des landes.
-     - *Confier à Gunnhild* : la Garde de glace défend Skarnholt, au prix d'un serment qui pèsera.
+     - *Confier à Gunnar* : la Garde de glace défend Skarnholt, au prix d'un serment qui pèsera.
   5. Retour au village : fête sobre et **Pierre-Souvenir** gravée du nom de Svanhild sur la place.
 
 **Teaser de fin**
@@ -156,14 +156,14 @@ Les trois sceaux sont aussi des repères thématiques :
 
 | Incohérence | Décision | Travail |
 |---|---|---|
-| **Eirik seul** (Brodd, Haldor, Gunnhild) vs **compagnons barricadés** (notes de crypte) | Eirik est le chef d'une troupe de cinq. Il est parti en expédition, a pris l'anneau, a fui seul chercher du secours, est repassé au village, puis est revenu à la crypte pour rendre l'anneau et mourir de froid dans l'alcôve. Les autres sont morts barricadés (Tjorvi a déserté et a survécu). | Haldor : « Il est passé en courant. Les quatre autres étaient partis avant lui. » Ylva : « parti avec quatre têtes brûlées ». Note compagnon 3 : remplacer « tenu jusqu'au bout » par « parti nous chercher du secours ». ~1 h de texte. |
+| **Eirik seul** (Brodd, Haldor, Gunnar) vs **compagnons barricadés** (notes de crypte) | Eirik est le chef d'une troupe de cinq. Il est parti en expédition, a pris l'anneau, a fui seul chercher du secours, est repassé au village, puis est revenu à la crypte pour rendre l'anneau et mourir de froid dans l'alcôve. Les autres sont morts barricadés (Tjorvi a déserté et a survécu). | Haldor : « Il est passé en courant. Les quatre autres étaient partis avant lui. » Ylva : « parti avec quatre têtes brûlées ». Note compagnon 3 : remplacer « tenu jusqu'au bout » par « parti nous chercher du secours ». ~1 h de texte. |
 | **L'arc d'Ylva** | Le joueur n'a pas d'arc. | Ligne « Garde ton arc bandé » → « Garde ta lame haute ». Ylva donne son arc plus tard (voir sa fiche). |
 | **Peau de loup promise, jamais donnée** | Récompense nommée. | « Manteau de loup d'Ylva » à la fin de `frere_ylva`. |
 | **`expedition_sigrun` vs Sigrún (la voyante)** | Ne pas renommer l'id ni `journal_sigrun` / `broche_sigrun` (sauvegardes). Seuls les textes affichés changent. | Noms affichés : « Journal de Solveig », « Broche de Solveig ». Si un renommage d'id est voulu un jour, passer par une table d'alias dans `migrateState`. |
 | **`amulette_givre` aussi en butin** (`camp_a`, `mine_eboulis`) | Elle redevient unique : récompense de `anneau_givre`. | Remplacer le butin par « Pendentif de mineur » et « Talisman d'os » (objets de valeur, sans effet unique). |
-| **Quête de Sigrún sans donneur** | Sigrún devient donneuse de `sceaux_brises`. | Une réplique chez Gunnhild + une chez Sigrún. Déclencheur automatique conservé. |
+| **Quête de Sigrún sans donneur** | Sigrún devient donneuse de `sceaux_brises`. | Une réplique chez Gunnar + une chez Sigrún. Déclencheur automatique conservé. |
 | **Indice Hrafn trop caché** (seulement dans l'« après » de Haldor) | Mention dès les premières lignes. | Un ajout dans `lignes`. |
-| **« Le jarl paie en bière tiède »** (gardes) | « Jarl » est le surnom que les gardes donnent à Gunnhild (à confirmer). Le vivant du sud s'appelle *Sire*. | Aucun changement de texte. |
+| **« Le jarl paie en bière tiède »** (gardes) | « Jarl » est le surnom que les gardes donnent à Gunnar (à confirmer). Le vivant du sud s'appelle *Sire*. | Aucun changement de texte. |
 
 ---
 
@@ -173,10 +173,10 @@ Format : désir / peur / secret / réplique-type. Les répliques sont écrites d
 
 ### 3.1 PNJ existants
 
-**Gunnhild Aldrsdotir — cheffe de Skarnholt (`chef`)**
+**Gunnar Aldrsson — chef de Skarnholt (`chef`)**
 - Désir : garder ses quarante âmes en vie jusqu'au printemps.
-- Peur : être la dernière cheffe, celle sous qui le hameau s'éteint.
-- Secret : elle paie à Kaldborg une dîme qui vide les réserves, et elle a caché l'état des greniers. Les convois volés *sont* la dîme.
+- Peur : être le dernier chef, celui sous qui le hameau s'éteint.
+- Secret : il paie à Kaldborg une dîme qui vide les réserves, et il a caché l'état des greniers. Les convois volés *sont* la dîme.
 - Réplique : « Je préfère payer que pleurer. Mais là, je n'ai plus de quoi payer. »
 
 **Brodd le Large — forgeron (`forgeron`)**
@@ -430,7 +430,7 @@ Règles :
 
 ### Principales
 **Q1. L'anneau de givre** (Val → Landes → crypte) — existante, remise en ordre
-- Donneur : Gunnhild. Étapes : inchangées (6). Ajout : « Va voir Sigrún » avant le cercle.
+- Donneur : Gunnar. Étapes : inchangées (6). Ajout : « Va voir Sigrún » avant le cercle.
 - Récompense : « Amulette de givre » (unique), 200 XP, 150 pièces.
 - Conséquence : les aurores se calment, les gardes quittent leur ronde de nuit en armure.
 
@@ -450,13 +450,13 @@ Règles :
 - Conséquence : le premier convoi arrive au village, l'étal de sel rouvre.
 
 **Q4. Ce qui se paie** (Monts → Anse → Forêt → village) — principale acte II
-- Donneur : Gunnhild (après le croissant fendu).
+- Donneur : Gunnar (après le croissant fendu).
 - Étapes : suivre le registre → trouver Tjorvi et Valdis → apprendre ce que fait l'anneau → constater le vol des éclats.
-- Récompense : « Sceau de Gunnhild » (laissez-passer de la Marche), 300 XP.
+- Récompense : « Sceau de Gunnar » (laissez-passer de la Marche), 300 XP.
 - Conséquence : soldats de la dîme visibles au village, bannières au croissant fendu.
 
 **Q5. Le Sire descend** (Marche) — principale acte III, **voies multiples**
-- Donneur : Gunnhild, puis Odd. Voies :
+- Donneur : Gunnar, puis Odd. Voies :
   - *Combat* : affronter Ottar et sa garde levée.
   - *Exposer* : montrer le registre et la lettre devant ses vassaux et ses soldats.
   - *Retourner* : utiliser l'anneau et les éclats pour retourner la Garde contre lui.
@@ -478,7 +478,7 @@ Règles :
 
 Autres existantes, sans changement de structure :
 - **Le fer des morts** (Brodd) : « Épée de Skarnholt ». Conséquence : l'épée au râtelier, la forge réputée.
-- **Le Jarl gelé** (facultative) : « Hache de Kolbeinn ». Conséquence : Gunnhild la regarde avec respect.
+- **Le Jarl gelé** (facultative) : « Hache de Kolbeinn ». Conséquence : Gunnar la regarde avec respect.
 
 ### Nouvelles secondaires
 
@@ -499,7 +499,7 @@ Autres existantes, sans changement de structure :
 - Donneur : Tjorvi (ou rencontre).
 - Voies :
   - *Pardonner* : lui offrir de rentrer au village avec Ylva.
-  - *Livrer* : le rapporter à Gunnhild comme témoin.
+  - *Livrer* : le rapporter à Gunnar comme témoin.
   - *Le faire témoigner* : le convaincre de parler à Ylva elle-même.
 - Récompense : « Hache de bûcheron de Halfdan », 150 XP.
 - Conséquence : selon la voie, Ylva le recueille, le fait emprisonner, ou le protège.
@@ -511,7 +511,7 @@ Autres existantes, sans changement de structure :
   - *Payer* le péage.
   - *Furtif* : passer par le Tronc-pont.
   - *Combat* : tuer les gardes du Gué.
-  - *Dénoncer* Ketil à Gunnhild.
+  - *Dénoncer* Ketil à Gunnar.
 - Récompense : « Clé du relais » (ouvre un coffre de convoi), 120 XP, 80 pièces.
 - Conséquence : route ouverte ou marchands plus nombreux au village.
 
@@ -528,7 +528,7 @@ Autres existantes, sans changement de structure :
 - Conséquence : la cloche de la tour de Skarnholt se met à sonner juste.
 
 **Q14. Les étals du Nord** (Val) — après PNJ
-- Donneuse : Valdis (si épargnée) ou Gunnhild.
+- Donneuse : Valdis (si épargnée) ou Gunnar.
 - Étapes : tenir un étal de colporteur pendant une journée du hameau (livraisons, prix, vols).
 - Récompense : « Étal de Valdis » (boutique permanente), 100 XP.
 - Conséquence : un étal supplémentaire sur la place.

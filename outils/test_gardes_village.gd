@@ -50,6 +50,35 @@ func _tester() -> void:
 		if g.is_in_group("ennemis") or g.en_combat():
 			_verif(false, "%s compté comme ennemi / en combat" % g.name)
 	print("services : ", types)
+	# lot tripo/gardiens : tous les gardes en GardeTripo (sauf halle_e, armure dorée), Haldor aussi ; livrées : jamais deux voisins (< 8 m) identiques
+	var tripo := 0
+	var vus: Array = []
+	for g: Node3D in gardes:
+		var id := String(g.donnees.get("id", ""))
+		var corps := String(g.modele.get_meta("pnj_nordique", ""))
+		if id == "halle_e":
+			_verif(g.modele.name == "GardeDore", "halle_e : armure dorée Tripo")
+			continue
+		if corps.begins_with("tripo_"):
+			tripo += 1
+		else:
+			_verif(false, "%s : corps %s au lieu de GardeTripo" % [g.name, g.modele.name])
+		vus.append([g, corps, int(g.modele.get_meta("variante_tripo", 0))])
+	_verif(tripo == gardes.size() - 1, "%d gardes sur %d en corps Tripo (+ armure dorée)" % [tripo, gardes.size()])
+	for v: Node in get_nodes_in_group("villageois"):
+		if "donnees" in v and String((v.donnees as Dictionary).get("id", "")) == "garde" and not v.has_method("alerter"):
+			_verif(String(v.modele.get_meta("pnj_nordique", "")) == "tripo_garde_epee", "Haldor : garde Tripo à l'épée")
+			vus.append([v, String(v.modele.get_meta("pnj_nordique", "")), int(v.modele.get_meta("variante_tripo", 0))])
+	var clones := 0
+	for a in vus.size():
+		for b in range(a + 1, vus.size()):
+			if vus[a][1] == vus[b][1] and vus[a][2] == vus[b][2] and (vus[a][0] as Node3D).global_position.distance_to((vus[b][0] as Node3D).global_position) < 8.0:
+				clones += 1
+				print("  clones voisins : %s / %s" % [vus[a][0].name, vus[b][0].name])
+	_verif(clones == 0, "aucun clone (même corps, même livrée) à moins de 8 m d'un autre au départ (%d)" % clones)
+	var anc := (GardesVillage.donnees()["gardes"][0] as Dictionary).duplicate()
+	anc["modele_ancien"] = true
+	_verif(GardesVillage.corps_tripo(anc) == "" and GardesVillage.corps_tripo(GardesVillage.donnees()["gardes"][0]) != "", "modele_ancien : le garde reprend l'ancien Gardien")
 	# joueur au centre de la place : tous à moins de 90 m (éveillés), mais loin des rondes (ne les gêne pas)
 	var j: CharacterBody3D = m.joueur
 	j.global_position = Vector3(44.0, m.hauteur(44.0, 40.0) + 0.2, 40.0)

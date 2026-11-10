@@ -40,6 +40,27 @@ const MEMOIRE_BUS := 6.0           # s pendant lesquelles un danger annoncé com
 ## ils gardent leur id, poste ou ronde, répliques, alerte et rôle dans Crime (même scripts/garde_village.gd). Ancien corps (creer_modele) :
 ## `--modeles-anciens[=gardes]` pour tous, ou « "modele_ancien": true » sur le garde dans data/gardes.json.
 const GARDES_TRIPO := {"halle_o": "tripo_garde_lance", "ronde_place": "tripo_garde_epee", "ronde_nord": "tripo_archer"}
+## Lot tripo/gardiens (2026-11-10) : les dix autres gardes passent aussi en GardeTripo, par leur entrée de data/gardes.json :
+## « "tripo": "tripo_garde_epee" | "tripo_garde_lance" | "tripo_archer" » (corps, mêmes glb que les trois premiers) et « "livree": 0..3 »
+## (variante de texture, GardeTripo.texture_variante : 0 d'origine, 1 lie-de-vin, 2 garance et fer noirci, 3 passé), choisies pour que deux
+## voisins n'aient jamais le même corps ET la même livrée. Carrure « taille » / « largeur » de l'entrée appliquée comme sur le Gardien.
+## Les trois premiers (GARDES_TRIPO) restent tels quels. Ancien corps : `--modeles-anciens[=gardes]` ou « "modele_ancien": true ».
+static func corps_tripo(g: Dictionary) -> String:
+	if not ModelesTripo.actif("gardes") or ModelesTripo.ancien_impose(g) or g.get("armure_tripo", false):
+		return ""
+	if g.get("armure_verre", false):
+		return "tripo_garde_verre"      # armure de verre Tripo (garde n_e) : corps unique, sans livrée
+	var id := String(g.get("tripo", GARDES_TRIPO.get(String(g.get("id", "")), "")))
+	return id if GardeTripo.MODELES.has(id) else ""
+
+## Corps Tripo d'un garde (corps_tripo non vide) : livrée et carrure de ses données.
+static func creer_modele_tripo(g: Dictionary) -> Node3D:
+	var n := GardeTripo.creer(corps_tripo(g), true, true, int(g.get("livree", 0)))
+	if g.has("tripo"):      # les trois premiers gardes Tripo (GARDES_TRIPO) gardent leur échelle validée
+		var h := clampf(float(g.get("taille", 1.0)), 0.9, 1.1)
+		var l := clampf(float(g.get("largeur", 1.0)), 0.92, 1.08)
+		n.scale = Vector3(h * l, h, h * l)
+	return n
 static var _mats := {}
 static var _bases := {}   # bouclier -> Gardien de référence (hors arbre, jamais affiché)
 static var _cache_donnees := {}
@@ -97,8 +118,8 @@ static func peupler(monde_: Node3D) -> GardesVillage:
 		v.dialogue = monde_.dialogue
 		v.gestion = gv
 		v.route = route
-		if GARDES_TRIPO.has(String(g.get("id", ""))) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
-			v.modele = GardeTripo.creer(GARDES_TRIPO[String(g["id"])])
+		if corps_tripo(g) != "":
+			v.modele = creer_modele_tripo(g)
 		else:
 			v.modele = creer_modele(g)
 		if g.get("type", "poste") == "vigie":
@@ -127,6 +148,8 @@ static func _place_vigie(village: Node3D, g: Dictionary) -> Vector3:
 ## Modèle d'un garde : le Gardien nordique ENTIER (bouclier au bras aux postes, dans le dos en ronde) + variante légère.
 ## g : "poil" (index de POILS), "peau" (index de PEAUX), "rase" (sans barbe), "taille", "largeur".
 static func creer_modele(g: Dictionary) -> Node3D:
+	if g.get("armure_verre", false) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
+		return GardeTripo.creer("tripo_garde_verre")      # armure de verre Tripo (garde n_e)
 	if g.get("armure_tripo", false) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
 		return creer_modele_dore(g)      # armure dorée Tripo (défaut, garde halle_e) ; ancien Gardien avec --modeles-anciens[=gardes] ou modele_ancien
 	var bouclier: String = g.get("bouclier", "dos" if g.get("type", "poste") == "ronde" else "bras")

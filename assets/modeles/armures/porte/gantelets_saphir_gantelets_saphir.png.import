@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ejnruj3mc124"
-path="res://.godot/imported/gantelets_saphir_gantelets_saphir.png-473cfa249bd1d127c3c4e957ad5c9e88.ctex"
+path.bptc="res://.godot/imported/gantelets_saphir_gantelets_saphir.png-473cfa249bd1d127c3c4e957ad5c9e88.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b718427faa83f4600edb62a0af78a389"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/gantelets_saphir_gantelets_saphir.png"
-dest_files=["res://.godot/imported/gantelets_saphir_gantelets_saphir.png-473cfa249bd1d127c3c4e957ad5c9e88.ctex"]
+dest_files=["res://.godot/imported/gantelets_saphir_gantelets_saphir.png-473cfa249bd1d127c3c4e957ad5c9e88.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

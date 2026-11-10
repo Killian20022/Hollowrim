@@ -30,7 +30,7 @@ const CRETE_H := 16
 const CRETES := 8
 
 const DOSSIER := "res://assets/arbres"   # atlas précalculés par outils/generer_arbres.gd (outils/precalculer_tout.gd)
-const VERSION := 1                        # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
+const VERSION := 2                        # à incrémenter à chaque changement de dessin : les .res périmés sont ignorés
 const PRECALCULES := ["atlas_epicea", "atlas_pin", "atlas_bouleau"]
 
 static var _cache := {}
@@ -48,7 +48,7 @@ static func _precalcule(nom: String) -> ImageTexture:
 ## Image finale (avec mipmaps) d'un atlas précalculable : calcul direct, sans lire le disque.
 static func image_precalculee(nom: String) -> Image:
 	match nom:
-		"atlas_epicea": return mips_image(atlas_epicea_image())
+		"atlas_epicea": return atlas_epicea_mips()
 		"atlas_pin": return mips_image(rameau_pin(801, 0.7))
 		"atlas_bouleau": return mips_image(ramilles_bouleau(901), 2)
 	return null
@@ -212,7 +212,9 @@ static func tuile_mips(img: Image) -> ImageTexture:
 ## courts parallèles, orientés vers l'avant le long de chaque rameau (pas un semis) ; leurs bouts font le
 ## bord dentelé. Lumière de la texture : haut-gauche (face claire / face sombre de chaque touffe).
 ## `neige` 0..1 : quantité de neige ; `densite` 0..1 : remplissage (1 = touffu).
-static func rameau_epicea(S: int, graine: int, neige: float, densite: float) -> Image:
+## `trace` (facultatif) reçoit les traits d'aiguilles (coordonnées flottantes de la carte S×S), pour
+## `affiner_rameau` : la version 2× du gros plan redessine ces mêmes traits, à un pixel fin.
+static func rameau_epicea(S: int, graine: int, neige: float, densite: float, trace: Dictionary = {}) -> Image:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
 	var k := S / 64.0
@@ -263,6 +265,7 @@ static func rameau_epicea(S: int, graine: int, neige: float, densite: float) -> 
 					traits.append([4 if givre and t == 0 else ton, q.x, q.y, e.x, e.y])
 			j += pas
 	traits.sort_custom(func(u, w): return u[0] < w[0])
+	trace["traits"] = traits
 	for t in traits:
 		_ligne(img, roundi(t[1]), roundi(t[2]), roundi(t[3]), roundi(t[4]), _c(AIGUILLES, t[0]))
 	# --- bois : tige principale brune, sous-rameaux bruns au cœur, rameaux fins sombres (ombre)
@@ -408,9 +411,11 @@ static func _axe_rameau(axes: Array, rng: RandomNumberGenerator, p0: Vector2, d0
 			j += maxi(2, int(ecart * rng.randf_range(0.85, 1.15)))
 
 ## Flèche (sommet) vue de côté, S×S : tige dressée, courtes branches relevées, capuchon de neige.
-static func fleche_epicea(S: int, graine: int) -> Image:
+static func fleche_epicea(S: int, graine: int, trace: Dictionary = {}) -> Image:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
+	var traits: Array = []
+	trace["traits"] = traits
 	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
 	img.fill(CLEAR)
 	var cx := S / 2
@@ -423,6 +428,8 @@ static func fleche_epicea(S: int, graine: int) -> Image:
 				var L := demi + rng.randi_range(-1, 1)
 				_ligne(img, cx, y + 2, cx + c * L, y, _c(AIGUILLES, 2 if c < 0 else 3))
 				_ligne(img, cx, y + 3, cx + c * (L - 1), y + 2, _c(AIGUILLES, 1))
+				traits.append([2 if c < 0 else 3, cx, y + 2, cx + c * L, y])
+				traits.append([1, cx, y + 3, cx + c * (L - 1), y + 2])
 		_px(img, cx, y, _c(ECORCE, 1))
 		if t > 0.6:
 			_px(img, cx - 1, y, _c(ECORCE, 0))
@@ -480,28 +487,144 @@ static func crete_neige(graine: int, f := 1) -> Image:
 	_nettoyer(img)
 	return img
 
-## Atlas des épicéas 256×256 (voir les régions R_*), avec mipmaps pixel art.
+## Atlas des épicéas, avec mipmaps pixel art. Gros plan (G4, 2026-11-10) : le niveau 0 est l'atlas
+## « fin » 512×512 (EPICEA_FIN = 2 : 100 texels/m environ, au lieu de 50) où chaque trait d'aiguilles est
+## redessiné à un pixel fin ; les niveaux 1 et suivants sont EXACTEMENT la chaîne de l'atlas 256×256
+## d'avant (même dessin, mêmes mips « vote de couleur »). Au-delà de ~2,5 m le GPU lit le niveau 1 ou plus :
+## l'arbre de moyenne et longue distance est identique au pixel près ; de près, les aiguilles sont fines.
+const EPICEA_FIN := 2
 static func atlas_epicea() -> ImageTexture:
 	if _cache.has("atlas_epicea"):
 		return _cache["atlas_epicea"]
 	var t := _precalcule("atlas_epicea")
 	if t == null:
-		t = avec_mips(atlas_epicea_image())
+		t = ImageTexture.create_from_image(atlas_epicea_mips())
 	_cache["atlas_epicea"] = t
 	return t
 
-static func atlas_epicea_image() -> Image:
+## Atlas de base 256×256 (le dessin d'avant le gros plan) ; `fin` (facultatif) reçoit l'atlas 512×512 du gros plan.
+static func atlas_epicea_image(fin: Array = []) -> Image:
 	var img := Image.create(ATLAS_EPICEA, ATLAS_EPICEA, false, Image.FORMAT_RGBA8)
 	img.fill(CLEAR)
-	img.blit_rect(rameau_epicea(128, 501, 0.75, 1.0), Rect2i(0, 0, 128, 128), R_LONG_A.position)
-	img.blit_rect(rameau_epicea(128, 502, 0.95, 0.85), Rect2i(0, 0, 128, 128), R_LONG_B.position)
-	img.blit_rect(rameau_epicea(64, 503, 0.8, 1.0), Rect2i(0, 0, 64, 64), R_COURT_A.position)
-	img.blit_rect(rameau_epicea(64, 504, 0.95, 0.9), Rect2i(0, 0, 64, 64), R_COURT_B.position)
-	img.blit_rect(fleche_epicea(64, 505), Rect2i(0, 0, 64, 64), R_FLECHE.position)
-	img.blit_rect(rameau_epicea(64, 506, 0.0, 1.0), Rect2i(0, 0, 64, 64), R_COEUR.position)
+	var f := EPICEA_FIN
+	var hd := Image.create(ATLAS_EPICEA * f, ATLAS_EPICEA * f, false, Image.FORMAT_RGBA8)
+	hd.fill(CLEAR)
+	var rameaux := [[128, 501, 0.75, 1.0, R_LONG_A], [128, 502, 0.95, 0.85, R_LONG_B], [64, 503, 0.8, 1.0, R_COURT_A],
+		[64, 504, 0.95, 0.9, R_COURT_B], [64, 506, 0.0, 1.0, R_COEUR]]
+	for r: Array in rameaux:
+		var S: int = r[0]
+		var tr := {}
+		var base := rameau_epicea(S, r[1], r[2], r[3], tr)
+		var pos: Vector2i = (r[4] as Rect2i).position
+		img.blit_rect(base, Rect2i(0, 0, S, S), pos)
+		var fine := affiner_rameau(base, tr["traits"], f)
+		hd.blit_rect(fine, Rect2i(0, 0, S * f, S * f), pos * f)
+	# flèche (cime) : la carte la moins dense de l'atlas (64 px pour 2,2 m) ; ses étages sont retracés fins comme les rameaux
+	var trf := {}
+	var fl := fleche_epicea(64, 505, trf)
+	img.blit_rect(fl, Rect2i(0, 0, 64, 64), R_FLECHE.position)
+	hd.blit_rect(affiner_rameau(fl, trf["traits"], f), Rect2i(0, 0, 64 * f, 64 * f), R_FLECHE.position * f)
+	# crêtes de neige : redessinées au double de leur finesse (crete_neige est déjà paramétrée par f)
 	for k in CRETES:
-		img.blit_rect(crete_neige(510 + k, 2), Rect2i(0, 0, CRETE_W, CRETE_H), Vector2i(R_CRETE_X, R_CRETE_Y + CRETE_H * k))
+		var cr := crete_neige(510 + k, 2)
+		var p := Vector2i(R_CRETE_X, R_CRETE_Y + CRETE_H * k)
+		img.blit_rect(cr, Rect2i(0, 0, CRETE_W, CRETE_H), p)
+		hd.blit_rect(crete_neige(510 + k, 2 * f), Rect2i(0, 0, CRETE_W * f, CRETE_H * f), p * f)
+	fin.append(hd)
 	return img
+
+## Image finale de l'atlas des épicéas : niveau 0 = atlas fin 512², puis la chaîne de mips de l'atlas 256².
+static func atlas_epicea_mips() -> Image:
+	var fin: Array = []
+	var base := atlas_epicea_image(fin)
+	var hd: Image = fin[0]
+	var data := hd.get_data()
+	data.append_array(mips_image(base).get_data())
+	return Image.create_from_data(hd.get_width(), hd.get_height(), true, Image.FORMAT_RGBA8, data)
+
+## Agrandissement entier sans filtre (chaque pixel devient un bloc f×f).
+static func _agrandir(img: Image, f: int) -> Image:
+	var o := Image.create(img.get_width() * f, img.get_height() * f, false, Image.FORMAT_RGBA8)
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			if c.a > 0.0:
+				o.fill_rect(Rect2i(x * f, y * f, f, f), c)
+	return o
+
+## Ligne 4-connexe (un pas diagonal devient deux pas droits) : un trait fin d'un pixel qui garde
+## des voisins directs de sa couleur (pas de pixels « en diagonale seule », bible §4.2).
+static func _ligne4(img: Image, x0: int, y0: int, x1: int, y1: int, c: Color, masque: PackedByteArray) -> void:
+	var w := img.get_width()
+	var dx := absi(x1 - x0)
+	var dy := -absi(y1 - y0)
+	var sx := 1 if x0 < x1 else -1
+	var sy := 1 if y0 < y1 else -1
+	var err := dx + dy
+	while true:
+		if x0 >= 0 and y0 >= 0 and x0 < w and y0 < img.get_height():
+			var i := y0 * w + x0
+			# sur les aiguilles (1) ou dans le vide (0 : bout d'aiguille qui dépasse) ; jamais sur la neige ni le bois (2)
+			if masque[i] != 2:
+				img.set_pixel(x0, y0, c)
+				masque[i] = 3
+		if x0 == x1 and y0 == y1:
+			break
+		var e2 := 2 * err
+		if e2 - dy > dx - e2:
+			err += dy
+			x0 += sx
+		else:
+			err += dx
+			y0 += sy
+
+## Gros plan d'un rameau (×f) : même silhouette que `base` (alpha identique, agrandi), même neige et même bois,
+## mais les masses d'aiguilles sont redessinées : le fond prend un ton plus sombre et chaque trait d'aiguilles
+## de `traits` est retracé à un pixel fin dans son ton. Résultat : des aiguilles fines et orientées là où la
+## carte 1× n'avait que des taches de 3-4 texels (les « gros pixels camouflage » vus à moins de 2 m).
+static func affiner_rameau(base: Image, traits: Array, f: int) -> Image:
+	var hd := _agrandir(base, f)
+	var W := hd.get_width()
+	var H := hd.get_height()
+	var tons := {}
+	for i in AIGUILLES.size():
+		tons[Color(AIGUILLES[i])] = i
+	var masque := PackedByteArray()
+	masque.resize(W * H)
+	for y in H:
+		for x in W:
+			var c := hd.get_pixel(x, y)
+			if c.a > 0.0 and not tons.has(c):
+				masque[y * W + x] = 2
+			elif c.a > 0.0:
+				masque[y * W + x] = 1
+				var t0 := int(tons[c])
+				hd.set_pixel(x, y, _c(AIGUILLES, t0 - 1 if t0 >= 2 else t0))   # les ombres (0-1) restent : pas de trou noir
+	var dec := (f - 1) * 0.5
+	for t: Array in traits:
+		# le ton de fond (2) remonte d'un cran sur le trait : avec le fond assombri, la masse garde sa valeur moyenne
+		var ton: int = t[0] + (1 if t[0] == 2 else 0)
+		_ligne4(hd, roundi(t[1] * f + dec), roundi(t[2] * f + dec), roundi(t[3] * f + dec), roundi(t[4] * f + dec), _c(AIGUILLES, ton), masque)
+	# bord dentelé fin : un pixel du bord des masses (bloc f×f agrandi) que nul trait ne touche est retiré
+	var src := hd.duplicate() as Image
+	for y in H:
+		for x in W:
+			if masque[y * W + x] != 1:
+				continue
+			for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var nx := x + d.x
+				var ny := y + d.y
+				if nx < 0 or ny < 0 or nx >= W or ny >= H or src.get_pixel(nx, ny).a == 0.0:
+					hd.set_pixel(x, y, CLEAR)
+					break
+	# contour sélectif fin : 1 pixel sombre au bas des masses d'aiguilles (au lieu d'un bloc f×f)
+	src = hd.duplicate() as Image
+	for y in range(0, H - 1):
+		for x in W:
+			var m := masque[y * W + x]
+			if (m == 1 or m == 3) and src.get_pixel(x, y).a > 0.0 and src.get_pixel(x, y + 1).a == 0.0:
+				hd.set_pixel(x, y, _c(AIGUILLES, 1))
+	return hd
 
 ## Rectangle UV (0..1) d'une région d'un atlas de côté `taille`.
 static func uv_region(r: Rect2i, taille := ATLAS) -> Rect2:

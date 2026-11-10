@@ -10,6 +10,7 @@ class_name ModelesTripo
 ##   les options d'un ennemi (monde.creer_draugr) : il garde l'ancien corps même si les autres sont en Tripo.
 ## Ne pas confondre avec `--pnj-anciens` / `--persos-anciens` (corps encore plus anciens : Humain Quaternius, avant les PNJ nordiques).
 
+## Lot tripo/gardiens (2026-11-10) : tous les gardes du village et Haldor en GardeTripo (data/gardes.json « tripo » + « livree »), groupe « gardes ».
 ## Lot 2 (2026-11-09) : « mage » (PNJ Mage Eirwen, MageTripo), « puits » (puits Tripo de la place, PuitsTripo), « maison » (auberge h2 :
 ## chaumière et taverne Tripo, MaisonTripo) ; l'armure dorée (garde halle_e, ArmureTripo) suit le groupe « gardes ».
 const GROUPES := ["gardes", "jarl", "ennemis", "gobelin", "mage", "puits", "maison"]

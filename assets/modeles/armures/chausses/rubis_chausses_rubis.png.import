@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bby6phnk4cgki"
-path="res://.godot/imported/rubis_chausses_rubis.png-0c12c8e6a01919125707d24afdd652dc.ctex"
+path.bptc="res://.godot/imported/rubis_chausses_rubis.png-0c12c8e6a01919125707d24afdd652dc.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "a48a7de11f1910b8bef35b082ec5faf8"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/chausses/rubis_chausses_rubis.png"
-dest_files=["res://.godot/imported/rubis_chausses_rubis.png-0c12c8e6a01919125707d24afdd652dc.ctex"]
+dest_files=["res://.godot/imported/rubis_chausses_rubis.png-0c12c8e6a01919125707d24afdd652dc.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

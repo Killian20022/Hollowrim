@@ -39,7 +39,50 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={}
+_subresources={
+"materials": {
+"cuir": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__cuir.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__cuir.tres"
+},
+"gemme.enchante": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__gemme_enchante.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__gemme_enchante.tres"
+},
+"or.lion": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__or_lion.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__or_lion.tres"
+},
+"or.patine": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__or_patine.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__or_patine.tres"
+},
+"tissu.enchante": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__tissu_enchante.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__tissu_enchante.tres"
+},
+"tissu.enchante.001": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__tissu_enchante_001.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__tissu_enchante_001.tres"
+},
+"tissu.enchante.002": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__tissu_enchante_002.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__tissu_enchante_002.tres"
+},
+"tissu.enchante.003": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__tissu_enchante_003.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_or_enchante_cuirasse_or_enchante__tissu_enchante_003.tres"
+}
+}
+}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
 gltf/texture_map_mode=1

@@ -113,5 +113,29 @@ func _lancer() -> void:
 	ok(mda != null and mda.name != "GardeDore", "halle_e + modele_ancien : ancien Gardien")
 	if mda:
 		mda.free()
+	# armure de verre Tripo (garde n_e) : corps GardeTripo « tripo_garde_verre » par défaut, épée en main, ancien Gardien avec modele_ancien
+	var verre := {}
+	for g: Dictionary in GardesVillage.donnees()["gardes"]:
+		if g.get("armure_verre", false):
+			verre = g
+	ok(String(verre.get("id", "")) == "n_e" and not verre.get("armure_tripo", false) and not GardesVillage.GARDES_TRIPO.has("n_e"), "armure de verre sur n_e, seule")
+	var mv := GardesVillage.creer_modele(verre)
+	ok(mv != null and String(mv.get_meta("pnj_nordique", "")) == "tripo_garde_verre", "n_e : corps en armure de verre Tripo par défaut")
+	if mv:
+		var sqv := mv.find_child("Skeleton3D", true, false) as Skeleton3D
+		ok(sqv != null and sqv.find_bone("tab_f_1") >= 0 and sqv.find_bone("hand_r") >= 0, "armure de verre : squelette des gardes + tabard")
+		ok(mv.find_child("EpeeJeu", true, false) != null, "armure de verre : épée tenue")
+		var tris := 0
+		for mi: MeshInstance3D in sqv.find_children("*", "MeshInstance3D", false, false):
+			for si in mi.mesh.get_surface_count():
+				tris += (mi.mesh.surface_get_arrays(si)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
+		ok(tris > 4000 and tris < 9000, "armure de verre : %d triangles (4 000..9 000)" % tris)
+		mv.free()
+	var verre_anc := verre.duplicate()
+	verre_anc["modele_ancien"] = true
+	var mva := GardesVillage.creer_modele(verre_anc)
+	ok(mva != null and not mva.has_meta("pnj_nordique"), "n_e + modele_ancien : ancien Gardien")
+	if mva:
+		mva.free()
 	print("RESULTAT : %d échec(s)" % echecs)
 	quit(1 if echecs > 0 else 0)
