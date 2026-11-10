@@ -94,7 +94,7 @@ static func spec(genre: String, xf: Transform3D, morceaux: Array) -> Dictionary:
 ## Morceaux d'un prop Quaternius, matière du prop -> Material par `choisir` (Callable(matière: String) -> Material).
 static func morceaux_q(nom: String, choisir: Callable) -> Array:
 	var res := []
-	for m: Array in PropsQuaternius.morceaux(nom):
+	for m: Array in PropsQuaternius.morceaux(nom, {}, false):      # objets ramassables : modèle q_* (leurs modèles sont l'affaire de data/objets/)
 		res.append([m[1], choisir.call(String(m[0]))])
 	return res
 

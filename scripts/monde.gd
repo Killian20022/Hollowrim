@@ -102,6 +102,7 @@ var _t_audio := 0.0
 
 func _ready() -> void:
 	Chrono.demarre()
+	PropsQuaternius.prechauffer_pq()      # matériaux des props texturés (pq_*) créés ici, pas dans les fils de construction
 	Prechargement.lancer()
 	# variante du biome, lue AVANT toute génération (--biome=… ou set_meta("biome", …))
 	var biome: String = str(get_meta("biome")) if has_meta("biome") else str(_arguments().get("biome", "nouveau"))

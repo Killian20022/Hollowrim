@@ -492,12 +492,13 @@ func mat(nom: String) -> Material:
 					sm.set_shader_parameter(k, mt[k])
 			sm.shader = sh
 			var nom_tex: String = ALIAS_TEXTURE.get(nom, nom)
-			sm.set_shader_parameter("tex_base", _texture(nom_tex))
-			var nm := _pentes(nom_tex)
+			var est_pq := nom.begins_with("pq_")      # props texturés : atlas partagé (PropsQuat), pas de relief peint
+			sm.set_shader_parameter("tex_base", PropsQuat.texture(nom) if est_pq else _texture(nom_tex))
+			var nm: ImageTexture = null if est_pq else _pentes(nom_tex)
 			if nm != null:
 				sm.set_shader_parameter("tex_nm", nm)
 				sm.set_shader_parameter("relief", RELIEF.get(nom, 1.0))
-			if nom == "fer" or nom == "lame" or nom == "fer_mat":
+			if nom == "fer" or nom == "lame" or nom == "fer_mat" or nom.begins_with("pq_"):
 				sm.set_shader_parameter("crasse", 0.0)
 			if est_crypte:
 				sm.set_shader_parameter("ambiant", AMBIANT_CRYPTE)
@@ -2359,6 +2360,8 @@ func _modele_cache(cle_mat: String, alpha: float, miroir: bool) -> Dictionary:
 		var data: Dictionary = _modeles[cle_mat]
 		var v: PackedVector3Array = data["v"]
 		var cc: PackedColorArray = data["c"]
+		var su: PackedVector2Array = data.get("u", PackedVector2Array())      # props texturés (pq_*) : UV du prop
+		var ou := PackedVector2Array()
 		var ov := PackedVector3Array()
 		var on := PackedVector3Array()
 		var oc := PackedColorArray()
@@ -2379,9 +2382,13 @@ func _modele_cache(cle_mat: String, alpha: float, miroir: bool) -> Dictionary:
 			if miroir:      # la pose inverse l'orientation : ordre a, b, c
 				ov.append(a); ov.append(b); ov.append(c)
 				oc.append(ca); oc.append(cb); oc.append(c3)
+				if not su.is_empty():
+					ou.append(su[q]); ou.append(su[q + 1]); ou.append(su[q + 2])
 			else:           # face avant = sens horaire (comme _tri)
 				ov.append(a); ov.append(c); ov.append(b)
 				oc.append(ca); oc.append(c3); oc.append(cb)
+				if not su.is_empty():
+					ou.append(su[q]); ou.append(su[q + 2]); ou.append(su[q + 1])
 			on.append(n); on.append(n); on.append(n)
 		var bmin := Vector3(INF, INF, INF)
 		var bmax := -bmin
@@ -2389,6 +2396,8 @@ func _modele_cache(cle_mat: String, alpha: float, miroir: bool) -> Dictionary:
 			bmin = bmin.min(v[q])
 			bmax = bmax.max(v[q])
 		r = {"v": ov, "n": on, "c": oc, "taille": (bmax - bmin) if v.size() > 0 else Vector3.ZERO, "bmin": bmin, "bmax": bmax}
+		if not su.is_empty():
+			r["u"] = ou
 		_cache_modeles[cle] = r
 	_modeles_verrou.unlock()
 	return r
@@ -2452,6 +2461,8 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 		var rs: Variant = _modele_subst(nom, pos, lacet, ech, emp)
 		if rs != null:
 			return rs
+	if PropsQuaternius.pq and (nom.begins_with("q_") or nom.begins_with("pq_")):      # prop texturé (pq_*) à la place du q_* (même encombrement)
+		nom = PropsQuaternius.nom_crypte(nom, mats)
 	var jn := not pose_sol
 	if jn:
 		j0(nom, lacet)
@@ -2475,8 +2486,8 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 			for q in range(0, v.size(), 3):
 				points.append(pos + b * v[q])
 			continue
-		var cible: String = mats.get(mat, MAT_MODELE.get(mat, mat if TUILE.has(mat) else "mur0"))
-		var nom_mat: String = theme.get(cible, cible) if not theme.is_empty() else cible
+		var cible: String = mat if mat.begins_with("pq_") else mats.get(mat, MAT_MODELE.get(mat, mat if TUILE.has(mat) else "mur0"))
+		var nom_mat: String = cible if cible.begins_with("pq_") else (theme.get(cible, cible) if not theme.is_empty() else cible)
 		var inv := 1.0 / float(TUILE.get(nom_mat, 1.0))
 		var cm := _modele_cache("%s__%s" % [nom, mat], niveau_a, miroir)
 		var cols: PackedColorArray = cm["c"]
@@ -2500,8 +2511,11 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 		var wn: PackedVector3Array = TN * (cm["n"] as PackedVector3Array)
 		var nb := wv.size()
 		var uv := PackedVector2Array()
-		uv.resize(nb)
-		for q in range(0, nb, 3):
+		if cm.has("u"):
+			uv = cm["u"]
+		else:
+			uv.resize(nb)
+		for q in range(0, nb if not cm.has("u") else 0, 3):
 			var nq := wn[q]
 			var ax := absf(nq.x)
 			var ay := absf(nq.y)
