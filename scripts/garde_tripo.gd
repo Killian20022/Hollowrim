@@ -27,7 +27,14 @@ static var EPEE_INCL := -35.0
 static var EPEE_DIR := Vector3(0.0, 0.93, -0.2)
 static var EPEE_ECH := 1.15
 ## Centre du poing du maillage Tripo dans le repère de hand_r (mesuré à l'image : le gantelet du modèle est plus bas / plus en arrière que l'os, la prise du joueur y tombe à côté).
-static var CENTRE_POING := Vector3(0.0025, 0.20, -0.013)
+## Lot tripo/gardiens (2026-11-10, « épée accrochée dans le vide ») : l'ancien centre (0,0025 ; 0,20 ; -0,013) tombait SOUS la coque du gantelet
+## (le maillage du poing s'arrête à y 0,185) et devant elle : la poignée pendait hors de la main. Mesuré (outils/mesure_prise_garde_tripo.gd,
+## gros plans outils/gros_plan_prise_garde.gd) : centre de la coque du gantelet en (0,015 ; ~0,12 ; -0,09) dans le repère de lowerarm_r.
+static var CENTRE_POING := Vector3(0.015, 0.12, -0.09)
+## Le gantelet Tripo n'est qu'une coque ouverte (pas de doigts) : un POING FERMÉ (4 doigts repliés en anneaux autour de la poignée + pouce
+## posé dessus), en cuir de gant sombre, est ajouté sur l'épée : poignée cachée par les doigts, pommeau au-dessus, garde au ras du dernier doigt.
+static var POING_FERME := true
+const DOIGTS := [0.031, 0.032, 0.031, 0.028]      # rayons des anneaux (m), du pommeau (index) vers la garde (auriculaire)
 static var PRISE := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 const CHAINES := ["tab_f", "tab_b"]
 ## Tabard de laine : plus léger que la cape du jarl, mais amorti.
@@ -168,6 +175,8 @@ static func _epee_au_flanc(sq: Skeleton3D) -> void:
 	prise.origin = CENTRE_POING - prise.basis.y.normalized() * 0.04 * EPEE_ECH      # le centre du poing est à 4 cm du pommeau le long de la lame
 	arme.transform = prise
 	acc.add_child(arme)
+	if POING_FERME:
+		_poing_ferme(arme)
 	var acier := Palette.tex("acier", Palette.ACIER, 4, 0.3)
 	var mats := {
 		"lame": Palette.materiau(acier, Vector2.ONE, Color(0.98, 0.95, 0.9)),
@@ -182,3 +191,47 @@ static func _epee_au_flanc(sq: Skeleton3D) -> void:
 			var nom := mat.resource_name.get_slice(".", 0) if mat else ""
 			if mats.has(nom):
 				mi.set_surface_override_material(i, mats[nom])
+
+## Poing fermé autour de la poignée de l'épée (repère de l'épée : +y du pommeau vers la lame ; poignée de y 0,002 à 0,078, garde dès 0,0675,
+## en unités de l'épée, mise à l'échelle EPEE_ECH). Anneaux légèrement ovales (jointures vers l'extérieur), pouce en travers du premier doigt.
+static var _mailles_poing := {}
+static func _poing_ferme(arme: Node3D) -> void:
+	var p := Node3D.new()
+	p.name = "PoingFerme"
+	arme.add_child(p)
+	if _mailles_poing.is_empty():
+		var cuir := Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(1, 1), Color(0.36, 0.30, 0.27))
+		cuir.set_shader_parameter("tex_neige", cuir.get_shader_parameter("tex_base"))
+		_mailles_poing["mat"] = cuir
+		for r: float in DOIGTS:
+			var c := CylinderMesh.new()
+			c.top_radius = r
+			c.bottom_radius = r * 0.94
+			c.height = 0.0175
+			c.radial_segments = 8
+			c.rings = 1
+			_mailles_poing[r] = c
+		var pouce := CapsuleMesh.new()
+		pouce.radius = 0.011
+		pouce.height = 0.055
+		pouce.radial_segments = 6
+		pouce.rings = 2
+		_mailles_poing["pouce"] = pouce
+	var e := 1.0 / maxf(EPEE_ECH, 0.01)
+	var y := 0.004 / e      # en unités de l'épée : le premier doigt part juste sous le pommeau
+	for k in DOIGTS.size():
+		var mi := MeshInstance3D.new()
+		mi.name = "Doigt%d" % (k + 1)
+		mi.mesh = _mailles_poing[DOIGTS[k]]
+		mi.material_override = _mailles_poing["mat"]
+		mi.position = Vector3(0.0, (0.004 + 0.0183 * k + 0.00875) * e, 0.003 * e)
+		mi.scale = Vector3(e, e, e * 1.12)
+		p.add_child(mi)
+	var pc := MeshInstance3D.new()
+	pc.name = "Pouce"
+	pc.mesh = _mailles_poing["pouce"]
+	pc.material_override = _mailles_poing["mat"]
+	pc.position = Vector3(0.012 * e, 0.016 * e, 0.030 * e)
+	pc.rotation_degrees = Vector3(0, 0, 70)
+	pc.scale = Vector3.ONE * e
+	p.add_child(pc)
