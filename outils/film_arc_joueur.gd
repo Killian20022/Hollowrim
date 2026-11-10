@@ -121,7 +121,7 @@ func _go() -> void:
 	if _arg("sans-ombre-corps") != "":   # contrôle : le corps (invisible en 1re personne) ne projette plus d'ombre
 		for mi: MeshInstance3D in (j.corps as Node).find_children("*", "MeshInstance3D", true, false):
 			if mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
-				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				mi.visible = false
 	if _arg("ombre-bras") != "":   # contrôle : le corps invisible projette encore l'ombre de ses bras (comme avant la v8b)
 		(j.corps as Node).get("_ombre_bras").active = false
 	if _arg("cacher") != "":   # contrôle : cacher un bras de la 1re personne (upperarm_l / upperarm_r)
@@ -295,9 +295,7 @@ func _photos_g(nom: String) -> void:
 	await process_frame
 	var cg: Node3D = arc._vm.repere_poignee.get_child(0)
 	var main: Transform3D = arc.main_g_monde
-	var ecart := main.origin.distance_to(cg.global_transform.origin)
-	var angle := rad_to_deg(main.basis.orthonormalized().get_rotation_quaternion().angle_to(cg.global_transform.basis.orthonormalized().get_rotation_quaternion()))
-	print("PRISE_G %s ecart %.1f mm angle %.1f deg" % [nom, ecart * 1000.0, angle])
+	print("PRISE_G %s ecart %.1f mm angle %.1f deg" % [nom, arc.prise_g.x * 1000.0, rad_to_deg(arc.prise_g.y)])
 	await RenderingServer.frame_post_draw
 	root.get_viewport().get_texture().get_image().save_png(sortie.path_join("g_%s_joueur.png" % nom))
 	var c: Camera3D = j.camera
@@ -367,7 +365,7 @@ func _photo(nom: String) -> void:
 			print("MAIN_D %s tension %.2f levee %.2f centre %s coude %s" % [nom, arc.tension, arc._levee, cm / pr.size(), tw])
 		print("EPAULES %s g %s d %s cible_d %s" % [nom, eg, ed, arc._pivot_d.position])
 		var cgp: Node3D = arc._vm.repere_poignee.get_child(0)
-		print("PRISE_G %s ecart %.1f mm angle %.1f deg" % [nom, arc.main_g_monde.origin.distance_to(cgp.global_transform.origin) * 1000.0, rad_to_deg(arc.main_g_monde.basis.orthonormalized().get_rotation_quaternion().angle_to(cgp.global_transform.basis.orthonormalized().get_rotation_quaternion()))])
+		print("PRISE_G %s ecart %.1f mm angle %.1f deg" % [nom, arc.prise_g.x * 1000.0, rad_to_deg(arc.prise_g.y)])
 		print("POSE %s main_g %s main_d %s poignee %s encoche %s pointe %s" % [nom, mg, md, inv * arc._vm.global_position, inv * arc._vm.encoche_monde(), inv * arc._vm.pointe()])
 	await RenderingServer.frame_post_draw
 	var im := root.get_viewport().get_texture().get_image()

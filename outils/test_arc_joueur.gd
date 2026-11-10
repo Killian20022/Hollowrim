@@ -146,6 +146,52 @@ func _modele() -> void:
 	_verif(a.fleche.visible and absf(lf - ArcModele.longueur_pointe()) < 0.01, "flèche encochée visible, %.2f m de l'encoche à la pointe" % lf)
 	a.queue_free()
 
+## Un tir complet en 1re personne, mesuré à CHAQUE image (repos, levée, bandage, pleine tension, lâcher, rechargement,
+## descente) : le poing gauche tient la poignée de l'arc affiché, le bras de corde ne passe pas sous l'œil au rechargement, et
+## arc levé, le cou et la tête invisibles ne projettent plus d'ombre autour de la caméra.
+func _cycle_complet() -> void:
+	j.global_position = Vector3.ZERO
+	await _viser()
+	await _sim(2.0)
+	var sqc: Skeleton3D = (j.corps as Node).get("modele").find_child("Skeleton3D", true, false)
+	var cou := [1.0]
+	var lu := func() -> void:
+		cou[0] = sqc.get_bone_global_pose(sqc.find_bone("neck_01")).basis.get_scale().x
+	sqc.skeleton_updated.connect(lu)
+	var pire := Vector2.ZERO   # écart du poing (m, rad), le pire de toutes les images
+	var ou := ""
+	var proche := INF          # bras droit (épaule -> coude -> 3/4 de l'avant-bras) le plus près de l'œil, devant lui, au rechargement
+	var cou_vise := 0.0
+	var n_vise := 0
+	var n0 := arc.tirs
+	for k in 260:
+		if k == 0:
+			arc.appuyer()
+		if k == 75:
+			arc.relacher()
+		j.mains.avancer(DT)
+		await physics_frame
+		var e: Vector2 = arc.prise_g
+		if e.x > pire.x or e.y > pire.y:
+			ou = "image %d, levée %.2f, état %d" % [k, arc._levee, arc.etat]
+		pire = Vector2(maxf(pire.x, e.x), maxf(pire.y, e.y))
+		if arc.etat == ArcJoueur.BANDE and arc._levee > 0.99:
+			cou_vise = maxf(cou_vise, float(cou[0]))
+			n_vise += 1
+		var br: PackedVector3Array = arc.points_mains.get("bras_r", PackedVector3Array())
+		if arc.etat == ArcJoueur.RECUP and br.size() == 3:
+			var inv: Transform3D = j.camera.global_transform.affine_inverse()
+			for t in 21:
+				var u := t / 20.0 * 1.75
+				var p: Vector3 = inv * (br[0].lerp(br[1], u) if u <= 1.0 else br[1].lerp(br[2], u - 1.0))
+				if p.z < 0.0:
+					proche = minf(proche, p.length())
+	sqc.skeleton_updated.disconnect(lu)
+	_verif(arc.tirs == n0 + 1, "tir complet mesuré image par image")
+	_verif(pire.x <= 0.005 and pire.y <= deg_to_rad(10.0), "1re personne : le poing gauche reste fermé sur la poignée à TOUTES les phases (pire : %.1f mm, %.1f°, %s)" % [pire.x * 1000.0, rad_to_deg(pire.y), ou])
+	_verif(proche >= 0.2, "rechargement : le bras de corde (épaule, coude, avant-bras) reste à %.0f cm de l'œil au plus près (≥ 20 cm, pas de masse sombre en bas de l'image)" % (proche * 100.0))
+	_verif(n_vise > 0 and cou_vise < 0.01, "visée 1re personne : cou et tête invisibles réduits à un point (aucune ombre autour de la caméra, échelle %.3f)" % cou_vise)
+
 func _tester() -> void:
 	RetourCoups.arret_actif = false
 	RetourImpact.arret_actif = false
@@ -257,6 +303,7 @@ func _tester() -> void:
 	var r5 := await _tirer(5.6)
 	_verif(r5["tremblement"] > 0.5 and r5["parti"], "pleine tension tenue 5,6 s : les bras tremblent (%.0f %%)" % (r5["tremblement"] * 100.0))
 	await _sim(1.0)
+	await _cycle_complet()
 	# troisième personne
 	j.global_position = Vector3(0, 0, 0)
 	j.basculer_vue(true)

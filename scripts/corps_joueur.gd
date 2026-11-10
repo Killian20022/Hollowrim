@@ -126,7 +126,7 @@ func _chuter() -> void:
 class OmbreSansBras extends SkeletonModifier3D:
 	var BRAS: Array[String] = ["upperarm_l", "upperarm_r"]
 	var corps: Node
-	## arc bandé : la tête non plus (la main de corde ancrée à la joue était dans l'ombre de cette tête invisible)
+	## arc levé : le cou et la tête non plus (la main de corde ancrée à la joue était dans l'ombre de cette tête invisible)
 	var sans_tete := false
 	func _process_modification_with_delta(_dt: float) -> void:
 		var sq := get_skeleton()
@@ -137,9 +137,11 @@ class OmbreSansBras extends SkeletonModifier3D:
 			if i >= 0:
 				sq.set_bone_pose_scale(i, Vector3.ONE * 0.001)
 		if sans_tete:
-			var t := sq.find_bone("Head")
-			if t >= 0:
-				sq.set_bone_pose_scale(t, Vector3.ONE * 0.001)
+			# cou et tête (col de fourrure et casque compris) : rien autour de la caméra n'assombrit la vue en visée
+			for n: String in ["neck_01", "Head"]:
+				var t := sq.find_bone(n)
+				if t >= 0:
+					sq.set_bone_pose_scale(t, Vector3.ONE * 0.001)
 
 var _ombre_bras: OmbreSansBras
 
