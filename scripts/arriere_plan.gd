@@ -101,6 +101,8 @@ func _exit_tree() -> void:
 	if _tache >= 0 and not _fini:
 		FilVerrou.attendre(_tache)
 
+var _image := 0
+
 func _process(_dt: float) -> void:
 	if not _fini:
 		if _tache >= 0 and WorkerThreadPool.is_task_completed(_tache):
@@ -108,7 +110,8 @@ func _process(_dt: float) -> void:
 			_fini = true
 			_creer_noeuds()
 		return
-	if visible:
+	_image += 1
+	if visible and _image % 6 == 0:      # perf : ciel et lumière varient lentement, inutile d'écrire ~40 paramètres de shader à chaque image
 		_actualiser()
 
 ## Lit le ciel et la lumière du cycle (jour/nuit/crépuscule) : couleurs de perspective atmosphérique et éclairage.

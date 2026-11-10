@@ -148,16 +148,26 @@ func _lire(nom: String, defaut: Variant) -> Variant:
 	var v: Variant = joueur.get(nom)
 	return defaut if v == null else v
 
+var _img := 0
+var _t_scan := 0.0
+var _en_combat := false
+
 func _process(dt: float) -> void:
 	_horloge += dt
 	if joueur == null and not demo:
 		return
-	_lire_etat(dt)
-	var combat := false
-	for e in get_tree().get_nodes_in_group("ennemis"):
-		if e.has_method("en_combat") and e.en_combat():
-			combat = true
-			break
+	_img += 1
+	if _v.is_empty() or demo or _img & 1 == 0:      # perf : relevé de l'état du joueur (dictionnaires, raccourcis) une image sur 2
+		_lire_etat(dt)
+	_t_scan -= dt
+	if _t_scan <= 0.0:      # perf : balayage du groupe « ennemis » 5 fois par seconde (les barres se fondent en 0,2 s de toute façon)
+		_t_scan = 0.2
+		_en_combat = false
+		for e in get_tree().get_nodes_in_group("ennemis"):
+			if e.has_method("en_combat") and e.en_combat():
+				_en_combat = true
+				break
+	var combat := _en_combat
 	_t_mains = maxf(0.0, _t_mains - dt)
 	_t_barre = maxf(0.0, _t_barre - dt)
 	if _v.choisi != _choisi_prec:

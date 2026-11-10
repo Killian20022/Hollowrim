@@ -26,6 +26,115 @@ var prec_us := 0
 var ennemis: Array = []
 var t_sort := 0.0
 var rac := 0
+var tp := PackedFloat32Array()
+var tph := PackedFloat32Array()
+
+## Sonde de temps : deux nœuds de priorité extrême encadrent TOUS les _process / _physics_process (et animations internes) de l'arbre.
+class Sonde extends Node:
+	var debut := false
+	var us := 0
+	var t0 := 0
+	var sonde_debut: Sonde
+	var cumul := PackedFloat32Array()
+	var actif := false
+	func _process(_dt: float) -> void:
+		_tic()
+	func _physics_process(_dt: float) -> void:
+		_tic()
+	func _tic() -> void:
+		var maintenant := Time.get_ticks_usec()
+		if debut:
+			t0 = maintenant
+		elif actif:
+			cumul.append((maintenant - sonde_debut.t0) / 1000.0)
+
+## Profil par script (--profil) : une sonde après chaque groupe de nœuds (priorité = rang du groupe × 10) ; la différence de deux horodatages = coût du groupe.
+class SondeGroupe extends Node:
+	var idx := 0
+	var hote
+	func _process(_dt: float) -> void:
+		hote.tic(idx, false)
+	func _physics_process(_dt: float) -> void:
+		hote.tic(idx, true)
+
+var etiquettes: Array[String] = []
+var cout := [PackedFloat64Array(), PackedFloat64Array()]    # [process, physics] : µs cumulées par groupe
+var prec := [0, 0]
+var mesure_groupes := false
+
+func tic(idx: int, ph: bool) -> void:
+	var now := Time.get_ticks_usec()
+	var k := 1 if ph else 0
+	if idx > 0 and mesure_groupes:
+		cout[k][idx] += now - prec[k]
+	prec[k] = now
+
+func _grouper() -> void:
+	var idx_de: Dictionary = {}
+	for nd in m.find_children("*", "", true, false):
+		var sc: Script = nd.get_script()
+		var nom: String
+		if nd is Skeleton3D:
+			nom = "(Skeleton3D + modificateurs IK/tête/pieds)"
+		elif nd is AnimationMixer:
+			nom = "(AnimationPlayer/Tree)"
+		elif sc != null:
+			nom = sc.resource_path.get_file()
+		else:
+			nom = "(" + nd.get_class() + ")"
+		if not idx_de.has(nom):
+			idx_de[nom] = idx_de.size() + 1
+		var g: int = idx_de[nom]
+		nd.process_priority = g * 10
+		nd.process_physics_priority = g * 10
+	etiquettes.resize(idx_de.size() + 1)
+	etiquettes[0] = "(autres : joueur, monde, nœuds créés après le début)"
+	for nom in idx_de:
+		etiquettes[idx_de[nom]] = nom
+	for k in 2:
+		cout[k].resize(etiquettes.size())
+	for g in range(0, etiquettes.size()):
+		var sd := SondeGroupe.new()
+		sd.idx = g
+		sd.hote = self
+		sd.process_priority = g * 10 + 5 if g > 0 else -100000
+		sd.process_physics_priority = sd.process_priority
+		root.add_child(sd)
+
+func _rapport_groupes() -> void:
+	var lst: Array = []
+	for g in range(1, etiquettes.size()):
+		lst.append(["#%d %s" % [g, etiquettes[g]], cout[0][g] / 1000.0 / n, cout[1][g] / 1000.0 / n])
+	lst.sort_custom(func(a, b): return a[1] + a[2] > b[1] + b[2])
+	var tp_tot := 0.0
+	var tph_tot := 0.0
+	for e in lst:
+		tp_tot += e[1]
+		tph_tot += e[2]
+	print("PROFIL ===== coût moyen PAR IMAGE (ms) : process %.2f + physics %.2f (tous les pas de l'image) =====" % [tp_tot, tph_tot])
+	for e in lst.slice(0, 25):
+		print("PROFIL %-52s process=%.3f  physics=%.3f  total=%.3f ms" % [e[0], e[1], e[2], e[1] + e[2]])
+
+var sondes_p: Array[Sonde] = []
+var sondes_ph: Array[Sonde] = []
+
+func _poser_sondes() -> void:
+	for ph in [false, true]:
+		var a := Sonde.new()
+		var b := Sonde.new()
+		a.debut = true
+		b.sonde_debut = a
+		a.process_priority = -100000
+		b.process_priority = 100000
+		a.process_physics_priority = -100000
+		b.process_physics_priority = 100000
+		root.add_child(a)
+		root.add_child(b)
+		a.set_process(not ph)
+		b.set_process(not ph)
+		a.set_physics_process(ph)
+		b.set_physics_process(ph)
+		(sondes_ph if ph else sondes_p).assign([a, b])
 
 func _init() -> void:
 	_go.call_deferred()
@@ -104,6 +213,10 @@ func _go() -> void:
 	if lieu != "combat":
 		m.cycle.process_mode = Node.PROCESS_MODE_DISABLED
 	_experience(_arg("exp"))
+	_sans(_arg("sans"))
+	_poser_sondes()
+	if _arg("profil") == "groupes":
+		_grouper()
 	print("LIEU %s heure=%.1f pos=%s exp=%s" % [lieu, m.cycle.heure, j.global_position, _arg("exp")])
 	prec_us = Time.get_ticks_usec()
 	phase = "mesure"
@@ -126,6 +239,63 @@ func _experience(e: String) -> void:
 				for c in root.find_children("*", "CanvasItem", true, false):
 					if c is ColorRect or c is TextureRect:
 						(c as CanvasItem).visible = false
+
+## --sans=a,b : coupe _process/_physics_process des nœuds dont le script contient « a » ou « b » (diagnostic CPU : l'écart de dt_med chiffre le poste).
+## --sans=tous coupe tout sauf le joueur et le monde. --profil : classement des scripts par nombre de nœuds actifs + TIME_PROCESS/TIME_PHYSICS_PROCESS.
+func _sans(liste: String) -> void:
+	if liste == "":
+		return
+	var motifs := liste.split(",", false)
+	var k := 0
+	for nd in m.find_children("*", "", true, false):
+		if nd is AnimationMixer and ("anim" in motifs or "tous" in motifs):
+			(nd as AnimationMixer).active = false
+			k += 1
+		var sc: Script = nd.get_script()
+		if sc == null or nd == j or nd == m:
+			continue
+		var chemin := sc.resource_path.get_file()
+		for mo in motifs:
+			if mo == "tous" or chemin.contains(mo):
+				nd.set_process(false)
+				nd.set_physics_process(false)
+				k += 1
+				break
+	print("LIEU sans : %d nœuds coupés (%s)" % [k, liste])
+
+func _profil() -> void:
+	var par: Dictionary = {}
+	for nd in m.find_children("*", "", true, false):
+		var sc: Script = nd.get_script()
+		var nom := sc.resource_path.get_file() if sc != null else "(" + nd.get_class() + ")"
+		var pr: bool = nd.is_processing()
+		var ph: bool = nd.is_physics_processing()
+		if not (pr or ph):
+			continue
+		if sc == null and not (nd is AnimationMixer or nd is GPUParticles3D):
+			nom = "(moteur " + nd.get_class() + ")"
+		var e: Array = par.get(nom, [0, 0, 0])
+		e[0] += 1
+		e[1] += 1 if pr else 0
+		e[2] += 1 if ph else 0
+		par[nom] = e
+	var na := 0
+	var nsk := 0
+	var nbs := 0
+	var nrb := 0
+	for nd in m.find_children("*", "", true, false):
+		if nd is AnimationMixer and (nd as AnimationMixer).active:
+			na += 1
+		elif nd is Skeleton3D:
+			nsk += 1
+			nbs += (nd as Skeleton3D).get_bone_count()
+		elif nd is RigidBody3D and not (nd as RigidBody3D).sleeping:
+			nrb += 1
+	print("PROFIL AnimationMixer actifs=%d  Skeleton3D=%d (os=%d)  RigidBody éveillés=%d" % [na, nsk, nbs, nrb])
+	var cles := par.keys()
+	cles.sort_custom(func(a, b): return par[a][0] > par[b][0])
+	for c in cles.slice(0, 40):
+		print("PROFIL %-34s nœuds=%d process=%d physics=%d" % [c, par[c][0], par[c][1], par[c][2]])
 
 func _vers_foret() -> void:
 	# point le plus dense en arbres (rayon 14 m), hors village / cercle / feu
@@ -198,6 +368,10 @@ func _process(dt: float) -> bool:
 		return false
 	t += dt
 	var now := Time.get_ticks_usec()
+	if _arg("profil") != "" and t >= STAB and n == 0:
+		_profil()
+	tp.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0) if t >= STAB else null
+	tph.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0) if t >= STAB else null
 	var d_ms := (now - prec_us) / 1000.0
 	prec_us = now
 	if lieu != "foret" or true:
@@ -207,6 +381,10 @@ func _process(dt: float) -> bool:
 		_sorts(dt)
 	if t < STAB:
 		return false
+	if n == 0:
+		mesure_groupes = true
+		sondes_p[1].actif = true
+		sondes_ph[1].actif = true
 	n += 1
 	var g := RenderingServer.viewport_get_measured_render_time_gpu(rid)
 	gpu.append(g)
@@ -256,12 +434,20 @@ func _sorts(dt: float) -> void:
 		magie.appuyer("gauche")
 		magie.appuyer("droite")
 
+func _moy(a: PackedFloat32Array) -> float:
+	var x := 0.0
+	for v in a:
+		x += v
+	return x / maxf(1.0, a.size())
+
 func _pct(a: PackedFloat32Array, p: float) -> float:
 	var b := a.duplicate()
 	b.sort()
 	return b[mini(b.size() - 1, int(b.size() * p))]
 
 func _fin() -> void:
+	if mesure_groupes:
+		_rapport_groupes()
 	var s16 := 0
 	var s33 := 0
 	for d in dts:
@@ -272,6 +458,10 @@ func _fin() -> void:
 	print("LIEU %s heure=%.1f gpu_med=%.2f gpu_p95=%.2f gpu_max=%.2f cpu_med=%.2f dt_med=%.2f dt_p95=%.2f dt_p99=%.2f dt_max=%.1f >16.7=%d(%.1f%%) >33=%d n=%d appels=%d prims=%d objets=%d" % [
 		lieu, m.cycle.heure, _pct(gpu, 0.5), _pct(gpu, 0.95), _pct(gpu, 1.0), _pct(cpu, 0.5), _pct(dts, 0.5), _pct(dts, 0.95), _pct(dts, 0.99), _pct(dts, 1.0),
 		s16, 100.0 * s16 / n, s33, n, appels / n, prims / n, objets / n])
+	print("LIEU scripts_process_med=%.2f p95=%.2f ms | scripts_physics_med=%.2f p95=%.2f ms (par pas ; %d pas) | moy process=%.2f" % [
+		_pct(sondes_p[1].cumul, 0.5), _pct(sondes_p[1].cumul, 0.95), _pct(sondes_ph[1].cumul, 0.5), _pct(sondes_ph[1].cumul, 0.95), sondes_ph[1].cumul.size(), _moy(sondes_p[1].cumul)])
+	print("LIEU temps_process_med=%.2f ms physics_med=%.2f ms (moniteurs Godot, p95 %.2f / %.2f)" % [_pct(tp, 0.5), _pct(tph, 0.5), _pct(tp, 0.95), _pct(tph, 0.95)])
+	print("LIEU physique 3D : objets actifs=%d paires=%d îlots=%d | nœuds animés=%d" % [Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS), Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS), Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT), 0])
 	print("LIEU mémoire statique=%.0f Mo vidéo=%.0f Mo textures=%.0f Mo tampons=%.0f Mo noeuds=%d objets=%d orphelins=%d" % [
 		Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
 		Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0, Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED) / 1048576.0,

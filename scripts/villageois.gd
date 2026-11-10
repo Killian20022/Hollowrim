@@ -262,6 +262,7 @@ func _ready() -> void:
 		_tete = SuiviTete.new()
 		squelette.add_child(_tete)
 		_pieds = PiedsAuSol.equiper(modele, self) as PiedsAuSol
+	AnimLod.inscrire(self, anim)
 	_y_modele0 = modele.position.y
 	metier = Metiers.metier(Metiers.nom_pour(donnees))
 	if not metier.is_empty():
@@ -610,6 +611,8 @@ func _physics_process(dt: float) -> void:
 		return      # il vient d'entrer (coucher() coupe le process, donc retire le corps de l'espace) : plus de move_and_slide dans cette image
 	if _assis != "":
 		velocity = Vector3.ZERO     # assis sur le banc (ou en train de s'asseoir / se lever) : immobile, sans collision propre
+	elif velocity == Vector3.ZERO and is_on_floor() and (_images_physique + get_instance_id()) & 3 != 0:
+		pass     # perf : à l'arrêt sur le sol, move_and_slide ne sert qu'une image sur 4 (rien ne le pousse, il retomberait en ≤ 4 images)
 	else:
 		move_and_slide()
 

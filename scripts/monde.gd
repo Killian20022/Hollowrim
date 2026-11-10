@@ -1760,21 +1760,41 @@ func _remplir_audio() -> void:
 	if _audio_vent == null:
 		return
 	var n := mini(_audio_vent.get_frames_available(), _audio_feu.get_frames_available())
+	if n <= 0:
+		return
+	# Perf : tampons PackedVector2Array poussés d'un coup (au lieu de 2 push_frame par échantillon) ; la rafale (sinus très lents)
+	# n'est recalculée que tous les 64 échantillons (3 ms) : le son est le même.
+	var vent := PackedVector2Array()
+	var feu := PackedVector2Array()
+	vent.resize(n)
+	feu.resize(n)
+	var rafale := 0.0
+	var brun := _brun
+	var brun2 := _brun2
+	var crepite := _crepite
+	var ta := _t_audio
 	for i in n:
-		_t_audio += 1.0 / 22050.0
+		if i & 63 == 0:
+			rafale = 0.45 + 0.55 * absf(sin(ta * 0.23) * sin(ta * 0.071 + 1.3))
+		ta += 1.0 / 22050.0
 		var blanc := randf() * 2.0 - 1.0
 		# vent : bruit brun filtré, rafales lentes
-		_brun = clampf(_brun * 0.996 + blanc * 0.03, -1.0, 1.0)
-		_brun2 = _brun2 * 0.9 + _brun * 0.1
-		var rafale := 0.45 + 0.55 * absf(sin(_t_audio * 0.23) * sin(_t_audio * 0.071 + 1.3))
-		var v := _brun2 * 1.6 * rafale
-		_audio_vent.push_frame(Vector2(v, v * 0.92))
+		brun = clampf(brun * 0.996 + blanc * 0.03, -1.0, 1.0)
+		brun2 = brun2 * 0.9 + brun * 0.1
+		var v := brun2 * 1.6 * rafale
+		vent[i] = Vector2(v, v * 0.92)
 		# feu : petits claquements secs sur un souffle grave
-		_crepite *= 0.93
+		crepite *= 0.93
 		if randf() < 0.0012:
-			_crepite = randf_range(0.3, 1.0)
-		var f := blanc * _crepite * 0.8 + _brun * 0.25
-		_audio_feu.push_frame(Vector2(f, f))
+			crepite = randf_range(0.3, 1.0)
+		var f := blanc * crepite * 0.8 + brun * 0.25
+		feu[i] = Vector2(f, f)
+	_brun = brun
+	_brun2 = brun2
+	_crepite = crepite
+	_t_audio = ta
+	_audio_vent.push_buffer(vent)
+	_audio_feu.push_buffer(feu)
 
 # --- capture pour les tests ------------------------------------------------------
 

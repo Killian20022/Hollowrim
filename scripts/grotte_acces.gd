@@ -497,6 +497,8 @@ func _ready() -> void:
 	porte_dehors = Vector3(p.x, monde.hauteur(p.x, p.y), p.y)
 	orientation = PI * 0.5            # en sortant, on regarde vers l'ouest (-X monde = +Z local) : avant = (-sin, -cos) du lacet
 
+var _image_vacille := 0
+
 func _process(dt: float) -> void:
 	_t += dt
 	if joueur == null:
@@ -507,7 +509,8 @@ func _process(dt: float) -> void:
 		return
 	var d := Vector2(joueur.global_position.x - SITE.x, joueur.global_position.z - SITE.y).length()
 	if not dedans:
-		if d < 60.0:
+		_image_vacille += 1
+		if d < 60.0 and (d < 25.0 or _image_vacille % 3 == 0):      # perf : au-delà de 25 m, le vacillement des torches n'est écrit qu'une image sur 3
 			decor.vaciller(_t)
 		# Construite en avance : dès que l'extérieur est posé et que le jeu a fini de charger (délai), ou plus tôt si on s'approche.
 		if _tache < 0 and grotte == null and (d < DEPART_FIL or _t > DELAI_PREPARATION):

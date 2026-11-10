@@ -115,6 +115,7 @@ func _ready() -> void:
 	_jouer("Idle", 0.0)
 	if anim != null:
 		anim.seek(randf() * 2.0)
+	AnimLod.inscrire(self, anim)
 	_pos_prec = global_position
 	if service == "ronde" and route.size() > 1:
 		etat = HALTE
@@ -220,6 +221,8 @@ func _jouer(nom: String, fondu := 0.2) -> void:
 	if nom != "Walk":
 		anim.speed_scale = _var
 
+var _images_idle := 0
+
 func _physics_process(dt: float) -> void:
 	_t += dt
 	if service == "vigie":
@@ -304,7 +307,9 @@ func _physics_process(dt: float) -> void:
 	_vit = move_toward(_vit, MARCHE_V * _var if _avance else 0.0, ACCEL * dt) if dir_cap != Vector3.ZERO else 0.0
 	velocity.x = dir_cap.x * _vit
 	velocity.z = dir_cap.z * _vit
-	move_and_slide()
+	_images_idle += 1
+	if velocity != Vector3.ZERO or not is_on_floor() or (_images_idle + get_instance_id()) & 3 == 0:
+		move_and_slide()      # perf : à l'arrêt sur le sol, move_and_slide ne sert qu'une image sur 4
 	var pas := global_position - _pos_prec
 	pas.y = 0.0
 	parcouru += pas.length()

@@ -27,6 +27,45 @@ func parler() -> Array:
 		dialogue.retirer_invite(self)
 	return lignes
 
+## Perf : la place compte ~100 objets Interactif ; leur _process (distance, cône de vue) ne tourne que pour ceux à moins de `rayon` + 1,5 m du joueur.
+## Un balayage toutes les 0,1 s allume / éteint leur traitement (marge : 1,5 m ≈ 0,2 s de course) ; un objet éteint retire son invite.
+static var _tous: Array = []
+static var _balayage_arme := false
+
+func _ready() -> void:
+	_tous.append(self)
+	if not _balayage_arme:
+		_balayage_arme = true
+		_balayer(get_tree())
+
+static func _balayer(arbre: SceneTree) -> void:
+	var vivants := false
+	var i := 0
+	while i < _tous.size():
+		var n = _tous[i]
+		if not is_instance_valid(n):
+			_tous.remove_at(i)
+			continue
+		i += 1
+		vivants = true
+		var j: Node3D = n.joueur
+		if j == null or not n.is_inside_tree():
+			continue
+		var dx: float = j.global_position.x - n.global_position.x
+		var dz: float = j.global_position.z - n.global_position.z
+		var r: float = n.rayon + 1.5
+		var loin: bool = dx * dx + dz * dz > r * r
+		if loin and n.is_processing():
+			n.set_process(false)
+			if n.dialogue != null and is_instance_valid(n.dialogue):
+				n.dialogue.retirer_invite(n)
+		elif not loin and not n.is_processing():
+			n.set_process(true)
+	if vivants:
+		arbre.create_timer(0.1).timeout.connect(_balayer.bind(arbre))
+	else:
+		_balayage_arme = false
+
 func _process(_dt: float) -> void:
 	var ok: bool = actif and not joueur.mort and (not condition.is_valid() or condition.call())
 	if ok:
