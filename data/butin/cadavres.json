@@ -14,9 +14,9 @@
 			{"table": "potions", "poids": 22},
 			{"id": "anneau_cuivre", "poids": 10},
 			{"id": "lame_antique", "poids": 6},
-			{"id": "fleche", "poids": 14, "n": [3, 8]},
 			{"table": "armes_communes", "poids": 7},
-			{"table": "armures_communes", "poids": 8}
+			{"table": "armures_communes", "poids": 8},
+			{"id": "fleche", "poids": 14, "n": [3, 8]}
 		]},
 		"cadavre_mage": {"or": [10, 25], "tirages": [1, 2], "garanti": [{"id": "cristal_givre", "n": 1}], "rien": 20, "entrees": [
 			{"id": "potion_mana", "poids": 40, "n": [1, 2]},
