@@ -44,6 +44,9 @@ static var _pq_de := {}       # nom q_* (ou pq_* posé directement) -> id pq_*
 static var _pq_mods := {}     # id pq_* -> [[atlas, arrays indexés (UV, normales, couleurs)], …], déjà à l'encombrement du q_*
 static var _pq_boites := {}   # id pq_* -> AABB
 static var _pq_lu := false
+## Poses servies en pq_* (une par morceaux() / triangles() / module de crypte) : « PropsQuaternius : pq_* posés » dans le journal.
+static var nb_pq := 0
+static var nb_pq_ajouts := 0
 
 ## Compteur de props posés par les remplacements (zone -> nombre) : « PropsQuaternius : remplacements … » dans le journal (bilan du rapport).
 static var compte := {}
@@ -219,6 +222,7 @@ static func morceaux(nom: String, mats := {}, avec_pq := true) -> Array:
 	if avec_pq:
 		var id := pq_de(nom, mats)
 		if id != "":
+			nb_pq += 1
 			return _pq_mods[id]
 	_verrou.lock()
 	if not _mods.has(nom):
@@ -264,6 +268,7 @@ static func triangles(nom: String, mats := {}) -> Array:
 	_charger()
 	var id := pq_de(nom, mats)
 	if id != "":
+		nb_pq += 1
 		var cle := "pq_tri:" + id
 		_verrou.lock()
 		var r: Array = _brut_pq_tri.get(cle, [])
@@ -343,7 +348,10 @@ static func nom_crypte(nom: String, mats := {}) -> String:
 	if not pq or nom.begins_with("pq:") or not (nom.begins_with("q_") or nom.begins_with("pq_")):
 		return nom
 	preparer_crypte()
-	return "pq:" + nom if pq_de(nom, mats) != "" and CrypteDecor._modeles_de.has("pq:" + nom) else nom
+	if pq_de(nom, mats) != "" and CrypteDecor._modeles_de.has("pq:" + nom):
+		nb_pq += 1
+		return "pq:" + nom
+	return nom
 
 static func crypte(d: CrypteDecor, nom: String, pos: Vector3, lacet := 0.0, e := 1.0, solide := false, mats := {}) -> void:
 	if not actif:

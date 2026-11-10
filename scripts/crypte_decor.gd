@@ -2687,6 +2687,8 @@ func vaciller(t: float) -> void:
 
 ## Construit les maillages fusionnés (un par cellule de 8 m et par matériau).
 func finir() -> void:
+	if PropsQuaternius.pq:
+		print("PropsQuaternius : pq_* posés (cumul, à la fin du décor %s) %d" % ["crypte" if est_crypte else "grotte/autre", PropsQuaternius.nb_pq])
 	attendre_tout()
 	_cassables_finir()
 	for cle in _bufs:

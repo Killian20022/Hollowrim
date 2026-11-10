@@ -665,7 +665,7 @@ func _construire() -> void:
 		add_child(etal)
 		ObjetsVivants.peupler(etal, _vivants[i], "marche_%d" % i)
 	print("MobilierVillage : %d props Quaternius (%d triangles)" % [nq.y, nq.x])
-	print("PropsQuaternius : remplacements ", PropsQuaternius.compte)
+	print("PropsQuaternius : remplacements ", PropsQuaternius.compte, " ; pq_* posés (cumul) ", PropsQuaternius.nb_pq)
 	print("MobilierVillage : %d poses, %d triangles, %d matières, %d tissus, %d collisions, %d ms" % [POSES.size(), tris, fusion.size(), _tissus.size(), _corps.get_child_count(), Time.get_ticks_msec() - t0])
 
 ## Pose les remplaçants Quaternius d'un module (substitut()) dans les SurfaceTool par matière, sous la transformation `xf` du module.
