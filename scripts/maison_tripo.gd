@@ -9,7 +9,8 @@ class_name MaisonTripo
 ## (S_INT), recoupée de son mur ouest (mezzanine, escalier) pour tenir dans la largeur, sur le matériau des intérieurs (ps1_interieur :
 ## ambiante propre, feux et bougies), avec un âtre qui brûle, lanterne, appliques et bougies.
 ## Seules opérations sur les maillages source : échelle uniforme et découpe (tri des triangles), à la construction.
-static var actif := ModelesTripo.actif("maison") and not (OS.get_cmdline_user_args().has("--sans-tripo") or OS.get_cmdline_user_args().has("--h2-ancien"))
+## RETIRÉE du jeu le 2026-11-10 (utilisateur : « pâte à modeler », immonde) : l'auberge reprend le bâti d'avant. Gardée pour essais : `-- --maison-tripo`.
+static var actif := OS.get_cmdline_user_args().has("--maison-tripo") and ModelesTripo.actif("maison")
 const EXT := "res://assets/essai_tripo/cottage.glb"
 const INT := "res://assets/essai_tripo/taverne.glb"
 

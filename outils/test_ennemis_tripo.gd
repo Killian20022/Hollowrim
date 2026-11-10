@@ -87,11 +87,11 @@ func _lancer() -> void:
 	ok(not ModelesTripo.actif("gardes") and not ModelesTripo.actif("jarl") and not EnnemiTripo.actif(), "--modeles-anciens : tous les groupes")
 	ok(not ModelesTripo.actif("mage") and not ModelesTripo.actif("puits") and not ModelesTripo.actif("maison"), "--modeles-anciens : aussi mage, puits, auberge h2 (lot 2)")
 	ModelesTripo.relire(["--modeles-anciens=puits"])
-	ok(not ModelesTripo.actif("puits") and ModelesTripo.actif("mage") and ModelesTripo.actif("maison") and ModelesTripo.actif("gardes"), "--modeles-anciens=puits : seulement le puits")
+	ok(not ModelesTripo.actif("puits") and ModelesTripo.actif("mage") and ModelesTripo.actif("gardes"), "--modeles-anciens=puits : seulement le puits")
 	ModelesTripo.relire()
 	ok(EnnemiTripo.actif() and ModelesTripo.actif("gardes"), "arguments réels relus : Tripo par défaut")
 	# lot 2 : actifs par défaut, garde en armure dorée (halle_e) à côté des gardes Tripo
-	ok(PuitsTripo.actif and MaisonTripo.actif and MageTripo.pnj_actif() and not MageTripo.actif(), "lot 2 par défaut : puits, auberge h2, PNJ mage (mages ennemis inchangés)")
+	ok(PuitsTripo.actif and not MaisonTripo.actif and MageTripo.pnj_actif() and not MageTripo.actif(), "lot 2 par défaut : puits, PNJ mage (auberge h2 Tripo retirée, mages ennemis inchangés)")
 	var VILL: Script = load("res://scripts/villageois.gd")
 	var hab_essai: Array = VILL.habitants_essai()
 	var mage_hab := false
