@@ -422,9 +422,8 @@ var _y_modele0 := 0.0
 func _modele_assis(oui: bool, m: Dictionary = {}) -> void:
 	if modele != null:
 		modele.position.y = _y_modele0 + (float(m.get("dy", 0.0)) if oui else 0.0)
-	# assis : le corps n'a plus de collision ni de move_and_slide (la capsule de 0,35 m le repoussait hors de l'assise) ; le banc garde la sienne
-	if _forme != null:
-		_forme.set_deferred("disabled", oui)
+	# assis : plus de move_and_slide (la capsule de 0,35 m, qui chevauche le banc, le repoussait hors de l'assise) ; elle reste active
+	# (le joueur bute sur lui, les sorts et la lame le touchent)
 	if oui and _poste_vie == null and not points.is_empty():
 		var pp: Vector3 = points[0]
 		global_position = pp            # pied du modèle au sol, exactement au poste (le corps ne retombe plus : pas de move_and_slide)
@@ -495,6 +494,7 @@ func finir_causerie() -> void:
 		return
 	causerie = null
 	causerie_parle = false
+	_delai_interpelle = maxf(_delai_interpelle, 10.0)     # il ne hèle pas le joueur dans la foulée
 	if _causerie_marche:
 		_causerie_marche = false
 		if _avant_causerie.size() == 3 and etat in [POSTE, RENTRE]:
@@ -771,7 +771,8 @@ func _interactions(dist: float, dt: float) -> void:
 	# interpellation au passage
 	_delai_interpelle -= dt
 	var phrases: Array = donnees.get("interpellations", [])
-	if dist < DIST_INTERPELLE and _delai_interpelle <= 0.0 and not phrases.is_empty() and not _en_conversation and causerie == null:
+	var causerie_ailleurs: bool = vie != null and vie.get("conversations") != null and vie.conversations.actives()   # on ne couvre pas une causerie qu'on entend
+	if dist < DIST_INTERPELLE and _delai_interpelle <= 0.0 and not phrases.is_empty() and not _en_conversation and causerie == null and not causerie_ailleurs:
 		_delai_interpelle = 40.0
 		var selon := Disposition.interpellation(self)    # froid, chaleureux ou fermé selon la réputation (scripts/disposition.gd)
 		dialogue.dire_au_passage(nom_affiche(), selon if selon != "" else phrases.pick_random())

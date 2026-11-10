@@ -12,10 +12,10 @@ const PLANS := [
 	["hab_paysan_3", "Marchand derrière son étal", 1, 0.0, 2.4, 0.45, Vector2(51.3, 32.7)],
 	["ancienne", "Grima tire l'eau du puits", 1, 80.0, 2.6, 0.9],
 	["hab_paysan_2", "Le vieux, assis sur le banc", 0, 20.0, 2.3, 2.0],
-	["hab_chasseur_2", "Chasseur au tas de bois", 2, 0.0, 2.4, 2.0, Vector2(54.6, 53.0)],
+	["hab_chasseur_2", "Chasseur au tas de bois", 2, 0.0, 2.4, 2.0, Vector2(55.0, 52.6)],
 	["hab_paysanne_3", "Lavandière au bord de l'eau", 0, 75.0, 2.6, 2.0],
 	["chef", "Gunnar Aldrsson (Tripo), longue maison", 1, 25.0, 2.3, 0.9],
-	["hab_mage_tripo", "Mage Eirwen (Tripo) lit les runes", 1, 15.0, 2.3, 1.5],
+	["hab_mage_tripo", "Mage Eirwen (Tripo) lit les runes", 1, 15.0, 2.3, 1.5, Vector2(38.7, 40.2)],
 ]
 var m: Node3D
 var j: CharacterBody3D
@@ -197,14 +197,19 @@ func _film() -> void:
 	var eir: Node3D = vie.civil("hab_mage_tripo")["n"]
 	var cv := vie.conversations
 	cv._prochain = 1.0e9
-	var mil := (sig.global_position + eir.global_position) * 0.5
+	for v: Node in m.get_tree().get_nodes_in_group("villageois"):
+		v.set("_delai_interpelle", 30.0)     # mise en scène : pas d'interpellation du joueur avant la causerie (pendant, elles sont coupées par le jeu)
 	var axe := (eir.global_position - sig.global_position)
 	axe.y = 0.0
 	axe = axe.normalized()
+	var mil := sig.global_position + axe * 0.65          # milieu de la causerie : Eirwen rejoint Sigrún à 1,3 m
 	var cote := axe.cross(Vector3.UP)
-	var cp := mil + cote * float(_arg("recul", "4.2")) + axe * 0.6
+	var puits := Vector3(42.0, mil.y, 38.0)
+	if (mil + cote).distance_to(puits) < (mil - cote).distance_to(puits):
+		cote = -cote                                       # du côté opposé au puits
+	var cp := mil + cote * float(_arg("recul", "3.0")) + axe * 0.8
 	cp.y = float(m.hauteur(cp.x, cp.z)) + 0.05
-	var vise := mil + Vector3(0, 1.3, 0)
+	var vise := mil + axe * 0.5 + Vector3(0, 1.25, 0)
 	_cam(cp, vise)
 	cv.ligne_dite.connect(func(nom: String, t: String, idx: String) -> void: print("REPLIQUE %s : %s (%s)" % [nom, t, idx]))
 	var total := int(float(_arg("duree", "16")) * 30.0)
