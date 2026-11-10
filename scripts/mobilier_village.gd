@@ -527,6 +527,9 @@ func _construire() -> void:
 		if VillageBatiQ.actif and DEPLACES_Q.has(cle_q):   # bâti hybride : objet sorti d'une porte du kit
 			x = DEPLACES_Q[cle_q].x
 			z = DEPLACES_Q[cle_q].y
+		if MaisonTripo.actif and MaisonTripo.DEPLACES_POSES.has(cle_q):   # auberge Tripo : objet sorti du porche
+			x = MaisonTripo.DEPLACES_POSES[cle_q].x
+			z = MaisonTripo.DEPLACES_POSES[cle_q].y
 		var s: float = pose[4]
 		var r_emprise: float = {"puits": 1.6, "etal": 1.4, "charrette": 1.2, "tas_bois": 0.9, "banc": 0.8, "sacs": 0.4}.get(mod, 0.3)
 		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])).scaled(Vector3.ONE * s), Vector3(x, _sol_bas(x, z, r_emprise), z))
@@ -687,7 +690,11 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 	var etals: Array = []
 	for pose: Array in POSES:
 		if pose[0] == "etal":
-			etals.append(Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])), Vector3(pose[1], _sol_bas(pose[1], pose[2], 1.4), pose[2])))
+			var pe := Vector2(pose[1], pose[2])
+			var cle := "%s %s %s" % [pose[0], pose[1], pose[2]]
+			if MaisonTripo.actif and MaisonTripo.DEPLACES_POSES.has(cle):     # même déplacement que l'étal lui-même (POSES ci-dessus)
+				pe = MaisonTripo.DEPLACES_POSES[cle]
+			etals.append(Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])), Vector3(pe.x, _sol_bas(pe.x, pe.y, 1.4), pe.y)))
 	var tris := 0
 	var num := 0
 	var liste: Array = POSES_Q + (POSES_D if PropsQuaternius.remplace else []) + (POSES_L4 if PropsQuaternius.lot4 else [])
@@ -701,7 +708,7 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 		var est_l4 := idx >= n_l4
 		num += 1
 		var xe: Transform3D = Transform3D.IDENTITY if e[1] < 0 else etals[e[1]]
-		var lp: Vector3 = e[2]
+		var lp: Vector3 = e[2] if e[1] >= 0 else MaisonTripo.deplacer(e[2])      # auberge h2 Tripo : props hors de ses murs
 		if PropsQuaternius.remplace and e[1] >= 0:      # comptoir des étals Quaternius : dessus à 0,8 (au lieu de 0,9), z -0,45 à -0,75 ; réserve derrière inchangée
 			if lp.y > 0.5:
 				lp = Vector3(lp.x, lp.y - 0.1, -0.45 + (lp.z + 0.62) * 0.9)

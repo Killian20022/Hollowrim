@@ -255,7 +255,8 @@ static func amenager(b: Interieurs, pl: Dictionary) -> void:
 	if MaisonTripo.actif and String(pl["id"]) == "h2":
 		_doublure(b, pl)
 		_plafond(b, pl)
-		MaisonTripo.interieur(b, pl)       # ESSAI Tripo : taverne Tripo (plancher, comptoir, tables, mezzanine) à la place du plancher et du mobilier
+		MaisonTripo.interieur(b, pl)       # taverne Tripo (plancher, âtre, tables, étagères) à la place du plancher et du mobilier
+		murs.occuper(Vector3(0, 0, -float(pl["az"]) + 1.2), Vector2(float(pl["ax"]), 1.3))      # le fond (âtre, étagères de la taverne) : les lits vont devant
 		_lits(b, pl, murs, ["-X", "+X"])
 		return
 	_doublure(b, pl)
