@@ -277,7 +277,7 @@ func _gerer_paresseux() -> void:
 		_ip_p = null
 		return
 	_ip_p.en_cours = true
-	_fil_p = WorkerThreadPool.add_task(_fil_paresseux)
+	_fil_p = FilVerrou.lancer(_fil_paresseux)
 
 func _process(dt: float) -> void:
 	_t += dt
@@ -329,9 +329,9 @@ var _cache_principal := {}
 var _lots_fil := {}
 var _cache_fil := {}
 var _lots: Dictionary:
-	get: return _lots_principal if FilVerrou.fil_principal() else _lots_fil
+	get: return _lots_fil if FilVerrou.en_construction() else _lots_principal
 var _arrays_cache: Dictionary:
-	get: return _cache_principal if FilVerrou.fil_principal() else _cache_fil
+	get: return _cache_fil if FilVerrou.en_construction() else _cache_principal
 
 func _arrays_de(cle: String, fabrique: Callable) -> Array:
 	var cache := _arrays_cache
@@ -463,7 +463,7 @@ func _differer(ib: Interieurs, travail: Callable) -> void:
 
 func _lancer_fil() -> void:
 	if not _jobs.is_empty():
-		_fil = WorkerThreadPool.add_task(_construire_interieurs)
+		_fil = FilVerrou.lancer(_construire_interieurs)
 
 ## Fil de travail : un intérieur après l'autre. Ne touche ni à l'arbre ni aux nœuds du village (seulement aux lots, au cache de
 ## tableaux et à un `Interieur` temporaire jeté ensuite).

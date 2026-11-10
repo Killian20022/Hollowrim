@@ -492,7 +492,7 @@ func _ready() -> void:
 	_y0 = position.y
 	_cont = Node3D.new()
 	_cont.name = "Entree"
-	_tache_ext = WorkerThreadPool.add_task(_construire)
+	_tache_ext = FilVerrou.lancer(_construire)
 	var p := vers_monde(0.0, 4.0)
 	porte_dehors = Vector3(p.x, monde.hauteur(p.x, p.y), p.y)
 	orientation = PI * 0.5            # en sortant, on regarde vers l'ouest (-X monde = +Z local) : avant = (-sin, -cos) du lacet
@@ -541,7 +541,7 @@ func _creer_grotte() -> Grotte:
 
 func _lancer_fil() -> void:
 	_g_fil = _creer_grotte()
-	_tache = WorkerThreadPool.add_task(_batir.bind(_g_fil))
+	_tache = FilVerrou.lancer(_batir.bind(_g_fil))
 
 ## Le fil ne touche qu'à son argument (jamais à la scène ni aux membres de l'accès).
 func _batir(g: Grotte) -> void:
