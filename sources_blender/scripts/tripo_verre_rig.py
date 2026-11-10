@@ -216,7 +216,7 @@ def gantelets():
     garder = set()
     for v in bm.verts:
         n = dom(v)
-        if abs(v.co.x) > float(arg("gant_x0", "0.69")) and v.co.z > 1.3 and (n.startswith(("hand_", "lowerarm_")) or n.startswith(DOIGTS_N)):
+        if abs(v.co.x) > float(arg("gant_x0", "0.62")) and v.co.z > 1.3 and (n.startswith(("hand_", "lowerarm_")) or n.startswith(DOIGTS_N)):
             garder.add(v.index)
     bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.index not in garder], context="VERTS")
     me_g = bpy.data.meshes.new("gantelets"); bm.to_mesh(me_g); bm.free()
@@ -245,7 +245,7 @@ def gantelets():
         if best[0].startswith(("hand_", "lowerarm_")):
             r = 1.0 + (R - 1.0) * 0.8
             # manchette évasée qui remonte dans le canon d'avant-bras : pas de jour au poignet quand la main plie
-            hx = abs(float(B0["hand_" + ("l" if G[i][0] > 0 else "r")][0][0])); x0 = float(arg("gant_x0", "0.69"))
+            hx = abs(float(B0["hand_" + ("l" if G[i][0] > 0 else "r")][0][0])); x0 = float(arg("gant_x0", "0.62"))
             r += float(arg("manchette", "0.25")) * float(np.clip((hx - abs(G[i][0])) / max(hx - x0, 1e-3), 0, 1))
         d = G[i] - q
         G2[i] = q + d * r
