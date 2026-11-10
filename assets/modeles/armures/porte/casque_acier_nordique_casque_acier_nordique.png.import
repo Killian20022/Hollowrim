@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dnnulx3x1mk6c"
-path="res://.godot/imported/casque_acier_nordique_casque_acier_nordique.png-bc2292d5f65935da1090bedf9cf16420.ctex"
+path.bptc="res://.godot/imported/casque_acier_nordique_casque_acier_nordique.png-bc2292d5f65935da1090bedf9cf16420.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "180260089a32b3f8891b8701542a5f47"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/casque_acier_nordique_casque_acier_nordique.png"
-dest_files=["res://.godot/imported/casque_acier_nordique_casque_acier_nordique.png-bc2292d5f65935da1090bedf9cf16420.ctex"]
+dest_files=["res://.godot/imported/casque_acier_nordique_casque_acier_nordique.png-bc2292d5f65935da1090bedf9cf16420.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

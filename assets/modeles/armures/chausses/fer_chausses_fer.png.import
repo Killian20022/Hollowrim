@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cll2gxaht0arv"
-path="res://.godot/imported/fer_chausses_fer.png-39b5a25ffaaa0a24d51c5c61c152352d.ctex"
+path.bptc="res://.godot/imported/fer_chausses_fer.png-39b5a25ffaaa0a24d51c5c61c152352d.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "8ee456b19aedecdf178c858540493e4d"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/chausses/fer_chausses_fer.png"
-dest_files=["res://.godot/imported/fer_chausses_fer.png-39b5a25ffaaa0a24d51c5c61c152352d.ctex"]
+dest_files=["res://.godot/imported/fer_chausses_fer.png-39b5a25ffaaa0a24d51c5c61c152352d.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

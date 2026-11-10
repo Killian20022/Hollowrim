@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bjd788xvfp2jg"
-path="res://.godot/imported/cuirasse_os_atlas_os_hd.png-8564b255b470fbad3f861112b34fd877.ctex"
+path.bptc="res://.godot/imported/cuirasse_os_atlas_os_hd.png-8564b255b470fbad3f861112b34fd877.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "646c361e54fa5a5845f3d2dec6e8cb79"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/cuirasse_os_atlas_os_hd.png"
-dest_files=["res://.godot/imported/cuirasse_os_atlas_os_hd.png-8564b255b470fbad3f861112b34fd877.ctex"]
+dest_files=["res://.godot/imported/cuirasse_os_atlas_os_hd.png-8564b255b470fbad3f861112b34fd877.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
+process/size_limit=512
 detect_3d/compress_to=1

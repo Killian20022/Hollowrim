@@ -39,7 +39,20 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={}
+_subresources={
+"materials": {
+"fer.noir": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/gantelets_obsidienne_gantelets_obsidienne__fer_noir.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/gantelets_obsidienne_gantelets_obsidienne__fer_noir.tres"
+},
+"obsidienne": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/gantelets_obsidienne_gantelets_obsidienne__obsidienne.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/gantelets_obsidienne_gantelets_obsidienne__obsidienne.tres"
+}
+}
+}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
 gltf/texture_map_mode=1

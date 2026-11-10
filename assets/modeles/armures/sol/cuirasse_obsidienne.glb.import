@@ -39,7 +39,40 @@ import_script/path=""
 materials/extract=0
 materials/extract_format=0
 materials/extract_path=""
-_subresources={}
+_subresources={
+"materials": {
+"cuir": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__cuir.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__cuir.tres"
+},
+"fer.chaine": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__fer_chaine.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__fer_chaine.tres"
+},
+"fer.maille": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__fer_maille.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__fer_maille.tres"
+},
+"fer.noir": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__fer_noir.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__fer_noir.tres"
+},
+"obsidienne": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__obsidienne.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__obsidienne.tres"
+},
+"tissu.rouge": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__tissu_rouge.tres",
+"use_external/path": "res://assets/modeles/armures/materiaux_partages/cuirasse_obsidienne_cuirasse_obsidienne__tissu_rouge.tres"
+}
+}
+}
 gltf/naming_version=2
 gltf/embedded_image_handling=1
 gltf/texture_map_mode=1
