@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://lc2mgtn8n17u"
-path="res://.godot/imported/casque_obsidienne_enchante_casque_obsidienne_enchante.png-8494fcca0fa1343c8585a89b0add4b30.ctex"
+path.bptc="res://.godot/imported/casque_obsidienne_enchante_casque_obsidienne_enchante.png-8494fcca0fa1343c8585a89b0add4b30.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "fa0f4036a9eaa18d4c71fc311c61e8c6"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/casque_obsidienne_enchante_casque_obsidienne_enchante.png"
-dest_files=["res://.godot/imported/casque_obsidienne_enchante_casque_obsidienne_enchante.png-8494fcca0fa1343c8585a89b0add4b30.ctex"]
+dest_files=["res://.godot/imported/casque_obsidienne_enchante_casque_obsidienne_enchante.png-8494fcca0fa1343c8585a89b0add4b30.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

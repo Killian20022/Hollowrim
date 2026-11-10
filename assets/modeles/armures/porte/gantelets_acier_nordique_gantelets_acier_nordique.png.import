@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bdx3v088c5rbx"
-path="res://.godot/imported/gantelets_acier_nordique_gantelets_acier_nordique.png-1d54868073659832f652eebe7e9cb5ac.ctex"
+path.bptc="res://.godot/imported/gantelets_acier_nordique_gantelets_acier_nordique.png-1d54868073659832f652eebe7e9cb5ac.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "d7e4ca53350265f044dfb2b66f8d4c19"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/gantelets_acier_nordique_gantelets_acier_nordique.png"
-dest_files=["res://.godot/imported/gantelets_acier_nordique_gantelets_acier_nordique.png-1d54868073659832f652eebe7e9cb5ac.ctex"]
+dest_files=["res://.godot/imported/gantelets_acier_nordique_gantelets_acier_nordique.png-1d54868073659832f652eebe7e9cb5ac.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

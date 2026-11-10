@@ -550,20 +550,24 @@ instant d'impact) ; 4 comportements : **spam** (ne se défend jamais), **garde**
 **parade** (garde pile à l'instant parfait, esquive le geste annoncé), **esquive** (pas de côté ~0,1 s avant chaque impact).
 Seuils vérifiés (échec du test sinon) : voir `_verifier` du script et le tableau de résultats ci-dessous.
 
-Résultats (graine fixe 20261105, 10 essais contre 1 draugr, 5 contre 2 ; PV du joueur perdus ; mesuré le 2026-11-05) :
+Résultats (graine fixe 20261105, 10 essais contre 1 draugr, 5 contre 2 ; PV du joueur perdus ; mesuré le 2026-11-10 sur 808bdc6a, APRÈS le ralentissement des ennemis de 38bd4455 ; l'ancien tableau du 2026-11-05 donnait 23,5 PV pour le spam) :
 
 | Comportement du bot | 1 draugr : PV perdus (moy.) | essais avec dégâts | durée | 2 draugrs : PV perdus |
 |---|---|---|---|---|
-| spam (ne se défend jamais) | **23,5** | **100 %** (avant : 1 essai sur 15) | 3,6 s (avant : 2,5-3,2 s) | **49,9** (5,7 s) |
-| garde levée après avoir vu le geste | 14,8 | 70 % | 5,2 s | — |
-| parade au bon moment (+ esquive du geste annoncé) | 0,0 | 0 % | 3,1 s | 3,3 à 6,4 |
-| esquive au bon moment | 5,0 | 30 % | 5,5 s | 60 (le bot esquive reste timide : informatif) |
+| passif (ni coup, ni garde, ni esquive) | 100 (joueur mort) | 100 % | 16,2 s | — |
+| spam (ne se défend jamais) | **16,1** (1,6 coup reçu) | **100 %** (avant : 1 essai sur 15) | 4,2 s (avant : 2,5-3,2 s) | **56,9** (7,0 s) |
+| garde levée après avoir vu le geste | 8,0 | 90 % | 7,6 s | — |
+| parade au bon moment (+ esquive du geste annoncé) | 0,0 | 0 % | 3,6 s | 15,2 (9,8 s) |
+| esquive au bon moment | 8,5 | 80 % | 5,5 s | 50,9 (12,5 s ; le bot esquive reste timide : informatif) |
 
-Seuils du test : spam ≥ 60 % d'essais touchés et ≥ 12 PV perdus en moyenne ; durée 3-12 s ; garde ≤ 70 %, parade ≤ 50 %, esquive ≤ 60 % des
+Préavis d'un coup normal : 0,58 s en moyenne (min 0,45) ; geste annoncé : 1,35 s ; 0,31 coup/s/ennemi.
+
+Seuils du test : spam ≥ 60 % d'essais touchés et **≥ 6 PV** perdus en moyenne (seuil abaissé de 12 à 6 après 38bd4455, qui a ralenti les ennemis de ~35 % : avant le ralentissement, 19 PV) ; durée 3-12 s ; garde ≤ 70 %, parade ≤ 50 %, esquive ≤ 60 % des
 dégâts du spam ; à 2 draugrs le spam coûte ≥ 25 PV et ≥ 1,6× un seul, la parade ≤ 60 % du spam ; le joueur finit par gagner (≥ 90 %).
-Lecture : le bot (plafond) tue un draugr en ~3,5 s depuis 5,4 m, avec une moyenne de 2 coups reçus ; **un vrai joueur, moins régulier
+Lecture : le bot (plafond) tue un draugr en ~4 s depuis 5,4 m, avec une moyenne de 1,6 coup reçu ; **un vrai joueur, moins régulier
 (cadence, visées ratées, approche), combattra plus longtemps — estimation 5-8 s, à confirmer à la manette** ; à 2 draugrs le bot perd
-~50 PV sur 100 en 5,7 s : « dangereux ». La garde seule reste utile (-37 % de dégâts) mais le geste annoncé en laisse passer la moitié.
+~57 PV sur 100 en 7 s : « dangereux ». La garde seule reste utile (-50 % de dégâts) mais le geste annoncé en laisse passer une part. Un draugr seul reste
+nettement plus facile qu'avant le ralentissement (16 PV au lieu de 23,5) : à confirmer à la manette avant de resserrer.
 
 Le bot est un PLAFOND d'efficacité (il vise toujours, clique à cadence maximale, sur sol plat) : un vrai joueur combat plus longtemps
 et reçoit plus de coups que le bot « spam ».

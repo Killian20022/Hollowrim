@@ -44,6 +44,7 @@ var _repliques := {}
 var _menaces_prec := {}              # instance_id -> true : danger déjà annoncé sur le bus
 var _annonce_t := {}
 var tick_ms := 0.0                   # dernière durée d'un tick (perf)
+var conversations: ConversationsVie  # lot vie/metiers : causeries entre deux PNJ proches (data/vie/conversations.json)
 
 static func peupler(monde_: Node3D) -> Vie:
 	if monde_.get("village") == null or OS.get_cmdline_user_args().has("--sans-vie"):
@@ -82,6 +83,7 @@ func _enregistrer() -> void:
 		var j: Variant = JSON.parse_string(FileAccess.get_file_as_string(DONNEES_REPLIQUES))
 		if j is Dictionary:
 			_repliques = j
+	conversations = ConversationsVie.new(self)
 	print("Vie : %d civils, %d portes" % [civils.size(), _portes.size()])
 
 ## Inscrit un civil (appelé aussi par monde._naissances_differees pour les villageois nés après le chargement).
@@ -137,6 +139,8 @@ func tick() -> void:
 			n.lod_lit(pj.distance_to(n.global_position))
 		_evaluer(c, heure, menaces, saut)
 	_frapper(heure)
+	if conversations != null:
+		conversations.tick(_horloge, menaces)
 
 # ======================================================================================================== danger (P2)
 ## Ennemis hostiles vivants (ni faune ni domestiques) : ceux qui combattent, ou qui sont assez près d'un civil pour l'inquiéter.
@@ -304,10 +308,11 @@ func _transition(c: Dictionary, m: String, instant: bool) -> void:
 	if m == "soir" and soir != "poste":
 		var spot := _spot_soir(soir, id)
 		if spot.has("pos"):
+			var act := "@" + Metiers.du_soir(soir) if Metiers.du_soir(soir) != "" else "Idle_Talking"   # lot vie/metiers : gestes au feu
 			if loin:
-				n.installer(spot["pos"], false, false, "Idle_Talking", spot["cap"])
+				n.installer(spot["pos"], false, false, act, spot["cap"])
 			else:
-				n.rentrer(spot["pos"], false, _sortie(c, n, spot["pos"]), false, false, "Idle_Talking", spot["cap"])
+				n.rentrer(spot["pos"], false, _sortie(c, n, spot["pos"]), false, false, act, spot["cap"])
 			return
 	# poste de jour (ou « soir » au poste : service, veilleur)
 	var poste: Vector3 = n.points[0]
@@ -493,6 +498,10 @@ func exporter() -> Dictionary:
 
 func restaurer(d: Dictionary) -> void:
 	alarmes = maxi(0, int(d.get("alarmes", 0)))
+
+## Horloge du village (s) : tests et causeries.
+func horloge() -> float:
+	return _horloge
 
 ## Civil par id (tests, captures).
 func civil(id: String) -> Dictionary:

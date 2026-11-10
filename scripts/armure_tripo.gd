@@ -10,11 +10,9 @@ class_name ArmureTripo
 ## `equiper(modele)` retourne les MeshInstance3D ajoutés.
 const GLB := "res://assets/essai_tripo/armure_complete.glb"
 const TEX := "res://assets/essai_tripo/armure_complete_tex.png"
-## Teinte de l'or (multiplie l'atlas : or bruni du rendu Tripo, un peu relevé pour rester lisible sous le shader ps1).
-const TEINTE := Color(0.5, 0.43, 0.34)
-## Lueur propre de l'or, PROPORTIONNELLE à sa couleur (et non un ajout plat) : à contre-jour, de dos ou de profil, les lames gardent
-## leurs reflets clairs sur fond brun au lieu de virer au brun uni, sans délaver la face au soleil.
-const LUEUR := Vector3(0.7, 0.63, 0.52)
+## Teinte, saturation et lueur de l'or : table unique PaletteTripo (« armure », or vieilli patiné ; anciens réglages :
+## --palette-tripo-ancienne). La lueur propre est PROPORTIONNELLE à la couleur (EMISSION = emission * ALBEDO), non un ajout plat :
+## à contre-jour, de dos ou de profil, les lames gardent un peu de reflet au lieu de virer au brun uni.
 ## Cuir de la sous-couche, sombre : il se lit comme l'ombre entre les plaques (omoplates, aisselles), pas comme une pièce.
 const TEINTE_MAILLES := Color(0.42, 0.36, 0.3)
 static var _mat: ShaderMaterial
@@ -31,9 +29,10 @@ static var _mat_mailles: ShaderMaterial
 
 static func materiau() -> ShaderMaterial:
 	if _mat == null:
-		_mat = Palette.materiau(load(TEX) as Texture2D, Vector2.ONE, TEINTE, false)
+		_mat = Palette.materiau(load(TEX) as Texture2D, Vector2.ONE, PaletteTripo.teinte("armure"), false)
 		_mat.shader = shader_or()
-		_mat.set_shader_parameter("emission", LUEUR)
+		PaletteTripo.appliquer(_mat, "armure")
+		_mat.set_shader_parameter("emission", PaletteTripo.reglage("armure").get("lueur", Vector3.ZERO))
 		_mat.set_shader_parameter("tex_neige", load(TEX) as Texture2D)   # pas de neige sur l'armure (elle blanchissait l'or)
 	return _mat
 

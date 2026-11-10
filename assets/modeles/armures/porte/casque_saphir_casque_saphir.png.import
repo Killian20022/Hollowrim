@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://coky3yecd0wto"
-path="res://.godot/imported/casque_saphir_casque_saphir.png-3ce7c58b9cae29e53407d0189aad2419.ctex"
+path.bptc="res://.godot/imported/casque_saphir_casque_saphir.png-3ce7c58b9cae29e53407d0189aad2419.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "0d059d452b174ab5e35c0405b06b2f48"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/casque_saphir_casque_saphir.png"
-dest_files=["res://.godot/imported/casque_saphir_casque_saphir.png-3ce7c58b9cae29e53407d0189aad2419.ctex"]
+dest_files=["res://.godot/imported/casque_saphir_casque_saphir.png-3ce7c58b9cae29e53407d0189aad2419.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

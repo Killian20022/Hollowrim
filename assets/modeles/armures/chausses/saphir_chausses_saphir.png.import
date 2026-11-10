@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://byrtepum30efa"
-path="res://.godot/imported/saphir_chausses_saphir.png-5f247a14847611003d3262291c0b37cc.ctex"
+path.bptc="res://.godot/imported/saphir_chausses_saphir.png-5f247a14847611003d3262291c0b37cc.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "cad2636fa3e6f4343e329a7f5541cb2f"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/chausses/saphir_chausses_saphir.png"
-dest_files=["res://.godot/imported/saphir_chausses_saphir.png-5f247a14847611003d3262291c0b37cc.ctex"]
+dest_files=["res://.godot/imported/saphir_chausses_saphir.png-5f247a14847611003d3262291c0b37cc.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

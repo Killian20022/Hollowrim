@@ -732,9 +732,11 @@ static func sort_impact(ecole: String, pos: Vector3, normale: Vector3, force: fl
 			var f := clampf(force, 0.8, 1.8) * 1.6
 			GerbePixels.emettre(e, sol + Vector3(0, 0.05, 0), Vector3.UP, "etincelles", f)
 			for k in range(1, 4):   # étincelles qui crépitent encore quelques secondes
+				var e_ref: WeakRef = weakref(e)   # référence faible (capture libérée = erreur à l'appel du lambda)
 				e.get_tree().create_timer(0.5 * k).timeout.connect(func() -> void:
-					if is_instance_valid(e):
-						GerbePixels.emettre(e, sol + Vector3(0, 0.05, 0), Vector3.UP, "etincelles", f * 0.8))
+					var ee: Node = e_ref.get_ref()
+					if ee != null:
+						GerbePixels.emettre(ee, sol + Vector3(0, 0.05, 0), Vector3.UP, "etincelles", f * 0.8))
 		"tenebres":
 			e.ombrer(sol.x, sol.z, clampf(0.7 + 0.3 * force, 0.7, 1.6))
 

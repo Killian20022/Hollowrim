@@ -395,9 +395,9 @@ Scintillement (proxy : caméra décalée de 12 cm, part de pixels changés) : S2
 non concluante, la preuve reste visuelle (planches) ; les mipmaps sont en place.
 
 ### Structure des lieux (3 points, règle de l'utilisateur)
-**Maisons (longue maison 14 × 7 m de la cheffe, 3 maisons 8 × 5,5 / 8 × 5,5 / 7 × 5 m, murs ≥ 2,3 m)**
+**Maisons (longue maison 14 × 7 m du chef, 3 maisons 8 × 5,5 / 8 × 5,5 / 7 × 5 m, murs ≥ 2,3 m)**
 - Murs/Structure : plinthe de pierre sèche (saillie 10 cm, dessus à 0,4 m), murs de planches à clin, sablière en saillie, poteaux d'angle, bouts de solives tous les 2 m (grille de 2 m, hors porte), contreforts à (L/2 − 1) sur les longs pans (pierre à petits moellons, chaperon), cadre de porte épais (jambages 0,24 × 2,1 m, linteau 0,3 m), deux marches de pierre, toit à 2 pans (neige de 30 cm, faîtage enneigé, stalactites, cornes), cheminée de pierre, pignons de planches.
-- Mobilier : porte debout à bandes de fer et anneau, boucliers peints (cheffe), deux bancs devant la longue maison, tas de bois, tonneaux cerclés de fer, coffres ferrés.
+- Mobilier : porte debout à bandes de fer et anneau, boucliers peints (chef), deux bancs devant la longue maison, tas de bois, tonneaux cerclés de fer, coffres ferrés.
 - Éclairage : fenêtres encadrées à vitrage ÉMISSIF dessiné (2 carreaux, tuile 9 × 6 texels, aucune OmniLight), torche murale à flamme émissive à droite de chaque porte ; une seule vraie lumière par maison : la lanterne de la longue maison (celle d'avant), fumée des cheminées.
 
 **Palissade et porte** : rondins hexagonaux à pointes taillées (2 MultiMesh, 329 pieux), deux rubans de corde (liens) à 1,0 et 2,3 m ; porte à poteaux OCTOGONAUX sur socles de pierre, contrefiches, poutre, têtes de dragon, poutre sommitale enneigée ; éclairage : les deux torches du portail (lumières d'avant, maintenant sans ombre et avec fondu de distance).
@@ -730,18 +730,18 @@ Grotte de ~124 m (parcours entrée → fond), construite à la demande sous le m
 
 ## Journal — Intérieurs enterables de Skarnholt (« kit intérieur »), branche `graphisme/kit-interieur`
 
-Mission : les 5 bâtiments du village (longue maison de la cheffe, trois maisons, forge) s'ouvrent : on pousse la porte (touche E) et on
+Mission : les 5 bâtiments du village (longue maison du chef, trois maisons, forge) s'ouvrent : on pousse la porte (touche E) et on
 marche DANS le volume, sans écran de chargement. Les intérieurs sont dessinés à l'image de leurs occupants (`data/villageois.json`).
 Référence de style : lot 5 (rondins octogonaux, soubassement, 12 tons) et lot 7a (flammes sprites, halos, lumières courtes).
 
 ### Description par lieu (Murs/Structure · Mobilier · Éclairage)
-**Halle de Gunnhild (longue maison 14 × 7 m)**
+**Halle de Gunnar (longue maison 14 × 7 m)**
 1. *Murs/Structure* : nef de rondins octogonaux (moitié visible de la pièce en matière d'intérieur), deux files de 5 poteaux octogonaux sur
    socle de pierre, 5 fermes (entrait en rondin, poinçon, jambes de force, arbalétriers), faîtage, lambris sombre sous le toit avec nervures, pignons
    lambrissés, trou à fumée réel dans la dalle de toit (gaine sombre, rebord, petite lucarne à deux pans), plancher de planches, dallage de foyer.
 2. *Mobilier* : foyer long de 4,4 m (cadre de pierre, cendre, braises, bûches), estrade à deux marches et trône sculpté (dossier, poteaux à têtes de
    dragon, accoudoirs, peaux), 4 longues tables sur tréteaux et bancs, boucliers peints, 3 tentures tissées, ramures, râteliers de lances et de haches,
-   lit clos de la cheffe, coffres ferrés, tonneaux cerclés, étagère de cruches, sacs, bûchers ; Micro : étain, chopes, pain, os rongés, parchemins,
+   lit clos du chef, coffres ferrés, tonneaux cerclés, étagère de cruches, sacs, bûchers ; Micro : étain, chopes, pain, os rongés, parchemins,
    bougies, crânes, jambons et saucissons, herbes, lanterne, marmite sur crémaillère.
 3. *Éclairage* : 2 feux (2,6 / 8,5 m) sur le foyer, 3 appliques (1,5 / 5 m), flammes en sprites, halos au sol, rai de lumière du trou à fumée (cartes
    additives croisées) — 5 lumières, sans ombre.
@@ -1014,7 +1014,7 @@ Vêtements texturés avec l'atlas d'origine du modèle (UV inexploitables) en 32
 - Précalcul : `godot --headless --path . --script res://outils/generer_personnages.gd [-- --planche=res://captures/lot4/textures]` → `assets/personnages/*.res` (49 images), repli en calcul direct si absent ou VERSION différente (~6 s au repli, tous les noms).
 
 ### Rôles (silhouettes)
-Gunnhild : longue robe bleue brodée, tunique de lin, manteau de fourrure blanche. Brodd : épaules nues sous un tablier de cuir lamellé, gantelets de cuir, bourse. Chasseuse : cagoule verte, fourrure brune, carquois, bourse. Sigrún : cagoule violette, longue cape grise, robe. Garde : tunique rouge, épaulières de fer, lanières, cape courte, brassards de fer, casque et bouclier. Grima : robe de lin, foulard, châle de laine. Joueur 3e personne : tunique bleue, brassards de cuir clair, manchettes de fourrure et gants (comme les bras FPS), bourse. Draugr sbire : tunique déchirée, lambeaux ; draugr guerrier : cotte rouillée, épaulières, lanières, cape en lambeaux, casque ; Svanhild : cape, lambeaux, fourrure, couronne. **Bandits de la grotte** : cuir, fourrure, cagoule, lanières, carquois ou épaulières, 4 silhouettes (`grotte_acces.gd`, tenues et `etoffes` seulement).
+Gunnar : longue robe bleue brodée, tunique de lin, manteau de fourrure blanche. Brodd : épaules nues sous un tablier de cuir lamellé, gantelets de cuir, bourse. Chasseuse : cagoule verte, fourrure brune, carquois, bourse. Sigrún : cagoule violette, longue cape grise, robe. Garde : tunique rouge, épaulières de fer, lanières, cape courte, brassards de fer, casque et bouclier. Grima : robe de lin, foulard, châle de laine. Joueur 3e personne : tunique bleue, brassards de cuir clair, manchettes de fourrure et gants (comme les bras FPS), bourse. Draugr sbire : tunique déchirée, lambeaux ; draugr guerrier : cotte rouillée, épaulières, lanières, cape en lambeaux, casque ; Svanhild : cape, lambeaux, fourrure, couronne. **Bandits de la grotte** : cuir, fourrure, cagoule, lanières, carquois ou épaulières, 4 silhouettes (`grotte_acces.gd`, tenues et `etoffes` seulement).
 
 ### Preuves
 - `outils/galerie_persos.gd` : planche par personnage, colonnes face / profil / dos, lignes jour 2 m, jour 8 m, nuit 2 m, nuit 8 m (SubViewport 270², mêmes valeurs jour/nuit que cycle.gd, fond magenta : le vide se voit) + `_zoom8m` (recadré ×2). `godot --path . --script res://outils/galerie_persos.gd -- --sortie=res://captures/lot4/apres [--perso=a,b] [--pose=Idle|Walk|Attaque|Genoux|Course|T] [--rangs=j2,j8,n2,n8] [--cote=270] [--haut=1.15]`.
@@ -1022,7 +1022,7 @@ Gunnhild : longue robe bleue brodée, tunique de lin, manteau de fourrure blanch
 
 ### Limites connues
 - Robes et capes (poids « jupe ») deviennent une dalle plate dans les poses extrêmes (attaque, sprint) : pas de simulation de tissu ; seuls des PNJ qui marchent, parlent ou s'agenouillent en portent (Svanhild : lambeaux, pas de robe).
-- Les ailes de la tunique de la femme (tail-coat d'origine) dépassent sous une surcotte : d'où la robe pour Gunnhild.
+- Les ailes de la tunique de la femme (tail-coat d'origine) dépassent sous une surcotte : d'où la robe pour la cheffe d'origine (Gunnhild, devenue le chef Gunnar : jarl Tripo masculin, dd29f175).
 - Cheveux : texture d'origine inchangée.
 
 ### Perf et tests (lot 4)

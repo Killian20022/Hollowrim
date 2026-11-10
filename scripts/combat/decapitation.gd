@@ -130,9 +130,11 @@ static func decapiter(modele: Node3D, impulsion: Vector3, couleur: Color, sang :
 	_tetes = _tetes.filter(func(x: Variant) -> bool: return is_instance_valid(x))
 	while _tetes.size() > MAX_TETES:
 		(_tetes.pop_front() as Node).queue_free()
+	var rb_ref: WeakRef = weakref(rb)   # référence faible : une capture libérée avant l'échéance ferait échouer l'appel du lambda
 	rb.get_tree().create_timer(DUREE).timeout.connect(func() -> void:
-		if is_instance_valid(rb):
-			rb.queue_free())
+		var r: Node = rb_ref.get_ref()
+		if r != null:
+			r.queue_free())
 	modele.set_meta("tete_coupee", rb)
 	return rb
 

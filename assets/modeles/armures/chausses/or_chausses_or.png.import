@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://blk0a3mbkywbl"
-path="res://.godot/imported/or_chausses_or.png-c8f6aba4f954a54488b6b03997c34ccc.ctex"
+path.bptc="res://.godot/imported/or_chausses_or.png-c8f6aba4f954a54488b6b03997c34ccc.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "f424cb62e843b1fc4da06012c7f2f39b"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/chausses/or_chausses_or.png"
-dest_files=["res://.godot/imported/or_chausses_or.png-c8f6aba4f954a54488b6b03997c34ccc.ctex"]
+dest_files=["res://.godot/imported/or_chausses_or.png-c8f6aba4f954a54488b6b03997c34ccc.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

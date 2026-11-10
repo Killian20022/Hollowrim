@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://j6axkxo32d72"
-path="res://.godot/imported/braise_chausses_braise.png-64cd4841689d17669ba0f24648e76b77.ctex"
+path.bptc="res://.godot/imported/braise_chausses_braise.png-64cd4841689d17669ba0f24648e76b77.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b598b46f5710ca2365be46c85d89d179"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/chausses/braise_chausses_braise.png"
-dest_files=["res://.godot/imported/braise_chausses_braise.png-64cd4841689d17669ba0f24648e76b77.ctex"]
+dest_files=["res://.godot/imported/braise_chausses_braise.png-64cd4841689d17669ba0f24648e76b77.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

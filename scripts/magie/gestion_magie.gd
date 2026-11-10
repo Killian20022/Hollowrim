@@ -2020,13 +2020,16 @@ func _decharge_ponctuelle(o: Vector3, b: Vector3, duree: float, delai := 0.0, n 
 	pm.set_shader_parameter("eclatement", 1.0 if eclat else 0.0)
 	pm.set_shader_parameter("normale", normale.normalized())
 	var tm := get_tree()
+	var p_ref: WeakRef = weakref(p)   # références faibles : une capture libérée avant l'échéance ferait échouer l'appel du lambda
 	if delai > 0.0:
 		tm.create_timer(delai, false).timeout.connect(func() -> void:
-			if is_instance_valid(p):
-				p.emitting = true)
+			var pp: GPUParticles3D = p_ref.get_ref()
+			if pp != null:
+				pp.emitting = true)
 	tm.create_timer(delai + duree, false).timeout.connect(func() -> void:
-		if is_instance_valid(p):
-			p.emitting = false)
+		var pp: GPUParticles3D = p_ref.get_ref()
+		if pp != null:
+			pp.emitting = false)
 	tm.create_timer(delai + duree + DECHARGE_VIE + 0.1, false).timeout.connect(p.queue_free)
 
 func _decharge_arreter(j: Dictionary) -> void:

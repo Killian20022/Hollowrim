@@ -17,8 +17,7 @@ const MODELES := {
 const ECHELLES := {"gobelin": 0.667}
 const SHADER := preload("res://shaders/ps1_draugr.gdshader")
 const LUEUR := Vector3(3.0, 5.4, 7.6)
-## Réglage de clarté par modèle (le défaut Tripo : texture trop sombre sous le shader PS1).
-const TEINTES := {"draugr": Color(0.95, 0.88, 0.8), "archer": Color(0.9, 0.9, 0.9), "squelette": Color(0.9, 0.9, 0.9), "gobelin": Color(0.95, 0.95, 0.95)}
+## Teinte, saturation et contraste par modèle : table unique PaletteTripo (scripts/palette_tripo.gd ; anciens réglages : --palette-tripo-ancienne).
 ## Agrandissement de l'arme (le draugr est plus massif que le joueur).
 const ECH_ARME := {"draugr": 1.15, "archer": 1.0, "squelette": 1.0, "gobelin": 0.75}
 const PRISE := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
@@ -49,6 +48,9 @@ static func _le_shader() -> Shader:
 		var c := SHADER.code.replace("render_mode diffuse_lambert, specular_disabled;", "render_mode diffuse_lambert, specular_disabled, cull_disabled;")
 		# yeux : texels bleu franc (r < 0,55, b > 0,9) lumineux, comme les sommets d'alpha < 1 du draugr ordinaire
 		c = c.replace("float g = 1.0 - COLOR.a;", "float g = max(1.0 - COLOR.a, step(0.9, c.b) * step(c.r, 0.55) * step(c.r + 0.25, c.b));")
+		# passe palette (PaletteTripo) : contraste resserré autour d'un pivot, avant la teinte (1 = sans effet)
+		c = c.replace("uniform vec3 lueur = vec3(0.0);", "uniform vec3 lueur = vec3(0.0);\nuniform float contraste = 1.0;\nuniform float pivot = 0.4;")
+		c = c.replace("ALBEDO = c.rgb * teinte.rgb;", "ALBEDO = mix(vec3(pivot), c.rgb, contraste) * teinte.rgb;")
 		s.code = c
 		_shader = s
 	return _shader
@@ -64,7 +66,7 @@ static func materiau(tex: Texture2D, id: String) -> ShaderMaterial:
 		m.set_shader_parameter("decoupe", false)
 		m.set_shader_parameter("lueur", LUEUR)
 		m.set_shader_parameter("appoint", DraugrNordique.APPOINT)
-		m.set_shader_parameter("teinte", TEINTES.get(id, Color.WHITE))
+		PaletteTripo.appliquer(m, id)
 		m.next_pass = GuerrierNordique.contour()
 		Palette.suivre(m)
 		Palette._appliquer(m, Palette._ps1_actif)

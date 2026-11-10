@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d3je8he876mp1"
-path="res://.godot/imported/casque_rubis_enchante_casque_rubis_enchante.png-523b53f7551617f790b6628571503785.ctex"
+path.bptc="res://.godot/imported/casque_rubis_enchante_casque_rubis_enchante.png-523b53f7551617f790b6628571503785.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "d25f3ab9c4aed40ecdd6eb9e3a119cdd"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/casque_rubis_enchante_casque_rubis_enchante.png"
-dest_files=["res://.godot/imported/casque_rubis_enchante_casque_rubis_enchante.png-523b53f7551617f790b6628571503785.ctex"]
+dest_files=["res://.godot/imported/casque_rubis_enchante_casque_rubis_enchante.png-523b53f7551617f790b6628571503785.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

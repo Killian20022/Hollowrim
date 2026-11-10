@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c7lr5dg3mmoh8"
-path="res://.godot/imported/gantelets_hrafn_gantelets_hrafn.png-eedfee6cbe13c3ed82d5c79e1851c771.ctex"
+path.bptc="res://.godot/imported/gantelets_hrafn_gantelets_hrafn.png-eedfee6cbe13c3ed82d5c79e1851c771.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "f51b8d492a3b710f969ef5eb42d1fb86"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/gantelets_hrafn_gantelets_hrafn.png"
-dest_files=["res://.godot/imported/gantelets_hrafn_gantelets_hrafn.png-eedfee6cbe13c3ed82d5c79e1851c771.ctex"]
+dest_files=["res://.godot/imported/gantelets_hrafn_gantelets_hrafn.png-eedfee6cbe13c3ed82d5c79e1851c771.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

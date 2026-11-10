@@ -67,6 +67,7 @@ TESTS=(
 	"test_habitants_pnj|--nouvelle"   # retours exe 6 : 10 habitants en variantes PnjNordique (os, clips, peau, apparences distinctes)
 	"test_gardes_village|--nouvelle --paisible"
 	"test_vie|--nouvelle --paisible"   # lot vie_pnj : planning jour/nuit, rentrée, sommeil, fuite, répliques, sauvegarde `vie`
+	"test_metiers_pnj|--nouvelle --paisible"   # lot vie/metiers : gestes de métier au poste (clips existants), causeries entre PNJ (filtres, sous-titres, perf)
 	"test_persos_base|--nouvelle"
 	"test_guerrier|--nouvelle"
 	"test_mage|--nouvelle"

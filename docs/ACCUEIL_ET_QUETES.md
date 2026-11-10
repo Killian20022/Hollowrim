@@ -2,7 +2,7 @@
 
 ## Accueil (nouvelle partie)
 - `scripts/narration.gd` : écran de texte plein cadre (prologue, 4 pages, `data/quetes.json` → `textes.prologue`). E / Espace / clic = suite, Échap = passer. Le joueur est « en dialogue » pendant l'écran ; le jeu n'est pas en pause.
-- Fin de l'arrivée → événement `prologue_vu` → quête discrète `bienvenue` (« Parler à Gunnhild, à la longue maison », marqueur de boussole sur Gunnhild) + cartouche des touches (60 s, F1) + bulles d'aide actives.
+- Fin de l'arrivée → événement `prologue_vu` → quête discrète `bienvenue` (« Parler à Gunnar, à la longue maison », marqueur de boussole sur Gunnar) + cartouche des touches (60 s, F1) + bulles d'aide actives.
 - `scripts/aides.gd` : bulles contextuelles, une fois chacune (premier ennemi à l'écran, sort en main, premier coffre, rappel menu/carte après 45 s). Sauvegardées (`aides_vues`) ; une sauvegarde sans cette clé = joueur averti, aucune bulle. Option : Options → « Bulles d'aide » (`Jeu.option("jeu", "aides")`).
 - Jamais en mode outil/test (`Jeu.mode_outil()`), sauf `--prologue` (accueil + fin de chapitre) et `--aides` (bulles).
 

@@ -343,9 +343,9 @@ static func _relier(gab: Node3D, copie: Node3D) -> void:
 	mc.mi_porte = sc.get_node_or_null("arc_porte")
 	mc.mi_vise = sc.get_node_or_null("arc_vise")
 	mc.mi_relache = sc.get_node_or_null("arc_relache")
-	ap.current_animation_changed.connect(func(nom: StringName) -> void:
-		if is_instance_valid(mc):
-			mc.visibilites(String(nom), 0.0))
+	# Callable lié à l'objet (et non lambda qui le capture) : se déconnecte seul quand la copie est libérée
+	# (la lambda recevait « Lambda capture at index 0 was freed » si l'animation changeait pendant la libération).
+	ap.current_animation_changed.connect(Callable(mc, "visibilites").bind(0.0))
 
 static func _sq(n: Node3D) -> Skeleton3D:
 	return n.find_child("Skeleton3D", true, false) as Skeleton3D

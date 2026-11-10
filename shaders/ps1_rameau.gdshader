@@ -15,6 +15,10 @@ uniform float dessous = 0.7;       // assombrissement de la face arrière
 uniform vec2 uv_echelle = vec2(1.0);
 uniform float grille = 135.0;       // lignes de la grille d'accroche (0 = pas de tremblement)
 uniform float affine = 1.0;         // 1 = déformation affine façon PS1
+// G4 (2026-11-10) : en deçà de cette distance (m), l'interpolation des UV redevient perspective. Une carte de rameau
+// fait ~1,2 m : vue à moins de 2 m, ses sommets ont des w très différents et le mapping affine étirait les texels
+// en longues bandes (« gros pixels camouflage »). Au-delà (triangles petits à l'écran) l'affine reste celui d'avant.
+uniform float affine_proche = 5.0;
 uniform float enroule = 0.18;       // éclairage enveloppant : la face opposée à la lumière n'est jamais noire
 
 varying vec3 uv_aff;
@@ -29,7 +33,7 @@ void vertex() {
 		clip.xy = round(clip.xy / clip.w * g) / g * clip.w;
 	}
 	POSITION = clip;
-	float w = mix(1.0, clip.w, affine);
+	float w = mix(1.0, max(clip.w, affine_proche), affine);
 	uv_aff = vec3(uv * w, w);
 	n_vue = normalize((MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
