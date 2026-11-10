@@ -32,6 +32,8 @@ func _attendre(n: int) -> void:
 func _photo(nom: String) -> void:
 	for cl in root.find_children("*", "CanvasLayer", true, false):
 		(cl as CanvasLayer).visible = cl == _etiquette
+	for pa in root.find_children("*", "GPUParticles3D", true, false) + root.find_children("*", "CPUParticles3D", true, false):
+		(pa as Node3D).visible = false      # flocons au ras de la caméra : ils ne tombent pas au même endroit d'une passe à l'autre
 	(_etiquette.get_child(0) as Label).text = ("AVANT  (réglages d'origine)" if PaletteTripo.ancienne else "APRÈS  (PaletteTripo)") + "   " + nom
 	await RenderingServer.frame_post_draw
 	var im := root.get_viewport().get_texture().get_image()
@@ -157,14 +159,21 @@ func _village() -> void:
 	var puits := m.find_child("PuitsTripo", true, false) as Node3D
 	var cp := puits.global_position if puits != null else Vector3(42.0, m.hauteur(42.0, 38.0), 38.0)
 	print("PUITS tripo=", puits != null, " ", cp)
+	# les habitants qui passent devant le puits sont écartés et tout le monde est figé (même image d'une passe à l'autre)
+	for v in get_nodes_in_group("villageois"):
+		if v is Node3D and v != epee and v != dore and v != lancier:
+			(v as Node3D).process_mode = Node.PROCESS_MODE_DISABLED
+			var pv := (v as Node3D).global_position
+			if Vector2(pv.x - cp.x, pv.z - cp.z).length() < 11.0 and pv.z > cp.z - 2.0:
+				(v as Node3D).visible = false
 	if epee != null:
-		poser.call(epee, cp.x - 2.0, cp.z + 1.6)
+		poser.call(epee, cp.x - 2.1, cp.z + 0.7)
 	poser.call(dore, cp.x + 40.0, cp.z + 40.0)
 	poser.call(lancier, cp.x + 42.0, cp.z + 40.0)
 	await _attendre(10)
 	cam.fov = 60.0
-	cam.global_position = cp + Vector3(-4.6, 2.0, 5.6)
-	cam.look_at(cp + Vector3(-0.8, 1.0, 0), Vector3.UP)
+	cam.global_position = cp + Vector3(-2.9, 1.75, 4.2)
+	cam.look_at(cp + Vector3(-0.7, 0.95, 0), Vector3.UP)
 	await _attendre(4)
 	await _photo("village_puits")
 
@@ -209,7 +218,7 @@ func _crypte() -> void:
 	await _attendre(20)
 	for k: String in cibles:
 		_figer(cibles[k], "Pistol_Aim_Neutral" if k.ends_with("archer") else "Sword_Idle")
-	g.global_position = c.to_global(Vector3(-1.7, 0.05, -27.0))
+	g.global_position = c.to_global(Vector3(-1.4, 0.05, -27.0))
 	g.global_rotation.y = lacet
 	_nouvelle_camera()
 	var lum := OmniLight3D.new()      # torche d'appoint (même réglage que capture_integration_tripo)
@@ -222,12 +231,12 @@ func _crypte() -> void:
 			(cibles[k] as Node3D).global_position = c.to_global(Vector3(0.0, -40.0, -27.0))
 		var a1: Node3D = cibles[groupe[1]]
 		var a2: Node3D = cibles[groupe[2]]
-		a1.global_position = c.to_global(Vector3(0.0, 0.05, -27.0))
-		a2.global_position = c.to_global(Vector3(1.7, 0.05, -27.0))
+		a1.global_position = c.to_global(Vector3(0.9, 0.05, -27.0))      # le rai de lune (x = 0) passe entre le garde et le groupe
+		a2.global_position = c.to_global(Vector3(2.4, 0.05, -27.0))
 		a1.global_rotation.y = lacet
 		a2.global_rotation.y = lacet
 		await _attendre(10)
-		for p: Array in [[String(groupe[0]), Vector3(0.0, 0.05, -27.0), 4.6], [String(groupe[0]) + "_gros", Vector3(0.6, 0.05, -27.0), 2.4]]:
+		for p: Array in [[String(groupe[0]), Vector3(0.5, 0.05, -27.0), 4.6], [String(groupe[0]) + "_gros", Vector3(1.65, 0.05, -27.0), 2.4]]:
 			var cible: Vector3 = c.to_global(p[1])
 			cam.global_position = cible + face * float(p[2]) + Vector3(0, 1.45, 0) + lat * 0.3
 			cam.look_at(cible + Vector3(0, 1.0, 0), Vector3.UP)
@@ -269,16 +278,35 @@ func _grotte() -> void:
 	if e == null:
 		print("ECHEC gobelin introuvable")
 		return
-	var dirj: Vector3 = j.global_position - e.global_position
+	print("GOBELIN ", e.global_position)
+	_figer(e, "Sword_Idle")
+	var ex: Array = [j.get_rid(), e.get_rid()]
+	var espace := root.get_world_3d().direct_space_state
+	# le gobelin est amené sur le sol dégagé devant le joueur, juste après l'entrée (la caméra là où le joueur arrive) :
+	# à son poste, les rochers de neige (sans collision) cachaient le bas du corps
+	var fwd := -j.global_transform.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var sol_sous := func(p0: Vector3) -> Vector3:
+		var q := PhysicsRayQueryParameters3D.create(p0 + Vector3(0, 1.5, 0), p0 - Vector3(0, 4.0, 0))
+		q.exclude = ex
+		var r: Dictionary = espace.intersect_ray(q)
+		return p0 if r.is_empty() else (r["position"] as Vector3)
+	var pe: Vector3 = sol_sous.call(j.global_position + fwd * 3.2)
+	e.global_position = pe
+	var meilleur: Vector3 = j.global_position + Vector3(0, 1.45, 0)
+	print("CAM grotte ", meilleur, " gobelin ", pe)
+	var dirj: Vector3 = meilleur - pe
 	dirj.y = 0.0
+	var dist := dirj.length()
 	dirj = dirj.normalized()
 	var lat := Vector3(-dirj.z, 0, dirj.x)
-	_figer(e, "Sword_Idle")
 	e.global_rotation.y = atan2(dirj.x, dirj.z)
 	var g := _garde_ref(e.get_parent() as Node3D)
-	g.global_position = e.global_position + lat * 1.3
+	g.global_position = sol_sous.call(pe + lat * 1.3)
 	g.global_rotation.y = atan2(dirj.x, dirj.z)
-	j.global_position = e.global_position + dirj * 8.0 + Vector3(0, 0.1, 0)
+	j.global_position = pe + dirj * 9.0 + Vector3(0, 0.1, 0)
+	j.process_mode = Node.PROCESS_MODE_DISABLED
 	_nouvelle_camera()
 	var lum := OmniLight3D.new()      # torche du joueur, tenue près de la caméra
 	lum.omni_range = 9.0
@@ -286,11 +314,16 @@ func _grotte() -> void:
 	lum.light_color = Color(1.0, 0.78, 0.55)
 	m.add_child(lum)
 	await _attendre(10)
-	var mil := e.global_position + lat * 0.65
-	for p: Array in [["grotte_gobelin", 3.6], ["grotte_gobelin_gros", 2.0]]:
-		var cible: Vector3 = mil if p[0] == "grotte_gobelin" else e.global_position
-		cam.global_position = cible + dirj * float(p[1]) + Vector3(0, 1.3, 0) - lat * 0.3
-		cam.look_at(cible + Vector3(0, 0.8 if p[0] == "grotte_gobelin" else 0.6, 0), Vector3.UP)
+	var mil := pe + lat * 0.65
+	for p: Array in [["grotte_gobelin", mil, dist, 0.75, meilleur.y - pe.y], ["grotte_gobelin_gros", pe + lat * 0.25, 1.9, 0.55, 1.15]]:
+		var cible: Vector3 = p[1]
+		cam.global_position = cible + dirj * float(p[2]) + Vector3(0, float(p[4]), 0)
+		cam.look_at(cible + Vector3(0, float(p[3]), 0), Vector3.UP)
 		lum.global_position = cam.global_position + Vector3(0, 0.5, 0)
 		await _attendre(4)
 		await _photo(String(p[0]))
+
+func _libre(from: Vector3, to: Vector3, ex: Array) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(from, to)
+	q.exclude = ex
+	return root.get_world_3d().direct_space_state.intersect_ray(q).is_empty()
