@@ -20,8 +20,8 @@ const TABLE := {
 	"archer": {"teinte": Color(0.6, 0.73, 0.7), "saturation": 0.32},
 	# squelette : os jauni, moins ivoire, moins contrasté ; pagne rouge désaturé
 	"squelette": {"teinte": Color(0.8, 0.74, 0.6), "saturation": 0.55, "contraste": 0.8, "pivot": 0.42},
-	# gobelin : vert peint ramené vers un olive terreux sombre
-	"gobelin": {"teinte": Color(0.66, 0.6, 0.48), "saturation": 0.42},
+	# gobelin : réglage d'origine GARDÉ (validé « super propre » par l'utilisateur le 2026-11-09, ne plus y toucher)
+	"gobelin": {"teinte": Color(0.95, 0.95, 0.95)},
 	# puits : pierre et toit assombris (c'était l'objet le plus clair de la place)
 	"puits": {"teinte": Color(1.0, 1.0, 1.02), "saturation": 0.8},
 }
