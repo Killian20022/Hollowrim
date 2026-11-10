@@ -3,7 +3,7 @@ extends SceneTree
 ## archer), 3 textures dérivées de la texture Tripo d'origine (assets/pnj/tripo_*_rig_tripo_*_512.png, jamais modifiée) :
 ##   v1 « lie-de-vin » : rouge du tabard plus sombre, tirant sur le pourpre ; fer inchangé ;
 ##   v2 « garance »    : rouge rouille, moins saturé ; fer et cuir noircis ;
-##   v3 « passé »      : rouge délavé par l'hiver (saturation divisée par deux) ; fer un peu plus clair.
+##   v3 « passé »      : rouge délavé par l'hiver (saturation x0,45, tiré vers le rouge brique : sans reflet rose) ; fer un peu plus clair.
 ## Seuls les pixels ROUGES (tabard, cape, liserés) et, selon la variante, les gris (fer) changent ; peau et fourrure brunes restent.
 ## Sorties : assets/pnj/tripo_<corps>_v<n>.png (importées comme la texture d'origine : sans compression VRAM, mipmaps).
 ##   godot --headless --path . --script res://outils/generer_variantes_gardes_tripo.gd
@@ -17,7 +17,7 @@ const CRAMOISI := 0.955
 const VARIANTES := [
 	[0.955, 0.85, 0.55, 1.0],
 	[0.035, 0.62, 0.80, 0.72],
-	[-1.0, 0.36, 0.95, 1.18],
+	[0.985, 0.45, 0.85, 1.12],
 ]
 
 func _init() -> void:
