@@ -40,6 +40,9 @@ const ATLAS_PQ := ["pq_bois", "pq_fer", "pq_fer_v", "pq_tissu", "pq_tissu_v", "p
 const KITBASH_SI_MATS := ["q_carotte", "q_bourse", "q_banniere_toile", "q_banniere_2_toile", "q_sac", "q_marmite", "q_epee_mur"]
 ## Recolorations sans effet sur l'identité du prop (fer mat, étain, matières de la crypte) : n'empêchent pas le pq_*.
 const MATS_NEUTRES := {"fer": ["fer", "fer_mat", "etain", "fer_noir", "noir", "or"], "herbe": ["jute"], "os": ["os", "cire"], "bois": ["bois"]}
+## Jamais remplacés : les tas de pièces texturés n'ont que quelques gros disques ; agrandis aux tas d'or de la crypte (bornes des anciens
+## modules) ils sortaient en meules de fromage (captures avant/après, trésor). Les q_* (nombreuses petites pièces) restent.
+const PQ_EXCLUS := ["q_pieces", "q_tas_pieces", "q_tas_pieces_2"]
 static var _pq_de := {}       # nom q_* (ou pq_* posé directement) -> id pq_*
 static var _pq_mods := {}     # id pq_* -> [[atlas, arrays indexés (UV, normales, couleurs)], …], déjà à l'encombrement du q_*
 static var _pq_boites := {}   # id pq_* -> AABB
@@ -173,6 +176,8 @@ static func pq_de(nom: String, mats := {}) -> String:
 	if not pq:
 		return ""
 	_charger()
+	if nom in PQ_EXCLUS:
+		return ""
 	var id: String = _pq_de.get(nom, "")
 	if id == "" or mats.is_empty() or not (nom in KITBASH_SI_MATS):
 		return id
