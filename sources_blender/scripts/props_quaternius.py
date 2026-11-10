@@ -61,7 +61,7 @@ FROID = H("#4a557f")
 # Atlas : source, taille, rampes permises, virage (saturation, valeur, froid), variante luminance
 ATLAS = {
     "bois": ("T_Trim_Furniture_BaseColor.png", 128, ("bois", "ecorce", "cuir", "tourbe", "bois_mort", "fer", "ombre"), (0.72, 0.80, 0.07), False),
-    "fer": ("T_Trim_Metal_BaseColor.png", 128, ("fer", "pierre", "or", "cuir", "ombre"), (0.5, 0.64, 0.08), False),   # fer SOMBRE (planche v1 : gris lilas trop clair)
+    "fer": ("T_Trim_Metal_BaseColor.png", 128, ("fer", "or", "cuir", "ombre"), (0.5, 0.64, 0.08), False),   # fer SOMBRE (planche v1 : gris lilas trop clair)
     "fer_v": ("T_Trim_Metal_BaseColor.png", 128, None, None, True),
     "tissu": ("T_Trim_Cloth_BaseColor.png", 256, ("ecru", "laine_bleue", "laine_rouge", "tourbe", "cuir", "fourrure", "bois", "ombre"), (0.70, 0.82, 0.06), False),
     "tissu_v": ("T_Trim_Cloth_BaseColor.png", 256, None, None, True),
@@ -69,6 +69,7 @@ ATLAS = {
     "props_v": ("T_Trim_Props_BaseColor.png", 128, None, None, True),
     "page": ("T_Page_Noise.png", 32, ("ecru", "tourbe"), (0.6, 0.85, 0.04), False),
 }
+CONTRASTE = {"fer": 0.25, "props": 0.6}
 MAT_ATLAS = {"MI_Trim_Furniture": "bois", "MI_Trim_Metal_Vertex": "fer_v", "MI_Trim_Metal": "fer", "MI_Trim_Cloth": "tissu",
              "MI_Banner": "tissu_v", "MI_Trim_Props_Vertex": "props_v", "MI_Trim_Props": "props", "MI_Page_Empty": "page"}
 # Couleurs de sommet des matériaux « _v » : rampes candidates (pas de neige, glace, peau, runes : rien de cela dans un prop)
@@ -175,7 +176,11 @@ def faire_atlas(src_tex):
         else:
             pal, pal_lab = palette(rampes)
             c = virage_np(px.reshape(-1, 3), *vir).reshape(n, n, 3)
-            c = c * (1.0 + bruit_amas(n, n, 7, 0.035))[:, :, None]
+            k_c = CONTRASTE.get(k, 1.0)        # contraste resserré : sans lui le fer tombait en plaques de 2 tons (« camouflage »)
+            if k_c < 1.0:
+                moy = c.mean(axis=(0, 1), keepdims=True)
+                c = moy + (c - moy) * k_c
+            c = c * (1.0 + bruit_amas(n, n, 7, 0.02 if k == "fer" else 0.035))[:, :, None]
             s = accrocher_np(c.reshape(-1, 3), pal, pal_lab)
             # indices de palette -> filtre mode -> couleurs
             idx = np.array([np.argmin(np.abs(pal - q).sum(axis=1)) for q in s]).reshape(n, n)

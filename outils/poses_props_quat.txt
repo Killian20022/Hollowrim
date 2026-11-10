@@ -1,0 +1,8 @@
+# props/quaternius : scène témoin (lancer avec -- --essai-props-quat). Groupe dehors 4,5 m devant 46,36 (lacet -56), groupe dans la halle.
+place_jour monde 46,36,-56,-9 heure=12
+place_jour_pres monde 47.2,35.2,-56,-16 heure=12
+place_nuit monde 46,36,-56,-9
+place_nuit_pres monde 47.2,35.2,-56,-16
+interieur_porte interieur 0,3.0,0,-8 bat=halle heure=12
+interieur_pres interieur 0.6,1.6,10,-22 bat=halle heure=12
+interieur_nuit interieur 0,3.0,0,-8 bat=halle

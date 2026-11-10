@@ -63,6 +63,7 @@ static func materiau(atlas: String, contexte := "exterieur") -> Material:
 		mi.set_shader_parameter("tex_neige", tex)
 		mi.set_shader_parameter("uv_maillage", true)
 		mi.set_shader_parameter("relief", 0.0)
+		mi.set_shader_parameter("proche", Vector2(40.0, 60.0))     # pas de tramage de mip (UV de trim : il mouchetait le plateau des tables)
 		mi.set_shader_parameter("ambiant", Interieurs.AMBIANT)
 		Palette.suivre(mi)
 		m = mi
