@@ -9,7 +9,7 @@ extends SceneTree
 const SCENE := preload("res://scenes/foret_test.tscn")
 const RANG := ["potion_soin", "potion_mana", "potion_soin_forte", "potion_endurance", "tome_boule_feu", "tome_lance_givre",
 	"cle_archives", "coupe_argent", "chope", "hydromel", "chandelier", "parchemin"]
-const TENUS := ["q_chope", "q_bouteille_1", "q_assiette", "q_livre_7", "q_chandelier_table"]
+const TENUS := ["q_chope", "q_bouteille_1", "q_assiette", "q_parchemin", "q_chandelier_table", "q_potion_1"]
 var _dossier := ""
 var _nom := "apres"
 var m: Node3D
@@ -39,6 +39,36 @@ func _sol(x: float, z: float) -> float:
 	var r := m.get_world_3d().direct_space_state.intersect_ray(q)
 	var y := float(r["position"].y) if not r.is_empty() else h
 	return y + ObjetMonde.hausse_sol(Vector3(x, y, z), m)
+
+## Zone de neige dégagée (hors pavés, sans bâtiment, presque plate) de rx x rz m la plus proche de `centre` (spirale par pas de 1 m).
+func _zone_libre(centre: Vector3, rx: float, rz: float) -> Vector3:
+	for rayon in 16:
+		for dx in range(-rayon, rayon + 1):
+			for dz in range(-rayon, rayon + 1):
+				if maxi(absi(dx), absi(dz)) != rayon:
+					continue
+				var c := centre + Vector3(dx, 0, dz)
+				var ok := true
+				var hmin := INF
+				var hmax := -INF
+				for ix in 5:
+					for iz in 5:
+						var x := c.x + (ix / 4.0 - 0.5) * rx
+						var z := c.z + (iz / 4.0 - 0.5) * rz
+						var h := float(m.hauteur(x, z))
+						var y := _sol(x, z)
+						var q := PhysicsRayQueryParameters3D.create(Vector3(x, h + 15.0, z), Vector3(x, h - 1.0, z))
+						q.exclude = [j.get_rid()]
+						var r := m.get_world_3d().direct_space_state.intersect_ray(q)
+						var haut := float(r["position"].y) if not r.is_empty() else h
+						if absf(y - h) > 0.04 or absf(haut - h) > 0.04:          # pavés, plancher, rocher, toit, bâtiment
+							ok = false
+						hmin = minf(hmin, h)
+						hmax = maxf(hmax, h)
+				if ok and hmax - hmin < 0.35:
+					print("ZONE libre ", c)
+					return c
+	return centre
 
 func _regarder(pied: Vector3, cible: Vector3) -> void:
 	j.set_physics_process(false)
@@ -101,7 +131,7 @@ func _go() -> void:
 	await _cap("2_sol_homme.png")
 	_vider()
 	# 2. dans la neige (hors pavés), au nord de la place
-	var cn := Vector3(30.0, 0.0, 58.0)
+	var cn := _zone_libre(c, 3.0, 2.0)
 	_rangee(cn)
 	var cible_n := Vector3(cn.x, _sol(cn.x, cn.z + 0.16), cn.z + 0.16)
 	_regarder(Vector3(cn.x, _sol(cn.x, cn.z - 0.85), cn.z - 0.85), cible_n)
@@ -119,7 +149,7 @@ func _go() -> void:
 	m.add_child(b)
 	var pl := Vector3(c.x + 1.5, 0.0, c.z + 1.0)
 	b.global_position = Vector3(pl.x, _sol(pl.x, pl.z), pl.z)
-	_regarder(Vector3(pl.x, _sol(pl.x, pl.z - 1.3), pl.z - 1.3), b.global_position)
+	_regarder(Vector3(pl.x, _sol(pl.x, pl.z - 0.95), pl.z - 0.95), b.global_position)
 	await _att(15)
 	await _cap("4_lache.png")
 	b.queue_free()
@@ -140,16 +170,24 @@ func _go() -> void:
 			print("INFO pas de ", g, " dans la halle")
 			continue
 		var o: ObjetVivant = pris[g]
-		j.global_position = ip.to_global(Vector3(3.4, ip.sol_y + 0.05, 0.9))
-		j.rotation.y = ip.global_rotation.y + deg_to_rad(25.0)
-		j.tete.rotation.x = deg_to_rad(-8.0)
+		var cam: Camera3D = j.camera
+		var voulu := o.global_position + Vector3(0.0, 0.45, 0.9)       # comme test_objets_vivants._devant : à ~1 m de l'objet
+		j.global_position += voulu - cam.global_position
 		j.velocity = Vector3.ZERO
+		await physics_frame
+		await physics_frame
+		j.global_position += voulu - cam.global_position
+		var d := o.global_position - cam.global_position
+		j.rotation.y = atan2(-d.x, -d.z)
+		j.tete.rotation.x = atan2(d.y, Vector2(d.x, d.z).length())
 		await _att(4)
 		if not ov.saisir(o):
 			print("INFO saisie refusée ", g)
 			continue
-		ov._dist_tenu = 0.75
-		await _att(40)
+		ov._dist_tenu = 0.7
+		j.tete.rotation.x = deg_to_rad(-6.0)             # relevé : l'objet tenu devant soi, la salle derrière
+		await _att(45)
+		print("TENU ", g, " à ", snappedf(o.global_position.distance_to(cam.global_position), 0.01), " m")
 		await _cap("5_main_%s.png" % g)
 		ov.lacher()
 		await _att(10)

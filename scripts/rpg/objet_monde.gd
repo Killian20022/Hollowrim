@@ -4,6 +4,9 @@ extends Node3D
 ## étal, sur un râtelier) au lieu d'un nom dans un sac.
 ##
 ## MODÈLE d'un identifiant (ObjetMonde.chemin_modele), dans cet ordre :
+##   0. (props/objets_quat) champ `modele_quat` de la fiche : prop Quaternius texturé PS1 pq_* (ObjetsQuat, scripts/rpg/objets_quat.gd),
+##      pivot au pied, taille réelle, teinte_quat / echelle_quat / eclat_quat ; le repli sacoche devient la bourse pq_bourse.
+##      `-- --props-quat-ancien` : ordre d'avant (1 à 6) ;
 ##   1. champ `modele_sol` de la fiche (armures : posé par l'agent X, convention docs CONVENTION_ARMURES_3D) ;
 ##   2. champ `modele` de la fiche (bijoux : assets/modeles/bijoux/<id>.glb ; potions, vivres, tomes, ingrédients, divers, quête :
 ##      assets/modeles/objets/<id>.glb, source sources_blender/objets/objets_divers.py, matériaux ObjetsDiversMateriaux ; pose au sol) ;
@@ -105,7 +108,7 @@ static func visuel(oid: String, pose := "sol", graine := 0) -> Node3D:
 	var chemin := chemin_modele(oid)
 	var m: Node3D = null
 	if ObjetsQuat.a(oid):          # prop Quaternius texturé PS1 de la fiche (modele_quat) : avant le glb / prop / primitives d'avant
-		var q := ObjetsQuat.noeud(oid, "crypte")
+		var q := ObjetsQuat.noeud(oid, "objet")
 		if q != null:
 			racine.set_meta("quat", ObjetsQuat.id_de(oid))
 			var pq := Node3D.new()
@@ -306,6 +309,8 @@ static func sacoche() -> Node3D:
 		nq.name = "Sacoche"
 		var b := PropsQuat.instancier("pq_bourse", "crypte")
 		if b != null:
+			for k in b.mesh.get_surface_count():
+				b.set_surface_override_material(k, ObjetsQuat.materiau_objet(b.mesh.surface_get_material(k)))
 			b.scale = Vector3.ONE * ECHELLE_BOURSE
 			b.visibility_range_end = PORTEE
 			nq.add_child(b)

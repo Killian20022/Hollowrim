@@ -38,15 +38,37 @@ static func teinte_de(oid: String) -> Color:
 static func echelle_de(oid: String) -> float:
 	return float(Inventaire.objet(oid).get("echelle_quat", 1.0))
 
+## Contexte « objet » (au sol, lâché, étal, studio, aperçu) : matériau ps1 de PropsQuat (contexte crypte : sans neige de texture)
+## dupliqué une fois par atlas avec `neige_tient` = 0 — un objet posé ou lâché dehors n'a pas de calotte de neige procédurale
+## (comme les glb d'objets d'avant) ; les contextes « interieur » / « exterieur » gardent les matériaux partagés du décor.
+static var _mats_objet := {}
+static func materiau_objet(m: Material) -> Material:
+	if not m is ShaderMaterial:
+		return m
+	_verrou.lock()
+	var r: Material = _mats_objet.get(m.get_instance_id())
+	_verrou.unlock()
+	if r != null:
+		return r
+	var d := (m as ShaderMaterial).duplicate() as ShaderMaterial
+	d.set_shader_parameter("neige_tient", 0.0)
+	Palette.suivre(d)
+	_verrou.lock()
+	_mats_objet[m.get_instance_id()] = d
+	_verrou.unlock()
+	return d
+
 ## Maillage de l'objet (prop pq_* de sa fiche, teinte appliquée), pivot au pied, taille réelle ; null si pas de prop. En cache.
-static func maillage(oid: String, contexte := "crypte") -> ArrayMesh:
+## `contexte` : « objet » (défaut, sans neige), « interieur », « exterieur » ou « crypte » (PropsQuat.materiau).
+static func maillage(oid: String, contexte := "objet") -> ArrayMesh:
 	var pq := id_de(oid)
 	if pq == "":
 		return null
 	var t := teinte_de(oid)
 	var ec := float(Inventaire.objet(oid).get("eclat_quat", 1.0))
-	var base := PropsQuat.maillage(pq, contexte)
-	if base == null or (t.a == 0.0 and ec == 1.0):
+	var objet := contexte == "objet"
+	var base := PropsQuat.maillage(pq, "crypte" if objet else contexte)
+	if base == null or (t.a == 0.0 and ec == 1.0 and not objet):
 		return base
 	var cle := "%s:%s:%s:%.2f" % [pq, contexte, t.to_html(), ec]
 	_verrou.lock()
@@ -63,7 +85,7 @@ static func maillage(oid: String, contexte := "crypte") -> ArrayMesh:
 				cols[k] = Color(cols[k].r * ec, cols[k].g * ec, cols[k].b * ec, cols[k].a)
 		arr[Mesh.ARRAY_COLOR] = cols
 		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
-		m.surface_set_material(s, base.surface_get_material(s))
+		m.surface_set_material(s, materiau_objet(base.surface_get_material(s)) if objet else base.surface_get_material(s))
 	_verrou.lock()
 	_cache[cle] = m
 	_verrou.unlock()
@@ -113,7 +135,7 @@ static func teinte_dominante(c: PackedColorArray) -> float:
 	return somme[best] / cases[best] if best >= 0 else -1.0
 
 ## Nœud prêt à poser (pivot au pied, centré), échelle de la fiche appliquée ; null si l'objet n'a pas de prop.
-static func noeud(oid: String, contexte := "crypte") -> MeshInstance3D:
+static func noeud(oid: String, contexte := "objet") -> MeshInstance3D:
 	var m := maillage(oid, contexte)
 	if m == null:
 		return null

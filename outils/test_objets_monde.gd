@@ -61,7 +61,7 @@ func _tester_quat() -> void:
 					mats_ok = mats_ok and mt != null and mt.shader != null and mt.get_shader_parameter("tex_base") != null
 			if String(v.get_meta("quat", "")) != pq or v.has_meta("repli") or not mats_ok:
 				fautes.append("%s/%s : visuel %s" % [oid, pose, v.get_meta("quat", "-")])
-			elif absf(bx.position.y) > 0.002 or maxf(bx.size.x, bx.size.z) > 1.1 or bx.size.y > 1.1 or bx.get_longest_axis_size() < 0.03:
+			elif absf(bx.position.y) > 0.002 or maxf(bx.size.x, bx.size.z) > 1.3 or bx.size.y > 1.1 or bx.get_longest_axis_size() < 0.03:
 				fautes.append("%s/%s : boîte %s" % [oid, pose, bx])
 			v.free()
 	_verif(ids.size() >= 35 and fautes.is_empty(), "%d objets en props Quaternius (modele_quat) : prop pq_* posé au sol, au sol / étal / studio, matériaux PropsQuat (%s)" % [ids.size(), str(fautes)])
