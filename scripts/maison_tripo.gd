@@ -98,8 +98,8 @@ static func _texture(m: Mesh) -> Texture2D:
 	var src := m.surface_get_material(0) if m.get_surface_count() > 0 else null
 	return (src as BaseMaterial3D).albedo_texture if src is BaseMaterial3D else null
 
-## DÉCOUPE : sépare les triangles de la 1re surface de `mi` selon `garder(centre, normale) -> bool`. Rend [ArrayMesh gardé, ArrayMesh
-## retiré] (mêmes sommets, index triés ; rien n'est déplacé ni réécrit). Repère du maillage = repère du glb (nœuds sans transformation).
+## DÉCOUPE : sépare les triangles de la 1re surface de `mi` selon `garder(centre, normale, coin_min) -> bool`. Rend [ArrayMesh gardé, ArrayMesh
+## retiré] (chaque morceau ne garde que ses sommets, valeurs inchangées ; rien n'est déplacé ni réécrit). Repère du maillage = repère du glb (nœuds sans transformation).
 static func _decouper(mi: MeshInstance3D, garder: Callable) -> Array:
 	var a: Array = mi.mesh.surface_get_arrays(0)
 	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
@@ -112,7 +112,7 @@ static func _decouper(mi: MeshInstance3D, garder: Callable) -> Array:
 		var p2 := v[idx[t + 2]]
 		var n := (p1 - p0).cross(p2 - p0)
 		n = n.normalized() if n.length_squared() > 0.0 else Vector3.UP
-		var dst := k1 if garder.call((p0 + p1 + p2) / 3.0, n) else k2
+		var dst := k1 if garder.call((p0 + p1 + p2) / 3.0, n, p0.min(p1).min(p2)) else k2
 		dst.append(idx[t])
 		dst.append(idx[t + 1])
 		dst.append(idx[t + 2])
@@ -120,9 +120,7 @@ static func _decouper(mi: MeshInstance3D, garder: Callable) -> Array:
 	for k: PackedInt32Array in [k1, k2]:
 		var am := ArrayMesh.new()
 		if not k.is_empty():
-			var b := a.duplicate()
-			b[Mesh.ARRAY_INDEX] = k
-			am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, b)
+			am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _compacter(a, k))
 			am.surface_set_material(0, mi.mesh.surface_get_material(0))
 		r.append(am)
 	return r
@@ -136,6 +134,41 @@ static func _boite_triangles(m: ArrayMesh) -> AABB:
 	for i in idx:
 		r = r.expand(v[i])
 	return r
+
+## Ne garde que les sommets utilisés par `k` (mêmes valeurs, renumérotés) : un morceau découpé ne traîne pas les sommets de l'autre.
+static func _compacter(a: Array, k: PackedInt32Array) -> Array:
+	var nv: int = (a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var neuf := PackedInt32Array()
+	neuf.resize(nv)
+	neuf.fill(-1)
+	var ordre := PackedInt32Array()
+	var idx := PackedInt32Array()
+	idx.resize(k.size())
+	for i in k.size():
+		var o := k[i]
+		if neuf[o] < 0:
+			neuf[o] = ordre.size()
+			ordre.append(o)
+		idx[i] = neuf[o]
+	var b := []
+	b.resize(Mesh.ARRAY_MAX)
+	for t in Mesh.ARRAY_MAX:
+		var src = a[t]
+		if src == null or t == Mesh.ARRAY_INDEX:
+			continue
+		var n: int = src.size()
+		if n % nv != 0:
+			b[t] = src
+			continue
+		var pas: int = n / nv
+		var dst = src.duplicate()
+		dst.resize(ordre.size() * pas)
+		for j in ordre.size():
+			for c in pas:
+				dst[j * pas + c] = src[ordre[j] * pas + c]
+		b[t] = dst
+	b[Mesh.ARRAY_INDEX] = idx
+	return b
 
 ## Repère du pivot (mètres) d'un point du modèle de la chaumière.
 static func ext_p(x: float, y: float, z: float) -> Vector3:
@@ -153,7 +186,7 @@ static func exterieur(p: Node3D) -> void:
 	var dans_battant := func(c: Vector3, nn: Vector3) -> bool:
 		return absf(nn.x) > 0.5 and c.x > BATTANT_MIN.x and c.x < BATTANT_MAX.x and c.y > BATTANT_MIN.y and c.y < BATTANT_MAX.y \
 			and c.z > BATTANT_MIN.z and c.z < BATTANT_MAX.z
-	var parts := _decouper(mi, func(c: Vector3, nn: Vector3) -> bool: return not dans_battant.call(c, nn))
+	var parts := _decouper(mi, func(c: Vector3, nn: Vector3, _mn: Vector3) -> bool: return not dans_battant.call(c, nn))
 	mi.mesh = parts[0]
 	_battant = parts[1]
 	_battant_boite = _boite_triangles(_battant) if _battant.get_surface_count() > 0 else AABB(BATTANT_MIN, BATTANT_MAX - BATTANT_MIN)
@@ -245,7 +278,7 @@ static func interieur(b: Interieurs, pl: Dictionary) -> void:
 	n.name = "TaverneTripo"
 	var mi := _maillage(n)
 	var tex := _texture(mi.mesh)
-	var parts := _decouper(mi, func(c: Vector3, _nn: Vector3) -> bool: return c.x >= COUPE_T)
+	var parts := _decouper(mi, func(_c: Vector3, _nn: Vector3, mn: Vector3) -> bool: return mn.x >= COUPE_T - 0.05 and mn.y >= SOL_T - 0.06)     # triangle entier du bon côté, dessous du plancher retiré : rien ne dépasse la doublure
 	mi.mesh = parts[0]
 	if tex != null:
 		mi.set_surface_override_material(0, materiau_interieur(tex))
