@@ -181,3 +181,7 @@ Les `q_*` (couleurs de face, sans texture) sont remplacés par leurs `pq_*` text
 - **Ajouts** : torches murales du village (`Village._torche_murale` : applique Torch_Metal, même flamme et même lumière), râtelier
   d'armes de la halle (`pq_rack_armes`), crypte : chaîne lovée et cage au crâne (salle de préparation), lutrin et candélabre éteint
   (archives), candélabre éteint et chaîne (salle de garde).
+- **Perf** (`outils/mesure_perf.gd`, fenêtre, 2 tours alternés ancien/pq, moyenne des médianes GPU, machine chargée par d'autres
+  agents) : village jour 16,00 → 16,24 ms (+1,5 %, +15 à +28 draw calls, +64 k à +78 k primitives) ; marché 15,50 → 14,50 ms
+  (bruit, +10 draw calls) ; halle 11,23 → 11,23 ms (+12 à +16 draw calls) ; crypte 1,37 → 1,36 ms (±1 draw call). Sous le plafond
+  de +5 %.
