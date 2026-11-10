@@ -95,6 +95,8 @@ func _go() -> void:
 			await _iter()
 		"planche":
 			await _planche()
+		"film_simple":
+			await _film_simple()
 		"stills":
 			await _stills()
 		"film":
@@ -105,7 +107,7 @@ func _go() -> void:
 			await _avantbras()
 		"film_avantbras":
 			await _film_avantbras()
-	if mode == "film" or mode == "film_avantbras":
+	if mode == "film" or mode == "film_avantbras" or mode == "film_simple":
 		quit(0)
 	else:
 		OS.kill(OS.get_process_id())   # quit() reste parfois suspendu (fuites au vidage de la boucle) : capture déjà écrite
@@ -118,11 +120,16 @@ func _planche() -> void:
 	var g2 := GardeTripo.creer(String(args.get("compare_modele", "tripo_garde_epee")))
 	m.add_child(g2)
 	var a2: AnimationPlayer = g2.get_node("Animations")
-	garde.global_position = Vector3(-0.6, 0, 0)
-	g2.global_position = Vector3(0.6, 0, 0)
+	anim.play("Idle")
+	a2.play("Idle")
+	for i in 90:      # ressorts du tabard installés
+		await process_frame
 	for pose in ["Idle", "Walk"]:
 		for v in [["face", 0.0], ["profil", 90.0], ["dos", 180.0], ["tq", 35.0]]:
-			for i in 12:
+			var dx := Vector3(0, 0, 0.7) if v[0] == "profil" else Vector3(0.6, 0, 0)
+			garde.global_position = -dx
+			g2.global_position = dx
+			for i in 30:
 				anim.play(pose)
 				a2.play(pose)
 				anim.seek(0.35 if pose == "Walk" else 0.5, true)
@@ -145,6 +152,41 @@ func _planche() -> void:
 			bb = b if prem else bb.merge(b)
 			prem = false
 		print("MESURE ", qui[0], " ", bb)
+
+## Film (scène simple) : marche en cercle suivie par la caméra (face, profil, dos), puis garde en garde (Sword_Idle) et une attaque, caméra
+## qui tourne autour. Avec --write-movie.
+func _film_simple() -> void:
+	var R := 2.5
+	var t := 0.0
+	anim.play("Walk")
+	var n := int(9.0 / DT)
+	for i in n:
+		t += DT
+		var th := t * 1.03 / R
+		garde.global_position = Vector3(sin(th) * R, 0, (1.0 - cos(th)) * R)
+		garde.rotation.y = atan2(cos(th), sin(th))
+		var az := garde.rotation.y + deg_to_rad(lerpf(0.0, 200.0, float(i) / n))
+		var c := garde.global_position + Vector3(0, 1.0, 0)
+		cam.fov = 34.0
+		_vue(c + Vector3(sin(az) * 4.2, 0.4, cos(az) * 4.2), c)
+		await process_frame
+	garde.global_position = Vector3.ZERO
+	garde.rotation.y = 0.0
+	for nom in ["Sword_Idle", "Sword_Attack", "Sword_Idle"]:
+		if not anim.has_animation(nom):
+			continue
+		anim.play(nom)
+		var L := 3.0 if nom == "Sword_Idle" else anim.get_animation(nom).length
+		n = int(L / DT)
+		for i in n:
+			if not anim.is_playing():
+				anim.play(nom)
+			t += DT
+			var az := deg_to_rad(20.0 + t * 25.0)
+			var c := Vector3(0, 1.05, 0)
+			cam.fov = 32.0
+			_vue(c + Vector3(sin(az) * 3.6, 0.3, cos(az) * 3.6), c)
+			await process_frame
 
 func _jouer(nom: String, t := 0.0) -> void:
 	anim.play(nom)
