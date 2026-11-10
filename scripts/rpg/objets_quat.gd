@@ -8,7 +8,8 @@ class_name ObjetsQuat
 ## Champs facultatifs de la fiche :
 ##   "teinte_quat": "#rrggbb"   recolore les sommets TEINTÉS du prop (liquide d'une fiole, couverture d'un livre : couleur de sommet
 ##                              saturée) vers cette teinte, luminance gardée (potion de mana bleue sur la même fiole que le soin) ;
-##   "echelle_quat": 1.2        facteur sur la taille réelle du prop.
+##   "echelle_quat": 1.2        facteur sur la taille réelle du prop ;
+##   "eclat_quat": 1.8          multiplie toutes les couleurs de sommet (métal clair : coupe d'argent sur l'atlas de fer sombre).
 ## `-- --props-quat-ancien` : anciens modèles partout (glb d'objets, primitives, props .dat q_*) — captures « avant », mesures A/B.
 
 const ARG_ANCIEN := "--props-quat-ancien"
@@ -43,10 +44,11 @@ static func maillage(oid: String, contexte := "crypte") -> ArrayMesh:
 	if pq == "":
 		return null
 	var t := teinte_de(oid)
+	var ec := float(Inventaire.objet(oid).get("eclat_quat", 1.0))
 	var base := PropsQuat.maillage(pq, contexte)
-	if base == null or t.a == 0.0:
+	if base == null or (t.a == 0.0 and ec == 1.0):
 		return base
-	var cle := "%s:%s:%s" % [pq, contexte, t.to_html()]
+	var cle := "%s:%s:%s:%.2f" % [pq, contexte, t.to_html(), ec]
 	_verrou.lock()
 	var m: ArrayMesh = _cache.get(cle)
 	_verrou.unlock()
@@ -55,7 +57,11 @@ static func maillage(oid: String, contexte := "crypte") -> ArrayMesh:
 	m = ArrayMesh.new()
 	for s in base.get_surface_count():
 		var arr := base.surface_get_arrays(s)
-		arr[Mesh.ARRAY_COLOR] = recolorer(arr[Mesh.ARRAY_COLOR], t)
+		var cols: PackedColorArray = recolorer(arr[Mesh.ARRAY_COLOR], t) if t.a > 0.0 else (arr[Mesh.ARRAY_COLOR] as PackedColorArray).duplicate()
+		if ec != 1.0:
+			for k in cols.size():
+				cols[k] = Color(cols[k].r * ec, cols[k].g * ec, cols[k].b * ec, cols[k].a)
+		arr[Mesh.ARRAY_COLOR] = cols
 		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 		m.surface_set_material(s, base.surface_get_material(s))
 	_verrou.lock()
@@ -63,19 +69,48 @@ static func maillage(oid: String, contexte := "crypte") -> ArrayMesh:
 	_verrou.unlock()
 	return m
 
-## Couleurs de sommet saturées -> teinte `t` (luminance gardée, saturation de `t`) ; les autres (bois, verre gris, bouchon) intactes.
+## Couleurs de sommet TEINTÉES -> teinte `t` (luminance gardée) : seuls les sommets saturés de la teinte DOMINANTE du prop (liquide
+## d'une fiole, couverture d'un livre) changent ; bouchon, verre gris, ferrures et bois gardent leur couleur. Couleurs de sommet
+## linéaires (glb) : `t` (sRVB de la fiche) passe en linéaire.
+const ECART_TEINTE := 0.07
 static func recolorer(cols: Variant, t: Color) -> PackedColorArray:
 	var c: PackedColorArray = cols if cols is PackedColorArray else PackedColorArray()
 	var r := c.duplicate()
-	var lt := t.get_luminance()
+	var dom := teinte_dominante(c)
+	if dom < 0.0:
+		return r
+	var tl := t.srgb_to_linear()
+	var lt := tl.get_luminance()
 	for k in r.size():
 		var v: Color = r[k]
-		if v.s < SEUIL_TEINTE:
+		if not _de_la_teinte(v, dom):
 			continue
-		var l := v.get_luminance()
-		var n := t * (l / maxf(lt, 0.01))
+		var n := tl * (v.get_luminance() / maxf(lt, 0.001))
 		r[k] = Color(clampf(n.r, 0, 1), clampf(n.g, 0, 1), clampf(n.b, 0, 1), v.a)
 	return r
+
+static func _de_la_teinte(v: Color, dom: float) -> bool:
+	if v.s < SEUIL_TEINTE:
+		return false
+	var d := absf(v.h - dom)
+	return minf(d, 1.0 - d) <= ECART_TEINTE
+
+## Teinte (0-1) la plus fréquente parmi les sommets saturés (cases de 1/24), -1 si aucun.
+static func teinte_dominante(c: PackedColorArray) -> float:
+	var cases := PackedInt32Array()
+	cases.resize(24)
+	var somme := PackedFloat32Array()
+	somme.resize(24)
+	for v in c:
+		if v.s >= SEUIL_TEINTE:
+			var i := int(v.h * 24.0) % 24
+			cases[i] += 1
+			somme[i] += v.h
+	var best := -1
+	for i in 24:
+		if cases[i] > 0 and (best < 0 or cases[i] > cases[best]):
+			best = i
+	return somme[best] / cases[best] if best >= 0 else -1.0
 
 ## Nœud prêt à poser (pivot au pied, centré), échelle de la fiche appliquée ; null si l'objet n'a pas de prop.
 static func noeud(oid: String, contexte := "crypte") -> MeshInstance3D:
