@@ -34,7 +34,8 @@ static var CENTRE_POING := Vector3(0.015, 0.12, -0.09)
 ## Le gantelet Tripo n'est qu'une coque ouverte (pas de doigts) : un POING FERMÉ (4 doigts repliés en anneaux autour de la poignée + pouce
 ## posé dessus), en cuir de gant sombre, est ajouté sur l'épée : poignée cachée par les doigts, pommeau au-dessus, garde au ras du dernier doigt.
 static var POING_FERME := true
-const DOIGTS := [0.031, 0.032, 0.031, 0.028]      # rayons des anneaux (m), du pommeau (index) vers la garde (auriculaire)
+static var POING_BLOC := Vector3(0.036, 0.075, 0.006)    # rayon, hauteur (du pommeau à la garde) et avancée du bloc des doigts (m)
+static var TEINTE_POING := Color(0.50, 0.44, 0.41)
 static var PRISE := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 const CHAINES := ["tab_f", "tab_b"]
 ## Tabard de laine : plus léger que la cape du jarl, mais amorti.
@@ -200,38 +201,36 @@ static func _poing_ferme(arme: Node3D) -> void:
 	p.name = "PoingFerme"
 	arme.add_child(p)
 	if _mailles_poing.is_empty():
-		var cuir := Palette.materiau(Palette.tex("cuir", Palette.CUIR, 4, 0.5), Vector2(1, 1), Color(0.36, 0.30, 0.27))
-		cuir.set_shader_parameter("tex_neige", cuir.get_shader_parameter("tex_base"))
-		_mailles_poing["mat"] = cuir
-		for r: float in DOIGTS:
-			var c := CylinderMesh.new()
-			c.top_radius = r
-			c.bottom_radius = r * 0.94
-			c.height = 0.0175
-			c.radial_segments = 8
-			c.rings = 1
-			_mailles_poing[r] = c
+		# teinte du gantelet Tripo (gris-brun mat), pas un cuir sombre : le bloc prolonge la coque au lieu de se lire comme une doublure
+		var gant := Palette.materiau(Palette.tex("acier", Palette.ACIER, 4, 0.3), Vector2(1, 1), Color(TEINTE_POING.r, TEINTE_POING.g, TEINTE_POING.b))
+		gant.set_shader_parameter("tex_neige", gant.get_shader_parameter("tex_base"))
+		_mailles_poing["mat"] = gant
+		var bloc := CylinderMesh.new()      # les quatre doigts refermés, d'un seul bloc (fermé en haut et en bas)
+		bloc.top_radius = POING_BLOC.x
+		bloc.bottom_radius = POING_BLOC.x * 0.92
+		bloc.height = POING_BLOC.y
+		bloc.radial_segments = 8
+		bloc.rings = 1
+		_mailles_poing["bloc"] = bloc
 		var pouce := CapsuleMesh.new()
-		pouce.radius = 0.011
-		pouce.height = 0.055
+		pouce.radius = 0.0115
+		pouce.height = 0.05
 		pouce.radial_segments = 6
 		pouce.rings = 2
 		_mailles_poing["pouce"] = pouce
-	var e := 1.0 / maxf(EPEE_ECH, 0.01)
-	var y := 0.004 / e      # en unités de l'épée : le premier doigt part juste sous le pommeau
-	for k in DOIGTS.size():
-		var mi := MeshInstance3D.new()
-		mi.name = "Doigt%d" % (k + 1)
-		mi.mesh = _mailles_poing[DOIGTS[k]]
-		mi.material_override = _mailles_poing["mat"]
-		mi.position = Vector3(0.0, (0.004 + 0.0183 * k + 0.00875) * e, 0.003 * e)
-		mi.scale = Vector3(e, e, e * 1.12)
-		p.add_child(mi)
-	var pc := MeshInstance3D.new()
+	var e := 1.0 / maxf(EPEE_ECH, 0.01)     # enfants de l'épée (mise à l'échelle EPEE_ECH) : cotes en mètres
+	var mi := MeshInstance3D.new()
+	mi.name = "Doigts"
+	mi.mesh = _mailles_poing["bloc"]
+	mi.material_override = _mailles_poing["mat"]
+	mi.position = Vector3(0.0, (0.002 + POING_BLOC.y * 0.5) * e, POING_BLOC.z * e)
+	mi.scale = Vector3(e, e, e * 1.22)       # plus profond que large : jointures en avant
+	p.add_child(mi)
+	var pc := MeshInstance3D.new()           # pouce couché sur la garde, côté jointures
 	pc.name = "Pouce"
 	pc.mesh = _mailles_poing["pouce"]
 	pc.material_override = _mailles_poing["mat"]
-	pc.position = Vector3(0.012 * e, 0.016 * e, 0.030 * e)
-	pc.rotation_degrees = Vector3(0, 0, 70)
+	pc.position = Vector3(0.0, (0.002 + POING_BLOC.y - 0.009) * e, (POING_BLOC.z + POING_BLOC.x * 1.05) * e)
+	pc.rotation_degrees = Vector3(0, 0, 90)
 	pc.scale = Vector3.ONE * e
 	p.add_child(pc)

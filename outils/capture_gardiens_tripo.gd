@@ -81,9 +81,7 @@ func _cadrer_libre(c: Node3D) -> void:
 			return
 	_cadrer(c)
 
-func _planche(nom: String, cols := 4) -> void:
-	var w := 480
-	var h := 270
+func _planche(nom: String, cols := 4, w := 480, h := 270) -> void:
 	var rangs := ceili(photos.size() / float(cols))
 	var pl := Image.create(w * cols, h * rangs, false, Image.FORMAT_RGBA8)
 	pl.fill(Color(0.05, 0.05, 0.05))
@@ -139,6 +137,9 @@ func _go() -> void:
 			_planche("mains", 4)
 		"patrouille":
 			await _patrouille()
+		"en_jeu":
+			await _en_jeu()
+			_planche("en_jeu", 2, 960, 540)
 		_:
 			await _postes()
 			_planche("postes", 4)
@@ -226,6 +227,40 @@ func _mains() -> void:
 				cam.look_at(pm, Vector3.UP)
 				await _attendre(3)
 				await _photo("main_%s_%s_%d" % [id, clip, int(t * 100)])
+		g.visible = false
+
+## Vue du joueur (1re personne, œil à 1,62 m, fov du jeu) sur un garde à l'épée au repos (n_e, Idle) et un en ronde (ronde_rue, Walk
+## figé à mi-pas), à 2 m et 4 m, de face puis de 3/4 côté épée (main droite) : <sortie>/jeu_<id>_<dist>m_<angle>.png + planche_en_jeu.png.
+func _en_jeu() -> void:
+	await _attendre(90)
+	var fov_jeu: float = j.camera.fov
+	var k := 0
+	for x2: Array in [["n_e", "Idle", 0.4], ["ronde_rue", "Walk", 0.25]]:
+		var g := _garde(String(x2[0]))
+		if g == null:
+			print("ABSENT ", x2[0])
+			continue
+		var x := 42.0     # même place dégagée pour les deux (le premier est caché après ses photos)
+		var z := 44.0
+		k += 1
+		var ap := _figer(g, String(x2[1]))
+		g.global_position = Vector3(x, m.hauteur(x, z) + 0.02, z)
+		g.rotation.y = 0.0
+		ap.seek(float(x2[2]) * (1.0 if x2[1] == "Idle" else ap.current_animation_length), true)
+		ap.pause()
+		var de := g.global_transform.basis.orthonormalized()
+		for dist: float in [2.0, 4.0]:
+			for ang: float in [0.0, 35.0]:
+				var dirv := (de.z * cos(deg_to_rad(ang)) - de.x * sin(deg_to_rad(ang))).normalized()
+				var p := g.global_position + dirv * dist
+				p.y = m.hauteur(p.x, p.z) + 1.62
+				j.global_position = p + dirv * 1.0
+				j.velocity = Vector3.ZERO
+				cam.fov = fov_jeu
+				cam.global_position = p
+				cam.look_at(Vector3(g.global_position.x, p.y - 0.15 * dist, g.global_position.z), Vector3.UP)
+				await _attendre(6)
+				await _photo("jeu_%s_%dm_%s" % [x2[0], int(dist), "face" if ang == 0.0 else "34"])
 		g.visible = false
 
 ## Caméra qui suit à 3 m : parmi 16 points autour du garde (à 1,4 m du sol), garde ceux d'où l'on voit sa poitrine sans obstacle (maisons,
