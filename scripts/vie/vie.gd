@@ -325,10 +325,14 @@ func _transition(c: Dictionary, m: String, instant: bool) -> void:
 
 ## De nouveaux lits viennent d'être posés (intérieur chargé à la demande, joueur en approche) : les civils qui dormaient cachés
 ## faute de lit s'y couchent tout de suite (placement direct, hors de vue : le joueur est encore dehors).
+## Sauf un civil occupé (comme _evaluer) : en conversation, ou dont un PnjCombat a pris le corps (frappé dans son lit, il est encore
+## « endormi » pour Vie) — le recoucher le rendait visible et actif à côté de son combattant, couché dans le lit (test_crime_sommeil,
+## dès qu'un intérieur à la demande se pose pendant l'agression).
 func lits_poses() -> void:
 	for c: Dictionary in civils:
 		var n: Node3D = c["n"]
-		if not is_instance_valid(n) or String(c["mode"]) != "maison" or not n.has_method("au_lit") or not n.est_endormi() or n.au_lit():
+		if not is_instance_valid(n) or String(c["mode"]) != "maison" or not n.has_method("au_lit") or not n.est_endormi() or n.au_lit() \
+				or n.occupe():
 			continue
 		var maison := String(c["f"].get("maison", ""))
 		var porte := _porte_de(maison, String(c["id"]))

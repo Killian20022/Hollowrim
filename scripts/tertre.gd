@@ -230,7 +230,7 @@ func _construire_crypte() -> void:
 	_cont.add_child(corps2)
 	d2 = CrypteDecor.new(_cont, corps2, d)
 	donjon = CrypteDonjon.new(d2)
-	_tache = WorkerThreadPool.add_task(_batir_donjon.bind(donjon, d2))
+	_tache = FilVerrou.lancer(_batir_donjon.bind(donjon, d2))
 
 ## Emplacements d'eau de la crypte v2 (lot eau C5) : flaques, vasque du rituel, bassin de la citerne, flaques froides des oculus.
 ## Chaque entrée : {centre (repère de la crypte), rayon, module, genre, taille} — voir CrypteDecor.eau_slots et docs/DONJONS.md §14.

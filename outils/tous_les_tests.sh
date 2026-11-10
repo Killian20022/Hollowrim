@@ -161,6 +161,7 @@ TESTS=(
 	"test_crochetage|--nouvelle --demo-crime"   # retours exe 5 : mini-jeu de crochetage, crochets, verrous 1-4, intrusion vue
 	"test_sommeil|--nouvelle --paisible"   # retours exe 5 : lits, PNJ qui se couchent et se lèvent, joueur qui dort / attend, intrusion vue
 	"test_crime_sommeil|--nouvelle --paisible"   # crime x sommeil : PNJ couché frappé -> debout, combattant, corps rendu, lit libéré
+	"test_fil_verrou_headless|--test"   # correctifs/rid_lit : en --headless, FilVerrou.lancer exécute les constructions de maillages en ligne (stockage factice des maillages non sûr entre fils)
 	"test_disposition|--nouvelle --paisible"   # disposition : accueil et prix selon réputation / prime, arme brandie (remarque, avertissements, garde hostile), plaider, récidive
 	"test_shaders_tiers|--nouvelle"   # reprises de shaders PS1 libres : fondu au noir soustractif en 32 pas, licences MIT
 )

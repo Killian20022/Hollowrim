@@ -6,8 +6,20 @@ extends RefCounted
 ## (« Attempting to initialize the wrong RID », « Parameter "m" is null », plantage rc=5). On sérialise donc ces fils UNIQUEMENT en
 ## headless : aucun changement du temps de chargement en jeu.
 
+##
+## Ce verrou ne suffisait pas : il exclut les fils ENTRE EUX, pas le fil principal, qui crée lui aussi des maillages pendant qu'un fil
+## tourne (lit posé par Sommeil.scanner toutes les secondes, torche de nuit d'un garde, cadavres…). En Godot 4.7, le stockage factice
+## (servers/rendering/dummy/storage/mesh_storage.h) déclare `RID_Owner<DummyMesh> mesh_owner` SANS sûreté de fil (les vrais rendus
+## RD et GLES3 déclarent `RID_Owner<Mesh, true>`) ; et l'allocation d'un RID (`mesh_allocate`, faite sur le fil appelant) court contre
+## le fil principal qui en alloue, initialise ou libère d'autres → même case allouée deux fois : « Attempting to initialize the wrong
+## RID » puis « Parameter "m" is null » et arrêt net du test (correctifs/rid_lit, 1 lancement sur 3 de test_crime_sommeil). Le
+## fil principal ne peut pas « attendre sans vider » (les appels à réponse d'un fil passent par la file qu'il vide) : en --headless,
+## les constructions qui fabriquent des maillages passent donc par `lancer`, qui les exécute sur le fil appelant. En jeu (vrai rendu,
+## stockage sûr), rien ne change : vraie tâche de fond.
+
 static var _m := Mutex.new()
 static var _actif := DisplayServer.get_name() == "headless"
+static var _en_ligne := 0       # > 0 : une construction « de fil » s'exécute en ce moment sur le fil principal (--headless, voir lancer)
 
 static func prendre() -> void:
 	if _actif:
@@ -20,6 +32,23 @@ static func rendre() -> void:
 ## Vrai si on est sur le fil principal (celui qui vide la file de commandes du serveur de rendu et dessine les images).
 static func fil_principal() -> bool:
 	return OS.get_thread_caller_id() == OS.get_main_thread_id()
+
+## Lance une construction qui fabrique des maillages (ArrayMesh, PrimitiveMesh, matériaux…) : tâche du WorkerThreadPool en jeu ;
+## en --headless (serveur de rendu factice, stockage des maillages non sûr entre fils : voir en tête), exécutée TOUT DE SUITE sur le
+## fil appelant. Renvoie toujours un vrai identifiant de tâche (en --headless, une tâche vide déjà lancée après coup), si bien que
+## is_task_completed / attendre / wait_for_task_completion des appelants marchent sans changement.
+static func lancer(travail: Callable, nom := "") -> int:
+	if not _actif:
+		return WorkerThreadPool.add_task(travail, false, nom)
+	_en_ligne += 1
+	travail.call()
+	_en_ligne -= 1
+	return WorkerThreadPool.add_task(func() -> void: pass, false, nom)
+
+## Vrai pendant une construction lancée par `lancer` : dans un fil de travail, ou exécutée en ligne sur le fil principal (--headless).
+## Pour les données propres à la construction (lots et caches du village) : c'est le travail qui compte, pas le fil qui l'exécute.
+static func en_construction() -> bool:
+	return _en_ligne > 0 or not fil_principal()
 
 ## Attente d'une tâche du WorkerThreadPool SANS interblocage (reprend l'ancien Tertre._attendre_fil, commit c5cc4e3). Un fil de
 ## construction fait des appels au serveur de rendu qui attendent une réponse (surface_get_arrays, get_image, get_aabb…) ; avec une
