@@ -109,9 +109,14 @@ static func maillage(oid: String, contexte := "objet", pq_force := "") -> ArrayM
 	return m
 
 ## Couleurs de sommet TEINTÉES -> teinte `t` (luminance gardée) : seuls les sommets saturés de la teinte DOMINANTE du prop (liquide
-## d'une fiole, couverture d'un livre) changent ; bouchon, verre gris, ferrures et bois gardent leur couleur. Couleurs de sommet
+## d'une fiole, couverture d'un livre) changent, luminance relative bornée (LUM_MIN-LUM_MAX) ; bouchon, verre gris, ferrures et bois
+## gardent leur couleur. Couleurs de sommet
 ## linéaires (glb) : `t` (sRVB de la fiche) passe en linéaire.
 const ECART_TEINTE := 0.07
+## Luminance des sommets recolorés, relative à la teinte demandée : les liquides et couvertures du pack sont très sombres (couleur de
+## sommet linéaire ~0,01-0,1) ; bornés pour que la teinte se lise au sol en plein jour (fiole rouge, pas noire), ombrage gardé.
+const LUM_MIN := 0.55
+const LUM_MAX := 1.3
 static func recolorer(cols: Variant, t: Color) -> PackedColorArray:
 	var c: PackedColorArray = cols if cols is PackedColorArray else PackedColorArray()
 	var r := c.duplicate()
@@ -124,7 +129,7 @@ static func recolorer(cols: Variant, t: Color) -> PackedColorArray:
 		var v: Color = r[k]
 		if not _de_la_teinte(v, dom):
 			continue
-		var n := tl * (v.get_luminance() / maxf(lt, 0.001))
+		var n := tl * clampf(v.get_luminance() / maxf(lt, 0.001), LUM_MIN, LUM_MAX)
 		r[k] = Color(clampf(n.r, 0, 1), clampf(n.g, 0, 1), clampf(n.b, 0, 1), v.a)
 	return r
 
