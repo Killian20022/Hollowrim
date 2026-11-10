@@ -1,0 +1,23 @@
+# props/quaternius (remplacement q_* -> pq_*) : mêmes cadrages avant (-- --props-quat-ancien) / après. Lancer :
+#   godot --path . --disable-vsync -- --nouvelle --paisible --sans-particules --captures=res://outils/poses_pq_remplacement.txt --sortie=<dossier> [--props-quat-ancien]
+marche_jour monde 46,36,-56,-9 heure=12
+marche_pres monde 47.2,35.2,-56,-16 heure=12
+etals_jour monde 49.5,26.5,-160,-12 heure=12
+marche_nuit monde 46,36,-56,-9
+forge_ext scenario forge heure=12
+halle_porche monde 44.5,29.5,0,-6 heure=12
+halle_porche_nuit monde 44.5,29.5,0,-6
+halle interieur 0,3.0,0,-8 bat=halle heure=12
+halle_table interieur 0.6,1.6,10,-22 bat=halle heure=12
+forge_int interieur -0.9,0.9,-60,-3 bat=forge heure=12
+sigrun interieur 0,2.0,0,-10 bat=sigrun heure=12
+sigrun_est interieur 3.0,1.5,115,-6 bat=sigrun heure=12
+chasseurs interieur 0,2.0,0,-10 bat=chasseurs heure=12
+grima interieur 0,2.0,0,-10 bat=grima heure=12
+cr_quartiers crypte 16.3,-3.5,-70,-12 sans-mains
+cr_tresor crypte -36.8,-44,90,-15 sans-mains
+cr_prep crypte -1.5,-25.5,90,-10 sans-mains
+cr_archives crypte -7.5,-43,90,-8,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+cr_garde crypte 25,-51,95,-10,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+grotte_camp grotte 93.5,0.5,0,-4 sans-mains
+grotte_mine grotte 60,0,0,-6 sans-mains
