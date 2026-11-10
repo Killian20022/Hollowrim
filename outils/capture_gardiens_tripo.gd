@@ -150,6 +150,9 @@ func _go() -> void:
 ## Garde figé (plus de déplacement ni d'IA), son AnimationPlayer joue `clip` (Idle par défaut).
 func _figer(g: Node3D, clip := "Idle") -> AnimationPlayer:
 	g.process_mode = Node.PROCESS_MODE_DISABLED
+	var mod: Node3D = g.get("modele")
+	if mod != null:
+		mod.process_mode = Node.PROCESS_MODE_ALWAYS      # squelette, ressorts du tabard, lance droite : la pose suit le clip
 	var ap: AnimationPlayer = g.get("anim")
 	if ap:
 		ap.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -188,17 +191,19 @@ const INSTANTS := [0.0, 0.25, 0.5, 0.75]
 
 func _mains() -> void:
 	await _attendre(90)
+	var k := 0
 	for id: String in ["n_e", "so", "haldor"]:
 		var g := _garde(id)
 		if g == null:
 			continue
-		# posé sur la place (sol plat, lumière franche), tourné vers +Z
-		var x := 40.0
+		# posé sur la place (sol plat, lumière franche), chacun à sa place, tourné vers +Z
+		var x := 36.0 + k * 4.0
 		var z := 44.0
+		k += 1
 		var ap := _figer(g)
 		g.global_position = Vector3(x, m.hauteur(x, z) + 0.02, z)
 		g.rotation.y = 0.0
-		j.global_position = Vector3(x + 8.0, m.hauteur(x + 8.0, z + 8.0) + 0.3, z + 8.0)
+		j.global_position = Vector3(x + 2.0, m.hauteur(x + 2.0, z + 10.0) + 0.3, z + 10.0)
 		var sq: Skeleton3D = g.modele.find_child("Skeleton3D", true, false)
 		var main := sq.find_bone("hand_r")
 		for clip: String in ["Idle", "Walk"]:
@@ -207,35 +212,61 @@ func _mains() -> void:
 				ap.play(clip)
 				ap.seek(t * (1.0 if clip == "Idle" else ap.current_animation_length), true)
 				ap.pause()
-				await _attendre(3)
+				await _attendre(4)
 				var pm := sq.global_transform * sq.get_bone_global_pose(main).origin
-				# gros plan de 3/4 avant-droit sur la main ; un plan de profil pour l'axe de l'épée en marche
 				var de := g.global_transform.basis.orthonormalized()
+				# Idle : gros plan 3/4 avant-droit sur le poing ; Walk : profil droit, cadré du coude à la pointe de l'épée
 				if clip == "Idle":
-					cam.global_position = pm + de.z * 0.75 + de.x * 0.45 + Vector3(0, 0.15, 0)
+					cam.fov = 40.0
+					cam.global_position = pm + de.z * 0.9 - de.x * 0.55 + Vector3(0, 0.12, 0)
 				else:
-					cam.global_position = pm + de.x * 1.5 + de.z * 0.25 + Vector3(0, 0.05, 0)
-					pm += Vector3(0, -0.25, 0)
+					cam.fov = 50.0
+					cam.global_position = pm - de.x * 1.7 + de.z * 0.15 + Vector3(0, -0.1, 0)
+					pm += Vector3(0, -0.3, 0)
 				cam.look_at(pm, Vector3.UP)
 				await _attendre(3)
 				await _photo("main_%s_%s_%d" % [id, clip, int(t * 100)])
+		g.visible = false
 
-func _suivre(c: Node3D, d: Vector3, hauteur := 1.0) -> void:
-	var b := c.global_transform.basis.orthonormalized()
-	var p := c.global_position + b.x * d.x + b.z * d.z
-	p.y = m.hauteur(p.x, p.z) + d.y
-	cam.global_position = cam.global_position.lerp(p, 0.15) if cam.global_position.distance_to(p) < 4.0 else p
-	cam.look_at(c.global_position + Vector3(0, hauteur, 0), Vector3.UP)
+## Caméra qui suit à 3 m : parmi 16 points autour du garde (à 1,4 m du sol), garde ceux d'où l'on voit sa poitrine sans obstacle (maisons,
+## palissade) et prend le plus proche de la caméra actuelle (sinon du point devant lui), puis s'en approche en douceur.
+var _cible_cam := Vector3.ZERO
+func _suivre(c: Node3D, premier: bool) -> void:
+	for cl in root.find_children("*", "CanvasLayer", true, false):
+		(cl as CanvasLayer).visible = false      # sous-titres des répliques
+	var vise := c.global_position + Vector3(0, 1.0, 0)
+	var esp := m.get_world_3d().direct_space_state
+	var av := c.global_transform.basis.z
+	av.y = 0.0
+	av = av.normalized()
+	var ref := (c.global_position + av * 3.0) if premier else _cible_cam
+	var mieux := Vector3.INF
+	for k in 16:
+		var d := Basis(Vector3.UP, TAU * k / 16.0) * av
+		var p := c.global_position + d * 3.0
+		p.y = maxf(m.hauteur(p.x, p.z), c.global_position.y) + 1.4
+		var rq := PhysicsRayQueryParameters3D.create(vise, p)
+		if c is CollisionObject3D:
+			rq.exclude = [(c as CollisionObject3D).get_rid(), j.get_rid()]
+		if not esp.intersect_ray(rq).is_empty():
+			continue
+		if mieux == Vector3.INF or p.distance_to(ref) < mieux.distance_to(ref):
+			mieux = p
+	if mieux != Vector3.INF:
+		_cible_cam = mieux
+	cam.global_position = _cible_cam if premier else cam.global_position.lerp(_cible_cam, 0.08)
+	cam.look_at(vise, Vector3.UP)
 
 func _patrouille() -> void:
 	cam.fov = 55.0
+	_suivre(_garde("ronde_est"), true)
 	for i in 60:
 		await process_frame
-	for x: Array in [["ronde_est", Vector3(1.6, 1.3, 2.9), 9.0], ["ronde_ouest", Vector3(-1.6, 1.3, 2.9), 7.0]]:
+	for x: Array in [["ronde_est", 9.0], ["ronde_ouest", 8.0]]:
 		var g := _garde(String(x[0]))
 		print("PATROUILLE ", x[0], " corps=", g.modele.get_meta("pnj_nordique", g.modele.name), " livree=", g.modele.get_meta("variante_tripo", "-"))
 		j.global_position = g.global_position + Vector3(0, 0.3, 25.0)
 		j.global_position.y = m.hauteur(j.global_position.x, j.global_position.z) + 0.3
 		j.velocity = Vector3.ZERO
-		cam.global_position = Vector3(0, -100, 0)
-		await _attendre(int(float(x[2]) * 30), func(_i: int) -> void: _suivre(g, x[1], 1.0))
+		_suivre(g, true)
+		await _attendre(int(float(x[1]) * 30), func(i: int) -> void: _suivre(g, i == 0))
