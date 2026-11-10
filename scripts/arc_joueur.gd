@@ -63,10 +63,13 @@ const COUDE_G := Vector3(-0.6, -1.2, -0.3)
 const COUDE_G_VISEE := Vector3(-0.8, -0.75, -0.25)
 ## Levée : détour du coude gauche (haut et en dehors, au milieu du redressement de l'arc) : l'avant-bras reste en travers de l'arc.
 var detour_coude_g := Vector3(-0.6, 0.4, 0.0)
-var fin_redressement := 0.5
-var flexion_levee := 0.0
-var deviation_levee := 20.0
-var lissage_levee := 0.3
+## Levée et descente : l'arc tourne de la pose de repos à celle de visée (direction de la flèche et inclinaison interpolées, jamais
+## au-delà de l'une ou de l'autre) au rythme adouci de la levée, sa vitesse de rotation plafonnée ; le poignet gauche, libre pendant
+## le trajet, absorbe l'écart et le poing reste fermé sur la poignée.
+const FIN_REDRESSEMENT := 0.7   # l'arc se redresse avant la fin de la levée (pas de passage couché), sans dépasser le plafond
+const ROTATION_ARC_MAX := 7.5   # degrés par image à 60 i/s
+const FLEXION_TRAJET := 180.0
+const DEVIATION_TRAJET := 90.0
 const COUDE_D := Vector3(0.8, -0.6, 0.1)
 ## Coude droit en visée : haut et en arrière (ligne de l'épaule, comme un vrai archer), le bras de corde reste hors champ.
 const COUDE_D_VISEE := Vector3(0.7, 0.05, 0.6)
@@ -124,7 +127,14 @@ var _poing_vm: _Poing
 var main_g_monde := Transform3D()
 ## Écart (m, rad) entre ce repère et la prise voulue sur la poignée, mesuré dans la même image (mesure = true).
 var prise_g := Vector2.ZERO
-var _vm_ecrit := Transform3D()
+var _s_rot := 0.0
+var _q_arc_prec := Quaternion.IDENTITY
+## Mesures (tests) de l'arc de la 1re personne, repère de la caméra : orientation affichée (lacet et tangage de la flèche,
+## inclinaison, degrés), celles du repos et de la visée de cette image, rotation depuis l'image précédente (degrés).
+var orient_arc := Vector3.ZERO
+var orient_repos := Vector3.ZERO
+var orient_visee := Vector3.ZERO
+var rotation_arc := 0.0
 var _coude_g_vm: Node3D
 var _or_g_vm: SkeletonModifier3D
 ## Mesure (tests, films) : positions monde des os des mains de la 1re personne après l'IK (signal skeleton_updated).
@@ -680,8 +690,6 @@ static func appui_visee() -> Vector3:
 
 ## Os des mains (après l'IK) : poing gauche refermé sur la poignée, puis mesure de ce que la main cache à l'écran.
 func _sur_squelette() -> void:
-	_vm_ecrit = _vm.global_transform
-	_arc_dans_le_poing()
 	if mesure:
 		# main gauche (repère monde de l'os, après l'IK et le poignet) contre la prise voulue sur la poignée de l'arc AFFICHÉ (tests)
 		main_g_monde = _sq.global_transform * _sq.get_bone_global_pose(_sq.find_bone("hand_l"))
@@ -705,24 +713,19 @@ func _sur_squelette() -> void:
 	# bras droit entier (épaule, coude, poignet) : il ne doit pas barrer le bas de l'image au rechargement (tests)
 	points_mains["bras_r"] = PackedVector3Array([_sq.global_transform * _sq.get_bone_global_pose(_sq.find_bone("upperarm_r")).origin] + Array(points_mains["avant_bras_r"]))
 
-## Levée et descente de l'arc : l'arc visible est ACCROCHÉ au poing gauche. Pendant ces trajets le bras, borné (allonge, poignet),
-## ne suit pas toujours la pose écrite de l'arc (jusqu'à 6 cm et 50° d'écart en milieu de levée : arc tenu dans le vide) ; l'arc
-## affiché est donc replacé, dans la même image, là où le poing l'a vraiment saisi. En visée (levée complète) rien ne change :
-## repose-flèche, inclinaison, axe de tir et balistique restent ceux de la pose écrite.
 ## Poids du trajet de l'arc (levée, descente) : 0 au repos (arc baissé) et en visée (arc levé), 1 entre les deux.
 func poids_trajet() -> float:
 	return clampf(minf(_levee / 0.15, (1.0 - _levee) / 0.15), 0.0, 1.0)
 
-func _arc_dans_le_poing() -> void:
-	var w := poids_trajet()
-	if w <= 0.0 or _vm.repere_poignee.get_child_count() == 0:
-		return
-	var h := _sq.global_transform * _sq.get_bone_global_pose(_sq.find_bone("hand_l"))
-	var t: Transform3D = (_vm.repere_poignee.get_child(0) as Node3D).global_transform
-	var q := (h.basis.orthonormalized() * t.basis.orthonormalized().inverse()).get_rotation_quaternion()
-	var qw := Basis(Quaternion.IDENTITY.slerp(q, w))
-	var g := _vm.global_transform
-	_vm.global_transform = Transform3D(qw * g.basis, t.origin + qw * (g.origin - t.origin) + (h.origin - t.origin) * w)
+## Orientation d'un repère d'arc (repère de la caméra) : lacet, tangage de la flèche et inclinaison (rad), inverse de pose_arc.
+static func orientation_arc(b: Basis, d_loc: Vector3) -> Vector3:
+	var m := b.orthonormalized() * Basis.looking_at(d_loc, Vector3.UP)
+	var dir := -m.z.normalized()
+	var ref := (Vector3.UP - dir * Vector3.UP.dot(dir)).normalized()
+	return Vector3(atan2(dir.x, -dir.z), asin(clampf(dir.y, -1.0, 1.0)), -ref.signed_angle_to(m.y, dir))
+
+static func _dir_lacet_tangage(lacet: float, tangage: float) -> Vector3:
+	return Vector3(sin(lacet) * cos(tangage), sin(tangage), -cos(lacet) * cos(tangage))
 
 ## Poing gauche SERRÉ sur la poignée : le repère de la prise tourne autour de l'axe de l'arc pour que les jointures suivent
 ## l'avant-bras (poignet droit, comme un vrai archer). Avec un repère imposé, le poignet borné (orientation_main) ne pouvait pas
@@ -732,7 +735,7 @@ func _arc_dans_le_poing() -> void:
 func _poing_g_naturel() -> void:
 	var coude := _sq.global_transform * _sq.get_bone_global_pose(_sq.find_bone("lowerarm_l")).origin
 	var poignet := _sq.global_transform * _sq.get_bone_global_pose(_sq.find_bone("hand_l")).origin
-	var f := _vm_ecrit.basis.inverse() * (poignet - coude)   # pose ÉCRITE de l'arc (pas celle accrochée au poing)
+	var f := _vm.global_transform.basis.inverse() * (poignet - coude)
 	f.y = 0.0
 	if f.length_squared() < 1e-4 * (poignet - coude).length_squared():
 		return   # avant-bras presque dans l'axe de l'arc : on garde le repère précédent
@@ -807,13 +810,25 @@ func _placer_vm() -> void:
 		appui += Vector3(0.0, 0.01, 0.035) * k * k
 		incl += 0.06 * k
 	# levée : position de l'appui interpolée, ROTATION interpolée (quaternions) entre la pose de repos et celle de visée
-	var t_repos := pose_arc(POSE_REPOS[0], POSE_REPOS[1], POSE_REPOS[2], z_u, ECHELLE_ARC_VM)
-	var t_vis := pose_arc(appui, d_u, incl, z_u, ECHELLE_ARC_VM, APPUI_VISEE_LOC)
-	# l'arc se redresse en tête de levée (à mi-course il est droit) pendant que le poing monte : pas de passage couché
-	var l_rot := smoothstep(0.0, 1.0, clampf(_levee / fin_redressement, 0.0, 1.0))
-	var q := t_repos.basis.get_rotation_quaternion().slerp(t_vis.basis.get_rotation_quaternion(), l_rot)
-	var b := Basis(q).scaled(Vector3.ONE * ECHELLE_ARC_VM)
 	_vm.appui = ArcModele.APPUI.lerp(APPUI_VISEE_LOC, l)
+	var d_loc := (_vm.appui - Vector3(0.0, _vm.appui.y, z_u)).normalized()
+	var o_r := orientation_arc(pose_arc(POSE_REPOS[0], POSE_REPOS[1], POSE_REPOS[2], z_u, 1.0, _vm.appui).basis, d_loc)
+	var o_v := orientation_arc(pose_arc(appui, d_u, incl, z_u, 1.0, _vm.appui).basis, d_loc)
+	# l'arc tourne au rythme adouci de la levée, vitesse de rotation plafonnée (ROTATION_ARC_MAX par image)
+	var s_but := smoothstep(0.0, 1.0, clampf(_levee / FIN_REDRESSEMENT, 0.0, 1.0))
+	var q_r := pose_arc(POSE_REPOS[0], POSE_REPOS[1], POSE_REPOS[2], z_u, 1.0, _vm.appui).basis.get_rotation_quaternion()
+	var q_v := pose_arc(appui, d_u, incl, z_u, 1.0, _vm.appui).basis.get_rotation_quaternion()
+	var ang_total := maxf(q_r.angle_to(q_v), 1e-3)
+	_s_rot = move_toward(_s_rot, s_but, deg_to_rad(ROTATION_ARC_MAX) * _dt * 60.0 / ang_total)
+	var l_rot := _s_rot
+	var o := o_r.lerp(o_v, l_rot)
+	var b := pose_arc(Vector3.ZERO, _dir_lacet_tangage(o.x, o.y), o.z, z_u, ECHELLE_ARC_VM, _vm.appui).basis
+	var q_aff := b.get_rotation_quaternion()
+	rotation_arc = rad_to_deg(_q_arc_prec.angle_to(q_aff))
+	_q_arc_prec = q_aff
+	orient_arc = orientation_arc(b, d_loc) * (180.0 / PI)
+	orient_repos = o_r * (180.0 / PI)
+	orient_visee = o_v * (180.0 / PI)
 	var p_appui: Vector3 = (POSE_REPOS[0] as Vector3).lerp(appui, l)
 	_vm.transform = Transform3D(b, p_appui - b * _vm.appui)
 	_poing_vm.decalages["clavicle_l"] = _rel_epaule_g * (AVANCE_EPAULE_G * l)
@@ -821,12 +836,11 @@ func _placer_vm() -> void:
 	# levée : le coude droit reste bas (détour), le bras de corde ne passe pas devant l'œil
 	_coude_d_vm.position = COUDE_D.lerp(COUDE_D_VISEE, l) + DETOUR_COUDE_D * sin(PI * l)
 	_coude_g_vm.position = COUDE_G.lerp(COUDE_G_VISEE, l_rot) + detour_coude_g * sin(PI * l_rot)
-	# levée et descente : poignet gauche droit (jointures dans l'axe de l'avant-bras, arc en travers du poing) et lissé ; l'arc,
-	# accroché au poing, suit. En visée : bornes et prise d'origine (repose-flèche, inclinaison inchangés)
+	# levée et descente : poignet gauche libre, il absorbe l'écart d'orientation (l'arc garde sa pose propre, le poing reste fermé
+	# sur la poignée). En visée : bornes d'origine (repose-flèche, inclinaison inchangés)
 	var w_g := poids_trajet()
-	_or_g_vm.set("flexion_max", deg_to_rad(lerpf(65.0, flexion_levee, w_g)))
-	_or_g_vm.set("deviation_max", deg_to_rad(lerpf(40.0, deviation_levee, w_g)))
-	_or_g_vm.set("lissage", lissage_levee * w_g)
+	_or_g_vm.set("flexion_max", deg_to_rad(lerpf(65.0, FLEXION_TRAJET, w_g)))
+	_or_g_vm.set("deviation_max", deg_to_rad(lerpf(40.0, DEVIATION_TRAJET, w_g)))
 	var ech := ECHELLE_ARC_VM
 	_poing_vm.ferme_d = 1.0
 	_vm.fleche_libre = null

@@ -18,11 +18,6 @@ var flexion_max := deg_to_rad(55.0)
 ## fixe : POIGNET RIGIDE, l'épée prolonge l'avant-bras.
 var angle_min := -1.0
 var angle_max := -1.0
-## Lissage (0 = aucun, sinon part de la rotation de l'image précédente gardée, repère de l'avant-bras) : arc de la 1re personne
-## pendant la levée et la descente, où le poignet borné saute d'une image à l'autre ; l'arc, accroché au poing, suit.
-var lissage := 0.0
-var _prec := Quaternion.IDENTITY
-var _prec_ok := false
 
 func _globale(sq: Skeleton3D, i: int) -> Transform3D:
 	var t := Transform3D()
@@ -62,9 +57,4 @@ func _process_modification_with_delta(_dt: float) -> void:
 	var angle := neutre.signed_angle_to(voulu, a)
 	var x := neutre.rotated(a, clampf(angle, -flexion_max, flexion_max))
 	var repere := Basis(x, a, x.cross(a)) * prise.basis.orthonormalized().inverse()
-	var q := (parent.basis.orthonormalized().inverse() * repere.orthonormalized()).get_rotation_quaternion()
-	if lissage > 0.0 and _prec_ok:
-		q = _prec.slerp(q, 1.0 - lissage)
-	_prec = q
-	_prec_ok = true
-	sq.set_bone_pose_rotation(i, q)
+	sq.set_bone_pose_rotation(i, (parent.basis.orthonormalized().inverse() * repere.orthonormalized()).get_rotation_quaternion())

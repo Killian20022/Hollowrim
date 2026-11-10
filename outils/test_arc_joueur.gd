@@ -164,6 +164,13 @@ func _cycle_complet() -> void:
 	var cou_vise := 0.0
 	var n_vise := 0
 	var n0 := arc.tirs
+	var rot_lacher := 0.0
+	var rot_max := 0.0         # rotation de l'arc d'une image à l'autre (degrés), le pire du cycle
+	var ou_rot := ""
+	var hors := 0.0            # dépassement de l'orientation (lacet, tangage, inclinaison) hors de l'intervalle repos -> visée, degrés
+	var ou_hors := ""
+	var n_trajet := 0
+	var vu_descente := false
 	for k in 260:
 		if k == 0:
 			arc.appuyer()
@@ -171,6 +178,22 @@ func _cycle_complet() -> void:
 			arc.relacher()
 		j.mains.avancer(DT)
 		await physics_frame
+		if k > 0 and arc.etat != ArcJoueur.RECUP and arc.rotation_arc > rot_max:   # au lâcher, le recul de l'arc reste un coup sec voulu
+			rot_max = arc.rotation_arc
+			ou_rot = "image %d, levée %.2f, état %d" % [k, arc._levee, arc.etat]
+		if k > 0 and arc.etat == ArcJoueur.RECUP:
+			rot_lacher = maxf(rot_lacher, arc.rotation_arc)
+		if arc._levee > 0.0 and arc._levee < 1.0:
+			n_trajet += 1
+			if arc.etat != ArcJoueur.BANDE and arc.etat != ArcJoueur.RECUP:
+				vu_descente = true
+			for c in 3:
+				var lo := minf(arc.orient_repos[c], arc.orient_visee[c])
+				var hi := maxf(arc.orient_repos[c], arc.orient_visee[c])
+				var d := maxf(lo - arc.orient_arc[c], arc.orient_arc[c] - hi)
+				if d > hors:
+					hors = d
+					ou_hors = "%s, image %d, levée %.2f : %.1f dans [%.1f ; %.1f]" % [["lacet", "tangage", "inclinaison"][c], k, arc._levee, arc.orient_arc[c], lo, hi]
 		var e: Vector2 = arc.prise_g
 		if e.x > pire.x or e.y > pire.y:
 			ou = "image %d, levée %.2f, état %d" % [k, arc._levee, arc.etat]
@@ -189,6 +212,8 @@ func _cycle_complet() -> void:
 	sqc.skeleton_updated.disconnect(lu)
 	_verif(arc.tirs == n0 + 1, "tir complet mesuré image par image")
 	_verif(pire.x <= 0.005 and pire.y <= deg_to_rad(10.0), "1re personne : le poing gauche reste fermé sur la poignée à TOUTES les phases (pire : %.1f mm, %.1f°, %s)" % [pire.x * 1000.0, rad_to_deg(pire.y), ou])
+	_verif(n_trajet > 10 and vu_descente and hors <= 1.0, "levée et descente : l'arc reste entre sa pose de repos et celle de visée (lacet et tangage de la flèche, inclinaison ; pire dépassement %.2f°%s)" % [hors, (" : " + ou_hors) if ou_hors != "" else ""])
+	_verif(rot_max <= 8.0, "1re personne : l'arc ne tourne pas de plus de 8° d'une image à l'autre hors lâcher (60 i/s ; pire %.1f°, %s ; recul au lâcher %.1f°)" % [rot_max, ou_rot, rot_lacher])
 	_verif(proche >= 0.2, "rechargement : le bras de corde (épaule, coude, avant-bras) reste à %.0f cm de l'œil au plus près (≥ 20 cm, pas de masse sombre en bas de l'image)" % (proche * 100.0))
 	_verif(n_vise > 0 and cou_vise < 0.01, "visée 1re personne : cou et tête invisibles réduits à un point (aucune ombre autour de la caméra, échelle %.3f)" % cou_vise)
 
