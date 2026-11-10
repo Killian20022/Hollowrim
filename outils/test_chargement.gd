@@ -4,7 +4,7 @@ extends SceneTree
 ##     le régénérer : `godot --headless --path . --script res://outils/precalculer_tout.gd -- --seulement=rues,carte_sol`) ;
 ##   - grille des arbres (brume locale) identique à la boucle brute sur tous les arbres ;
 ##   - étals du village : pièces exposées APRÈS la fin du chargement (exposition différée), jamais avant.
-##   - avec --etale (chargement de l'écran titre) : les villageois naissent APRÈS le chargement, hors de la vue du joueur.
+##   - avec --etale (chargement de l'écran titre) : les villageois à naissance différée sont nés AVANT la fin du chargement (plus de gel en jeu).
 ##   godot --headless --path . --script res://outils/test_chargement.gd -- --nouvelle [--etale]
 const SCENE := preload("res://scenes/foret_test.tscn")
 var _ok := true
@@ -37,14 +37,10 @@ func _go() -> void:
 	Jeu.chargement_etale = false
 	paused = false
 	if etale:
-		var attendus: int = m._pnj_differes.size()
-		var avant := get_nodes_in_group("villageois").size()   # les gardes du village (14), eux, naissent pendant le chargement
-		_verif(attendus >= 10 and avant < 20, "chargement étalé : %d villageois en attente, %d dans le groupe à la fin du chargement" % [attendus, avant])
-		for essai in 1800:
-			if m._pnj_differes.is_empty():
-				break
-			await process_frame
-		_verif(m._pnj_differes.is_empty() and get_nodes_in_group("villageois").size() == avant + attendus, "les %d villageois sont nés après le chargement (%d en groupe)" % [attendus, get_nodes_in_group("villageois").size()])
+		# 2026-11-10 (saccades) : les naissances différées (~200 ms chacune sur le fil principal = gels dans les premières secondes de jeu)
+		# se font désormais DANS le chargement (Monde._terminer_fonds) : à `pret`, plus aucun villageois en attente
+		var nes := get_nodes_in_group("villageois").size()   # 14 gardes + les habitants nés pendant le chargement
+		_verif(m._pnj_differes.is_empty() and nes >= 24, "chargement étalé : aucun villageois en attente à la fin du chargement, %d dans le groupe" % nes)
 		var ids: Array = []
 		for v in get_nodes_in_group("villageois"):
 			ids.append(v.donnees.get("id", "?"))
