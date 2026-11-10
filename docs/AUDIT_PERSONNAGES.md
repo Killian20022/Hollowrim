@@ -127,7 +127,7 @@ Largeur de silhouette au niveau des yeux (cheveux/casque compris), mesurée : �
   « Crypte » = galerie (ambiance bleue sombre + torche à côté de la caméra), pas la vraie crypte. `<perso>_visage.png` = visage 2 m ×4 ; `<perso>_mesure_2m.png` ; `mesures.csv`.
 - `jeu\` : captures dans le vrai monde à 640x360 (`--res=640x360`) : garde 2 / 4 / 8 m (face, 3/4, dos), chasseuse et völva à 4 m de jour ;
   dans la crypte avec la torche du joueur : draugr guerrier `cr_ossuaire_2` à 2 / 4 / 8 m (face) et 3/4 / dos sans torche, squelette 3 m et 6 m, sbire (allongé, il dort).
-  Le Jarl n'est pas créé tant qu'on n'est pas entré dans sa salle (pas de capture). Forgeron (dans la forge) et cheffe (derrière un mur) : vues bouchées, supprimées.
+  Le Jarl n'est pas créé tant qu'on n'est pas entré dans sa salle (pas de capture). Forgeron (dans la forge) et chef (derrière un mur) : vues bouchées, supprimées.
   Le lot `outils/poses_audit_persos.txt` (repère crypte deviné) tombait sur des piliers : remplacé par `capture_audit_jeu.gd`, qui vise la cible par son identifiant.
 - Planches : `planche_ref_draugr__jeu_crypte__galerie_crypte__galerie_jour.png`, `planche_ref_draugr__squelette_jeu__sbire_jeu.png`,
   `planche_ref_ambiance__garde_jeu__ref_crypte__draugr_jeu.png`, `planche_ref_ambiance__villageois_4m_x2.png`, `planche_echelle_garde_2_4_8m_natif.png` (à 15 m la palissade cache le garde).
