@@ -14,7 +14,7 @@ class_name PaletteTripo
 
 const TABLE := {
 	# or vieilli patiné : moins saturé, plus sombre, presque plus de lueur propre (elle faisait « plastique émissif »)
-	"armure": {"teinte": Color(0.52, 0.46, 0.37), "saturation": 0.68, "lueur": Vector3(0.34, 0.3, 0.24)},
+	"armure": {"teinte": Color(0.54, 0.47, 0.36), "saturation": 0.75, "lueur": Vector3(0.42, 0.37, 0.29)},
 	# draugrs : le cuivre est refroidi (désaturé puis tiré vers un gris-bleu vert-de-gris) et assombri
 	"draugr": {"teinte": Color(0.62, 0.75, 0.72), "saturation": 0.32},
 	"archer": {"teinte": Color(0.6, 0.73, 0.7), "saturation": 0.32},
