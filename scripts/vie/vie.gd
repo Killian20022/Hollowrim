@@ -288,6 +288,8 @@ func _transition(c: Dictionary, m: String, instant: bool) -> void:
 	var loin: bool = instant or n.lod == 2
 	if m == "maison":
 		if n.est_endormi():
+			if loin and n.has_method("achever_coucher"):
+				n.achever_coucher()       # saut d'heure pendant qu'il s'assoit / s'allonge / se lève : couché d'un coup
 			return
 		var porte := _porte_de(maison, id)
 		if maison == "" or porte == Vector3.ZERO:

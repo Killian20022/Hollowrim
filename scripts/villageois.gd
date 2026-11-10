@@ -1355,6 +1355,15 @@ func _fin_lever() -> void:
 	if _eveil_t <= 0.0:
 		_eveil_t = EVEIL_PARLER if _en_conversation else EVEIL_SURSAUT
 
+## Placement direct (heure sautée, hors de vue) pendant qu'il s'assoit, s'allonge ou se lève dans son lit : il y est couché tout de
+## suite. Sans ça, arrivé à pied au bord du lit juste avant le saut, il restait figé debout en « assoir » (test_sommeil, ~1 fois sur 3).
+func achever_coucher() -> void:
+	if seq == "" or seq == "dort" or lit == null or not is_instance_valid(lit):
+		return
+	_apres_lever = []
+	_sortie_lit = Vector3.ZERO
+	coucher_au_lit(true)
+
 ## Quitte le lit sans animation (placement direct).
 func _quitter_lit() -> void:
 	if lit != null and is_instance_valid(lit):
