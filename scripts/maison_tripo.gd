@@ -51,6 +51,7 @@ const DEPLACES := {
 ## Même chose pour les poses simples de MobilierVillage.POSES (clé « modèle x z ») : le porche de la porte avance jusqu'à z ≈ 45.
 const DEPLACES_POSES := {
 	"caisse_b 50.4 44.6": Vector2(49.0, 44.3),      # devant le porche -> à gauche, contre la façade du dehors
+	"etal 52.5 42.5": Vector2(48.4, 41.8),          # étal du poissonnier, à 5 m devant la porte -> à l'ouest de l'allée (ses props suivent)
 	"sacs 51.4 44.9": Vector2(53.2, 44.6),          # dans le passage de la porte -> à droite du porche
 	"banniere 48 47.5": Vector2(47.6, 45.6),        # dans le mur ouest de l'aile d'entrée -> au coin du porche
 	"banniere 48.0 47.5": Vector2(47.6, 45.6),      # (même clé si le flottant s'écrit « 48.0 »)

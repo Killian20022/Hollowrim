@@ -690,7 +690,11 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 	var etals: Array = []
 	for pose: Array in POSES:
 		if pose[0] == "etal":
-			etals.append(Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])), Vector3(pose[1], _sol_bas(pose[1], pose[2], 1.4), pose[2])))
+			var pe := Vector2(pose[1], pose[2])
+			var cle := "%s %s %s" % [pose[0], pose[1], pose[2]]
+			if MaisonTripo.actif and MaisonTripo.DEPLACES_POSES.has(cle):     # même déplacement que l'étal lui-même (POSES ci-dessus)
+				pe = MaisonTripo.DEPLACES_POSES[cle]
+			etals.append(Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])), Vector3(pe.x, _sol_bas(pe.x, pe.y, 1.4), pe.y)))
 	var tris := 0
 	var num := 0
 	var liste: Array = POSES_Q + (POSES_D if PropsQuaternius.remplace else []) + (POSES_L4 if PropsQuaternius.lot4 else [])
