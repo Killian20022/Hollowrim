@@ -178,6 +178,16 @@ if "--refaire" in ARGS or not os.path.exists(CACHE):
 bpy.ops.wm.open_mainfile(filepath=CACHE)
 garde = bpy.data.objects["verre"]
 me = garde.data
+# verre émeraude DÉSATURÉ (palette nordique de la référence, pas fluo) : saturation x SAT, verts un peu assombris ; métal gris inchangé
+CUIT = bpy.data.images["verre_cuit"]
+px = np.array(CUIT.pixels[:]).reshape(-1, 4)
+lum = px[:, :3] @ np.array([0.3, 0.59, 0.11])
+SAT = float(arg("sat", "0.6"))
+rgb = lum[:, None] + (px[:, :3] - lum[:, None]) * SAT
+vert = np.clip((px[:, 1] - np.maximum(px[:, 0], px[:, 2])) * 4, 0, 1)
+rgb *= (1 - (1 - float(arg("vert_k", "0.9"))) * vert)[:, None]
+px[:, :3] = np.clip(rgb, 0, 1)
+CUIT.pixels[:] = px.ravel(); CUIT.update(); CUIT.pack()
 nv = len(me.vertices)
 P = pts(garde)
 x, y, z = P[:, 0], P[:, 1], P[:, 2]
@@ -268,10 +278,11 @@ def dseg(Q, a, b):
 K_PH = float(arg("phalanges", "0.7"))
 for s_, sg in (("l", 1), ("r", -1)):
     wr = B["hand_" + s_][0]
-    main = (sg * x > wr[0] - 0.03) & (z > 1.25)
+    wx = abs(float(wr[0]))
+    main = (sg * x > wx - 0.03) & (z > 1.25)
     idx = np.nonzero(main)[0]
     Q = P[idx]
-    t = sstep(wr[0] - 0.03, wr[0] + 0.01, sg * Q[:, 0])                 # 0 avant-bras, 1 main
+    t = sstep(wx - 0.03, wx + 0.01, sg * Q[:, 0])                 # 0 avant-bras, 1 main
     noms = [f + "_0%d_%s" % (k, s_) for f in ("index", "middle", "ring", "pinky", "thumb") for k in (1, 2, 3)]
     D = np.stack([dseg(Q, B[n][0], B[n][1]) for n in noms] + [dseg(Q, B["hand_" + s_][0], B["hand_" + s_][1])], 1)
     W_ = 1.0 / (D + 0.006) ** 4; W_ /= W_.sum(1, keepdims=True)
@@ -286,6 +297,29 @@ for s_, sg in (("l", 1), ("r", -1)):
                 w[n] = ph[j] * t[k]
         body[i] = w
 print("MAINS : poids géométriques posés")
+
+# jambes : poids par zones, nets et par côté (la chaleur du double étirait la pointe des bottes et une ailette du genou) :
+# tassettes -> bassin + cuisse ; cuisse -> genou (fondu court) -> mollet -> cheville -> pied -> orteils (ball)
+for s_, sg in (("l", 1), ("r", -1)):
+    idx = np.nonzero((sg * x > 0) & (z < 1.05))[0]
+    Q = P[idx]
+    genou = B["calf_" + s_][0][2]; chev = float(arg("cheville_z", "0.13")); bally = B["ball_" + s_][0][1]
+    w_cuisse = sstep(genou - 0.04, genou + 0.05, Q[:, 2])
+    w_pied = 1 - sstep(chev - 0.03, chev + 0.03, Q[:, 2])
+    w_ball = sstep(bally + 0.02, bally - 0.02, Q[:, 1]) * w_pied
+    w_bassin = sstep(0.86, 1.0, Q[:, 2]) * (0.4 + 0.3 * sstep(0.09, 0.16, sg * Q[:, 0]))
+    for k, i in enumerate(idx):
+        w = {}
+        wc = w_cuisse[k]; wp = w_pied[k]
+        w["pelvis"] = w_bassin[k]
+        w["thigh_" + s_] = wc * (1 - w_bassin[k])
+        w["calf_" + s_] = (1 - wc) * (1 - wp)
+        w["foot_" + s_] = (1 - wc) * (wp - w_ball[k])
+        w["ball_" + s_] = (1 - wc) * w_ball[k]
+        w = {n_: v_ for n_, v_ in w.items() if v_ > 1e-4}
+        t_ = sum(w.values()) or 1.0
+        body[i] = {n_: v_ / t_ for n_, v_ in w.items()}
+print("JAMBES : poids par zones")
 
 # ================================================================ D. tabard (devant / derrière) : deux chaînes de 3 os
 c = ((np.abs(x) < float(arg("tab_l", "0.085"))) & (z < 1.12) & (z > 0.40)).astype(float)

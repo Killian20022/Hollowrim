@@ -97,7 +97,9 @@ static func peupler(monde_: Node3D) -> GardesVillage:
 		v.dialogue = monde_.dialogue
 		v.gestion = gv
 		v.route = route
-		if GARDES_TRIPO.has(String(g.get("id", ""))) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
+		if g.get("armure_verre", false) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
+			v.modele = GardeTripo.creer("tripo_garde_verre")      # armure de verre Tripo (défaut, garde n_e) ; ancien Gardien avec --modeles-anciens[=gardes] ou modele_ancien
+		elif GARDES_TRIPO.has(String(g.get("id", ""))) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
 			v.modele = GardeTripo.creer(GARDES_TRIPO[String(g["id"])])
 		else:
 			v.modele = creer_modele(g)
@@ -127,6 +129,8 @@ static func _place_vigie(village: Node3D, g: Dictionary) -> Vector3:
 ## Modèle d'un garde : le Gardien nordique ENTIER (bouclier au bras aux postes, dans le dos en ronde) + variante légère.
 ## g : "poil" (index de POILS), "peau" (index de PEAUX), "rase" (sans barbe), "taille", "largeur".
 static func creer_modele(g: Dictionary) -> Node3D:
+	if g.get("armure_verre", false) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
+		return GardeTripo.creer("tripo_garde_verre")      # armure de verre Tripo (garde n_e)
 	if g.get("armure_tripo", false) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
 		return creer_modele_dore(g)      # armure dorée Tripo (défaut, garde halle_e) ; ancien Gardien avec --modeles-anciens[=gardes] ou modele_ancien
 	var bouclier: String = g.get("bouclier", "dos" if g.get("type", "poste") == "ronde" else "bras")

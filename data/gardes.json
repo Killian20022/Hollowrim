@@ -38,7 +38,7 @@
      "lignes": ["Haldor tient la porte, moi je tiens Haldor. Il s’endort debout, parfois.", "Le sentier mène au feu de camp, puis au cercle de pierres. N’y va pas de nuit."]},
     {"id": "n_o", "type": "poste", "pos": [52.3, 16.5], "cap": -178, "poil": 3, "peau": 1, "taille": 0.98, "largeur": 1.0,
      "lignes": ["La porte nord ouvre sur le chemin de la grotte.", "On dit que des brigands y ont fait leur nid. Si tu y vas, garde un œil dans ton dos."]},
-    {"id": "n_e", "type": "poste", "pos": [56.0, 17.8], "cap": -178, "poil": 2, "peau": 2, "taille": 1.04, "largeur": 1.05,
+    {"id": "n_e", "type": "poste", "armure_verre": true, "pos": [56.0, 17.8], "cap": -178, "poil": 2, "peau": 2, "taille": 1.04, "largeur": 1.05,
      "lignes": ["Personne n’entre par le nord sans que je le voie.", "Sauf les chèvres. Les chèvres passent où elles veulent."]},
     {"id": "e_n", "type": "poste", "pos": [71.3, 33.2], "cap": 95, "poil": 4, "peau": 3, "taille": 0.96, "largeur": 1.06,
      "lignes": ["Par là, les fermes et le moulin à vent.", "Les vaches ne mordent pas. Les fermiers, parfois, quand on piétine leurs champs."]},

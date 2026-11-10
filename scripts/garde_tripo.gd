@@ -140,28 +140,19 @@ class LanceDroite extends SkeletonModifier3D:
 		var gp := sq.get_bone_global_pose(os_parent).basis.get_rotation_quaternion()
 		sq.set_bone_pose_rotation(os_haut, gp.inverse() * cible)
 
-## Garde en armure de verre : le gantelet Tripo suit l'os hand_r et ses phalanges (main du squelette, 1,15x) : l'épée est tenue comme celle du
-## joueur (PRISE sur hand_r, lame dans l'axe de l'avant-bras, perpendiculaire aux doigts), le centre du poing repoussé du rapport du gantelet.
-static var PRISE_VERRE_ECH := 1.15
-static var PRISE_VERRE_DECAL := Vector3(0.0, 0.0, 0.0)
+## Garde en armure de verre : le gantelet Tripo suit l'os hand_r et ses phalanges (main du squelette, 1,15x) : même épée et même direction de
+## lame que le garde à l'épée (EPEE_DIR, dans l'axe de l'avant-bras), accrochée à hand_r, centre du poing au milieu du gantelet.
+static var CENTRE_POING_VERRE := Vector3(-0.009, 0.165, 0.003)
 static func _epee_en_main(sq: Skeleton3D) -> void:
-	var acc := BoneAttachment3D.new()
-	acc.name = "EpeeMain"
-	acc.bone_name = "hand_r"
-	sq.add_child(acc)
-	var arme: Node3D = EPEE.instantiate()
-	arme.name = "EpeeJeu"
-	var prise := PRISE
-	prise.origin = PRISE.origin * PRISE_VERRE_ECH + PRISE_VERRE_DECAL
-	arme.transform = prise
-	acc.add_child(arme)
-	_matieres_epee(arme)
+	_epee_au_flanc(sq, "hand_r", CENTRE_POING_VERRE)
 
 ## Épée du jeu (epee_nordique.glb, mêmes matières que l'épée du joueur) TENUE dans la main droite (BoneAttachment3D sur « hand_r »).
-static func _epee_au_flanc(sq: Skeleton3D) -> void:
+static func _epee_au_flanc(sq: Skeleton3D, os_main := "lowerarm_r", centre := Vector3.INF) -> void:
+	if centre == Vector3.INF:
+		centre = CENTRE_POING
 	var acc := BoneAttachment3D.new()
 	acc.name = "EpeeMain"
-	acc.bone_name = "lowerarm_r"      # le poing plein est lié à l'avant-bras : l'épée le suit sans écart, quel que soit le clip
+	acc.bone_name = os_main      # garde à l'épée : le poing plein est lié à l'avant-bras, l'épée le suit sans écart, quel que soit le clip
 	sq.add_child(acc)
 	var arme: Node3D = EPEE.instantiate()
 	arme.name = "EpeeJeu"
@@ -174,7 +165,7 @@ static func _epee_au_flanc(sq: Skeleton3D) -> void:
 	else:
 		prise.basis = Basis(Vector3.RIGHT, deg_to_rad(EPEE_INCL)) * prise.basis
 	prise.basis = prise.basis.scaled(Vector3.ONE * EPEE_ECH)
-	prise.origin = CENTRE_POING - prise.basis.y.normalized() * 0.04 * EPEE_ECH      # le centre du poing est à 4 cm du pommeau le long de la lame
+	prise.origin = centre - prise.basis.y.normalized() * 0.04 * EPEE_ECH      # le centre du poing est à 4 cm du pommeau le long de la lame
 	arme.transform = prise
 	acc.add_child(arme)
 	_matieres_epee(arme)

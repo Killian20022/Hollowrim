@@ -93,6 +93,8 @@ func _go() -> void:
 	match mode:
 		"iter":
 			await _iter()
+		"planche":
+			await _planche()
 		"stills":
 			await _stills()
 		"film":
@@ -107,6 +109,42 @@ func _go() -> void:
 		quit(0)
 	else:
 		OS.kill(OS.get_process_id())   # quit() reste parfois suspendu (fuites au vidage de la boucle) : capture déjà écrite
+
+## Planche : le garde en verre (à gauche) et un garde Tripo normal (à droite, --compare_modele) côte à côte, en garde (Idle) puis en
+## marche figée, de face / profil / dos / 3/4, corps entiers ; puis la hauteur et la largeur mesurées (boîtes des maillages animés).
+func _planche() -> void:
+	var dos := String(args.get("sortie", "/tmp/w/planche"))
+	DirAccess.make_dir_recursive_absolute(dos)
+	var g2 := GardeTripo.creer(String(args.get("compare_modele", "tripo_garde_epee")))
+	m.add_child(g2)
+	var a2: AnimationPlayer = g2.get_node("Animations")
+	garde.global_position = Vector3(-0.6, 0, 0)
+	g2.global_position = Vector3(0.6, 0, 0)
+	for pose in ["Idle", "Walk"]:
+		for v in [["face", 0.0], ["profil", 90.0], ["dos", 180.0], ["tq", 35.0]]:
+			for i in 12:
+				anim.play(pose)
+				a2.play(pose)
+				anim.seek(0.35 if pose == "Walk" else 0.5, true)
+				a2.seek(0.35 if pose == "Walk" else 0.5, true)
+				var az := deg_to_rad(v[1])
+				cam.fov = 30.0
+				var c := Vector3(0, 1.0, 0)
+				_vue(c + Vector3(sin(az) * 6.0, 0.25, cos(az) * 6.0), c)
+				await process_frame
+			await _capt("%s/planche_%s_%s.png" % [dos, pose, v[0]])
+	for qui in [["verre", garde], ["normal", g2]]:
+		var bb := AABB()
+		var prem := true
+		for mi: MeshInstance3D in (qui[1] as Node3D).find_children("*", "MeshInstance3D", true, false):
+			if mi.name.begins_with("Epee") or mi.get_parent().name.begins_with("Epee") or not mi.is_visible_in_tree():
+				continue
+			if mi.find_parent("EpeeJeu") != null:
+				continue
+			var b := mi.global_transform * mi.get_aabb()
+			bb = b if prem else bb.merge(b)
+			prem = false
+		print("MESURE ", qui[0], " ", bb)
 
 func _jouer(nom: String, t := 0.0) -> void:
 	anim.play(nom)
