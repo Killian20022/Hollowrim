@@ -27,6 +27,19 @@ static func id_de(oid: String) -> String:
 	var pq := String(Inventaire.objet(oid).get("modele_quat", ""))
 	return pq if pq != "" and PropsQuat.existe(pq) else ""
 
+## Prop texturé pq_* converti du même modèle que le prop .dat `ancien` (champ « ancien » du catalogue), "" sinon.
+static var _par_ancien := {}
+static func pq_de_ancien(ancien: String) -> String:
+	_verrou.lock()
+	if _par_ancien.is_empty():
+		for e: Dictionary in PropsQuat.catalogue().values():
+			if String(e.get("ancien", "")) != "":
+				_par_ancien[String(e["ancien"])] = String(e["id"])
+		_par_ancien[""] = ""
+	var r := String(_par_ancien.get(ancien, ""))
+	_verrou.unlock()
+	return r
+
 static func a(oid: String) -> bool:
 	return id_de(oid) != ""
 
@@ -60,10 +73,14 @@ static func materiau_objet(m: Material) -> Material:
 
 ## Maillage de l'objet (prop pq_* de sa fiche, teinte appliquée), pivot au pied, taille réelle ; null si pas de prop. En cache.
 ## `contexte` : « objet » (défaut, sans neige), « interieur », « exterieur » ou « crypte » (PropsQuat.materiau).
-static func maillage(oid: String, contexte := "objet") -> ArrayMesh:
+## `pq_force` : un autre prop que celui de la fiche (ObjetsVivants : le prop texturé du MÊME modèle que le décor posé, ex. q_vase_4 ->
+## pq_vase_4 pour une cruche), avec la teinte / l'éclat de la fiche.
+static func maillage(oid: String, contexte := "objet", pq_force := "") -> ArrayMesh:
 	var pq := id_de(oid)
 	if pq == "":
 		return null
+	if pq_force != "" and PropsQuat.existe(pq_force):
+		pq = pq_force
 	var t := teinte_de(oid)
 	var ec := float(Inventaire.objet(oid).get("eclat_quat", 1.0))
 	var objet := contexte == "objet"
@@ -147,11 +164,11 @@ static func noeud(oid: String, contexte := "objet") -> MeshInstance3D:
 	return mi
 
 ## Morceaux [[arrays, Material]] (repère du prop : pivot au pied, échelle de la fiche) pour ObjetsVivants (MultiMesh).
-static func morceaux(oid: String, contexte := "interieur") -> Array:
-	var m := maillage(oid, contexte)
+static func morceaux(oid: String, contexte := "interieur", pq_force := "") -> Array:
+	var m := maillage(oid, contexte, pq_force)
 	if m == null:
 		return []
-	var e := echelle_de(oid)
+	var e := echelle_de(oid) if pq_force == "" or pq_force == id_de(oid) else 1.0
 	var res := []
 	for s in m.get_surface_count():
 		var arr := m.surface_get_arrays(s)

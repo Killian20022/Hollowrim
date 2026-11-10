@@ -181,8 +181,8 @@ static func contexte_lieu(lieu: String) -> String:
 
 ## Visuel pq_* de l'objet `oid` (ObjetsQuat : modele_quat de sa fiche) recalé dans le repère de l'ancien prop : même pied (bas de sa
 ## boîte, centre de l'emprise), donc même place sur la table / l'étagère ; la collision garde la boîte de l'ancien prop.
-static func morceaux_quat(oid: String, contexte: String, anciens: Array) -> Array:
-	var nv := ObjetsQuat.morceaux(oid, contexte)
+static func morceaux_quat(oid: String, contexte: String, anciens: Array, pq := "") -> Array:
+	var nv := ObjetsQuat.morceaux(oid, contexte, pq)
 	if nv.is_empty():
 		return anciens
 	var bb := boite_morceaux(anciens)
@@ -213,8 +213,9 @@ static func peupler(parent: Node3D, specs: Array, lieu: String) -> Array:
 		var oid := String(OBJETS.get(g, g))
 		var vis: Array = s["morceaux"]
 		if ObjetsQuat.a(oid) and not g.begins_with("pq_"):
-			cle = "%s|quat:%s:%s" % [cle, ObjetsQuat.id_de(oid), ctx]
-			vis = morceaux_quat(oid, ctx, s["morceaux"])
+			var meme := ObjetsQuat.pq_de_ancien(g)       # prop texturé du même modèle que le décor posé (q_vase_4 -> pq_vase_4), sinon celui de la fiche
+			cle = "%s|quat:%s:%s" % [cle, meme if meme != "" else ObjetsQuat.id_de(oid), ctx]
+			vis = morceaux_quat(oid, ctx, s["morceaux"], meme)
 		if not groupes.has(cle):
 			groupes[cle] = [s["morceaux"], [], vis]
 		(groupes[cle][1] as Array).append([s, "%s:%s:%d" % [lieu, g, k]])
