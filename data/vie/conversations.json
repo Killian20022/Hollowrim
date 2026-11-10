@@ -56,7 +56,7 @@
   {"id": "paysans_orge", "a": ["paysan", "paysanne"], "b": ["paysan", "paysanne"],
    "lignes": [["a", "L'orge a gelé dans le champ du bas."], ["b", "Celle du haut tiendra. Il faut qu'elle tienne."]]},
   {"id": "marche_prix", "a": "marchand", "b": "*",
-   "lignes": [["b", "Ton poisson sent plus fort qu'hier."], ["a", "Il a un jour de plus d'expérience."], ["b", "Je le prends quand même."]]},
+   "lignes": [["b", "Tes choux sont plus petits qu'hier."], ["a", "Ils ont froid. Comme tout le monde."], ["b", "Donne-m'en deux, alors."]]},
   {"id": "banc_vieux", "a": "banc", "b": "*",
    "lignes": [["b", "Tu ne te lèves plus de ce banc, le vieux ?"], ["a", "J'ai assez marché pour deux vies. Je garde mes jambes pour la troisième."]]},
   {"id": "hrafn_mort", "a": "*", "b": "*", "filtres": {"journal": {"quete": "repaire_hrafn", "fini": true}},

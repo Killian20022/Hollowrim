@@ -8,14 +8,14 @@ extends SceneTree
 const SCENE := "res://scenes/foret_test.tscn"
 ## [id, étiquette, index d'étape à montrer, angle autour du PNJ (deg, 0 = face), distance (m), temps dans l'étape (s)]
 const PLANS := [
-	["forgeron", "Brodd, forgeron : à genoux à l'enclume", 0, 70.0, 2.6, 2.0],
-	["hab_paysan_3", "Marchand derrière son étal", 1, -10.0, 3.0, 0.45],
+	["forgeron", "Brodd, forgeron : à genoux à l'enclume", 0, 70.0, 2.6, 2.0, Vector2(28.6, 37.2)],
+	["hab_paysan_3", "Marchand derrière son étal", 1, 0.0, 2.4, 0.45, Vector2(51.3, 32.7)],
 	["ancienne", "Grima tire l'eau du puits", 1, 80.0, 2.6, 0.9],
-	["hab_paysan_2", "Le vieux, assis sur le banc", 0, 35.0, 2.4, 2.0],
-	["hab_chasseur_2", "Chasseur au tas de bois", 2, 70.0, 2.6, 2.0],
+	["hab_paysan_2", "Le vieux, assis sur le banc", 0, 20.0, 2.3, 2.0],
+	["hab_chasseur_2", "Chasseur au tas de bois", 2, 0.0, 2.4, 2.0, Vector2(54.6, 53.0)],
 	["hab_paysanne_3", "Lavandière au bord de l'eau", 0, 75.0, 2.6, 2.0],
-	["chef", "Gunnar Aldrsson (Tripo), longue maison", 1, 20.0, 3.0, 0.9],
-	["hab_mage_tripo", "Mage Eirwen (Tripo) lit les runes", 1, 30.0, 3.0, 1.5],
+	["chef", "Gunnar Aldrsson (Tripo), longue maison", 1, 25.0, 2.3, 0.9],
+	["hab_mage_tripo", "Mage Eirwen (Tripo) lit les runes", 1, 15.0, 2.3, 1.5],
 ]
 var m: Node3D
 var j: CharacterBody3D
@@ -83,7 +83,26 @@ func _planche() -> void:
 		m.dialogue.visible = false      # ni sous-titres d'interpellation ni invite « E Parler » sur la planche
 	var ids := _arg("ids", "").split(",", false)
 	var cases: Array[Image] = []
-	for p: Array in PLANS:
+	var plans: Array = PLANS.duplicate(true)
+	# --essais=id:x,z;x,z : plusieurs caméras d'essai pour un même PNJ (images <id>_e<k>.png)
+	var es := _arg("essais", "")
+	if es != "":
+		var id_e := es.get_slice(":", 0)
+		var base: Array = []
+		for p: Array in PLANS:
+			if p[0] == id_e:
+				base = p
+		plans = []
+		var k := 0
+		for xz in es.get_slice(":", 1).split(";", false):
+			var q := base.duplicate()
+			q.resize(8)
+			q[6] = Vector2(float(xz.get_slice(",", 0)), float(xz.get_slice(",", 1)))
+			q[7] = "%s_e%d" % [id_e, k]
+			plans.append(q)
+			k += 1
+		ids = []
+	for p: Array in plans:
 		if not ids.is_empty() and not String(p[0]) in ids:
 			continue
 		var c := vie.civil(String(p[0]))
@@ -104,11 +123,14 @@ func _planche() -> void:
 		var bas: bool = n.assis() or n._anim in ["Fixing_Kneeling", "Crouch_Idle"]
 		var cible := n.global_position + Vector3(0, 0.75 if bas else 1.0, 0)
 		var cp := Vector3.ZERO
+		if p.size() > 6 and p[6] != null:
+			var c2: Vector2 = p[6]
+			cp = Vector3(c2.x, float(m.hauteur(c2.x, c2.y)) + 0.05, c2.y)
 		# premier angle d'où l'on voit le PNJ (aucun mur entre l'œil et lui, ni l'œil dans un mur)
-		for daz in [0.0, 35.0, -35.0, 70.0, -70.0, 110.0, -110.0]:
+		for daz in ([] if cp != Vector3.ZERO else [0.0, 35.0, -35.0, 70.0, -70.0, 110.0, -110.0]):
 			for k in [1.0, 0.8, 1.2]:
-				var dir := face.rotated(Vector3.UP, deg_to_rad(float(p[3]) + daz))
-				var q := n.global_position + dir * float(p[4]) * k
+				var dir: Vector3 = face.rotated(Vector3.UP, deg_to_rad(float(p[3]) + float(daz)))
+				var q: Vector3 = n.global_position + dir * float(p[4]) * float(k)
 				q.y = float(m.hauteur(q.x, q.z)) + 0.05
 				if _vue_libre(q + Vector3(0, j.tete.position.y, 0), cible, n):
 					cp = q
@@ -135,7 +157,7 @@ func _planche() -> void:
 		await RenderingServer.frame_post_draw
 		var img := root.get_texture().get_image()
 		img.convert(Image.FORMAT_RGB8)
-		img.save_png(sortie.path_join("%s.png" % p[0]))
+		img.save_png(sortie.path_join("%s.png" % (p[7] if p.size() > 7 and p[7] != null else p[0])))
 		cases.append(img)
 		print("plan ", p[0], " clip ", n._anim, " pos ", n.global_position)
 	if cases.is_empty():

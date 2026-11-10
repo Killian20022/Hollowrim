@@ -20,7 +20,7 @@
   "forgeron": {"metier": "forgeron"},
   "ancienne": {"metier": "puiser", "pos": [43.53, 38.94], "vers": [42.0, 38.0], "sedentaire": true},
   "hab_mage_tripo": {"metier": "mage"},
-  "hab_paysan_3": {"metier": "marchand", "pos": [52.93, 42.75], "cap": -120.0, "sedentaire": true},
+  "hab_paysan_3": {"metier": "marchand", "pos": [51.05, 29.95], "cap": 0.0, "sedentaire": true},
   "hab_paysanne_3": {"metier": "lavandiere"},
   "hab_paysan_2": {"metier": "banc", "pos": [47.5, 46.3], "cap": 180.0, "sedentaire": true},
   "hab_chasseur_2": {"metier": "bois", "pos": [56.45, 51.6], "vers": [58.0, 51.6], "sedentaire": true}

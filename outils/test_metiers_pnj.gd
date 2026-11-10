@@ -108,8 +108,8 @@ func _tester() -> void:
 		var ok: bool = n.etat == 0 and n.geste() != "" and (n._anim == n.geste() or n._anim in ["Sitting_Enter", "Interact", "Idle_Talking", "Idle"])
 		_verif(ok, "%s : au poste, geste « %s » (clip joué %s)" % [id, n.geste(), n._anim])
 	var marchand: Node3D = vie.civil("hab_paysan_3")["n"]
-	_verif(Vector2(marchand.global_position.x - 52.93, marchand.global_position.z - 42.75).length() < 0.3, "le marchand est derrière l'étal (52,9 ; 42,8)")
-	_verif(absf(angle_difference(marchand.rotation.y, deg_to_rad(-120.0))) < 0.15, "le marchand fait face au comptoir")
+	_verif(Vector2(marchand.global_position.x - 51.05, marchand.global_position.z - 29.95).length() < 0.3, "le marchand est derrière l'étal des primeurs (51,05 ; 29,95)")
+	_verif(absf(angle_difference(marchand.rotation.y, 0.0)) < 0.15, "le marchand fait face au comptoir")
 	var grima: Node3D = vie.civil("ancienne")["n"]
 	var vers_puits := Vector2(42.0 - grima.global_position.x, 38.0 - grima.global_position.z)
 	_verif(vers_puits.length() < 2.2 and vers_puits.length() > 1.4, "Grima au bord du puits (%.2f m du centre)" % vers_puits.length())
@@ -117,7 +117,7 @@ func _tester() -> void:
 	# le joueur s'approche du marchand : il garde son cap (métier fixe), sa tête suit
 	j.global_position = marchand.global_position + Vector3(2.0, 0.2, 0.0)
 	await _attendre(1.5)
-	_verif(absf(angle_difference(marchand.rotation.y, deg_to_rad(-120.0))) < 0.15, "joueur à 2 m : le marchand ne pivote pas hors de son étal")
+	_verif(absf(angle_difference(marchand.rotation.y, 0.0)) < 0.15, "joueur à 2 m : le marchand ne pivote pas hors de son étal")
 
 	# --- assis sur le banc
 	var vieux: Node3D = vie.civil("hab_paysan_2")["n"]

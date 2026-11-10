@@ -427,7 +427,7 @@ func _modele_assis(oui: bool, m: Dictionary = {}) -> void:
 		_forme.set_deferred("disabled", oui)
 	if oui and _poste_vie == null and not points.is_empty():
 		var pp: Vector3 = points[0]
-		global_position = Vector3(pp.x, global_position.y, pp.z)
+		global_position = pp            # pied du modèle au sol, exactement au poste (le corps ne retombe plus : pas de move_and_slide)
 		velocity = Vector3.ZERO
 	if _pieds != null:
 		_pieds.actif = not oui and lod == 0
