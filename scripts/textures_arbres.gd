@@ -411,9 +411,11 @@ static func _axe_rameau(axes: Array, rng: RandomNumberGenerator, p0: Vector2, d0
 			j += maxi(2, int(ecart * rng.randf_range(0.85, 1.15)))
 
 ## Flèche (sommet) vue de côté, S×S : tige dressée, courtes branches relevées, capuchon de neige.
-static func fleche_epicea(S: int, graine: int) -> Image:
+static func fleche_epicea(S: int, graine: int, trace: Dictionary = {}) -> Image:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = graine
+	var traits: Array = []
+	trace["traits"] = traits
 	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
 	img.fill(CLEAR)
 	var cx := S / 2
@@ -426,6 +428,8 @@ static func fleche_epicea(S: int, graine: int) -> Image:
 				var L := demi + rng.randi_range(-1, 1)
 				_ligne(img, cx, y + 2, cx + c * L, y, _c(AIGUILLES, 2 if c < 0 else 3))
 				_ligne(img, cx, y + 3, cx + c * (L - 1), y + 2, _c(AIGUILLES, 1))
+				traits.append([2 if c < 0 else 3, cx, y + 2, cx + c * L, y])
+				traits.append([1, cx, y + 3, cx + c * (L - 1), y + 2])
 		_px(img, cx, y, _c(ECORCE, 1))
 		if t > 0.6:
 			_px(img, cx - 1, y, _c(ECORCE, 0))
@@ -515,14 +519,17 @@ static func atlas_epicea_image(fin: Array = []) -> Image:
 		img.blit_rect(base, Rect2i(0, 0, S, S), pos)
 		var fine := affiner_rameau(base, tr["traits"], f)
 		hd.blit_rect(fine, Rect2i(0, 0, S * f, S * f), pos * f)
-	var fl := fleche_epicea(64, 505)
+	# flèche (cime) : la carte la moins dense de l'atlas (64 px pour 2,2 m) ; ses étages sont retracés fins comme les rameaux
+	var trf := {}
+	var fl := fleche_epicea(64, 505, trf)
 	img.blit_rect(fl, Rect2i(0, 0, 64, 64), R_FLECHE.position)
-	hd.blit_rect(_agrandir(fl, f), Rect2i(0, 0, 64 * f, 64 * f), R_FLECHE.position * f)
+	hd.blit_rect(affiner_rameau(fl, trf["traits"], f), Rect2i(0, 0, 64 * f, 64 * f), R_FLECHE.position * f)
+	# crêtes de neige : redessinées au double de leur finesse (crete_neige est déjà paramétrée par f)
 	for k in CRETES:
 		var cr := crete_neige(510 + k, 2)
 		var p := Vector2i(R_CRETE_X, R_CRETE_Y + CRETE_H * k)
 		img.blit_rect(cr, Rect2i(0, 0, CRETE_W, CRETE_H), p)
-		hd.blit_rect(_agrandir(cr, f), Rect2i(0, 0, CRETE_W * f, CRETE_H * f), p * f)
+		hd.blit_rect(crete_neige(510 + k, 2 * f), Rect2i(0, 0, CRETE_W * f, CRETE_H * f), p * f)
 	fin.append(hd)
 	return img
 
