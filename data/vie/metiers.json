@@ -1,0 +1,28 @@
+{
+ "note": "Gestes de métier (lot vie/metiers, scripts/vie/metiers.gd). Au poste de jour (et au feu du soir, « soirs »), chaque habitant enchaîne en boucle les étapes de son métier : {clip, min, max} = clip de Humain.bibliotheque() (partagée par PnjNordique, Humain et les corps Tripo) tenu min..max s ; sans min/max = joué une fois (sa durée). Aucun clip nouveau : Fixing_Kneeling, PickUp_Table, Interact, Crouch_Idle, Spell_Simple_Idle, Sitting_*, Sword_Idle, Idle, Idle_Talking. fixe : il garde son cap (enclume, étal, banc) au lieu de se tourner vers le joueur (la tête suit) ; assis : il s'assoit au poste (Sitting_Enter / Sitting_Idle / Sitting_Exit), dy = rehausse du modèle (banc de 0,48 m, clip assis à 0,44). Résolution : pnj[id].metier > lieux[lieu] > rien (ancien comportement : activite de habitants.json). pnj[id] : pos [x, z] (remplace le poste), vers [x, z] (cap tourné vers ce point), cap (degrés), sedentaire (pas de promenade).",
+ "metiers": {
+  "forgeron": {"fixe": true, "etapes": [{"clip": "Fixing_Kneeling", "min": 9, "max": 15}, {"clip": "Idle", "min": 2, "max": 4}, {"clip": "Interact"}, {"clip": "Idle", "min": 1.5, "max": 3}]},
+  "marchand": {"fixe": true, "etapes": [{"clip": "Idle", "min": 3, "max": 6}, {"clip": "PickUp_Table"}, {"clip": "Idle", "min": 2, "max": 4}, {"clip": "PickUp_Table"}, {"clip": "Idle", "min": 3, "max": 5}, {"clip": "Interact"}]},
+  "puiser": {"fixe": true, "etapes": [{"clip": "Idle", "min": 4, "max": 7}, {"clip": "Interact"}, {"clip": "PickUp_Table"}, {"clip": "Idle", "min": 2, "max": 4}, {"clip": "Interact"}]},
+  "lavandiere": {"fixe": true, "etapes": [{"clip": "Fixing_Kneeling", "min": 10, "max": 16}, {"clip": "Crouch_Idle", "min": 3, "max": 5}, {"clip": "Idle", "min": 2, "max": 3}]},
+  "bois": {"fixe": true, "etapes": [{"clip": "PickUp_Table"}, {"clip": "Crouch_Idle", "min": 3, "max": 5}, {"clip": "Fixing_Kneeling", "min": 6, "max": 10}, {"clip": "Idle", "min": 2, "max": 4}, {"clip": "PickUp_Table"}]},
+  "pisteuse": {"fixe": false, "etapes": [{"clip": "Idle", "min": 3, "max": 5}, {"clip": "PickUp_Table"}, {"clip": "Crouch_Idle", "min": 4, "max": 7}, {"clip": "Idle", "min": 3, "max": 5}]},
+  "faction": {"fixe": false, "etapes": [{"clip": "Idle", "min": 8, "max": 14}, {"clip": "Sword_Idle", "min": 4, "max": 7}]},
+  "voyante": {"fixe": false, "etapes": [{"clip": "Spell_Simple_Idle", "min": 5, "max": 9}, {"clip": "Idle", "min": 3, "max": 5}, {"clip": "Interact"}, {"clip": "Idle", "min": 2, "max": 4}]},
+  "mage": {"fixe": false, "etapes": [{"clip": "Idle", "min": 4, "max": 7}, {"clip": "Spell_Simple_Idle", "min": 4, "max": 6}, {"clip": "Idle", "min": 3, "max": 5}, {"clip": "Interact"}]},
+  "chef": {"fixe": false, "etapes": [{"clip": "Idle", "min": 6, "max": 10}, {"clip": "Interact"}, {"clip": "Idle", "min": 4, "max": 8}]},
+  "banc": {"fixe": true, "assis": true, "dy": 0.04, "etapes": [{"clip": "Sitting_Idle", "min": 30, "max": 60}]},
+  "feu": {"fixe": false, "etapes": [{"clip": "Idle_Talking", "min": 3, "max": 5}, {"clip": "Spell_Simple_Idle", "min": 3, "max": 6}, {"clip": "Idle", "min": 3, "max": 5}, {"clip": "Crouch_Idle", "min": 4, "max": 8}, {"clip": "Idle", "min": 2, "max": 4}]}
+ },
+ "lieux": {"forge": "forgeron", "puits": "puiser", "enclos": "pisteuse", "place": "voyante", "longue_maison": "chef", "porte": "faction"},
+ "soirs": {"feu": "feu"},
+ "pnj": {
+  "forgeron": {"metier": "forgeron"},
+  "ancienne": {"metier": "puiser", "pos": [43.53, 38.94], "vers": [42.0, 38.0], "sedentaire": true},
+  "hab_mage_tripo": {"metier": "mage"},
+  "hab_paysan_3": {"metier": "marchand", "pos": [51.05, 29.95], "cap": 0.0, "sedentaire": true},
+  "hab_paysanne_3": {"metier": "lavandiere"},
+  "hab_paysan_2": {"metier": "banc", "pos": [47.5, 46.3], "cap": 180.0, "sedentaire": true},
+  "hab_chasseur_2": {"metier": "bois", "pos": [56.45, 51.6], "vers": [58.0, 51.6], "sedentaire": true}
+ }
+}
