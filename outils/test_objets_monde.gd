@@ -31,6 +31,64 @@ func _mailles(n: Node) -> Array:
 ## Objets divers (potions, vivres, tomes, ingrédients, divers, quête) : chaque fiche a son glb (champ modele), pivot au sol, taille
 ## réelle, 80-650 triangles, toutes les surfaces en shader_matiere (aucun matériau importé brut), pas de repli sacoche.
 func _tester_divers() -> void:
+	ObjetsQuat.actif = false        # modèles d'avant (glb d'objets) : toujours là derrière --props-quat-ancien
+	await _tester_divers_glb()
+	ObjetsQuat.actif = true
+	await _tester_quat()
+
+## Objets ramassables en props Quaternius texturés (ObjetsQuat, champ modele_quat de la fiche) : visuel = le prop pq_*, pivot au sol,
+## taille réelle crédible, matériaux partagés ps1 de PropsQuat ; teinte_quat recolore (soin rouge / mana bleu sur la même fiole) ;
+## données de jeu intactes (modele, prix, poids).
+func _tester_quat() -> void:
+	var ids: Array = []
+	for oid: String in Inventaire.ids_connus():
+		if String(Inventaire.objet(oid).get("modele_quat", "")) != "":
+			ids.append(oid)
+	var fautes: Array = []
+	for oid: String in ids:
+		var pq := String(Inventaire.objet(oid)["modele_quat"])
+		if not PropsQuat.existe(pq):
+			fautes.append("%s : %s absent du catalogue" % [oid, pq])
+			continue
+		for pose in ["studio", "sol", "etal"]:
+			var v := ObjetMonde.visuel(oid, pose, 1)
+			root.add_child(v)
+			var bx := ObjetMonde.boite(v, Transform3D.IDENTITY)
+			var mats_ok := true
+			for mi: MeshInstance3D in _mailles(v):
+				for k in mi.mesh.get_surface_count():
+					var mt := mi.mesh.surface_get_material(k) as ShaderMaterial
+					mats_ok = mats_ok and mt != null and mt.shader != null and mt.get_shader_parameter("tex_base") != null
+			if String(v.get_meta("quat", "")) != pq or v.has_meta("repli") or not mats_ok:
+				fautes.append("%s/%s : visuel %s" % [oid, pose, v.get_meta("quat", "-")])
+			elif absf(bx.position.y) > 0.002 or maxf(bx.size.x, bx.size.z) > 1.1 or bx.size.y > 1.1 or bx.get_longest_axis_size() < 0.03:
+				fautes.append("%s/%s : boîte %s" % [oid, pose, bx])
+			v.free()
+	_verif(ids.size() >= 35 and fautes.is_empty(), "%d objets en props Quaternius (modele_quat) : prop pq_* posé au sol, au sol / étal / studio, matériaux PropsQuat (%s)" % [ids.size(), str(fautes)])
+	var soin := ObjetsQuat.maillage("potion_soin")
+	var mana := ObjetsQuat.maillage("potion_mana")
+	var cs: PackedColorArray = soin.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+	var cm: PackedColorArray = mana.surface_get_arrays(0)[Mesh.ARRAY_COLOR]
+	var rouge := 0
+	var bleu := 0
+	for k in cs.size():
+		if cs[k].s > ObjetsQuat.SEUIL_TEINTE:
+			rouge += int(cs[k].r > cs[k].b)
+			bleu += int(cm[k].b > cm[k].r)
+	_verif(soin != mana and rouge > 10 and bleu > 10, "teinte_quat : même fiole pq_potion_1, liquide rouge (soin, %d sommets) / bleu (mana, %d)" % [rouge, bleu])
+	_verif(String(Inventaire.objet("potion_soin")["modele"]) == "res://assets/modeles/objets/potion_soin.glb" and int(Inventaire.objet("potion_soin")["valeur"]) == 30,
+		"données de jeu intactes (modele, valeur de la potion de soin)")
+	var sac := ObjetMonde.sacoche()
+	_verif(sac.get_child_count() == 1 and String(sac.get_child(0).name) == "pq_bourse", "repli (objet sans modèle, surplus d'un tas) : la bourse de cuir pq_bourse")
+	sac.free()
+	ObjetsQuat.actif = false
+	var v0 := ObjetMonde.visuel("chope", "sol")
+	_verif(not v0.has_meta("quat") and _mailles(v0).size() >= 1, "--props-quat-ancien : l'ancien modèle revient (chope du décor .dat)")
+	v0.free()
+	ObjetsQuat.actif = true
+	await _images(1)
+
+func _tester_divers_glb() -> void:
 	var ids: Array = []
 	for f: String in DIVERS:
 		var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/objets/%s.json" % f))
@@ -124,8 +182,13 @@ func _tester() -> void:
 	ra.free()
 	await _tester_divers()
 	var mi := ObjetMonde.visuel("objet_inconnu_test", "sol")
-	_verif(mi.has_meta("repli") and _mailles(mi).size() >= 3, "objet sans modèle : repli sacoche")
+	_verif(mi.has_meta("repli") and _mailles(mi).size() >= 1, "objet sans modèle : repli sacoche (bourse pq_bourse)")
 	mi.free()
+	ObjetsQuat.actif = false
+	mi = ObjetMonde.visuel("objet_inconnu_test", "sol")
+	_verif(mi.has_meta("repli") and _mailles(mi).size() >= 3, "objet sans modèle, --props-quat-ancien : sacoche en primitives")
+	mi.free()
+	ObjetsQuat.actif = true
 	var nb_armures := 0
 	var avec_sol := 0
 	for oid: String in Inventaire.ids_connus():

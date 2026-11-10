@@ -64,7 +64,7 @@ static func chemin_modele(oid: String) -> String:
 	return ""
 
 static func a_modele(oid: String) -> bool:
-	return chemin_modele(oid) != "" or a_accessoire(oid) or a_prop(oid)
+	return ObjetsQuat.a(oid) or chemin_modele(oid) != "" or a_accessoire(oid) or a_prop(oid)
 
 ## Petit objet de décor (data/objets/decor.json : champ prop_q, ou la meule de fromage) : dessiné depuis le prop du décor (ObjetsVivants).
 static func a_prop(oid: String) -> bool:
@@ -104,6 +104,24 @@ static func visuel(oid: String, pose := "sol", graine := 0) -> Node3D:
 	racine.set_meta("oid", oid)
 	var chemin := chemin_modele(oid)
 	var m: Node3D = null
+	if ObjetsQuat.a(oid):          # prop Quaternius texturé PS1 de la fiche (modele_quat) : avant le glb / prop / primitives d'avant
+		var q := ObjetsQuat.noeud(oid, "crypte")
+		if q != null:
+			racine.set_meta("quat", ObjetsQuat.id_de(oid))
+			var pq := Node3D.new()
+			pq.name = "Pivot"
+			pq.add_child(q)
+			racine.add_child(pq)
+			var genre := _genre_petit(oid)
+			if genre != "" and pose == "sol":
+				pq.scale = Vector3.ONE * ECHELLE_BIJOU
+			elif genre != "" and pose == "etal":
+				pq.scale = Vector3.ONE * ECHELLE_ETAL
+			if pose != "ratelier":
+				pq.rotate_y(_lacet_de(oid, graine))
+			_poser_au_sol(racine, pq)
+			q.visibility_range_end = PORTEE if pose != "studio" else 0.0
+			return racine
 	if chemin != "":
 		var sc: Variant = load(chemin)
 		if sc is PackedScene:
@@ -280,7 +298,19 @@ static func _poser_au_sol(racine: Node3D, pivot: Node3D) -> void:
 
 ## Sacoche de cuir nouée (repli des objets sans modèle) : panse aplatie, goulot froncé, lien ; ~0,3 m, pivot au sol.
 static var _mat_sac: ShaderMaterial
+## Avec les props Quaternius (ObjetsQuat.actif) : la grande bourse de cuir nouée pq_bourse (Pouch_Large) ×ECHELLE_BOURSE.
+const ECHELLE_BOURSE := 1.3
 static func sacoche() -> Node3D:
+	if ObjetsQuat.actif and PropsQuat.existe("pq_bourse"):
+		var nq := Node3D.new()
+		nq.name = "Sacoche"
+		var b := PropsQuat.instancier("pq_bourse", "crypte")
+		if b != null:
+			b.scale = Vector3.ONE * ECHELLE_BOURSE
+			b.visibility_range_end = PORTEE
+			nq.add_child(b)
+			return nq
+		nq.free()
 	if _mat_sac == null:
 		_mat_sac = BijouxMateriaux.materiaux()["cuir"].duplicate() as ShaderMaterial
 		_mat_sac.set_shader_parameter("teinte", Color(1.25, 1.12, 0.95))

@@ -1,7 +1,7 @@
 {
 	"_doc": "Petits objets de DÉCOR rendus vivants (ObjetsVivants, scripts/objets_vivants.gd) : vaisselle, vivres, outils posés dans les intérieurs et sur les étals. prop_q = prop Quaternius du décor (PropsQuaternius), mats_q = matières des intérieurs (Interieurs.materiaux) ; ObjetMonde.visuel les dessine depuis ce même prop (aucun modèle en double). Les vivres (consommable) se mangent ou se boivent depuis le sac (petits soins, vigueur). Nouvel objet = nouvel identifiant, jamais de renommage.",
 	"objets": {
-		"chope": {
+		"chope": {"modele_quat": "pq_chope", 
 			"nom": "Chope de bois",
 			"poids": 0.4,
 			"valeur": 2,
@@ -9,7 +9,7 @@
 			"categorie": "divers",
 			"prop_q": "q_chope"
 		},
-		"assiette_etain": {
+		"assiette_etain": {"modele_quat": "pq_assiette", 
 			"nom": "Assiette d’étain",
 			"poids": 0.4,
 			"valeur": 3,
@@ -42,7 +42,7 @@
 				"fer": "argile"
 			}
 		},
-		"cruche": {
+		"cruche": {"modele_quat": "pq_vase_2", 
 			"nom": "Cruche d’argile",
 			"poids": 1.2,
 			"valeur": 3,
@@ -53,7 +53,7 @@
 				"fer": "argile"
 			}
 		},
-		"couteau_table": {
+		"couteau_table": {"modele_quat": "pq_couteau_table", 
 			"nom": "Couteau de table",
 			"poids": 0.15,
 			"valeur": 2,
@@ -61,7 +61,7 @@
 			"categorie": "divers",
 			"prop_q": "q_couteau_f"
 		},
-		"fourchette": {
+		"fourchette": {"modele_quat": "pq_fourchette", 
 			"nom": "Fourchette",
 			"poids": 0.08,
 			"valeur": 1,
@@ -69,7 +69,7 @@
 			"categorie": "divers",
 			"prop_q": "q_fourchette_f"
 		},
-		"cuillere_bois": {
+		"cuillere_bois": {"modele_quat": "pq_cuillere", 
 			"nom": "Cuillère de bois",
 			"poids": 0.05,
 			"valeur": 1,
@@ -80,7 +80,7 @@
 				"bois": "bois_clair"
 			}
 		},
-		"livre_relie": {
+		"livre_relie": {"modele_quat": "pq_livre_7", 
 			"nom": "Livre relié",
 			"poids": 0.9,
 			"valeur": 12,
@@ -91,7 +91,7 @@
 				"fer": "cuir"
 			}
 		},
-		"parchemin": {
+		"parchemin": {"modele_quat": "pq_parchemin", 
 			"nom": "Parchemin",
 			"poids": 0.05,
 			"valeur": 2,
@@ -102,7 +102,7 @@
 				"fer": "bois"
 			}
 		},
-		"seau_bois": {
+		"seau_bois": {"modele_quat": "pq_seau_bois", 
 			"nom": "Seau de bois",
 			"poids": 1.5,
 			"valeur": 3,
@@ -110,7 +110,7 @@
 			"categorie": "divers",
 			"prop_q": "q_seau_bois"
 		},
-		"seau_fer": {
+		"seau_fer": {"modele_quat": "pq_seau_fer", 
 			"nom": "Seau de fer",
 			"poids": 2.0,
 			"valeur": 5,
@@ -118,7 +118,7 @@
 			"categorie": "divers",
 			"prop_q": "q_seau_fer"
 		},
-		"pierre_aiguiser": {
+		"pierre_aiguiser": {"modele_quat": "pq_pierre_aiguiser", 
 			"nom": "Pierre à aiguiser",
 			"poids": 0.5,
 			"valeur": 4,
@@ -126,7 +126,7 @@
 			"categorie": "divers",
 			"prop_q": "q_pierre_aiguiser"
 		},
-		"chandelier": {
+		"chandelier": {"modele_quat": "pq_chandelier_table", 
 			"nom": "Chandelier d’étain",
 			"poids": 1.0,
 			"valeur": 8,
@@ -183,7 +183,7 @@
 				"famille": "nourriture"
 			}
 		},
-		"carotte": {
+		"carotte": {"modele_quat": "pq_carotte", 
 			"nom": "Carotte",
 			"poids": 0.1,
 			"valeur": 1,
@@ -350,7 +350,7 @@
 				"famille": "nourriture"
 			}
 		},
-		"hydromel": {
+		"hydromel": {"modele_quat": "pq_bouteille", 
 			"nom": "Bouteille d’hydromel",
 			"poids": 0.8,
 			"valeur": 6,
