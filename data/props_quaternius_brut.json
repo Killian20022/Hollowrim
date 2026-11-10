@@ -1,0 +1,2999 @@
+[
+ {
+  "id": "pq_enclume",
+  "source": "Anvil",
+  "categorie": "armes_outils",
+  "fichier": "res://assets/modeles/props_quat/armes_outils/pq_enclume.glb",
+  "dimensions_m": [
+   0.817,
+   0.42,
+   0.303
+  ],
+  "tris": 746,
+  "tris_source": 746,
+  "reduction": null,
+  "budget": 1116,
+  "echelle": 0.7553,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 89.1
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.817,
+    0.42,
+    0.303
+   ],
+   "centre_y": 0.21
+  },
+  "octets": 29520,
+  "ancien": "q_enclume"
+ },
+ {
+  "id": "pq_billot_enclume",
+  "source": "Anvil_Log",
+  "categorie": "armes_outils",
+  "fichier": "res://assets/modeles/props_quat/armes_outils/pq_billot_enclume.glb",
+  "dimensions_m": [
+   0.735,
+   0.85,
+   0.65
+  ],
+  "tris": 1150,
+  "tris_source": 3804,
+  "reduction": "collapse 0.38",
+  "budget": 1150,
+  "echelle": 0.7919,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_props"
+  ],
+  "texels_m": {
+   "bois": 21.2,
+   "props": 80.9,
+   "fer": 109.4
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.368,
+   "hauteur": 0.85
+  },
+  "octets": 69800,
+  "ancien": "q_billot_enclume"
+ },
+ {
+  "id": "pq_hache_outil",
+  "source": "Axe_Bronze",
+  "categorie": "armes_outils",
+  "fichier": "res://assets/modeles/props_quat/armes_outils/pq_hache_outil.glb",
+  "dimensions_m": [
+   0.249,
+   0.7,
+   0.039
+  ],
+  "tris": 826,
+  "tris_source": 826,
+  "reduction": null,
+  "budget": 999,
+  "echelle": 0.8465,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 123.9
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.249,
+    0.7,
+    0.039
+   ],
+   "centre_y": 0.35
+  },
+  "octets": 31892,
+  "note": "bronze -> fer (thème nordique)",
+  "ancien": "q_hache_outil"
+ },
+ {
+  "id": "pq_sac",
+  "source": "Bag",
+  "categorie": "exterieur_marche",
+  "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_sac.glb",
+  "dimensions_m": [
+   0.492,
+   0.6,
+   0.409
+  ],
+  "tris": 858,
+  "tris_source": 858,
+  "reduction": null,
+  "budget": 899,
+  "echelle": 0.7508,
+  "atlas": [
+   "pq_bois",
+   "pq_tissu"
+  ],
+  "texels_m": {
+   "tissu": 57.2,
+   "bois": 304.3
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.492,
+    0.6,
+    0.409
+   ],
+   "centre_y": 0.3
+  },
+  "octets": 30792,
+  "ancien": "q_sac"
+ },
+ {
+  "id": "pq_banniere",
+  "source": "Banner_1",
+  "categorie": "exterieur_marche",
+  "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_banniere.glb",
+  "dimensions_m": [
+   1.613,
+   2.392,
+   0.191
+  ],
+  "tris": 448,
+  "tris_source": 448,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_tissu_v"
+  ],
+  "texels_m": {
+   "bois": 37.6,
+   "fer": 84.2,
+   "tissu_v": 53.3
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.613,
+    2.392,
+    0.191
+   ],
+   "centre_y": 1.196
+  },
+  "octets": 22512,
+  "ancien": "q_banniere"
+ },
+ {
+  "id": "pq_banniere_toile",
+  "source": "Banner_1_Cloth",
+  "categorie": "exterieur_marche",
+  "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_banniere_toile.glb",
+  "dimensions_m": [
+   0.81,
+   2.246,
+   0.057
+  ],
+  "tris": 138,
+  "tris_source": 138,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_fer",
+   "pq_tissu_v"
+  ],
+  "texels_m": {
+   "fer": 73.5,
+   "tissu_v": 53.3
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.81,
+    2.246,
+    0.057
+   ],
+   "centre_y": 1.123
+  },
+  "octets": 7168,
+  "ancien": "q_banniere_toile"
+ },
+ {
+  "id": "pq_banniere_2",
+  "source": "Banner_2",
+  "categorie": "exterieur_marche",
+  "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_banniere_2.glb",
+  "dimensions_m": [
+   1.613,
+   2.077,
+   0.191
+  ],
+  "tris": 429,
+  "tris_source": 429,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_tissu_v"
+  ],
+  "texels_m": {
+   "bois": 37.6,
+   "fer": 84.2,
+   "tissu_v": 53.3
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.613,
+    2.077,
+    0.191
+   ],
+   "centre_y": 1.039
+  },
+  "octets": 22004,
+  "ancien": "q_banniere_2"
+ },
+ {
+  "id": "pq_banniere_2_toile",
+  "source": "Banner_2_Cloth",
+  "categorie": "exterieur_marche",
+  "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_banniere_2_toile.glb",
+  "dimensions_m": [
+   0.81,
+   1.931,
+   0.057
+  ],
+  "tris": 119,
+  "tris_source": 119,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_fer",
+   "pq_tissu_v"
+  ],
+  "texels_m": {
+   "fer": 73.5,
+   "tissu_v": 53.3
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.81,
+    1.931,
+    0.057
+   ],
+   "centre_y": 0.966
+  },
+  "octets": 6656,
+  "ancien": "q_banniere_2_toile"
+ },
+ {
+  "id": "pq_tonneau",
+  "source": "Barrel",
+  "categorie": "rangement",
+  "fichier": "res://assets/modeles/props_quat/rangement/pq_tonneau.glb",
+  "dimensions_m": [
+   0.7,
+   0.9,
+   0.7
+  ],
+  "tris": 824,
+  "tris_source": 824,
+  "reduction": null,
+  "budget": 1200,
+  "echelle": 1.0023,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 99.1,
+   "fer": 91.8
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.35,
+   "hauteur": 0.9
+  },
+  "octets": 49668,
+  "ancien": "q_tonneau"
+ },
+ {
+  "id": "pq_tonneau_pommes",
+  "source": "Barrel_Apples",
+  "categorie": "exterieur_marche",
+  "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_tonneau_pommes.glb",
+  "dimensions_m": [
+   0.698,
+   0.9,
+   0.698
+  ],
+  "tris": 1200,
+  "tris_source": 2480,
+  "reduction": "collapse 0.50",
+  "budget": 1200,
+  "echelle": 1.0023,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 28.2,
+   "bois": 103.7,
+   "fer": 92.6
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.349,
+   "hauteur": 0.9
+  },
+  "octets": 77732,
+  "ancien": "q_tonneau_pommes"
+ },
+ {
+  "id": "pq_support_tonneau",
+  "source": "Barrel_Holder",
+  "categorie": "exterieur_ferme",
+  "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_support_tonneau.glb",
+  "dimensions_m": [
+   1.188,
+   1.1,
+   0.648
+  ],
+  "tris": 1417,
+  "tris_source": 2676,
+  "reduction": "collapse 0.60",
+  "budget": 1489,
+  "echelle": 0.8748,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 127.6,
+   "fer": 146.8
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.188,
+    1.1,
+    0.648
+   ],
+   "centre_y": 0.55
+  },
+  "octets": 106624,
+  "ancien": "q_support_tonneau"
+ },
+ {
+  "id": "pq_lit",
+  "source": "Bed_Twin1",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_lit.glb",
+  "dimensions_m": [
+   1.594,
+   0.684,
+   2.05
+  ],
+  "tris": 1600,
+  "tris_source": 1600,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 0.85,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_tissu"
+  ],
+  "texels_m": {
+   "bois": 75.5,
+   "fer": 140.7,
+   "tissu": 59.0
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.594,
+    0.684,
+    2.05
+   ],
+   "centre_y": 0.342
+  },
+  "octets": 83764,
+  "ancien": "q_lit"
+ },
+ {
+  "id": "pq_lit_2",
+  "source": "Bed_Twin2",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_lit_2.glb",
+  "dimensions_m": [
+   1.594,
+   0.646,
+   2.05
+  ],
+  "tris": 1584,
+  "tris_source": 1584,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 0.85,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_tissu"
+  ],
+  "texels_m": {
+   "bois": 75.6,
+   "fer": 140.7,
+   "tissu": 59.0
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.594,
+    0.646,
+    2.05
+   ],
+   "centre_y": 0.323
+  },
+  "octets": 82384,
+  "ancien": "q_lit_2"
+ },
+ {
+  "id": "pq_banc",
+  "source": "Bench",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_banc.glb",
+  "dimensions_m": [
+   2.343,
+   0.45,
+   0.451
+  ],
+  "tris": 404,
+  "tris_source": 404,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 0.8439,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 62.9,
+   "fer": 142.1
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    2.343,
+    0.45,
+    0.451
+   ],
+   "centre_y": 0.225
+  },
+  "octets": 27048,
+  "ancien": "q_banc"
+ },
+ {
+  "id": "pq_livres_moyens_1",
+  "source": "BookGroup_Medium_1",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_livres_moyens_1.glb",
+  "dimensions_m": [
+   0.935,
+   0.262,
+   0.218
+  ],
+  "tris": 416,
+  "tris_source": 416,
+  "reduction": null,
+  "budget": 1235,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 135.0
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.935,
+    0.262,
+    0.218
+   ],
+   "centre_y": 0.131
+  },
+  "octets": 26920,
+  "ancien": "q_livres_moyens_1"
+ },
+ {
+  "id": "pq_livres_moyens_2",
+  "source": "BookGroup_Medium_2",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_livres_moyens_2.glb",
+  "dimensions_m": [
+   0.972,
+   0.259,
+   0.218
+  ],
+  "tris": 468,
+  "tris_source": 468,
+  "reduction": null,
+  "budget": 1272,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 135.1
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.972,
+    0.259,
+    0.218
+   ],
+   "centre_y": 0.13
+  },
+  "octets": 30108,
+  "ancien": "q_livres_moyens_2"
+ },
+ {
+  "id": "pq_livres_moyens_3",
+  "source": "BookGroup_Medium_3",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_livres_moyens_3.glb",
+  "dimensions_m": [
+   0.917,
+   0.259,
+   0.218
+  ],
+  "tris": 468,
+  "tris_source": 468,
+  "reduction": null,
+  "budget": 1216,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 135.4
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.917,
+    0.259,
+    0.218
+   ],
+   "centre_y": 0.13
+  },
+  "octets": 30112,
+  "ancien": "q_livres_moyens_3"
+ },
+ {
+  "id": "pq_livres_petits_1",
+  "source": "BookGroup_Small_1",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_livres_petits_1.glb",
+  "dimensions_m": [
+   0.255,
+   0.262,
+   0.199
+  ],
+  "tris": 104,
+  "tris_source": 104,
+  "reduction": null,
+  "budget": 562,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 133.6
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.255,
+    0.262,
+    0.199
+   ],
+   "centre_y": 0.131
+  },
+  "octets": 7756,
+  "ancien": "q_livres_petits_1"
+ },
+ {
+  "id": "pq_livres_petits_2",
+  "source": "BookGroup_Small_2",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_livres_petits_2.glb",
+  "dimensions_m": [
+   0.2,
+   0.249,
+   0.209
+  ],
+  "tris": 104,
+  "tris_source": 104,
+  "reduction": null,
+  "budget": 549,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 136.0
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 7760,
+  "ancien": "q_livres_petits_2"
+ },
+ {
+  "id": "pq_livres_petits_3",
+  "source": "BookGroup_Small_3",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_livres_petits_3.glb",
+  "dimensions_m": [
+   0.215,
+   0.244,
+   0.209
+  ],
+  "tris": 130,
+  "tris_source": 130,
+  "reduction": null,
+  "budget": 544,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 138.0
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 9356,
+  "ancien": "q_livres_petits_3"
+ },
+ {
+  "id": "pq_lutrin",
+  "source": "BookStand",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_lutrin.glb",
+  "dimensions_m": [
+   0.438,
+   1.25,
+   0.442
+  ],
+  "tris": 1526,
+  "tris_source": 1526,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 0.864,
+  "atlas": [
+   "pq_bois"
+  ],
+  "texels_m": {
+   "bois": 143.4
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.221,
+   "hauteur": 1.25
+  },
+  "octets": 73212,
+  "ancien": "q_lutrin"
+ },
+ {
+  "id": "pq_livre_5",
+  "source": "Book_5",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_livre_5.glb",
+  "dimensions_m": [
+   0.187,
+   0.056,
+   0.253
+  ],
+  "tris": 96,
+  "tris_source": 96,
+  "reduction": null,
+  "budget": 552,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 184.5
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.187,
+    0.056,
+    0.253
+   ],
+   "centre_y": 0.028
+  },
+  "octets": 7052,
+  "ancien": "q_livre_5"
+ },
+ {
+  "id": "pq_livre_7",
+  "source": "Book_7",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_livre_7.glb",
+  "dimensions_m": [
+   0.217,
+   0.06,
+   0.293
+  ],
+  "tris": 448,
+  "tris_source": 724,
+  "reduction": "plan",
+  "budget": 593,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_fer",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "fer": 251.7,
+   "props_v": 163.7
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.217,
+    0.06,
+    0.293
+   ],
+   "centre_y": 0.03
+  },
+  "octets": 21364,
+  "ancien": "q_livre_7"
+ },
+ {
+  "id": "pq_livre_simple",
+  "source": "Book_Simplified_Single",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_livre_simple.glb",
+  "dimensions_m": [
+   0.057,
+   0.236,
+   0.185
+  ],
+  "tris": 52,
+  "tris_source": 52,
+  "reduction": null,
+  "budget": 536,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 158.7
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 4884,
+  "ancien": "q_livre_simple"
+ },
+ {
+  "id": "pq_pile_livres",
+  "source": "Book_Stack_1",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_pile_livres.glb",
+  "dimensions_m": [
+   0.251,
+   0.188,
+   0.199
+  ],
+  "tris": 208,
+  "tris_source": 208,
+  "reduction": null,
+  "budget": 550,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 163.7
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.251,
+    0.188,
+    0.199
+   ],
+   "centre_y": 0.094
+  },
+  "octets": 16300,
+  "ancien": "q_pile_livres"
+ },
+ {
+  "id": "pq_pile_livres_2",
+  "source": "Book_Stack_2",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_pile_livres_2.glb",
+  "dimensions_m": [
+   0.242,
+   0.175,
+   0.2
+  ],
+  "tris": 446,
+  "tris_source": 446,
+  "reduction": null,
+  "budget": 541,
+  "echelle": 0.88,
+  "atlas": [
+   "pq_fer",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 160.6,
+   "fer": 690.1
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 29080,
+  "ancien": "q_pile_livres_2"
+ },
+ {
+  "id": "pq_bibliotheque",
+  "source": "Bookcase_2",
+  "categorie": "rangement",
+  "fichier": "res://assets/modeles/props_quat/rangement/pq_bibliotheque.glb",
+  "dimensions_m": [
+   1.148,
+   2.0,
+   0.337
+  ],
+  "tris": 1074,
+  "tris_source": 2148,
+  "reduction": "collapse 0.60",
+  "budget": 1500,
+  "echelle": 0.7859,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 167.0,
+   "bois": 80.6
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.148,
+    2.0,
+    0.337
+   ],
+   "centre_y": 1.0
+  },
+  "octets": 59480,
+  "ancien": "q_bibliotheque"
+ },
+ {
+  "id": "pq_bouteille",
+  "source": "Bottle_1",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_bouteille.glb",
+  "dimensions_m": [
+   0.093,
+   0.3,
+   0.093
+  ],
+  "tris": 312,
+  "tris_source": 312,
+  "reduction": null,
+  "budget": 599,
+  "echelle": 0.8227,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 129.7
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.046,
+   "hauteur": 0.3
+  },
+  "octets": 14324,
+  "ancien": "q_bouteille"
+ },
+ {
+  "id": "pq_seau_fer",
+  "source": "Bucket_Metal",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_seau_fer.glb",
+  "dimensions_m": [
+   0.399,
+   0.3,
+   0.369
+  ],
+  "tris": 540,
+  "tris_source": 540,
+  "reduction": null,
+  "budget": 698,
+  "echelle": 0.8218,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 109.5
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.199,
+   "hauteur": 0.3
+  },
+  "octets": 30376,
+  "ancien": "q_seau_fer"
+ },
+ {
+  "id": "pq_seau_bois",
+  "source": "Bucket_Wooden_1",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_seau_bois.glb",
+  "dimensions_m": [
+   0.445,
+   0.3,
+   0.394
+  ],
+  "tris": 528,
+  "tris_source": 976,
+  "reduction": "collapse 0.60",
+  "budget": 744,
+  "echelle": 1.0246,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 199.2,
+   "fer": 89.2
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.223,
+   "hauteur": 0.3
+  },
+  "octets": 31940,
+  "ancien": "q_seau_bois"
+ },
+ {
+  "id": "pq_buffet",
+  "source": "Cabinet",
+  "categorie": "rangement",
+  "fichier": "res://assets/modeles/props_quat/rangement/pq_buffet.glb",
+  "dimensions_m": [
+   1.229,
+   0.9,
+   0.322
+  ],
+  "tris": 1138,
+  "tris_source": 2388,
+  "reduction": "collapse 0.60",
+  "budget": 1500,
+  "echelle": 0.9023,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 199.8,
+   "bois": 86.3
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.229,
+    0.9,
+    0.322
+   ],
+   "centre_y": 0.45
+  },
+  "octets": 73708,
+  "ancien": "q_armoire"
+ },
+ {
+  "id": "pq_cage",
+  "source": "Cage_Small",
+  "categorie": "donjon",
+  "fichier": "res://assets/modeles/props_quat/donjon/pq_cage.glb",
+  "dimensions_m": [
+   0.853,
+   0.803,
+   0.877
+  ],
+  "tris": 1368,
+  "tris_source": 4588,
+  "reduction": "collapse 0.30",
+  "budget": 1178,
+  "echelle": 0.9936,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 91.3
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.853,
+    0.803,
+    0.877
+   ],
+   "centre_y": 0.402
+  },
+  "octets": 142172,
+  "ancien": "q_cage"
+ },
+ {
+  "id": "pq_chandelier_table",
+  "source": "CandleStick",
+  "categorie": "eclairage",
+  "fichier": "res://assets/modeles/props_quat/eclairage/pq_chandelier_table.glb",
+  "dimensions_m": [
+   0.261,
+   0.155,
+   0.179
+  ],
+  "tris": 438,
+  "tris_source": 730,
+  "reduction": "collapse 0.60",
+  "budget": 560,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 125.9
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.261,
+    0.155,
+    0.179
+   ],
+   "centre_y": 0.078
+  },
+  "octets": 19360,
+  "ancien": "q_chandelier_table"
+ },
+ {
+  "id": "pq_chandelier_pied",
+  "source": "CandleStick_Stand",
+  "categorie": "eclairage",
+  "fichier": "res://assets/modeles/props_quat/eclairage/pq_chandelier_pied.glb",
+  "dimensions_m": [
+   0.725,
+   1.301,
+   0.724
+  ],
+  "tris": 1711,
+  "tris_source": 5738,
+  "reduction": "collapse 0.30",
+  "budget": 1500,
+  "echelle": 0.9905,
+  "atlas": [
+   "pq_fer",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "fer": 156.4,
+   "props_v": 107.3
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.362,
+   "hauteur": 1.301
+  },
+  "octets": 153124
+ },
+ {
+  "id": "pq_bougeoir_triple",
+  "source": "CandleStick_Triple",
+  "categorie": "eclairage",
+  "fichier": "res://assets/modeles/props_quat/eclairage/pq_bougeoir_triple.glb",
+  "dimensions_m": [
+   0.383,
+   0.399,
+   0.118
+  ],
+  "tris": 744,
+  "tris_source": 2528,
+  "reduction": "collapse 0.30",
+  "budget": 700,
+  "echelle": 0.8635,
+  "atlas": [
+   "pq_fer",
+   "pq_props"
+  ],
+  "texels_m": {
+   "fer": 179.6,
+   "props": 163.3
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.383,
+    0.399,
+    0.118
+   ],
+   "centre_y": 0.199
+  },
+  "octets": 46944,
+  "ancien": "q_bougeoir_triple"
+ },
+ {
+  "id": "pq_bougie_1",
+  "source": "Candle_1",
+  "categorie": "eclairage",
+  "fichier": "res://assets/modeles/props_quat/eclairage/pq_bougie_1.glb",
+  "dimensions_m": [
+   0.084,
+   0.119,
+   0.097
+  ],
+  "tris": 212,
+  "tris_source": 212,
+  "reduction": null,
+  "budget": 418,
+  "echelle": 0.9,
+  "atlas": [
+   "pq_props"
+  ],
+  "texels_m": {
+   "props": 79.7
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 9600,
+  "ancien": "q_bougie_1"
+ },
+ {
+  "id": "pq_bougie_2",
+  "source": "Candle_2",
+  "categorie": "eclairage",
+  "fichier": "res://assets/modeles/props_quat/eclairage/pq_bougie_2.glb",
+  "dimensions_m": [
+   0.085,
+   0.226,
+   0.088
+  ],
+  "tris": 210,
+  "tris_source": 210,
+  "reduction": null,
+  "budget": 526,
+  "echelle": 0.9,
+  "atlas": [
+   "pq_props"
+  ],
+  "texels_m": {
+   "props": 73.7
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 9988,
+  "ancien": "q_bougie_2"
+ },
+ {
+  "id": "pq_carotte",
+  "source": "Carrot",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_carotte.glb",
+  "dimensions_m": [
+   0.095,
+   0.3,
+   0.118
+  ],
+  "tris": 634,
+  "tris_source": 634,
+  "reduction": null,
+  "budget": 600,
+  "echelle": 0.5302,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 216.4
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.095,
+    0.3,
+    0.118
+   ],
+   "centre_y": 0.15
+  },
+  "octets": 49024,
+  "ancien": "q_carotte"
+ },
+ {
+  "id": "pq_chaudron",
+  "source": "Cauldron",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_chaudron.glb",
+  "dimensions_m": [
+   0.667,
+   0.55,
+   0.637
+  ],
+  "tris": 966,
+  "tris_source": 2020,
+  "reduction": "collapse 0.50",
+  "budget": 967,
+  "echelle": 0.6744,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 76.7
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.333,
+   "hauteur": 0.55
+  },
+  "octets": 46904,
+  "ancien": "q_chaudron"
+ },
+ {
+  "id": "pq_chaine",
+  "source": "Chain_Coil",
+  "categorie": "donjon",
+  "fichier": "res://assets/modeles/props_quat/donjon/pq_chaine.glb",
+  "dimensions_m": [
+   0.739,
+   0.061,
+   0.634
+  ],
+  "tris": 1472,
+  "tris_source": 3744,
+  "reduction": "collapse 0.30",
+  "budget": 1049,
+  "echelle": 0.7,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 418.5
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.37,
+   "hauteur": 0.061
+  },
+  "octets": 163036,
+  "ancien": "q_chaine"
+ },
+ {
+  "id": "pq_chaise",
+  "source": "Chair_1",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_chaise.glb",
+  "dimensions_m": [
+   0.491,
+   0.95,
+   0.464
+  ],
+  "tris": 496,
+  "tris_source": 496,
+  "reduction": null,
+  "budget": 1250,
+  "echelle": 0.8457,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 127.8,
+   "fer": 191.9
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.491,
+    0.95,
+    0.464
+   ],
+   "centre_y": 0.475
+  },
+  "octets": 38368,
+  "ancien": "q_chaise"
+ },
+ {
+  "id": "pq_calice",
+  "source": "Chalice",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_calice.glb",
+  "dimensions_m": [
+   0.092,
+   0.2,
+   0.097
+  ],
+  "tris": 458,
+  "tris_source": 458,
+  "reduction": null,
+  "budget": 499,
+  "echelle": 0.7792,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 143.0
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 17920,
+  "ancien": "q_calice"
+ },
+ {
+  "id": "pq_lustre",
+  "source": "Chandelier",
+  "categorie": "eclairage",
+  "fichier": "res://assets/modeles/props_quat/eclairage/pq_lustre.glb",
+  "dimensions_m": [
+   1.072,
+   1.199,
+   1.082
+  ],
+  "tris": 1694,
+  "tris_source": 5680,
+  "reduction": "collapse 0.30",
+  "budget": 1500,
+  "echelle": 0.8233,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "fer": 286.4,
+   "props_v": 85.1,
+   "bois": 47.1
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.541,
+   "hauteur": 1.199
+  },
+  "octets": 194280,
+  "ancien": "q_lustre"
+ },
+ {
+  "id": "pq_coffre",
+  "source": "Chest_Wood",
+  "categorie": "rangement",
+  "fichier": "res://assets/modeles/props_quat/rangement/pq_coffre.glb",
+  "dimensions_m": [
+   0.707,
+   0.6,
+   0.637
+  ],
+  "tris": 1006,
+  "tris_source": 2546,
+  "reduction": "collapse 0.53",
+  "budget": 1007,
+  "echelle": 0.5542,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 137.2,
+   "bois": 66.7
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.707,
+    0.6,
+    0.637
+   ],
+   "centre_y": 0.3
+  },
+  "octets": 59280,
+  "ancien": "q_coffre"
+ },
+ {
+  "id": "pq_piece",
+  "source": "Coin",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_piece.glb",
+  "dimensions_m": [
+   0.034,
+   0.034,
+   0.007
+  ],
+  "tris": 304,
+  "tris_source": 304,
+  "reduction": null,
+  "budget": 334,
+  "echelle": 0.5,
+  "atlas": [
+   "pq_fer_v"
+  ],
+  "texels_m": {
+   "fer_v": 1208.4
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 13836,
+  "ancien": "q_pieces"
+ },
+ {
+  "id": "pq_tas_pieces",
+  "source": "Coin_Pile",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_tas_pieces.glb",
+  "dimensions_m": [
+   0.099,
+   0.037,
+   0.077
+  ],
+  "tris": 398,
+  "tris_source": 960,
+  "reduction": "collapse 0.42",
+  "budget": 398,
+  "echelle": 0.5,
+  "atlas": [
+   "pq_fer_v"
+  ],
+  "texels_m": {
+   "fer_v": 523.4
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 27464,
+  "ancien": "q_tas_pieces"
+ },
+ {
+  "id": "pq_tas_pieces_2",
+  "source": "Coin_Pile_2",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_tas_pieces_2.glb",
+  "dimensions_m": [
+   0.139,
+   0.029,
+   0.1
+  ],
+  "tris": 439,
+  "tris_source": 1062,
+  "reduction": "collapse 0.42",
+  "budget": 439,
+  "echelle": 0.5,
+  "atlas": [
+   "pq_fer_v"
+  ],
+  "texels_m": {
+   "fer_v": 552.5
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 29396,
+  "ancien": "q_tas_pieces_2"
+ },
+ {
+  "id": "pq_caisse_fer",
+  "source": "Crate_Metal",
+  "categorie": "rangement",
+  "fichier": "res://assets/modeles/props_quat/rangement/pq_caisse_fer.glb",
+  "dimensions_m": [
+   0.697,
+   0.7,
+   0.699
+  ],
+  "tris": 999,
+  "tris_source": 2738,
+  "reduction": "collapse 0.46",
+  "budget": 999,
+  "echelle": 0.8066,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 131.7,
+   "bois": 117.7
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.697,
+    0.7,
+    0.699
+   ],
+   "centre_y": 0.35
+  },
+  "octets": 58960,
+  "ancien": "q_caisse_fer"
+ },
+ {
+  "id": "pq_caisse",
+  "source": "Crate_Wooden",
+  "categorie": "rangement",
+  "fichier": "res://assets/modeles/props_quat/rangement/pq_caisse.glb",
+  "dimensions_m": [
+   0.633,
+   0.7,
+   0.683
+  ],
+  "tris": 942,
+  "tris_source": 1576,
+  "reduction": "collapse 0.60",
+  "budget": 1000,
+  "echelle": 0.7519,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 123.9,
+   "fer": 190.1
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.633,
+    0.7,
+    0.683
+   ],
+   "centre_y": 0.35
+  },
+  "octets": 56396,
+  "ancien": "q_caisse"
+ },
+ {
+  "id": "pq_mannequin",
+  "source": "Dummy",
+  "categorie": "armes_outils",
+  "fichier": "res://assets/modeles/props_quat/armes_outils/pq_mannequin.glb",
+  "dimensions_m": [
+   0.741,
+   1.699,
+   0.534
+  ],
+  "tris": 1500,
+  "tris_source": 2858,
+  "reduction": "collapse 0.53",
+  "budget": 1500,
+  "echelle": 0.9127,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_tissu"
+  ],
+  "texels_m": {
+   "fer": 129.7,
+   "bois": 149.9,
+   "tissu": 67.5
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.741,
+    1.699,
+    0.534
+   ],
+   "centre_y": 0.85
+  },
+  "octets": 74800,
+  "ancien": "q_mannequin"
+ },
+ {
+  "id": "pq_cageot_pommes",
+  "source": "FarmCrate_Apple",
+  "categorie": "exterieur_marche",
+  "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_cageot_pommes.glb",
+  "dimensions_m": [
+   0.531,
+   0.183,
+   0.312
+  ],
+  "tris": 1206,
+  "tris_source": 4028,
+  "reduction": "collapse 0.30",
+  "budget": 835,
+  "echelle": 0.75,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 45.5,
+   "bois": 138.4,
+   "fer": 207.4
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.531,
+    0.183,
+    0.312
+   ],
+   "centre_y": 0.091
+  },
+  "octets": 105104,
+  "ancien": "q_cageot_pommes"
+ },
+ {
+  "id": "pq_cageot_carottes",
+  "source": "FarmCrate_Carrot",
+  "categorie": "exterieur_marche",
+  "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_cageot_carottes.glb",
+  "dimensions_m": [
+   0.531,
+   0.306,
+   0.415
+  ],
+  "tris": 1575,
+  "tris_source": 5262,
+  "reduction": "collapse 0.30",
+  "budget": 835,
+  "echelle": 0.75,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "bois": 140.9,
+   "props_v": 164.8,
+   "fer": 207.6
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.531,
+    0.306,
+    0.415
+   ],
+   "centre_y": 0.153
+  },
+  "octets": 184244,
+  "ancien": "q_cageot_carottes"
+ },
+ {
+  "id": "pq_cageot_vide",
+  "source": "FarmCrate_Empty",
+  "categorie": "exterieur_ferme",
+  "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_cageot_vide.glb",
+  "dimensions_m": [
+   0.535,
+   0.183,
+   0.31
+  ],
+  "tris": 835,
+  "tris_source": 1928,
+  "reduction": "collapse 0.43",
+  "budget": 835,
+  "echelle": 0.75,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 145.1,
+   "fer": 263.1
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.535,
+    0.183,
+    0.31
+   ],
+   "centre_y": 0.091
+  },
+  "octets": 38064,
+  "ancien": "q_cageot_vide"
+ },
+ {
+  "id": "pq_cle_or",
+  "source": "Key_Gold",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_cle_or.glb",
+  "dimensions_m": [
+   0.057,
+   0.012,
+   0.122
+  ],
+  "tris": 422,
+  "tris_source": 1366,
+  "reduction": "collapse 0.33",
+  "budget": 422,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_fer_v"
+  ],
+  "texels_m": {
+   "fer_v": 536.5
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 33728,
+  "ancien": "q_cle_or"
+ },
+ {
+  "id": "pq_cle_fer",
+  "source": "Key_Metal",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_cle_fer.glb",
+  "dimensions_m": [
+   0.048,
+   0.012,
+   0.111
+  ],
+  "tris": 308,
+  "tris_source": 546,
+  "reduction": "collapse 0.60",
+  "budget": 411,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 440.4
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 17380,
+  "ancien": "q_cle_fer"
+ },
+ {
+  "id": "pq_lanterne_murale",
+  "source": "Lantern_Wall",
+  "categorie": "eclairage",
+  "fichier": "res://assets/modeles/props_quat/eclairage/pq_lanterne_murale.glb",
+  "dimensions_m": [
+   0.145,
+   0.541,
+   0.536
+  ],
+  "tris": 850,
+  "tris_source": 2822,
+  "reduction": "collapse 0.32",
+  "budget": 850,
+  "echelle": 0.4114,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 334.3
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.145,
+    0.541,
+    0.536
+   ],
+   "centre_y": 0.271
+  },
+  "octets": 84976,
+  "ancien": "q_lanterne_murale"
+ },
+ {
+  "id": "pq_chope",
+  "source": "Mug",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_chope.glb",
+  "dimensions_m": [
+   0.146,
+   0.14,
+   0.112
+  ],
+  "tris": 268,
+  "tris_source": 268,
+  "reduction": null,
+  "budget": 446,
+  "echelle": 0.7614,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 252.4,
+   "bois": 193.2
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 21448,
+  "ancien": "q_chope"
+ },
+ {
+  "id": "pq_chevet_etagere",
+  "source": "Nightstand_Shelf",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_chevet_etagere.glb",
+  "dimensions_m": [
+   0.371,
+   0.65,
+   0.21
+  ],
+  "tris": 262,
+  "tris_source": 262,
+  "reduction": null,
+  "budget": 949,
+  "echelle": 0.5347,
+  "atlas": [
+   "pq_bois"
+  ],
+  "texels_m": {
+   "bois": 224.4
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.371,
+    0.65,
+    0.21
+   ],
+   "centre_y": 0.325
+  },
+  "octets": 23668,
+  "ancien": "q_chevet_etagere"
+ },
+ {
+  "id": "pq_porte_manteau",
+  "source": "Peg_Rack",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_porte_manteau.glb",
+  "dimensions_m": [
+   0.947,
+   0.278,
+   0.077
+  ],
+  "tris": 712,
+  "tris_source": 712,
+  "reduction": null,
+  "budget": 1247,
+  "echelle": 0.8,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 120.9,
+   "fer": 154.4
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.947,
+    0.278,
+    0.077
+   ],
+   "centre_y": 0.139
+  },
+  "octets": 34852,
+  "ancien": "q_porte_manteau"
+ },
+ {
+  "id": "pq_pioche",
+  "source": "Pickaxe_Bronze",
+  "categorie": "armes_outils",
+  "fichier": "res://assets/modeles/props_quat/armes_outils/pq_pioche.glb",
+  "dimensions_m": [
+   0.611,
+   0.9,
+   0.102
+  ],
+  "tris": 776,
+  "tris_source": 776,
+  "reduction": null,
+  "budget": 1200,
+  "echelle": 0.7515,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 85.3
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.611,
+    0.9,
+    0.102
+   ],
+   "centre_y": 0.45
+  },
+  "octets": 32116,
+  "note": "bronze -> fer (thème nordique)",
+  "ancien": "q_pioche"
+ },
+ {
+  "id": "pq_marmite",
+  "source": "Pot_1",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_marmite.glb",
+  "dimensions_m": [
+   0.349,
+   0.145,
+   0.316
+  ],
+  "tris": 639,
+  "tris_source": 1068,
+  "reduction": "collapse 0.60",
+  "budget": 650,
+  "echelle": 0.65,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 119.4
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.175,
+   "hauteur": 0.145
+  },
+  "octets": 29080,
+  "ancien": "q_marmite"
+ },
+ {
+  "id": "pq_marmite_couverte",
+  "source": "Pot_1_Lid",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_marmite_couverte.glb",
+  "dimensions_m": [
+   0.349,
+   0.182,
+   0.316
+  ],
+  "tris": 650,
+  "tris_source": 1292,
+  "reduction": "collapse 0.51",
+  "budget": 650,
+  "echelle": 0.65,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 113.4
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.175,
+   "hauteur": 0.182
+  },
+  "octets": 33812,
+  "ancien": "q_couvercle_marmite"
+ },
+ {
+  "id": "pq_potion_1",
+  "source": "Potion_1",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_potion_1.glb",
+  "dimensions_m": [
+   0.085,
+   0.105,
+   0.085
+  ],
+  "tris": 440,
+  "tris_source": 440,
+  "reduction": null,
+  "budget": 405,
+  "echelle": 0.75,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 203.0
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 18420,
+  "ancien": "q_potion_1"
+ },
+ {
+  "id": "pq_potion_2",
+  "source": "Potion_2",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_potion_2.glb",
+  "dimensions_m": [
+   0.096,
+   0.196,
+   0.096
+  ],
+  "tris": 472,
+  "tris_source": 472,
+  "reduction": null,
+  "budget": 496,
+  "echelle": 0.75,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 172.4
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 20052,
+  "ancien": "q_potion_2"
+ },
+ {
+  "id": "pq_potion_4",
+  "source": "Potion_4",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_potion_4.glb",
+  "dimensions_m": [
+   0.111,
+   0.15,
+   0.111
+  ],
+  "tris": 320,
+  "tris_source": 536,
+  "reduction": "collapse 0.60",
+  "budget": 450,
+  "echelle": 0.75,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 184.0
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 16436,
+  "ancien": "q_potion_4"
+ },
+ {
+  "id": "pq_bourse",
+  "source": "Pouch_Large",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_bourse.glb",
+  "dimensions_m": [
+   0.225,
+   0.159,
+   0.12
+  ],
+  "tris": 366,
+  "tris_source": 730,
+  "reduction": "collapse 0.60",
+  "budget": 525,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_fer",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "fer": 740.0,
+   "props_v": 156.5
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 24720,
+  "ancien": "q_bourse"
+ },
+ {
+  "id": "pq_corde_1",
+  "source": "Rope_1",
+  "categorie": "exterieur_ferme",
+  "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_corde_1.glb",
+  "dimensions_m": [
+   0.389,
+   0.07,
+   0.425
+  ],
+  "tris": 724,
+  "tris_source": 1748,
+  "reduction": "collapse 0.41",
+  "budget": 724,
+  "echelle": 0.7,
+  "atlas": [
+   "pq_bois"
+  ],
+  "texels_m": {
+   "bois": 102.8
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.212,
+   "hauteur": 0.07
+  },
+  "octets": 22940,
+  "ancien": "q_corde_1"
+ },
+ {
+  "id": "pq_corde_2",
+  "source": "Rope_2",
+  "categorie": "exterieur_ferme",
+  "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_corde_2.glb",
+  "dimensions_m": [
+   0.566,
+   0.086,
+   0.591
+  ],
+  "tris": 876,
+  "tris_source": 1460,
+  "reduction": "collapse 0.60",
+  "budget": 891,
+  "echelle": 0.7,
+  "atlas": [
+   "pq_bois"
+  ],
+  "texels_m": {
+   "bois": 100.4
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.296,
+   "hauteur": 0.086
+  },
+  "octets": 27848,
+  "ancien": "q_corde_2"
+ },
+ {
+  "id": "pq_corde_3",
+  "source": "Rope_3",
+  "categorie": "exterieur_ferme",
+  "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_corde_3.glb",
+  "dimensions_m": [
+   0.859,
+   0.071,
+   0.666
+  ],
+  "tris": 1048,
+  "tris_source": 1748,
+  "reduction": "collapse 0.60",
+  "budget": 1159,
+  "echelle": 0.7,
+  "atlas": [
+   "pq_bois"
+  ],
+  "texels_m": {
+   "bois": 92.9
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.859,
+    0.071,
+    0.666
+   ],
+   "centre_y": 0.036
+  },
+  "octets": 32040,
+  "ancien": "q_corde_3"
+ },
+ {
+  "id": "pq_parchemin",
+  "source": "Scroll_1",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_parchemin.glb",
+  "dimensions_m": [
+   0.244,
+   0.059,
+   0.063
+  ],
+  "tris": 512,
+  "tris_source": 512,
+  "reduction": null,
+  "budget": 543,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_page",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "page": 107.9,
+   "props_v": 199.2
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 26160,
+  "ancien": "q_parchemin"
+ },
+ {
+  "id": "pq_parchemin_2",
+  "source": "Scroll_2",
+  "categorie": "livres",
+  "fichier": "res://assets/modeles/props_quat/livres/pq_parchemin_2.glb",
+  "dimensions_m": [
+   0.233,
+   0.058,
+   0.064
+  ],
+  "tris": 386,
+  "tris_source": 672,
+  "reduction": "collapse 0.60",
+  "budget": 532,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_page",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "page": 110.9,
+   "props_v": 219.9
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 22068,
+  "ancien": "q_parchemin_2"
+ },
+ {
+  "id": "pq_etagere_arche",
+  "source": "Shelf_Arch",
+  "categorie": "rangement",
+  "fichier": "res://assets/modeles/props_quat/rangement/pq_etagere_arche.glb",
+  "dimensions_m": [
+   1.021,
+   1.303,
+   0.256
+  ],
+  "tris": 1286,
+  "tris_source": 1286,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 0.82,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 131.2,
+   "bois": 84.6
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.021,
+    1.303,
+    0.256
+   ],
+   "centre_y": 0.652
+  },
+  "octets": 66884,
+  "ancien": "q_etagere_arche"
+ },
+ {
+  "id": "pq_etagere_simple",
+  "source": "Shelf_Simple",
+  "categorie": "rangement",
+  "fichier": "res://assets/modeles/props_quat/rangement/pq_etagere_simple.glb",
+  "dimensions_m": [
+   0.971,
+   0.253,
+   0.24
+  ],
+  "tris": 480,
+  "tris_source": 480,
+  "reduction": null,
+  "budget": 1270,
+  "echelle": 0.82,
+  "atlas": [
+   "pq_bois"
+  ],
+  "texels_m": {
+   "bois": 152.9
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.971,
+    0.253,
+    0.24
+   ],
+   "centre_y": 0.127
+  },
+  "octets": 27768,
+  "ancien": "q_etagere_simple"
+ },
+ {
+  "id": "pq_etagere_fioles",
+  "source": "Shelf_Small_Bottles",
+  "categorie": "rangement",
+  "fichier": "res://assets/modeles/props_quat/rangement/pq_etagere_fioles.glb",
+  "dimensions_m": [
+   0.934,
+   0.531,
+   0.233
+  ],
+  "tris": 1492,
+  "tris_source": 5234,
+  "reduction": "collapse 0.30",
+  "budget": 1232,
+  "echelle": 0.82,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 279.6,
+   "bois": 100.2,
+   "fer": 144.4
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.934,
+    0.531,
+    0.233
+   ],
+   "centre_y": 0.265
+  },
+  "octets": 138496,
+  "ancien": "q_etagere_fioles"
+ },
+ {
+  "id": "pq_bouclier_bois",
+  "source": "Shield_Wooden",
+  "categorie": "armes_outils",
+  "fichier": "res://assets/modeles/props_quat/armes_outils/pq_bouclier_bois.glb",
+  "dimensions_m": [
+   0.615,
+   0.621,
+   0.18
+  ],
+  "tris": 807,
+  "tris_source": 1404,
+  "reduction": "collapse 0.60",
+  "budget": 920,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_bois",
+   "pq_fer_v",
+   "pq_props"
+  ],
+  "texels_m": {
+   "bois": 68.9,
+   "fer_v": 171.7,
+   "props": 227.2
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.615,
+    0.621,
+    0.18
+   ],
+   "centre_y": 0.31
+  },
+  "octets": 45252,
+  "ancien": "q_bouclier_bois"
+ },
+ {
+  "id": "pq_petite_fiole",
+  "source": "SmallBottle",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_petite_fiole.glb",
+  "dimensions_m": [
+   0.06,
+   0.119,
+   0.049
+  ],
+  "tris": 130,
+  "tris_source": 130,
+  "reduction": null,
+  "budget": 419,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 206.7
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 7152,
+  "ancien": "q_petite_fiole"
+ },
+ {
+  "id": "pq_fioles_1",
+  "source": "SmallBottles_1",
+  "categorie": "objets_petits",
+  "fichier": "res://assets/modeles/props_quat/objets_petits/pq_fioles_1.glb",
+  "dimensions_m": [
+   0.215,
+   0.145,
+   0.056
+  ],
+  "tris": 486,
+  "tris_source": 486,
+  "reduction": null,
+  "budget": 515,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 201.1
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 21776,
+  "ancien": "q_fioles_1"
+ },
+ {
+  "id": "pq_charrette_etal",
+  "source": "Stall_Cart_Empty",
+  "categorie": "exterieur_marche",
+  "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_charrette_etal.glb",
+  "dimensions_m": [
+   2.524,
+   2.204,
+   0.887
+  ],
+  "tris": 1500,
+  "tris_source": 3936,
+  "reduction": "collapse 0.42",
+  "budget": 1500,
+  "echelle": 0.8359,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_tissu_v"
+  ],
+  "texels_m": {
+   "bois": 98.7,
+   "fer": 135.5,
+   "tissu_v": 61.2
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    2.524,
+    2.204,
+    0.887
+   ],
+   "centre_y": 1.102
+  },
+  "octets": 128856,
+  "ancien": "q_charrette_etal"
+ },
+ {
+  "id": "pq_etal",
+  "source": "Stall_Empty",
+  "categorie": "exterieur_marche",
+  "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_etal.glb",
+  "dimensions_m": [
+   1.545,
+   2.2,
+   0.781
+  ],
+  "tris": 1496,
+  "tris_source": 1496,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 0.8374,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_tissu_v"
+  ],
+  "texels_m": {
+   "fer": 89.9,
+   "bois": 102.4,
+   "tissu_v": 78.9
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.545,
+    2.2,
+    0.781
+   ],
+   "centre_y": 1.1
+  },
+  "octets": 82216,
+  "ancien": "q_etal"
+ },
+ {
+  "id": "pq_tabouret",
+  "source": "Stool",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_tabouret.glb",
+  "dimensions_m": [
+   0.387,
+   0.48,
+   0.387
+  ],
+  "tris": 152,
+  "tris_source": 152,
+  "reduction": null,
+  "budget": 780,
+  "echelle": 0.8153,
+  "atlas": [
+   "pq_bois"
+  ],
+  "texels_m": {
+   "bois": 142.3
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.193,
+   "hauteur": 0.48
+  },
+  "octets": 17476,
+  "ancien": "q_tabouret"
+ },
+ {
+  "id": "pq_epee_mur",
+  "source": "Sword_Bronze",
+  "categorie": "armes_outils",
+  "fichier": "res://assets/modeles/props_quat/armes_outils/pq_epee_mur.glb",
+  "dimensions_m": [
+   0.224,
+   0.95,
+   0.055
+  ],
+  "tris": 1366,
+  "tris_source": 1540,
+  "reduction": "plan",
+  "budget": 1249,
+  "echelle": 0.8391,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 112.7
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.224,
+    0.95,
+    0.055
+   ],
+   "centre_y": 0.475
+  },
+  "octets": 60872,
+  "note": "bronze -> fer (thème nordique)",
+  "ancien": "q_epee_mur"
+ },
+ {
+  "id": "pq_fourchette",
+  "source": "Table_Fork",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_fourchette.glb",
+  "dimensions_m": [
+   0.036,
+   0.004,
+   0.189
+  ],
+  "tris": 108,
+  "tris_source": 108,
+  "reduction": null,
+  "budget": 489,
+  "echelle": 0.72,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 293.2
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 8896,
+  "ancien": "q_fourchette"
+ },
+ {
+  "id": "pq_couteau_table",
+  "source": "Table_Knife",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_couteau_table.glb",
+  "dimensions_m": [
+   0.03,
+   0.004,
+   0.206
+  ],
+  "tris": 54,
+  "tris_source": 54,
+  "reduction": null,
+  "budget": 506,
+  "echelle": 0.72,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 294.3
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 5288,
+  "ancien": "q_couteau_table"
+ },
+ {
+  "id": "pq_grande_table",
+  "source": "Table_Large",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_grande_table.glb",
+  "dimensions_m": [
+   2.661,
+   0.76,
+   1.025
+  ],
+  "tris": 986,
+  "tris_source": 986,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 0.9343,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 84.4,
+   "fer": 80.4
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    2.661,
+    0.76,
+    1.025
+   ],
+   "centre_y": 0.38
+  },
+  "octets": 58672,
+  "ancien": "q_grande_table"
+ },
+ {
+  "id": "pq_assiette",
+  "source": "Table_Plate",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_assiette.glb",
+  "dimensions_m": [
+   0.24,
+   0.015,
+   0.243
+  ],
+  "tris": 172,
+  "tris_source": 172,
+  "reduction": null,
+  "budget": 542,
+  "echelle": 0.72,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 160.3
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 11084,
+  "ancien": "q_assiette"
+ },
+ {
+  "id": "pq_cuillere",
+  "source": "Table_Spoon",
+  "categorie": "cuisine_table",
+  "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_cuillere.glb",
+  "dimensions_m": [
+   0.033,
+   0.013,
+   0.196
+  ],
+  "tris": 164,
+  "tris_source": 164,
+  "reduction": null,
+  "budget": 495,
+  "echelle": 0.72,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 227.9
+  },
+  "collision": {
+   "type": "aucune"
+  },
+  "octets": 8232,
+  "ancien": "q_cuillere"
+ },
+ {
+  "id": "pq_torche_murale",
+  "source": "Torch_Metal",
+  "categorie": "eclairage",
+  "fichier": "res://assets/modeles/props_quat/eclairage/pq_torche_murale.glb",
+  "dimensions_m": [
+   0.168,
+   0.486,
+   0.292
+  ],
+  "tris": 566,
+  "tris_source": 970,
+  "reduction": "collapse 0.60",
+  "budget": 786,
+  "echelle": 0.75,
+  "atlas": [
+   "pq_fer"
+  ],
+  "texels_m": {
+   "fer": 242.1
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.168,
+    0.486,
+    0.292
+   ],
+   "centre_y": 0.243
+  },
+  "octets": 48012
+ },
+ {
+  "id": "pq_vase_2",
+  "source": "Vase_2",
+  "categorie": "donjon",
+  "fichier": "res://assets/modeles/props_quat/donjon/pq_vase_2.glb",
+  "dimensions_m": [
+   0.538,
+   0.4,
+   0.538
+  ],
+  "tris": 598,
+  "tris_source": 598,
+  "reduction": null,
+  "budget": 838,
+  "echelle": 0.7747,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 37.0
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.269,
+   "hauteur": 0.4
+  },
+  "octets": 24516,
+  "ancien": "q_vase_2"
+ },
+ {
+  "id": "pq_vase_4",
+  "source": "Vase_4",
+  "categorie": "donjon",
+  "fichier": "res://assets/modeles/props_quat/donjon/pq_vase_4.glb",
+  "dimensions_m": [
+   0.333,
+   0.45,
+   0.333
+  ],
+  "tris": 598,
+  "tris_source": 598,
+  "reduction": null,
+  "budget": 749,
+  "echelle": 0.927,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 62.3
+  },
+  "collision": {
+   "type": "cylindre",
+   "rayon": 0.167,
+   "hauteur": 0.45
+  },
+  "octets": 25204,
+  "ancien": "q_vase_4"
+ },
+ {
+  "id": "pq_urne_brisee",
+  "source": "Vase_Rubble_Medium",
+  "categorie": "donjon",
+  "fichier": "res://assets/modeles/props_quat/donjon/pq_urne_brisee.glb",
+  "dimensions_m": [
+   0.598,
+   0.131,
+   0.449
+  ],
+  "tris": 941,
+  "tris_source": 1113,
+  "reduction": "plan",
+  "budget": 897,
+  "echelle": 0.75,
+  "atlas": [
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "props_v": 34.7
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.598,
+    0.131,
+    0.449
+   ],
+   "centre_y": 0.065
+  },
+  "octets": 68208,
+  "ancien": "q_urne_brisee"
+ },
+ {
+  "id": "pq_rack_armes",
+  "source": "WeaponStand",
+  "categorie": "armes_outils",
+  "fichier": "res://assets/modeles/props_quat/armes_outils/pq_rack_armes.glb",
+  "dimensions_m": [
+   1.5,
+   1.2,
+   1.064
+  ],
+  "tris": 1008,
+  "tris_source": 2084,
+  "reduction": "collapse 0.60",
+  "budget": 1500,
+  "echelle": 1.0817,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 70.2,
+   "fer": 109.4
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.5,
+    1.2,
+    1.064
+   ],
+   "centre_y": 0.6
+  },
+  "octets": 69204,
+  "ancien": "q_rack_armes"
+ },
+ {
+  "id": "pq_pierre_aiguiser",
+  "source": "Whetstone",
+  "categorie": "armes_outils",
+  "fichier": "res://assets/modeles/props_quat/armes_outils/pq_pierre_aiguiser.glb",
+  "dimensions_m": [
+   0.975,
+   1.0,
+   0.771
+  ],
+  "tris": 1100,
+  "tris_source": 1100,
+  "reduction": null,
+  "budget": 1300,
+  "echelle": 0.8548,
+  "atlas": [
+   "pq_bois",
+   "pq_fer",
+   "pq_props_v"
+  ],
+  "texels_m": {
+   "bois": 82.0,
+   "fer": 121.7,
+   "props_v": 21.4
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.975,
+    1.0,
+    0.771
+   ],
+   "centre_y": 0.5
+  },
+  "octets": 65188,
+  "ancien": "q_pierre_aiguiser"
+ },
+ {
+  "id": "pq_etabli",
+  "source": "Workbench",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_etabli.glb",
+  "dimensions_m": [
+   1.918,
+   0.85,
+   0.973
+  ],
+  "tris": 1368,
+  "tris_source": 1368,
+  "reduction": null,
+  "budget": 1500,
+  "echelle": 0.9501,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 70.4,
+   "fer": 97.8
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    1.918,
+    0.85,
+    0.973
+   ],
+   "centre_y": 0.425
+  },
+  "octets": 59444,
+  "ancien": "q_etabli"
+ },
+ {
+  "id": "pq_etabli_tiroirs",
+  "source": "Workbench_Drawers",
+  "categorie": "mobilier",
+  "fichier": "res://assets/modeles/props_quat/mobilier/pq_etabli_tiroirs.glb",
+  "dimensions_m": [
+   0.423,
+   0.242,
+   0.299
+  ],
+  "tris": 364,
+  "tris_source": 364,
+  "reduction": null,
+  "budget": 723,
+  "echelle": 1.0,
+  "atlas": [
+   "pq_bois",
+   "pq_fer"
+  ],
+  "texels_m": {
+   "bois": 95.8,
+   "fer": 217.6
+  },
+  "collision": {
+   "type": "boite",
+   "taille": [
+    0.423,
+    0.242,
+    0.299
+   ],
+   "centre_y": 0.121
+  },
+  "octets": 18936,
+  "ancien": "q_etabli_tiroirs"
+ }
+]
