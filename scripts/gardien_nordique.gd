@@ -639,6 +639,13 @@ class AccGardien extends GuerrierNordique.Accessoires:
 		var pr := _poids_proche(mi, a, r)
 		var pm := _poids_proche(mi, a, m)
 		var pt := _poids_proche(mi, a, t)
+		if col_rigide:
+			# mèche RIGIDE : racine sur l'épaule (clavicule, buste) et pointe sur le bras, elle s'étirait quand le bras se lève ou
+			# part en arrière (bandage de l'arc) ; toute la mèche suit maintenant d'un bloc les os de sa racine, et une racine posée
+			# sur le haut du bras suit la CLAVICULE (l'épaule) : bras d'arc levé, la fourrure de l'épaule ne part plus à l'horizontale
+			pr = _sans_bras(pr)
+			pm = pr
+			pt = pr
 		var dedans := r - ext * 0.1 + Vector3(0, 0.05, 0)
 		if plie:
 			var vm := (v0 + v1) * 0.5
@@ -646,6 +653,28 @@ class AccGardien extends GuerrierNordique.Accessoires:
 			_quad(dec, gm, dm, dt, gt, Vector2(u0, vm), Vector2(u1, vm), Vector2(u1, v1), Vector2(u0, v1), [pm, pm, pt, pt], dedans)
 		else:
 			_quad(dec, g, d, dt, gt, Vector2(u0, v0), Vector2(u1, v0), Vector2(u1, v1), Vector2(u0, v1), [pr, pr, pt, pt], dedans)
+
+	## Poids [os, poids] où le bras et l'avant-bras sont remplacés par la clavicule du même côté (poids fusionnés, total inchangé).
+	func _sans_bras(pw: Array) -> Array:
+		var bo: Array = (pw[0] as Array).duplicate()
+		var wo: Array = (pw[1] as Array).duplicate()
+		for k in bo.size():
+			var n := sq.get_bone_name(bo[k])
+			if n.begins_with("upperarm_") or n.begins_with("lowerarm_"):
+				var c := sq.find_bone("clavicle_" + n.right(1))
+				if c >= 0:
+					bo[k] = c
+		# os en double après le remplacement : fusionnés dans la première case
+		for k in bo.size():
+			for m in range(k + 1, bo.size()):
+				if bo[m] == bo[k] and float(wo[m]) > 0.0:
+					wo[k] = float(wo[k]) + float(wo[m])
+					wo[m] = 0.0
+					bo[m] = 0
+		return [bo, wo]
+
+	## Mèches du col rigides (héros) : voir _carte_col.
+	var col_rigide := false
 
 	## Trois couronnes de mèches autour du cou et sur les épaules, racines accrochées à la surface de la mante (sommet le plus
 	## proche) : dressée autour du cou, retombant sur les épaules, retombée basse. Devant dégagé (menton, fibule).

@@ -120,9 +120,43 @@ func _chuter() -> void:
 	_ragdoll.endormir_apres(4.0)
 	_ragdoll.declencher(dir * force + Vector3.UP * force * 0.15, joueur.global_position + Vector3(0, 1.2, 0) - dir * 0.2, "spine_03", vitesse)
 
+## Première personne : le corps invisible garde l'ombre du torse et des jambes au sol, mais plus celle de ses BRAS (bras, avant-bras,
+## mains et ce qu'elles tiennent) : en pose d'arc ou d'épée, ces bras sont à l'endroit même des bras de la caméra et les plongeaient
+## dans le noir. Dernier modificateur du squelette : les os des bras sont réduits à un point à l'épaule, pour cette image seulement.
+class OmbreSansBras extends SkeletonModifier3D:
+	var BRAS: Array[String] = ["upperarm_l", "upperarm_r"]
+	var corps: Node
+	## arc levé : le cou et la tête non plus (la main de corde ancrée à la joue était dans l'ombre de cette tête invisible)
+	var sans_tete := false
+	func _process_modification_with_delta(_dt: float) -> void:
+		var sq := get_skeleton()
+		if sq == null or (corps != null and corps.get("_ragdoll") != null):
+			return
+		for n: String in BRAS:
+			var i := sq.find_bone(n)
+			if i >= 0:
+				sq.set_bone_pose_scale(i, Vector3.ONE * 0.001)
+		if sans_tete:
+			# cou et tête (col de fourrure et casque compris) : rien autour de la caméra n'assombrit la vue en visée
+			for n: String in ["neck_01", "Head"]:
+				var t := sq.find_bone(n)
+				if t >= 0:
+					sq.set_bone_pose_scale(t, Vector3.ONE * 0.001)
+
+var _ombre_bras: OmbreSansBras
+
 ## true : troisième personne (corps visible) ; false : première personne (ombre seule).
 func definir_vue(troisieme: bool) -> void:
 	_vue_3 = troisieme
+	var sq: Skeleton3D = modele.find_child("Skeleton3D", true, false) if modele else null
+	if sq != null:
+		if not is_instance_valid(_ombre_bras) or _ombre_bras.get_skeleton() != sq:
+			_ombre_bras = OmbreSansBras.new()
+			_ombre_bras.name = "OmbreSansBras"
+			_ombre_bras.corps = self
+			sq.add_child(_ombre_bras)
+		sq.move_child(_ombre_bras, -1)   # après tous les autres modificateurs (IK, coups, mains)
+		_ombre_bras.active = not troisieme
 	for mi in _mailles:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if troisieme else GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 	if armure:
@@ -229,6 +263,10 @@ func _process(dt: float) -> void:
 	if joueur == null or mains == null:
 		return
 	_t += dt
+	if not _vue_3 and is_instance_valid(_ombre_bras):
+		var sq := _ombre_bras.get_parent()
+		if sq.get_child(-1) != _ombre_bras:   # un modificateur ajouté depuis (arc, armure) : l'ombre sans bras reste la dernière
+			sq.move_child(_ombre_bras, -1)
 	if _debug != "":
 		var d := _debug.split(":")
 		anim.play(d[0])

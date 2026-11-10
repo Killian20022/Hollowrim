@@ -14,7 +14,7 @@ static func materiaux() -> Dictionary:
 	if not _mats.is_empty():
 		return _mats
 	_mats = {
-		"ab_gant": Palette.materiau(_tex("gant"), Vector2(1, 1), Color(0.66, 0.6, 0.57), true),   # cuir sombre (main humaine, 2026-10-29)
+		"ab_gant": Palette.materiau(_tex("gant"), Vector2(1, 1), Color(0.84, 0.8, 0.77), true),   # cuir brun moyen (v8b : doigts lisibles, plus clair que le brassard ; avant : cuir sombre 2026-10-29)
 		"ab_cuir": Palette.materiau(_tex("cuir"), Vector2(1, 1), Color(0.95, 0.9, 0.86), true),
 		"ab_tresse": Palette.materiau(_tex("tresse"), Vector2(1, 1), Color(0.95, 0.9, 0.86), true),
 		"ab_metal": Palette.materiau(_tex("metal"), Vector2(1, 1), Color(0.7, 0.7, 0.74), true),
@@ -64,7 +64,7 @@ static func _rampe(cols: Array, k: float, pas := 6) -> Color:
 	var i := mini(int(f), cols.size() - 2)
 	return (cols[i] as Color).lerp(cols[i + 1], f - i)
 
-const GANT := [Color("#1e130c"), Color("#352217"), Color("#4c3221"), Color("#66452e"), Color("#86603f")]
+const GANT := [Color("#211710"), Color("#38291d"), Color("#523d2c"), Color("#6d543f"), Color("#8b6e55")]   # v8b : cuir brun moyen, peu saturé
 const CUIR := [Color("#1a120d"), Color("#2c1f17"), Color("#3f2d22"), Color("#56412f"), Color("#705742")]   # passe 4 : plus clair, lisible dans le coin bas
 const FER := [Color("#1d1c1c"), Color("#3a3836"), Color("#5a5652"), Color("#7e7872"), Color("#a7a098")]
 const FOURRURE := [Color("#3e3a37"), Color("#6c6762"), Color("#98928b"), Color("#c4beb6"), Color("#e8e4dd")]

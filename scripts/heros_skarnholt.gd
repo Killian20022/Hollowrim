@@ -219,6 +219,7 @@ class AccHeros extends GardienNordique.AccGardien:
 		super(s)
 		col_ample = 1.12
 		col_devant = 0.45     # devant du col plus dégagé : le plastron de lames se lit de face
+		col_rigide = true    # mèches du col d'un bloc : plus de mèche étirée quand le bras se lève (arc)
 
 	func _tex_atlas(nom: String) -> ImageTexture:
 		return HerosSkarnholt.tex(nom)
