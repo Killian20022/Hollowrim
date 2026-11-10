@@ -103,6 +103,10 @@ func _tirer(tenu: float, viser := true) -> Dictionary:
 		m["z_encoche"] = arc._vm.encoche_locale().z
 		m["echelle_fleche"] = arc._vm.fleche.global_transform.basis.get_scale().z
 		m["corde"] = _corde(arc._vm)
+		var cgp: Node3D = arc._vm.repere_poignee.get_child(0)
+		m["sans_tete"] = bool((j.corps as Node).get("_ombre_bras").sans_tete)
+		m["prise_g"] = [arc.main_g_monde.origin.distance_to(cgp.global_transform.origin),
+			arc.main_g_monde.basis.orthonormalized().get_rotation_quaternion().angle_to(cgp.global_transform.basis.orthonormalized().get_rotation_quaternion())]
 	arc.relacher()
 	await _sim(DT * 2.0)
 	m["parti"] = arc.tirs > n0
@@ -211,6 +215,10 @@ func _tester() -> void:
 	_verif(me["arc"] == 0 and me["mains"] == 0, "visée 1re personne : la cible reste visible (aucun point de l'arc ni des mains dans le carré de 8 %% autour du réticule : arc %d, mains %d)" % [me["arc"], me["mains"]])
 	_verif(pg[1] >= 0.53 and pg[1] <= 0.62, "visée 1re personne : poing sous le repose-flèche, la cible au-dessus reste visible (haut du poing à %d %% de la hauteur)" % roundi(pg[1] * 100.0))
 	_verif(r3["fut_arc"] < 0.01, "visée 1re personne : la flèche repose sur l'arc (fût à %.1f mm du flanc de la poignée)" % (r3["fut_arc"] * 1000.0))
+	_verif(r3["prise_g"][0] < 0.005 and r3["prise_g"][1] < deg_to_rad(6.0), "visée 1re personne : le poing gauche serre la poignée (écart %.1f mm, %.1f°)" % [r3["prise_g"][0] * 1000.0, rad_to_deg(r3["prise_g"][1])])
+	var ob: Variant = (j.corps as Node).get("_ombre_bras")
+	_verif(ob != null and ob.active and ob.get_skeleton() != null, "1re personne : le corps invisible ne projette plus l'ombre de ses bras (torse et jambes gardés)")
+	_verif(r3["sans_tete"], "visée 1re personne : la tête invisible ne projette plus d'ombre sur la main de corde ancrée à la joue")
 	_verif(r3["allonge"] <= 1.0 + 1e-4 and r3["z_encoche"] <= float(ArcModele.infos()["encoche_pleine_z"]) + 1e-4 and absf(r3["echelle_fleche"] - ArcJoueur.ECHELLE_ARC_VM) < 0.001,
 		"visée 1re personne : allonge %.2f au plus celle du modèle (encoche à %.3f), flèche ni corde étirées" % [r3["allonge"], r3["z_encoche"]])
 	_verif(String(r3["corde"]) == "", "visée 1re personne : corde en 2 segments droits finissant aux bouts de branche, à pleine tension %s" % r3["corde"])
@@ -254,6 +262,7 @@ func _tester() -> void:
 	j.basculer_vue(true)
 	await _sim(0.3)
 	_verif(arc._tp.visible and not arc._rig.visible, "troisième personne : arc tenu par le corps, celui de la caméra caché")
+	_verif(not ((j.corps as Node).get("_ombre_bras") as SkeletonModifier3D).active, "troisième personne : le corps garde ses bras (et leur ombre)")
 	_verif(arc._ik_corps.size() == 2 and arc._ik_corps[0].active, "troisième personne : IK du bras gauche du corps sur la poignée")
 	arc.appuyer()
 	await _sim(1.1)
