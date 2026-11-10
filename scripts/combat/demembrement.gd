@@ -574,8 +574,13 @@ static func _poser_voile(modele: Node3D, mailles: Array, essais: int) -> void:
 		elif mi.material_overlay != _mat_carbonise:
 			reste.append(mi)
 	if not reste.is_empty() and essais > 0 and is_instance_valid(modele) and modele.is_inside_tree():
+		# référence faible : un modèle libéré avant l'échéance ferait échouer l'appel du lambda lui-même (« Lambda capture was freed »)
+		var modele_ref: WeakRef = weakref(modele)
 		modele.get_tree().create_timer(0.5).timeout.connect(func() -> void:
-			_poser_voile(modele, reste, essais - 1)
+			var mo: Node3D = modele_ref.get_ref()
+			if mo == null:
+				return
+			_poser_voile(mo, reste, essais - 1)
 			for m in reste:
 				if is_instance_valid(m) and (m as MeshInstance3D).material_overlay == _mat_carbonise:
 					(m as MeshInstance3D).set_instance_shader_parameter("carbonise", 1.0))
