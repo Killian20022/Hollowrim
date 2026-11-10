@@ -529,6 +529,22 @@ func _process(dt: float) -> void:
 		else:
 			jeu.surface(dt)       # joueur dehors : les ennemis de la grotte sont gelés
 
+## Chargement étalé (Monde._terminer_fonds) : la grotte se construit tout de suite, sans attendre DELAI_PREPARATION.
+func hater() -> void:
+	_t = maxf(_t, DELAI_PREPARATION + 0.1)
+
+## Chargement étalé : extérieur et grotte posés, modèles des ennemis prêts, préchauffage fini ? (Monde._terminer_fonds attend ce moment.)
+func fonds_prets() -> bool:
+	if not pret or _tache_ext >= 0 or _tache >= 0 or grotte == null:
+		return false
+	if not _pose_restante.is_empty() or not _coque_a_poser.is_empty() or not _enfants_a_poser.is_empty() or jeu == null:
+		return false
+	if prechauffe != null and is_instance_valid(prechauffe):
+		prechauffe.pause = 0.0
+		if not prechauffe.fini:
+			return false
+	return jeu._ennemis_prets(false)
+
 ## Pose l'extérieur dans la scène (attend le fil s'il tourne encore).
 func attendre_exterieur() -> void:
 	if _tache_ext < 0:
@@ -543,11 +559,30 @@ func _creer_grotte() -> Grotte:
 	return g
 
 func _lancer_fil() -> void:
+	if _pre_tache >= 0:      # construction déjà lancée au début du chargement (prelancer) : on la reprend
+		_g_fil = _pre_g
+		_g_fil.joueur = joueur
+		_tache = _pre_tache
+		_pre_g = null
+		_pre_tache = -1
+		return
 	_g_fil = _creer_grotte()
 	_tache = FilVerrou.lancer(_batir.bind(_g_fil))
 
+## Construction de la grotte lancée dès le début du chargement du monde (Monde._ready, chargement étalé) : elle ne dépend de rien du
+## monde (le joueur n'est qu'une référence, donnée à la reprise). Elle chevauche ainsi les ~10 s de construction du monde au lieu de
+## s'y ajouter derrière l'écran de chargement (Monde._terminer_fonds). Rien en --headless (FilVerrou la ferait sur le fil principal).
+static var _pre_g: Grotte
+static var _pre_tache := -1
+
+static func prelancer() -> void:
+	if _pre_tache >= 0 or DisplayServer.get_name() == "headless":
+		return
+	_pre_g = Grotte.nouvelle(null)
+	_pre_tache = FilVerrou.lancer(_batir.bind(_pre_g))
+
 ## Le fil ne touche qu'à son argument (jamais à la scène ni aux membres de l'accès).
-func _batir(g: Grotte) -> void:
+static func _batir(g: Grotte) -> void:
 	FilVerrou.prendre()
 	g.construire()
 	var meca: Array = []

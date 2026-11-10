@@ -135,6 +135,15 @@ func _poser_sondes() -> void:
 		a.set_physics_process(ph)
 		b.set_physics_process(ph)
 		(sondes_ph if ph else sondes_p).assign([a, b])
+var detail := false      # --detail : une ligne « PIC » par image > 33 ms (instant, A/B/C, pipelines compilés, travaux de fond en cours)
+var _t_pf := 0
+var _t_pre := 0
+var _t_post := 0
+var _a := 0.0
+var _b := 0.0
+var _c := 0.0
+var _t0_ms := 0
+var _pip_prec := 0
 
 func _init() -> void:
 	_go.call_deferred()
@@ -151,9 +160,34 @@ func _go() -> void:
 	lieu = _arg("lieu", "temoin")
 	duree = float(_arg("duree", "20"))
 	var t0 := Time.get_ticks_msec()
+	_t0_ms = t0
+	detail = _arg("detail") != ""
+	if detail:
+		process_frame.connect(func() -> void:
+			var nw := Time.get_ticks_usec()
+			if _t_post > 0:
+				_c = (nw - _t_post) / 1000.0
+			_t_pf = nw)
+		RenderingServer.frame_pre_draw.connect(func() -> void:
+			_t_pre = Time.get_ticks_usec()
+			_a = (_t_pre - _t_pf) / 1000.0)
+		RenderingServer.frame_post_draw.connect(func() -> void:
+			_t_post = Time.get_ticks_usec()
+			_b = (_t_post - _t_pre) / 1000.0)
 	m = SCENE.instantiate()
+	var etale := _arg("etale") != ""   # --etale : entrée du monde comme l'écran de chargement (arbre en pause, chargement étalé) jusqu'à `pret`
+	if etale:
+		Jeu.chargement_etale = true
+		paused = true
 	root.add_child(m)
 	current_scene = m
+	if etale:
+		while m.get("pret") != true:
+			await process_frame
+		Jeu.chargement_etale = false
+		paused = false
+		print("LIEU monde prêt (chargement étalé) en %d ms" % (Time.get_ticks_msec() - t0))
+		_t0_ms = Time.get_ticks_msec()
 	j = m.joueur
 	rid = root.get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(rid, true)
@@ -206,6 +240,11 @@ func _go() -> void:
 			j.global_position = p + Vector3(0, 0.1, 0)
 			j.velocity = Vector3.ZERO
 			j.rotation.y = atan2(-(best[best.size() / 2 + 1] - p).x, -(best[best.size() / 2 + 1] - p).z)
+	if _arg("attendre-fils") != "":   # --attendre-fils : mesure le jeu « au repos » (tous les travaux de fond finis)
+		var tf := Time.get_ticks_msec()
+		while _fils() != "" and Time.get_ticks_msec() - tf < 120000:
+			await process_frame
+		print("LIEU fils de fond terminés après %d ms" % (Time.get_ticks_msec() - tf))
 	# heure figée (jour ou nuit comparables), éclairage appliqué une fois
 	if _arg("heure") != "":
 		m.cycle.heure = float(_arg("heure"))
@@ -218,6 +257,10 @@ func _go() -> void:
 	if _arg("profil") == "groupes":
 		_grouper()
 	print("LIEU %s heure=%.1f pos=%s exp=%s" % [lieu, m.cycle.heure, j.global_position, _arg("exp")])
+	if _arg("busy") != "":    # diagnostic : un fil d'exécution qui calcule sans rien allouer (contention de processeur seule)
+		_busy_fin = Time.get_ticks_msec() + 14000
+		for k in int(_arg("busy")):
+			WorkerThreadPool.add_task(_busy_alloc if _arg("mode") == "alloc" else (_busy_mesh if _arg("mode") == "mesh" else _busy))
 	prec_us = Time.get_ticks_usec()
 	phase = "mesure"
 
@@ -379,6 +422,15 @@ func _process(dt: float) -> bool:
 		j.mana = 100.0
 	if lieu == "combat":
 		_sorts(dt)
+	var t_sync := Time.get_ticks_usec()
+	if detail:
+		RenderingServer.force_sync()      # file de commandes du serveur de rendu (travail des fils de fond exécuté ici)
+	var d_sync := (Time.get_ticks_usec() - t_sync) / 1000.0
+	var pip := _pipelines()
+	var dp := pip - _pip_prec
+	_pip_prec = pip
+	if detail and (d_ms > 33.0 or dp > 0 and t >= STAB):
+		print("PIC %6.1f ms t=%.1f s (mesure=%s) sync=%.1f A=%.1f B=%.1f C=%.1f pipelines+%d fils=%s" % [d_ms, (Time.get_ticks_msec() - _t0_ms) / 1000.0, str(t >= STAB), d_sync, _a, _b, _c, dp, _fils()])
 	if t < STAB:
 		return false
 	if n == 0:
@@ -400,7 +452,9 @@ func _process(dt: float) -> bool:
 
 func _terminer() -> void:
 	_fin()
-	if _arg("capture") != "":
+	if _arg("png") != "":          # --png=<fichier> : image du rendu SANS l'argument --capture (qui change le comportement du monde)
+		await capturer(_arg("png"))
+	elif _arg("capture") != "":
 		await capturer(_arg("capture"))
 	quit(0)
 
@@ -439,6 +493,64 @@ func _moy(a: PackedFloat32Array) -> float:
 	for v in a:
 		x += v
 	return x / maxf(1.0, a.size())
+var _busy_fin := 0
+func _busy() -> void:
+	var x := 1.0
+	while Time.get_ticks_msec() < _busy_fin:
+		for i in 20000:
+			x = sqrt(x + float(i)) + 1.0
+
+func _busy_alloc() -> void:
+	while Time.get_ticks_msec() < _busy_fin:
+		var d := {}
+		for i in 2000:
+			d[str(i)] = [i, Vector3(i, 1, 2), "x" + str(i)]
+		var a := PackedVector3Array()
+		a.resize(5000)
+		a = a.duplicate()
+
+func _busy_mesh() -> void:
+	while Time.get_ticks_msec() < _busy_fin:
+		var am := ArrayMesh.new()
+		var arr := []
+		arr.resize(Mesh.ARRAY_MAX)
+		var pts := PackedVector3Array()
+		for i in 600:
+			pts.append(Vector3(i % 7, i % 5, i % 3))
+		arr[Mesh.ARRAY_VERTEX] = pts
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		var _x := am.surface_get_arrays(0)
+
+func _pipelines() -> int:
+	return int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION)
+		+ Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH)
+		+ Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_CANVAS))
+
+## Travaux de fond en cours (lettres) : V intérieurs du village, C fil de la crypte, E modèles d'ennemis, D pose du donjon, X/G/P/e grotte.
+func _fils() -> String:
+	var s := ""
+	if m == null:
+		return s
+	var vil: Node = m.get("village")
+	if vil != null and vil.get("prets") == false: s += "V"
+	var tr: Node = m.get("tertre")
+	if tr != null and tr.get("bati") == true:
+		if _n(tr, "_tache") >= 0: s += "C"
+		if _n(tr, "_tache_en") >= 0: s += "E"
+		if not (tr.get("_reste_donjon") as Array).is_empty() or not (tr.get("_etapes_fin") as Array).is_empty(): s += "D"
+	var ga: Node = m.get("grotte_acces")
+	if ga != null:
+		if _n(ga, "_tache_ext") >= 0: s += "X"
+		if _n(ga, "_tache") >= 0: s += "G"
+		var jeu: Object = ga.get("jeu")
+		if jeu != null and _n(jeu, "_tache_en") >= 0: s += "e"
+		var pr = ga.get("prechauffe")
+		if pr != null and is_instance_valid(pr) and not pr.fini: s += "P"
+	return s
+
+func _n(o: Object, prop: String) -> int:
+	var v: Variant = o.get(prop)
+	return int(v) if v != null else -1
 
 func _pct(a: PackedFloat32Array, p: float) -> float:
 	var b := a.duplicate()

@@ -103,6 +103,8 @@ var _t_audio := 0.0
 func _ready() -> void:
 	Chrono.demarre()
 	Prechargement.lancer()
+	if Jeu.chargement_etale and not _arguments().has("sans-fonds"):
+		GrotteAcces.prelancer()   # la grotte se bâtit en fil PENDANT la construction du monde (voir _terminer_fonds)
 	# variante du biome, lue AVANT toute génération (--biome=… ou set_meta("biome", …))
 	var biome: String = str(get_meta("biome")) if has_meta("biome") else str(_arguments().get("biome", "nouveau"))
 	ZoneBiome.actif = (biome == "nouveau")
@@ -247,7 +249,9 @@ func _ready() -> void:
 	_cacher_particules()
 	_rendre_paisible()
 	_capture()
+	await _terminer_fonds()        # chargement étalé : donjon, ennemis, grotte et préchauffages FINIS ici, derrière l'écran de chargement
 	_prechauffer_rendu()
+	await _attendre_prechauffes()
 	Chrono.total()
 	pret = true
 	if not _arguments().has("capture"):
@@ -302,6 +306,111 @@ func _souffle() -> void:
 		return
 	await get_tree().process_frame
 	_dernier_souffle = Time.get_ticks_msec()
+
+## Travaux de fond (saccades, 2026-11-10) : le donjon de la crypte, la grotte (extérieur, décor, intérieur), les modèles de leurs ennemis
+## et les intérieurs du village sont bâtis par des fils d'exécution puis posés par tranches. Lancés après l'entrée du monde, ils
+## ralentissaient TOUTES les images de moitié pendant ~15 s (mesuré : 20 à 40 images de 35-90 ms par fil, sans pic isolé : le processeur et
+## l'iGPU partagent la même enveloppe de puissance). Pendant le chargement étalé on les mène donc à terme AVANT `pret` : l'arbre est en
+## pause, ces nœuds passent en `PROCESS_MODE_ALWAYS` le temps de l'attente (leur propre _process fait la pose), puis reprennent leur mode.
+## Sans chargement étalé (tests, outils, captures) rien ne change : ils continuent en fond comme avant.
+const DELAI_FONDS_MAX_MS := 90000
+
+func _terminer_fonds() -> void:
+	if not Jeu.chargement_etale or _arguments().has("sans-fonds"):   # --sans-fonds : ancien comportement (A/B)
+		return
+	var t0 := Time.get_ticks_msec()
+	var acteurs: Array = []
+	for n in [village, tertre, grotte_acces]:
+		if n != null and is_instance_valid(n):
+			acteurs.append(n)
+			(n as Node).process_mode = Node.PROCESS_MODE_ALWAYS
+	if grotte_acces != null:
+		grotte_acces.hater()
+	var etat_prec := ""
+	var vu_village := false
+	var vu_donjon := false
+	var vu_grotte := false
+	while Time.get_ticks_msec() - t0 < DELAI_FONDS_MAX_MS:
+		if Chrono.actif:
+			var et := "village=%s donjon_fil=%s donjon_ennemis=%s donjon=%s grotte_ext=%s grotte_fil=%s grotte=%s" % [str(village.get("prets")), str(tertre._tache >= 0), str(tertre._tache_en >= 0), str(tertre._donjon_pret()),
+				str(grotte_acces._tache_ext >= 0), str(grotte_acces._tache >= 0), str(grotte_acces.fonds_prets())]
+			if et != etat_prec:
+				etat_prec = et
+				print("CHRONO fonds +%d ms : %s" % [Time.get_ticks_msec() - t0, et])
+		var fini := true
+		if village != null and village.get("prets") != true:
+			fini = false
+		elif not vu_village:
+			vu_village = true
+			_etape_fond("intérieurs du village")
+		if tertre != null and not tertre._donjon_pret():
+			fini = false
+		elif not vu_donjon:
+			vu_donjon = true
+			_etape_fond("donjon de la crypte")
+		if grotte_acces != null and not grotte_acces.fonds_prets():
+			fini = false
+		elif not vu_grotte:
+			vu_grotte = true
+			_etape_fond("grotte")
+		if fini:
+			break
+		_vider_file_rendu(8000)
+		if not _pnj_differes.is_empty():   # le fil principal attend les fils : il en profite pour faire naître un villageois
+			_naissance_au_chargement()
+		await get_tree().process_frame
+	if Chrono.actif:
+		print("CHRONO travaux de fond terminés après %d ms" % (Time.get_ticks_msec() - t0))
+	for n in acteurs:
+		if is_instance_valid(n):
+			(n as Node).process_mode = Node.PROCESS_MODE_INHERIT
+	# villageois à naissance différée (_naissances_differees : une toutes les 0,15 s hors de la vue, ~200 ms chacune sur le fil principal =
+	# 4 gels visibles dans les 6 premières secondes de jeu) : nés ici, un par image, derrière l'écran de chargement
+	while not _pnj_differes.is_empty():
+		_naissance_au_chargement()
+		await get_tree().process_frame
+	_etape_fond("villageois")
+
+func _naissance_au_chargement() -> void:
+	var v: CharacterBody3D = _pnj_differes.pop_front()
+	add_child(v)
+	if vie != null:
+		vie.ajouter(v)
+
+## Avancement de l'écran de chargement pendant l'attente des travaux de fond (FONDS_ETAPES marques, voir EcranChargement.ETAPES_MONDE).
+func _etape_fond(quoi: String) -> void:
+	_chrono("travaux de fond : " + quoi)
+
+## Les fils de construction font des appels au serveur de rendu qui ATTENDENT une réponse (surface_get_arrays, get_aabb…) ; ils ne sont
+## servis que quand le fil principal vide la file de commandes, une fois par image : à 60 images par seconde, chaque appel coûte une
+## image au fil. Pendant l'attente on vide donc la file en boucle (comme FilVerrou.attendre) : les fils vont à leur vitesse propre.
+func _vider_file_rendu(duree_us: int) -> void:
+	var t := Time.get_ticks_usec()
+	while Time.get_ticks_usec() - t < duree_us:
+		RenderingServer.force_sync()
+		OS.delay_usec(300)
+
+## Préchauffages de rendu (PrechauffeRendu : une vue par image) menés à leur fin pendant le chargement étalé (sinon ~50 images plus
+## lourdes pendant la 1re seconde de jeu). Ils tournent pendant la pause (ALWAYS) ; le monde est ensuite remis en mode normal.
+func _attendre_prechauffes() -> void:
+	if not Jeu.chargement_etale or _arguments().has("sans-fonds"):
+		return
+	var t0 := Time.get_ticks_msec()
+	var liste := find_children("*", "PrechauffeRendu", true, false)
+	for p in liste:
+		(p as Node).process_mode = Node.PROCESS_MODE_ALWAYS
+		(p as PrechauffeRendu).pause = 0.0
+	while Time.get_ticks_msec() - t0 < 30000:
+		var en_cours := false
+		for p in liste:
+			if is_instance_valid(p) and not (p as PrechauffeRendu).fini:
+				en_cours = true
+		if not en_cours:
+			break
+		await get_tree().process_frame
+	_etape_fond("préchauffage du rendu")
+	if Chrono.actif:
+		print("CHRONO préchauffages terminés après %d ms (%d)" % [Time.get_ticks_msec() - t0, liste.size()])
 
 ## Points de vue du préchauffage de dehors : [point (x, z), nombre de directions] — le feu de camp (départ), le sentier et la place du
 ## village, le chemin de la grotte.
