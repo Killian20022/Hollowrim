@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c7cfmmmatkw1g"
-path="res://.godot/imported/cuirasse_saphir_cuirasse_saphir.png-f7229c03ed493c365ace674e02659365.ctex"
+path.bptc="res://.godot/imported/cuirasse_saphir_cuirasse_saphir.png-f7229c03ed493c365ace674e02659365.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "4077448be87b1e90c14fdc2da65b7e10"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/cuirasse_saphir_cuirasse_saphir.png"
-dest_files=["res://.godot/imported/cuirasse_saphir_cuirasse_saphir.png-f7229c03ed493c365ace674e02659365.ctex"]
+dest_files=["res://.godot/imported/cuirasse_saphir_cuirasse_saphir.png-f7229c03ed493c365ace674e02659365.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
@@ -39,5 +40,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=512
+process/size_limit=0
 detect_3d/compress_to=1

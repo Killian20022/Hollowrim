@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://t4c7ihgrw2h5"
-path="res://.godot/imported/fourrure_chausses_fourrure.png-a61cec6062bdbb63b1c215d7559e48f2.ctex"
+path.bptc="res://.godot/imported/fourrure_chausses_fourrure.png-a61cec6062bdbb63b1c215d7559e48f2.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "07c6223ce06d652d78a585888d39906a"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/chausses/fourrure_chausses_fourrure.png"
-dest_files=["res://.godot/imported/fourrure_chausses_fourrure.png-a61cec6062bdbb63b1c215d7559e48f2.ctex"]
+dest_files=["res://.godot/imported/fourrure_chausses_fourrure.png-a61cec6062bdbb63b1c215d7559e48f2.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

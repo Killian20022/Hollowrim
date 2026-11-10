@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://db00mqtjvd163"
-path="res://.godot/imported/gantelets_rubis_enchante_gantelets_rubis_enchante.png-b9e2fb1c34e827af4063e03777fe2723.ctex"
+path.bptc="res://.godot/imported/gantelets_rubis_enchante_gantelets_rubis_enchante.png-b9e2fb1c34e827af4063e03777fe2723.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "a4177ac92992c4d8b6c3214d09194e82"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/porte/gantelets_rubis_enchante_gantelets_rubis_enchante.png"
-dest_files=["res://.godot/imported/gantelets_rubis_enchante_gantelets_rubis_enchante.png-b9e2fb1c34e827af4063e03777fe2723.ctex"]
+dest_files=["res://.godot/imported/gantelets_rubis_enchante_gantelets_rubis_enchante.png-b9e2fb1c34e827af4063e03777fe2723.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

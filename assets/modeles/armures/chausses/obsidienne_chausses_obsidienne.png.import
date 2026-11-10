@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b8qpei6j0j3gv"
-path="res://.godot/imported/obsidienne_chausses_obsidienne.png-269d2fc7fe61f4d82c5a1fbeb3786080.ctex"
+path.bptc="res://.godot/imported/obsidienne_chausses_obsidienne.png-269d2fc7fe61f4d82c5a1fbeb3786080.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "752f149e9884692612b528a1d9398064"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/modeles/armures/chausses/obsidienne_chausses_obsidienne.png"
-dest_files=["res://.godot/imported/obsidienne_chausses_obsidienne.png-269d2fc7fe61f4d82c5a1fbeb3786080.ctex"]
+dest_files=["res://.godot/imported/obsidienne_chausses_obsidienne.png-269d2fc7fe61f4d82c5a1fbeb3786080.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
