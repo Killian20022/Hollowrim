@@ -10,6 +10,7 @@ const MODELES := {
 	"tripo_garde_lance": preload("res://assets/pnj/tripo_garde_lance_rig.glb"),
 	"tripo_garde_epee": preload("res://assets/pnj/tripo_garde_epee_rig.glb"),
 	"tripo_archer": preload("res://assets/pnj/tripo_archer_rig.glb"),
+	"tripo_garde_verre": preload("res://assets/pnj/tripo_garde_verre_rig.glb"),   # armure de verre Tripo (un corps en T-pose, tripo_verre_rig.py)
 }
 const EPEE := preload("res://assets/modeles/joueur/epee_nordique.glb")
 ## Prise de la main droite : celle du corps du joueur (corps_joueur.gd, PRISE) : milieu de la poignée dans le poing, lame dans l'axe de l'avant-bras.
@@ -49,6 +50,8 @@ static func creer(id: String, ressorts := true, avec_collisions := true) -> Node
 	match id:
 		"tripo_garde_epee":
 			_epee_au_flanc(sq)
+		"tripo_garde_verre":
+			_epee_en_main(sq)
 		"tripo_archer":
 			ChasseresseNordique.equiper_arc(racine, sq)      # le vrai arc du jeu : porté le long du corps, bandé (corde tirée) puis relâché (clips Pistol_*)
 		"tripo_garde_lance":
@@ -137,6 +140,23 @@ class LanceDroite extends SkeletonModifier3D:
 		var gp := sq.get_bone_global_pose(os_parent).basis.get_rotation_quaternion()
 		sq.set_bone_pose_rotation(os_haut, gp.inverse() * cible)
 
+## Garde en armure de verre : le gantelet Tripo suit l'os hand_r et ses phalanges (main du squelette, 1,15x) : l'épée est tenue comme celle du
+## joueur (PRISE sur hand_r, lame dans l'axe de l'avant-bras, perpendiculaire aux doigts), le centre du poing repoussé du rapport du gantelet.
+static var PRISE_VERRE_ECH := 1.15
+static var PRISE_VERRE_DECAL := Vector3(0.0, 0.0, 0.0)
+static func _epee_en_main(sq: Skeleton3D) -> void:
+	var acc := BoneAttachment3D.new()
+	acc.name = "EpeeMain"
+	acc.bone_name = "hand_r"
+	sq.add_child(acc)
+	var arme: Node3D = EPEE.instantiate()
+	arme.name = "EpeeJeu"
+	var prise := PRISE
+	prise.origin = PRISE.origin * PRISE_VERRE_ECH + PRISE_VERRE_DECAL
+	arme.transform = prise
+	acc.add_child(arme)
+	_matieres_epee(arme)
+
 ## Épée du jeu (epee_nordique.glb, mêmes matières que l'épée du joueur) TENUE dans la main droite (BoneAttachment3D sur « hand_r »).
 static func _epee_au_flanc(sq: Skeleton3D) -> void:
 	var acc := BoneAttachment3D.new()
@@ -157,6 +177,9 @@ static func _epee_au_flanc(sq: Skeleton3D) -> void:
 	prise.origin = CENTRE_POING - prise.basis.y.normalized() * 0.04 * EPEE_ECH      # le centre du poing est à 4 cm du pommeau le long de la lame
 	arme.transform = prise
 	acc.add_child(arme)
+	_matieres_epee(arme)
+
+static func _matieres_epee(arme: Node3D) -> void:
 	var acier := Palette.tex("acier", Palette.ACIER, 4, 0.3)
 	var mats := {
 		"lame": Palette.materiau(acier, Vector2.ONE, Color(0.98, 0.95, 0.9)),
