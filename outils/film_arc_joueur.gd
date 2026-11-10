@@ -118,11 +118,23 @@ func _go() -> void:
 		croix.visible = false
 	arc.equiper()
 	arc.mesure = true
+	if _arg("sans-ombre-corps") != "":   # contrôle : le corps (invisible en 1re personne) ne projette plus d'ombre
+		for mi: MeshInstance3D in (j.corps as Node).find_children("*", "MeshInstance3D", true, false):
+			if mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY:
+				mi.visible = false
 	if _arg("cacher") != "":   # contrôle : cacher un bras de la 1re personne (upperarm_l / upperarm_r)
 		var sqc: Skeleton3D = arc._sq
 		sqc.set_bone_pose_scale(sqc.find_bone(_arg("cacher")), Vector3.ONE * 0.001)
 	if mode == "poses":
 		await _poses()
+		quit(0)
+		return
+	if mode == "levee":
+		await _levee()
+		quit(0)
+		return
+	if mode == "main":
+		await _main_corde()
 		quit(0)
 		return
 	await _viser(Vector3(-1.2, 1.25, -8))
@@ -184,6 +196,56 @@ func _poses() -> void:
 	await _photo("repos_apres")
 	await _attendre(20)
 
+## --mode=levee : une image toutes les 2 images (60 i/s) de la levée et du bandage (contrôle de la fourrure et de la main de corde).
+func _levee() -> void:
+	await _viser(Vector3(0.6, 1.3, -14.0))
+	await _attendre(30)
+	await _photo("l00")
+	if _arg("lent") != "":
+		Engine.time_scale = float(_arg("lent"))   # ralenti (contrôle image par image de la levée)
+		Engine.physics_ticks_per_second = 60
+		Engine.max_physics_steps_per_frame = 1
+	arc.appuyer()
+	for k in 36:
+		await _attendre(2)
+		await _photo("l%02d" % (k + 1))
+	arc.relacher()
+	for k in 8:
+		await _attendre(4)
+		await _photo("r%02d" % (k + 1))
+
+## --mode=main : main de corde à tension FIGÉE (0,05 … 1) : vue du joueur, puis caméra d'observation (côté droit, dessus, devant)
+## attachée à la caméra du joueur (images « main_<tension>_<vue> »).
+func _main_corde() -> void:
+	await _viser(Vector3(0.6, 1.3, -14.0))
+	await _attendre(30)
+	var obs := Camera3D.new()
+	obs.fov = 40.0
+	obs.near = 0.01
+	j.camera.add_child(obs)
+	for t in [0.0, 0.08, 0.16, 0.25, 0.4, 0.6, 1.0]:
+		arc.appuyer()
+		for k in 40:
+			# tension figée : temps de bandage tel que tension = t (montée 1 - (1 - u)^1,6)
+			arc._t_bande = (1.0 - pow(1.0 - t, 1.0 / 1.6)) * arc.reglage("temps_plein", 0.95)
+			_cadre()
+			await process_frame
+		var nom := "main_%03d" % roundi(t * 100.0)
+		await _photo(nom)
+		var md: Vector3 = j.camera.global_transform.affine_inverse() * arc._vm.encoche_monde()
+		for v in [["oeil", -md.normalized() * 0.16 + Vector3(0.0, 0.0, 0.0)], ["droite", Vector3(0.32, 0.02, 0.05)], ["dessus", Vector3(0.02, 0.3, 0.06)], ["devant", Vector3(0.12, -0.02, -0.32)]]:
+			obs.position = md + (v[1] as Vector3)
+			obs.look_at(j.camera.global_transform * md, j.camera.global_transform.basis.y if v[0] != "dessus" else -j.camera.global_transform.basis.z)
+			obs.current = true
+			await process_frame
+			await RenderingServer.frame_post_draw
+			root.get_viewport().get_texture().get_image().save_png(sortie.path_join("%s_%s.png" % [nom, v[0]]))
+		j.camera.current = true
+		arc.relacher()
+		for k in 50:
+			_cadre()
+			await process_frame
+
 func _cadre_attente() -> void:
 	_cadre()
 	await process_frame
@@ -206,11 +268,40 @@ func _photo(nom: String) -> void:
 		var eg := inv * (sq.global_transform * sq.get_bone_global_pose(sq.find_bone("upperarm_l")).origin)
 		var ed := inv * (sq.global_transform * sq.get_bone_global_pose(sq.find_bone("upperarm_r")).origin)
 		print("ECRAN %s %s" % [nom, arc.mesure_ecran()])
+		var ab: PackedVector3Array = arc.points_mains.get("avant_bras_r", PackedVector3Array())
+		if ab.size() == 2:
+			var mf := ab[0].lerp(ab[1], 0.4)
+			print("FOURRURE %s coude %s poignet %s manchon %s ecran %s" % [nom, inv * ab[0], inv * ab[1], inv * mf, "derriere" if j.camera.is_position_behind(mf) else str(j.camera.unproject_position(mf) / Vector2(j.camera.get_viewport().get_visible_rect().size))])
+		var pr: PackedVector3Array = arc.points_mains.get("r", PackedVector3Array())
+		if pr.size() > 0:
+			var cm := Vector3.ZERO
+			for p in pr:
+				cm += inv * p
+			var tw := inv * (sq.global_transform * sq.get_bone_global_pose(sq.find_bone("lowerarm_r")).origin)
+			print("MAIN_D %s tension %.2f levee %.2f centre %s coude %s" % [nom, arc.tension, arc._levee, cm / pr.size(), tw])
 		print("EPAULES %s g %s d %s cible_d %s" % [nom, eg, ed, arc._pivot_d.position])
 		print("POSE %s main_g %s main_d %s poignee %s encoche %s pointe %s" % [nom, mg, md, inv * arc._vm.global_position, inv * arc._vm.encoche_monde(), inv * arc._vm.pointe()])
 	await RenderingServer.frame_post_draw
 	var im := root.get_viewport().get_texture().get_image()
 	im.save_png(sortie.path_join("pose_%s_v%s.png" % [nom, vue]))
+	if _arg("oeil") != "" and not j.troisieme and arc.points_mains.has("r"):
+		# loupe : de l'œil du joueur (même point de vue), champ étroit centré sur la main de corde
+		var cm := Vector3.ZERO
+		for p: Vector3 in arc.points_mains["r"]:
+			cm += p
+		cm /= (arc.points_mains["r"] as PackedVector3Array).size()
+		var lo := Camera3D.new()
+		lo.fov = float(_arg("oeil"))
+		lo.near = 0.01
+		s.add_child(lo)
+		lo.global_transform = j.camera.global_transform
+		lo.look_at(cm, j.camera.global_transform.basis.y)
+		lo.current = true
+		await process_frame
+		await RenderingServer.frame_post_draw
+		root.get_viewport().get_texture().get_image().save_png(sortie.path_join("oeil_%s.png" % nom))
+		j.camera.current = true
+		lo.queue_free()
 
 ## Vise un point : la caméra de visée (1re : la tête ; 3e : caméra derrière l'épaule) amène le centre de l'écran sur `c`.
 func _viser(c: Vector3) -> void:

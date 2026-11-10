@@ -46,6 +46,9 @@ const VITESSE_LEVEE := 3.0
 ## Bandage : l'arc (flèche dans l'axe) est encore un peu plus bas au début du bandage et finit de monter à pleine allonge ; la
 ## main de corde passe ainsi sous le champ. Nul dès le lâcher.
 const BAISSE_BANDAGE := Vector3(0.0, -0.09, 0.02)
+## Allonge visible (1re personne) : la main ne tire la corde qu'à partir de cette levée (0..1), puis au plus à cette vitesse (1/s).
+const DEBUT_ALLONGE := 0.8
+const VITESSE_ALLONGE := 2.2
 ## Arc de la 1re personne un peu réduit (1,15 m au lieu de 1,59 m), même échelle au repos et en visée.
 const ECHELLE_ARC_VM := 0.72
 ## Bras 1re personne (bras_fps.glb) : agrandis (le modèle a un bras de 0,49 m, trop court pour tenir un arc à bout de bras) et
@@ -58,6 +61,9 @@ const COUDE_G := Vector3(-0.6, -1.2, -0.3)
 const COUDE_D := Vector3(0.8, -0.6, 0.1)
 ## Coude droit en visée : haut et en arrière (ligne de l'épaule, comme un vrai archer), le bras de corde reste hors champ.
 const COUDE_D_VISEE := Vector3(0.7, 0.05, 0.6)
+## Détour du coude droit pendant la levée (au milieu de la levée, repère de la caméra) : il reste BAS (coude sous l'épaule, comme
+## un archer qui lève l'arc avant de bander) et le manchon de fourrure du brassard droit ne passe pas sous l'œil.
+const DETOUR_COUDE_D := Vector3(0.0, -0.6, 0.2)
 ## 3e personne : ancrage de la corde (repère du joueur, depuis l'os Head) au coin droit de la mâchoire, assez à droite et en
 ## avant pour que la main de corde reste HORS du crâne et du casque ; coude droit bien à droite et en arrière.
 const ANCRAGE_TPS := Vector3(0.16, -0.11, 0.05)
@@ -92,6 +98,8 @@ var _abaisse := 0.0
 var _recul := 0.0
 var _encochee := false
 var _t := 0.0
+var _dt := 1.0 / 60.0
+var _u_vis := 0.0
 # 1re personne
 var _rig: Node3D
 var _bras: Node3D
@@ -103,6 +111,8 @@ var mesure := false
 var _coude_d_vm: Node3D
 var points_mains := {}
 var _rel_epaule_g := Basis()
+## Repère de la corde dans la main droite en crochet (repère de l'os hand_r ; tests).
+var prise_corde := Transform3D()
 # 3e personne
 var _sq_corps: Skeleton3D
 var _ik_corps: Array[TwoBoneIK3D] = []
@@ -161,6 +171,8 @@ class _Poing extends SkeletonModifier3D:
 	var decalage := Vector3.ZERO
 	## Autres os déplacés {nom: décalage (repère du squelette)}.
 	var decalages := {}
+	## Main de corde (1re personne) : doigts de la main droite en CROCHET {os: rotation} au lieu du poing (prise méditerranéenne).
+	var crochet := {}
 	func _process_modification_with_delta(_dt: float) -> void:
 		var sq := get_skeleton()
 		if sq == null:
@@ -176,7 +188,7 @@ class _Poing extends SkeletonModifier3D:
 			sq.set_bone_pose_position(i, parent.affine_inverse() * (sq.get_bone_global_rest(i).origin + (decalages[nom] as Vector3)))
 		for i: int in doigts:
 			var f := ferme_d if sq.get_bone_name(i).ends_with("_r") else ferme_g
-			var q: Quaternion = doigts[i]
+			var q: Quaternion = crochet[i] if crochet.has(i) else doigts[i]
 			if f < 1.0:
 				var ouvert := sq.get_bone_rest(i).basis.get_rotation_quaternion() if ouvert_repos else sq.get_bone_pose_rotation(i)
 				q = ouvert.slerp(q, f)
@@ -220,6 +232,48 @@ static func calculer_prise(sq: Skeleton3D, cote: String) -> Transform3D:
 	var axe := (creux[0] - creux[3]).normalized()
 	var jointures := (Vector3.UP - axe * axe.dot(Vector3.UP)).normalized()
 	return Transform3D(Basis(jointures, axe, jointures.cross(axe)), centre)
+
+## Prise « méditerranéenne » de la main de corde : index au-dessus de l'encoche, majeur et annulaire dessous, la corde dans le
+## pli de la DERNIÈRE phalange (articulation 03) ; auriculaire replié dans la paume, pouce détendu le long de l'index. Fraction
+## de la flexion du poing par phalange [01, 02, 03] (0 = doigt tendu du repos, 1 = poing).
+const CROCHET := {"index": [0.22, 0.85, 0.55], "middle": [0.22, 0.85, 0.55], "ring": [0.28, 0.85, 0.55], "pinky": [0.75, 1.0, 1.0], "thumb": [0.35, 0.45, 0.35]}
+
+## Rotations des doigts en crochet (main `cote`) à partir du poing : {os: rotation}.
+static func crochet_doigts(sq: Skeleton3D, poing_: Dictionary, cote: String) -> Dictionary:
+	var d := {}
+	for doigt: String in CROCHET:
+		for k in 3:
+			var i := sq.find_bone("%s_%02d_%s" % [doigt, k + 1, cote])
+			if i < 0 or not poing_.has(i):
+				continue
+			var repos := sq.get_bone_rest(i).basis.get_rotation_quaternion()
+			d[i] = repos.slerp(poing_[i], float(CROCHET[doigt][k]))
+	return d
+
+## Repère de la corde dans la main en crochet (convention calculer_prise : +y de l'auriculaire vers l'index, +x vers l'avant de la
+## main) : la corde passe par le creux des crochets de l'index et du majeur (centre du cercle articulation 02 / 03 / bout), l'encoche
+## entre les deux. Les doigts doivent être en crochet au moment du calcul.
+static func calculer_crochet(sq: Skeleton3D, cote: String) -> Transform3D:
+	var main := _pose_os(sq, "hand_" + cote).affine_inverse()
+	var creux: Array[Vector3] = []
+	for d in ["index", "middle"]:
+		var a := main * _pose_os(sq, "%s_02_%s" % [d, cote]).origin
+		var b := main * _pose_os(sq, "%s_03_%s" % [d, cote]).origin
+		var c := main * _pose_os(sq, "%s_04_leaf_%s" % [d, cote]).origin
+		creux.append(_centre_cercle(a, b, c).lerp(b, 0.35))
+	var centre := (creux[0] + creux[1]) * 0.5
+	var axe := (main * _pose_os(sq, "index_03_" + cote).origin - main * _pose_os(sq, "ring_03_" + cote).origin).normalized()
+	var avant := main * _pose_os(sq, "middle_01_" + cote).origin
+	var x := (avant - axe * axe.dot(avant)).normalized()
+	return Transform3D(Basis(x, axe, x.cross(axe)), centre)
+
+static func _centre_cercle(a: Vector3, b: Vector3, c: Vector3) -> Vector3:
+	var ab := b - a
+	var ac := c - a
+	var n := ab.cross(ac)
+	if n.length_squared() < 1e-12:
+		return (a + c) * 0.5
+	return a + (n.cross(ab) * ac.length_squared() + ac.cross(n) * ab.length_squared()) / (2.0 * n.length_squared())
 
 static func _pose_os(sq: Skeleton3D, nom: String) -> Transform3D:
 	var i := sq.find_bone(nom)
@@ -294,6 +348,17 @@ func _installer_bras() -> void:
 	_coude_d_vm = coudes[1]
 	_poing_vm = r[0]
 	_poing_vm.ouvert_repos = true
+	# main de corde en crochet (et non en poing) : doigts, repère de la corde dans la main, cible de l'IK et du poignet
+	_poing_vm.crochet = crochet_doigts(_sq, _poing_vm.doigts, "r")
+	for i: int in _poing_vm.crochet:
+		_sq.set_bone_pose_rotation(i, _poing_vm.crochet[i])
+	var prise_c := calculer_crochet(_sq, "r")
+	for i: int in _poing_vm.doigts:
+		_sq.set_bone_pose_rotation(i, _poing_vm.doigts[i])
+	var cd: Node3D = _pivot_d.get_child(0)
+	cd.transform = Transform3D(prise_c.basis, prise_c.origin * ECHELLE_BRAS).affine_inverse()
+	(r[4] as SkeletonModifier3D).set("prise", prise_c)
+	prise_corde = prise_c
 	# épaule droite reculée à sa vraie place (le modèle est avancé pour que le bras d'arc atteigne la poignée)
 	var rel := Transform3D()
 	var nd: Node = _sq
@@ -474,6 +539,7 @@ func _physics_process(dt: float) -> void:
 	_levee = move_toward(_levee, but_levee, dt * (VITESSE_LEVEE if but_levee > _levee else 1.8))
 	_abaisse = move_toward(_abaisse, 1.0 if etat == BANDE else 0.0, dt * 6.0)
 	_zoom(dt)
+	_dt = dt
 	_modeles()
 
 func _annuler() -> void:
@@ -560,6 +626,8 @@ func _sur_squelette() -> void:
 			if k == racine:
 				pts.append(_sq.global_transform * _sq.get_bone_global_pose(i).origin)
 		points_mains[c] = pts
+	# avant-bras droit (coude, poignet) : manchon de fourrure du brassard (tests de la levée)
+	points_mains["avant_bras_r"] = PackedVector3Array([_sq.global_transform * _sq.get_bone_global_pose(_sq.find_bone("lowerarm_r")).origin, _sq.global_transform * _sq.get_bone_global_pose(_sq.find_bone("hand_r")).origin])
 
 ## Mesure à l'écran de la 1re personne (mesure = true depuis au moins une image) : demi-côté `demi` du carré autour du réticule
 ## (fraction de la HAUTEUR de l'écran) ; rend le nombre de points de l'arc (sommets) et des mains (os, gonflés de `rayon` m) dans
@@ -606,7 +674,14 @@ func _placer_vm() -> void:
 	var appui_vis := appui_visee()
 	var d_vis := (appui_vis - ENCOCHE_VISEE).normalized()
 	var a_vm := 1.0   # pleine allonge du modèle, jamais au-delà
-	var u := tension * a_vm if etat == BANDE else 0.0
+	# allonge VISIBLE : la corde ne recule qu'une fois l'arc levé (la main de corde prend la corde devant soi, sous le réticule,
+	# puis la ramène à la joue), puis rattrape la tension (rien ne change au tir : vitesse et dégâts suivent `tension`)
+	if etat == BANDE:
+		var but := tension if _levee >= DEBUT_ALLONGE else 0.0
+		_u_vis = move_toward(_u_vis, but, _dt * VITESSE_ALLONGE)
+	else:
+		_u_vis = 0.0
+	var u := _u_vis * a_vm
 	var z_u := _vm.encoche_pour(u).z
 	var ph := _phase_recup()
 	var l := smoothstep(0.0, 1.0, _levee)
@@ -633,7 +708,8 @@ func _placer_vm() -> void:
 	_vm.transform = Transform3D(b, p_appui - b * _vm.appui)
 	_poing_vm.decalages["clavicle_l"] = _rel_epaule_g * (AVANCE_EPAULE_G * l)
 	_vm.repere_poignee.position = Vector3(0.0, -DESCENTE_POING * l, 0.0)
-	_coude_d_vm.position = COUDE_D.lerp(COUDE_D_VISEE, l)
+	# levée : le coude droit reste bas (détour), le bras de corde ne passe pas devant l'œil
+	_coude_d_vm.position = COUDE_D.lerp(COUDE_D_VISEE, l) + DETOUR_COUDE_D * sin(PI * l)
 	var ech := ECHELLE_ARC_VM
 	_poing_vm.ferme_d = 1.0
 	_vm.fleche_libre = null
