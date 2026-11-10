@@ -48,6 +48,14 @@ const DEPLACES := {
 	Vector3(54.4, 0.6, 50.6): Vector3(55.6, 0.6, 49.3),
 }
 
+## Même chose pour les poses simples de MobilierVillage.POSES (clé « modèle x z ») : le porche de la porte avance jusqu'à z ≈ 45.
+const DEPLACES_POSES := {
+	"caisse_b 50.4 44.6": Vector2(49.0, 44.3),      # devant le porche -> à gauche, contre la façade du dehors
+	"sacs 51.4 44.9": Vector2(53.2, 44.6),          # dans le passage de la porte -> à droite du porche
+	"banniere 48 47.5": Vector2(47.6, 45.6),        # dans le mur ouest de l'aile d'entrée -> au coin du porche
+	"banniere 48.0 47.5": Vector2(47.6, 45.6),      # (même clé si le flottant s'écrit « 48.0 »)
+}
+
 static func deplacer(p: Vector3) -> Vector3:
 	return DEPLACES.get(p, p) if actif else p
 
@@ -118,6 +126,16 @@ static func _decouper(mi: MeshInstance3D, garder: Callable) -> Array:
 		r.append(am)
 	return r
 
+## Boîte des seuls sommets indexés (les morceaux découpés gardent TOUS les sommets du modèle : get_aabb() rendrait la maison entière).
+static func _boite_triangles(m: ArrayMesh) -> AABB:
+	var a: Array = m.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var r := AABB(v[idx[0]], Vector3.ZERO)
+	for i in idx:
+		r = r.expand(v[i])
+	return r
+
 ## Repère du pivot (mètres) d'un point du modèle de la chaumière.
 static func ext_p(x: float, y: float, z: float) -> Vector3:
 	return Vector3((x - CENTRE_M.x) * S_EXT, (y - PIED_M) * S_EXT, (z - CENTRE_M.y) * S_EXT)
@@ -137,7 +155,7 @@ static func exterieur(p: Node3D) -> void:
 	var parts := _decouper(mi, func(c: Vector3, nn: Vector3) -> bool: return not dans_battant.call(c, nn))
 	mi.mesh = parts[0]
 	_battant = parts[1]
-	_battant_boite = _battant.get_aabb() if _battant.get_surface_count() > 0 else AABB(BATTANT_MIN, BATTANT_MAX - BATTANT_MIN)
+	_battant_boite = _boite_triangles(_battant) if _battant.get_surface_count() > 0 else AABB(BATTANT_MIN, BATTANT_MAX - BATTANT_MIN)
 	ps1(n, Color(1.45, 1.45, 1.45), false)
 	p.add_child(n)
 	n.scale = Vector3.ONE * S_EXT

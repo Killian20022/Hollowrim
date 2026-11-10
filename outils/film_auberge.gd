@@ -89,7 +89,7 @@ func _go() -> void:
 	# garde à 1,6 m à droite de la porte (vu du dehors), 1,2 m devant, face au dehors
 	garde = GardesVillage.creer_modele({"taille": 1.0, "largeur": 1.0})
 	m.add_child(garde)
-	garde.global_position = _dehors(1.7, 0.0, zp + 1.3)
+	garde.global_position = _dehors(1.9, 0.0, zp + 3.2)     # au bord du porche (l'auberge Tripo avance de 2,6 m devant sa porte)
 	garde.global_rotation.y = ip.global_rotation.y
 	_heure(13.0)
 	m.joueur.global_position = _dehors(0, 0.2, zp + 6.0)
@@ -121,7 +121,7 @@ func _go() -> void:
 	await _shot("ext_loin")
 	_poser(_dehors(-1.0, 1.7, zp + 11.0), _dehors(0.5, 1.9, zp))
 	await _shot("ext_homme")
-	_poser(_dehors(-12.0, 3.0, zp + 8.0), _dehors(0, 2.5, 0))
+	_poser(_dehors(-7.0, 3.0, zp + 13.0), _dehors(0, 2.5, 0))
 	await _shot("ext_biais")
 	# cadrages FIXES (monde), identiques avant/après quel que soit l'emplacement de l'auberge : depuis la place (homme), et de haut
 	_poser(_monde(47.0, 1.7, 38.0), _monde(52.5, 2.6, 52.0))
@@ -129,10 +129,10 @@ func _go() -> void:
 	_poser(_monde(42.0, 9.0, 36.0), _monde(52.5, 1.5, 52.5))
 	await _shot("fixe_haut")
 	cam.fov = 50.0
-	_poser(_dehors(-0.6, 1.7, zp + 4.5), _dehors(0.6, 1.4, zp))
+	_poser(_dehors(-0.8, 1.7, zp + 7.0), _dehors(0.4, 1.5, zp))
 	await _shot("ext_porte")
 	cam.fov = 30.0
-	_poser(_dehors(0.0, 1.6, zp + 2.6), _dehors(0.0, 1.5, zp))
+	_poser(_dehors(0.0, 1.6, zp + 6.5), _dehors(0.0, 1.3, zp))
 	await _shot("gros_facade")
 	# --- dedans : on attend la construction (à la demande) ------------------------------------------------------
 	m.joueur.global_position = _dedans(0, 0.2, zp - 1.0)

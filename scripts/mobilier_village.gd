@@ -527,6 +527,9 @@ func _construire() -> void:
 		if VillageBatiQ.actif and DEPLACES_Q.has(cle_q):   # bâti hybride : objet sorti d'une porte du kit
 			x = DEPLACES_Q[cle_q].x
 			z = DEPLACES_Q[cle_q].y
+		if MaisonTripo.actif and MaisonTripo.DEPLACES_POSES.has(cle_q):   # auberge Tripo : objet sorti du porche
+			x = MaisonTripo.DEPLACES_POSES[cle_q].x
+			z = MaisonTripo.DEPLACES_POSES[cle_q].y
 		var s: float = pose[4]
 		var r_emprise: float = {"puits": 1.6, "etal": 1.4, "charrette": 1.2, "tas_bois": 0.9, "banc": 0.8, "sacs": 0.4}.get(mod, 0.3)
 		var xf := Transform3D(Basis(Vector3.UP, deg_to_rad(pose[3])).scaled(Vector3.ONE * s), Vector3(x, _sol_bas(x, z, r_emprise), z))
