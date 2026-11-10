@@ -128,7 +128,19 @@ var _cap_arrivee := NAN
 var remplace: Node = null  # PnjCombat (crime.gd) qui a pris son corps : il dort tant que celui-ci se bat, fuit ou se calme
 var _pieds: PiedsAuSol  # pieds posés sur le terrain (coupé à genoux, assis ou allongé)
 ## Animations où le corps est près du sol ou assis : l'IK des jambes les déformerait.
-const SANS_PIEDS := ["Fixing_Kneeling"]
+const SANS_PIEDS := ["Fixing_Kneeling", "Crouch_Idle"]
+
+# --- lot vie/metiers : gestes de métier (Metiers, data/vie/metiers.json) et causeries entre PNJ (ConversationsVie) ---------------
+var metier: Dictionary = {}       # métier du poste de jour ({} : ancien comportement, activité fixe)
+var _metier_soir: Dictionary = {} # métier de la soirée (« @feu » passé par Vie)
+var _m_i := 0                     # étape courante du métier
+var _m_t := 0.0                   # temps restant dans l'étape
+var _assis := ""                  # "", "assoir", "assis", "lever" : assis au poste (banc)
+var _assis_t := 0.0
+var causerie: Node3D = null       # interlocuteur d'une causerie (ConversationsVie)
+var causerie_parle := false       # il a la parole (Idle_Talking / Sitting_Talking)
+var _causerie_marche := false     # il s'est déplacé vers l'autre : il retournera à son poste
+var _avant_causerie: Array = []   # [_poste_vie, _act_vie, _cap_arrivee] avant le déplacement
 
 ## Lit res://data/villageois.json et renvoie la liste des villageois (vide si absent ou invalide).
 static func charger() -> Array:
@@ -147,6 +159,7 @@ static func charger() -> Array:
 	var liste: Array = (json as Dictionary)["villageois"]
 	liste.append_array(habitants())
 	liste.append_array(habitants_essai())
+	Metiers.appliquer(liste)      # lot vie/metiers : postes de métier (étal, banc, puits, tas de bois) avant la création des corps
 	return liste
 
 ## Habitants anonymes du village (persos/quaternius_jeu, 2026-11-04) : paysans, fermières, chasseurs ; dérivés des archétypes validés
@@ -243,8 +256,16 @@ func _ready() -> void:
 		_tete = SuiviTete.new()
 		squelette.add_child(_tete)
 		_pieds = PiedsAuSol.equiper(modele, self) as PiedsAuSol
+	_y_modele0 = modele.position.y
+	metier = Metiers.metier(Metiers.nom_pour(donnees))
+	if not metier.is_empty():
+		var et: Array = metier["etapes"]
+		_m_i = randi() % et.size()
+		_m_t = Metiers.duree(et[_m_i], anim) * randf_range(0.2, 1.0)    # pas tous à la même étape au même instant
+	_instant = true      # né assis sur son banc (pas de Sitting_Enter)
 	_activite(true)
-	if anim != null:
+	_instant = false
+	if anim != null and _assis == "":
 		anim.seek(randf() * 2.0)
 
 ## Allure de chaque habitant (corps Humain : couleurs de la tenue, étoffes, cheveux) ; aussi la galerie du monde (monde.gd, scénario « galerie »).
@@ -312,7 +333,7 @@ func parler() -> Array:
 	_autour = 0.0
 	_parle = false
 	_delai_parole = 1.2  # il fait d'abord un geste d'accueil (Interact), puis il parle
-	_jouer("Interact", 0.25)
+	_jouer("Sitting_Talking" if _assis != "" else "Interact", 0.25)
 	return lignes
 
 ## Facultatif : le dialogue peut prévenir de la fin (sinon détecté via joueur.en_dialogue).
@@ -332,17 +353,162 @@ func _jouer(nom: String, fondu := 0.2) -> void:
 
 ## Activité du poste : « activite » des données (habitants) sinon celle du lieu.
 func _act() -> String:
+	var m := _metier_courant()
+	if not m.is_empty():
+		return _clip_metier(m)
 	if _act_vie != "":
 		return _act_vie
 	return String(donnees.get("activite", ACTIVITES.get(donnees.get("lieu", ""), "Idle")))
 
 ## Animation d'activité du poste (PickUp : ponctuelle, entre deux Idle).
 func _activite(immediat := false) -> void:
+	var m := _metier_courant()
+	if not m.is_empty():
+		if bool(m.get("assis", false)):
+			if _assis == "" and not _instant:
+				_assis = "assoir"
+				_assis_t = anim.get_animation("Sitting_Enter").length if anim != null and anim.has_animation("Sitting_Enter") else 0.8
+				_modele_assis(true, m)
+				_jouer("Sitting_Enter", 0.25)
+				return
+			if _assis == "" or _assis == "assis":
+				_assis = "assis"
+				_modele_assis(true, m)
+				_jouer(_clip_metier(m), 0.0 if immediat else 0.3)
+			return
+		_jouer(_clip_metier(m), 0.0 if immediat else 0.3)
+		return
 	var nom := _act()
 	if nom == "PickUp_Table":
 		nom = "Idle"
 		_delai_activite = randf_range(4.0, 9.0)
 	_jouer(nom, 0.0 if immediat else 0.3)
+
+## Métier du moment : celui de la soirée (« @feu ») ou celui du poste de jour ; {} hors poste (en route, causerie à l'écart) ou sans métier.
+func _metier_courant() -> Dictionary:
+	if _act_vie.begins_with("@"):
+		return _metier_soir
+	if _poste_vie == null:
+		return metier
+	return {}
+
+func _clip_metier(m: Dictionary) -> String:
+	var et: Array = m.get("etapes", [])
+	if et.is_empty():
+		return "Idle"
+	return String(et[_m_i % et.size()].get("clip", "Idle"))
+
+## Minuterie du métier (au poste, sans causerie) : étape suivante quand son temps est écoulé.
+func _metier_avancer(dt: float) -> void:
+	var m := _metier_courant()
+	if m.is_empty() or _variete_fin > 0.0:
+		return
+	if _assis == "assoir":
+		_assis_t -= dt
+		if _assis_t <= 0.0:
+			_assis = "assis"
+			_jouer(_clip_metier(m), 0.2)
+		return
+	_m_t -= dt
+	if _m_t > 0.0:
+		return
+	var et: Array = m["etapes"]
+	_m_i = (_m_i + 1) % et.size()
+	_m_t = Metiers.duree(et[_m_i], anim)
+	_jouer(String(et[_m_i].get("clip", "Idle")), 0.3)
+
+var _y_modele0 := 0.0
+## Assis sur un banc (métier « assis ») : le modèle est rehaussé de `dy` (le clip assis suppose une assise à 0,44 m).
+func _modele_assis(oui: bool, m: Dictionary = {}) -> void:
+	if modele != null:
+		modele.position.y = _y_modele0 + (float(m.get("dy", 0.0)) if oui else 0.0)
+	# assis : le corps n'a plus de collision ni de move_and_slide (la capsule de 0,35 m le repoussait hors de l'assise) ; le banc garde la sienne
+	if _forme != null:
+		_forme.set_deferred("disabled", oui)
+	if oui and _poste_vie == null and not points.is_empty():
+		var pp: Vector3 = points[0]
+		global_position = Vector3(pp.x, global_position.y, pp.z)
+		velocity = Vector3.ZERO
+	if _pieds != null:
+		_pieds.actif = not oui and lod == 0
+
+## Il est assis (ou se lève) : remis debout sans animation (placement direct, combat, lit).
+func _assis_fin() -> void:
+	if _assis != "":
+		_assis = ""
+		_modele_assis(false)
+
+## Cap de travail (radians) d'un métier fixe à son poste de jour (enclume, étal, banc), NAN sinon.
+func _cap_fixe() -> float:
+	var m := _metier_courant()
+	if m.is_empty() or not bool(m.get("fixe", false)) or not donnees.has("cap") or _poste_vie != null:
+		return NAN
+	return deg_to_rad(float(donnees["cap"]))
+
+func assis() -> bool:
+	return _assis != ""
+
+## Étape de métier en cours (tests, captures) : nom du clip, "" sans métier.
+func geste() -> String:
+	var m := _metier_courant()
+	return "" if m.is_empty() else _clip_metier(m)
+
+## --- causeries (ConversationsVie) ---
+## Libre pour une causerie : à son poste ou en pause de promenade, éveillé, ni en dialogue, ni remplacé, ni au lit, ni en train de s'asseoir.
+func libre_pour_causer() -> bool:
+	return (etat == POSTE or etat == PAUSE) and not _en_conversation and remplace == null and visible and seq == "" \
+		and causerie == null and _assis in ["", "assis"] and lod <= 1
+
+## Commence une causerie avec `autre` ; `spot` (fini) : il y va d'abord à pied (1,3 m de l'autre), puis il reviendra à son poste.
+func commencer_causerie(autre: Node3D, spot: Vector3 = Vector3.INF) -> void:
+	if spot.is_finite():
+		var avant := [_poste_vie, _act_vie, _cap_arrivee]
+		var v := autre.global_position - spot
+		rentrer(spot, false, [], false, false, "Idle", atan2(v.x, v.z))
+		_avant_causerie = avant
+		_causerie_marche = true
+	else:
+		_causerie_marche = false
+		if _assis == "":
+			_jouer("Idle", 0.3)
+	causerie = autre
+	causerie_parle = false
+	_variete_fin = 0.0
+	_autour = 0.0
+
+## Arrivé auprès de l'autre (ou n'avait pas à bouger).
+func en_place_pour_causer() -> bool:
+	return causerie != null and etat == POSTE
+
+func parler_causerie(parle: bool) -> void:
+	causerie_parle = parle
+	if _en_conversation:
+		return
+	if _assis != "":
+		_jouer("Sitting_Talking" if parle else "Sitting_Idle", 0.3)
+	else:
+		_jouer("Idle_Talking" if parle else "Idle", 0.3)
+
+## Fin de la causerie : celui qui s'était déplacé retourne à son poste (RETOUR), l'autre reprend son métier.
+func finir_causerie() -> void:
+	if causerie == null and not _causerie_marche:
+		return
+	causerie = null
+	causerie_parle = false
+	if _causerie_marche:
+		_causerie_marche = false
+		if _avant_causerie.size() == 3 and etat in [POSTE, RENTRE]:
+			_poste_vie = _avant_causerie[0]
+			_act_vie = String(_avant_causerie[1])
+			_cap_arrivee = float(_avant_causerie[2])
+			_route.clear()
+			etat = RETOUR
+			_t = 0.0
+			_bloque = 0.0
+		_avant_causerie = []
+		return
+	if etat == POSTE and not _en_conversation:
+		_activite()
 
 func _physics_process(dt: float) -> void:
 	if etat == DORT:
@@ -378,8 +544,12 @@ func _physics_process(dt: float) -> void:
 	else:
 		match etat:
 			POSTE:
-				_t_poste(dt)
-				_variete(dt)
+				if causerie == null:
+					_t_poste(dt)
+					_variete(dt)
+					_metier_avancer(dt)
+				elif not is_instance_valid(causerie):
+					causerie = null
 				_eveille(dt)
 			ALLER:
 				cap = _vers_point(points[_cible_index()], dt)
@@ -393,7 +563,7 @@ func _physics_process(dt: float) -> void:
 				cap = _vers_but(dt)
 				_portes_en_route()
 		if cap == Vector3.ZERO and etat == POSTE and anim != null and _anim == "Idle" \
-				and _act() == "PickUp_Table":
+				and _metier_courant().is_empty() and _act() == "PickUp_Table":
 			_delai_activite -= dt
 			if _delai_activite <= 0.0:
 				_jouer("PickUp_Table", 0.2)
@@ -403,10 +573,19 @@ func _physics_process(dt: float) -> void:
 	# orientation : face au joueur à l'arrêt (conversation ou proche), sinon dans le sens de la marche.
 	# Jamais face au joueur en marchant : le corps regarde où il va (la tête suit le joueur).
 	var vise := Vector3.ZERO
-	if _en_conversation or (cap == Vector3.ZERO and dist < DIST_REGARD):
+	var cfixe := _cap_fixe() if etat == POSTE else NAN
+	if _assis != "":
+		vise = Vector3.ZERO          # assis : le corps ne pivote pas sur le banc (la tête suit)
+	elif causerie != null and etat == POSTE and is_instance_valid(causerie):
+		vise = causerie.global_position - global_position
+		vise.y = 0.0
+		vise = vise.normalized() if vise.length() > 0.05 else Vector3.ZERO
+	elif _en_conversation or (cap == Vector3.ZERO and dist < DIST_REGARD and is_nan(cfixe)):
 		vise = dir
 	elif cap != Vector3.ZERO:
 		vise = cap
+	elif not is_nan(cfixe) and absf(angle_difference(rotation.y, cfixe)) > 0.02:
+		vise = Vector3(sin(cfixe), 0.0, cos(cfixe))   # métier fixe : il revient face à son ouvrage (enclume, étal) après avoir parlé
 	var ecart_cap := 0.0
 	if cap != Vector3.ZERO:
 		ecart_cap = absf(angle_difference(rotation.y, atan2(cap.x, cap.z)))
@@ -423,7 +602,10 @@ func _physics_process(dt: float) -> void:
 	velocity.z = cap.z * _vit
 	if etat == DORT:
 		return      # il vient d'entrer (coucher() coupe le process, donc retire le corps de l'espace) : plus de move_and_slide dans cette image
-	move_and_slide()
+	if _assis != "":
+		velocity = Vector3.ZERO     # assis sur le banc (ou en train de s'asseoir / se lever) : immobile, sans collision propre
+	else:
+		move_and_slide()
 
 	if cap != Vector3.ZERO:  # en déplacement : Walk si ça avance, Idle si demi-tour
 		if etat in [ALLER, RETOUR, RENTRE]:
@@ -446,7 +628,10 @@ func _parole(dt: float) -> void:
 		return
 	_parle = not _parle
 	_delai_parole = randf_range(2.5, 5.0) if _parle else randf_range(1.0, 2.5)
-	_jouer("Idle_Talking" if _parle else "Idle", 0.3)
+	if _assis != "":
+		_jouer("Sitting_Talking" if _parle else "Sitting_Idle", 0.3)
+	else:
+		_jouer("Idle_Talking" if _parle else "Idle", 0.3)
 
 ## Repos : toutes les 8 à 20 s, un petit geste (Interact, Idle_Talking court) ou un regard autour,
 ## puis retour à l'activité du poste.
@@ -565,7 +750,10 @@ func _regard_tete(dist: float) -> void:
 	if _tete == null:
 		return
 	var oeil := global_position + Vector3.UP * 1.55
-	if joueur != null and (dist < DIST_TETE or _en_conversation):
+	if causerie != null and is_instance_valid(causerie) and not _en_conversation:
+		_tete.cible = causerie.global_position + Vector3.UP * (1.2 if causerie.get("_assis") != "" else 1.55)
+		_tete.voulu = true
+	elif joueur != null and (dist < DIST_TETE or _en_conversation):
 		var cam: Camera3D = joueur.camera if "camera" in joueur else null
 		_tete.cible = cam.global_position if cam != null else joueur.global_position + Vector3.UP * 1.6
 		_tete.voulu = true
@@ -583,7 +771,7 @@ func _interactions(dist: float, dt: float) -> void:
 	# interpellation au passage
 	_delai_interpelle -= dt
 	var phrases: Array = donnees.get("interpellations", [])
-	if dist < DIST_INTERPELLE and _delai_interpelle <= 0.0 and not phrases.is_empty() and not _en_conversation:
+	if dist < DIST_INTERPELLE and _delai_interpelle <= 0.0 and not phrases.is_empty() and not _en_conversation and causerie == null:
 		_delai_interpelle = 40.0
 		var selon := Disposition.interpellation(self)    # froid, chaleureux ou fermé selon la réputation (scripts/disposition.gd)
 		dialogue.dire_au_passage(nom_affiche(), selon if selon != "" else phrases.pick_random())
@@ -629,6 +817,17 @@ func rentrer(but: Vector3, entre: bool, via: Array = [], vite := false, poste_jo
 		return
 	if _en_conversation:
 		return
+	if _assis in ["assoir", "assis"]:
+		_assis = "lever"          # assis sur son banc : il se lève d'abord (Sitting_Exit), puis part
+		_assis_t = anim.get_animation("Sitting_Exit").length if anim != null and anim.has_animation("Sitting_Exit") else 0.8
+		_jouer("Sitting_Exit", 0.2)
+	causerie = null
+	_causerie_marche = false
+	if activite.begins_with("@"):
+		_metier_soir = Metiers.metier(activite.substr(1))
+		if not _metier_soir.is_empty():
+			_m_i = randi() % (_metier_soir["etapes"] as Array).size()
+			_m_t = Metiers.duree(_metier_soir["etapes"][_m_i], anim) * randf_range(0.3, 1.0)
 	if not entre:
 		_eveil_t = 0.0
 	_route = via.duplicate()
@@ -650,7 +849,9 @@ func rentrer(but: Vector3, entre: bool, via: Array = [], vite := false, poste_jo
 func installer(but: Vector3, entre: bool, poste_jour := false, activite := "", cap := NAN) -> void:
 	if seq != "":
 		_quitter_lit()      # placement direct : il quitte le lit sans animation
+	_assis_fin()
 	rentrer(but, entre, [], false, poste_jour, activite, cap)
+	_assis_fin()
 	_en_conversation = false
 	global_position = but + Vector3(0, 0.05, 0)
 	_instant = true
@@ -658,6 +859,12 @@ func installer(but: Vector3, entre: bool, poste_jour := false, activite := "", c
 	_instant = false
 
 func _vers_but(dt: float) -> Vector3:
+	if _assis == "lever":
+		_assis_t -= dt
+		if _assis_t > 0.0:
+			return Vector3.ZERO
+		_assis_fin()
+		_t = 0.0
 	if _route.is_empty():
 		_arrive()
 		return Vector3.ZERO
@@ -674,7 +881,8 @@ func _vers_but(dt: float) -> Vector3:
 		_prog_t = 0.0
 		_prog_d = d.length()
 	var dernier := _route.size() == 1
-	if d.length() < (0.45 if dernier else 0.8) or _bloque > 3.0 or pietine or _t > 120.0:
+	var fin_fixe := dernier and _poste_vie == null and bool(metier.get("fixe", false)) and not _entre
+	if d.length() < ((0.2 if fin_fixe else 0.45) if dernier else 0.8) or _bloque > 3.0 or pietine or _t > 120.0:
 		var coince := _bloque > 3.0 or pietine or _t > 120.0
 		_bloque = 0.0
 		_prog_t = 0.0
@@ -692,6 +900,9 @@ func _arrive() -> void:
 	_vite = false
 	_vit = 0.0
 	velocity = Vector3(0, velocity.y, 0)
+	if not _entre and _poste_vie == null and bool(metier.get("fixe", false)):
+		var pp: Vector3 = points[0]      # poste de métier fixe (enclume, étal, banc) : il se recale exactement dessus (au plus 20 cm)
+		global_position = Vector3(pp.x, global_position.y, pp.z)
 	if _entre:
 		if lit != null and is_instance_valid(lit):
 			coucher_au_lit(_instant)
@@ -768,6 +979,8 @@ func remplacer(c: Node) -> void:
 	if seq != "":
 		_quitter_lit()          # couché / assis au bord de son lit : il se lève d'un coup (lit libéré, modèle redressé) avant de céder son corps
 	_eveil_t = 0.0
+	_assis_fin()
+	causerie = null
 	remplace = c
 	_en_conversation = false
 	_route.clear()
