@@ -52,6 +52,11 @@ static func creer(id: String, ressorts := true, avec_collisions := true) -> Node
 			_epee_au_flanc(sq)
 		"tripo_garde_verre":
 			_epee_en_main(sq)
+			var pr := PoignetRepos.new()
+			pr.name = "PoignetRepos"
+			pr.os_main = sq.find_bone("hand_r")
+			pr.anim = ap
+			sq.add_child(pr)
 		"tripo_archer":
 			ChasseresseNordique.equiper_arc(racine, sq)      # le vrai arc du jeu : porté le long du corps, bandé (corde tirée) puis relâché (clips Pistol_*)
 		"tripo_garde_lance":
@@ -144,6 +149,26 @@ class LanceDroite extends SkeletonModifier3D:
 ## referment en poing (même pose de doigts dans tous les clips). Prise MESURÉE sur ce poing (outils/prise_verre.gd) : la poignée passe dans le
 ## creux du poing (cercle des jointures des quatre doigts), dans l'axe index -> auriculaire, garde juste au-dessus de l'index et du pouce,
 ## tranchant dans la direction des doigts. Repère de hand_r.
+## Garde en armure de verre, hors des clips d'épée (Idle, Walk...) : le poing des clips tient la lame à l'horizontale, pointée devant (voire
+## vers le haut) ; on fléchit le poignet (inclinaison cubitale, autour de la normale de la paume) pour que la lame descende le long de la
+## jambe, pointe vers le sol devant le pied. Fondu quand un clip Sword_* commence ou finit.
+static var POIGNET_REPOS_DEG := -75.0
+static var POIGNET_AXE := Vector3(1, 0, 0)        # repère de hand_r
+class PoignetRepos extends SkeletonModifier3D:
+	var os_main := -1
+	var anim: AnimationPlayer
+	var w := 1.0
+	func _process_modification_with_delta(dt: float) -> void:
+		var sq := get_skeleton()
+		if sq == null or os_main < 0:
+			return
+		var cible := 0.0 if (anim != null and String(anim.current_animation).begins_with("Sword_")) else 1.0
+		w = move_toward(w, cible, dt * 5.0)
+		if w <= 0.0:
+			return
+		var q := sq.get_bone_pose_rotation(os_main)
+		sq.set_bone_pose_rotation(os_main, q * Quaternion(GardeTripo.POIGNET_AXE.normalized(), deg_to_rad(GardeTripo.POIGNET_REPOS_DEG) * w))
+
 static var PRISE_VERRE_CENTRE := Vector3(-0.0258, 0.0952, 0.0056)
 static var PRISE_VERRE_AXE := Vector3(-0.01446, 0.24307, 0.96990)
 static var PRISE_VERRE_ECH := 1.0

@@ -84,6 +84,11 @@ func _go() -> void:
 			p0 = _libre(p0)
 		sol = Vector3(p0.x, m.hauteur(p0.x, p0.z), p0.z)
 		print("ARMURE place libre ", sol)
+	if args.has("poignet"):
+		GardeTripo.POIGNET_REPOS_DEG = float(args.poignet)
+	if args.has("poignet_axe"):
+		var a := String(args.poignet_axe).split(",")
+		GardeTripo.POIGNET_AXE = Vector3(float(a[0]), float(a[1]), float(a[2]))
 	garde = GardeTripo.creer(String(args.get("modele", "tripo_garde_verre")))
 	m.add_child(garde)
 	garde.global_position = sol
