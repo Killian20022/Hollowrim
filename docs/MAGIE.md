@@ -129,7 +129,7 @@ valeurs à PLEINE charge.
 | Sort | École | Type | Coût | Dégâts | Statut | Portée / rayon | Recharge | Double (principaux ×) |
 |---|---|---|---|---|---|---|---|---|
 | Jet de flammes | feu | canalisé, jet (traverse 3) | 13 /s | 15 /s | brûlure 4 /s, 3 s | 9 m, largeur 0,9 | — | dégâts 2, coût 2,2, largeur 1,8, portée 1,25 |
-| Boule de feu | feu | chargé 1,2 s (commun), projectile 24 m/s | 28 (×0,5 au tap) | 30 (×0,5 au tap, ×0,72 avant le max) + explosion | brûlure 4 /s, 3 s | rayon 2,2 | 0,5 s | dégâts 2,2, coût 2,4, rayon 1,6 |
+| Boule de feu | feu | chargé 1,2 s (commun), projectile 24 m/s | 25 (×0,5 au tap) | 30 (×0,5 au tap, ×0,72 avant le max) + explosion | brûlure 4 /s, 3 s | rayon 2,2 | 0,5 s | dégâts 2,2, coût 2,4, rayon 1,6 |
 | Explosion incendiaire | feu | zone visée, chargée 1 s | 42 | 38 | brûlure 6 /s, 4 s | 14 m, rayon 3 | 4 s | dégâts 2, coût 2,3, rayon 1,5 |
 | Éclat de glace | glace | chargé 1,2 s (commun), 3 éclats 34 m/s | 16 (×0,5 au tap) | 12 ×3 (×0,5 au tap) | gel 0,25, 2,5 s | — | 0,3 s | 6 éclats, dégâts 1,6, coût 2,2 |
 | Lance de givre | glace | chargé 1,2 s (commun), traverse 1 | 30 (×0,5 au tap) | 44 (×0,5 au tap) | gel 0,45, 3 s | — | 0,8 s | lance + 2 cristaux, traverse 3, dégâts 2,1 |
@@ -183,7 +183,7 @@ prix) :
 | Explosion obscure | 28 | 34 | ténèbres ×0,7 sur les morts-vivants ; valeur du doc |
 | Drain de vie | 13 /s | 18 /s | rend 60 % des dégâts : sa raison d'être est la survie, pas le coût |
 | Mana hors combat | 7 /s | 18 /s après 4 s sans lancer | le mage qui a fini son combat repart plein en ~6 s (avant ~14 s) |
-| Inchangés | | | boule de feu 24, jet de flammes 15 /s, éclat de glace 6 ×3 (8 mana), tempête, orage, rayon, soin, protection, enchantements (+5) |
+| Inchangés | | | boule de feu 25 (coût de pleine charge, 177b367e), jet de flammes 15 /s, éclat de glace 6 ×3 (8 mana), tempête, orage, rayon, soin, protection, enchantements (+5) |
 
 **Banc « bot mage »** : `outils/test_mage_bot.gd` (voir « Tests »). Mesures du 2026-11-05 (graine fixe, draugrs de 104 PV, départ à 5,4 m comme le banc de
 mêlée, 2 essais contre 1 draugr, 2 contre 2 ; le bot est un PLAFOND d'efficacité : il vise toujours) :
@@ -192,7 +192,7 @@ mêlée, 2 essais contre 1 draugr, 2 contre 2 ; le bot est un PLAFOND d'efficaci
 
 | Sort (simple) | 1 draugr AVANT | 1 draugr APRÈS | 2 draugrs AVANT | 2 draugrs APRÈS |
 |---|---|---|---|---|
-| Boule de feu (24 mana) | 4,1 s, 0 PV, 28 mana restants | inchangé | 7,1 s, 17 PV, 7 mana | inchangé |
+| Boule de feu (25 mana) | 4,1 s, 0 PV, 28 mana restants | inchangé | 7,1 s, 17 PV, 7 mana | inchangé |
 | Éclat de glace (8 mana) | 3,2 s, 0 PV, 44 mana | inchangé | 7,1 s, 33 PV, 6 mana | inchangé |
 | Arc électrique | **18,1 s, il meurt (0 kill sur 2), 100 PV** | 4,6 s, 0 PV, 38 mana | **meurt, 0 kill** | 6,4 s, 0 PV, 13 mana, 2 tués (rebond) |
 | Trait d'ombre | 5,6 s, 16 PV, **0 mana** | 3,4 s, 0 PV, 37 mana | **meurt, 0 kill** | 11,9 s, 95 PV, 50 % de morts, 50 % tués |
