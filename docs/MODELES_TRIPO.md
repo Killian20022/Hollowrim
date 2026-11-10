@@ -17,6 +17,14 @@ Depuis le 2026-11-09 (branche `integration/tripo_pnj`), les modèles Tripo valid
 
 Modèles Tripo : `assets/pnj/tripo_*_rig.glb` (gardes, jarl, mage), `assets/pnj/ennemis/tripo_*_rig.glb`, `assets/essai_tripo/` (armure dorée, puits, chaumière, taverne). Rien de l'ancien n'a été supprimé.
 
+## Passe palette (G1, audit 2026-11-10, branche `graphismes/palette_tripo`)
+
+Teinte, saturation, contraste et lueur des matériaux Tripo réglés dans **une seule table** : `scripts/palette_tripo.gd` (`PaletteTripo.TABLE`),
+lue par `ArmureTripo` (« armure »), `EnnemiTripo` (« draugr », « archer », « squelette », « gobelin ») et `PuitsTripo` (« puits »).
+Aucun maillage, aucune échelle, aucune texture source n'est touché ; le trio gardes Tripo / Gunnar / Eirwen (référence) n'est pas réglé.
+Réversible : `-- --palette-tripo-ancienne` rend les réglages d'avant (`PaletteTripo.ANCIENNE`). Planches : `outils/capture_palette_tripo.gd`
+(`--vue=village|crypte|grotte`, avec et sans l'option) puis `bash outils/planche_palette_tripo.sh <photos> <sortie>`.
+
 ## Remettre les anciens
 
 - **Toute la partie** : argument utilisateur `--modeles-anciens` (tous les groupes) ou `--modeles-anciens=gardes,jarl,ennemis,gobelin,mage,puits,maison`
