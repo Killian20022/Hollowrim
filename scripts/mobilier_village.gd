@@ -701,7 +701,7 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 		var est_l4 := idx >= n_l4
 		num += 1
 		var xe: Transform3D = Transform3D.IDENTITY if e[1] < 0 else etals[e[1]]
-		var lp: Vector3 = e[2]
+		var lp: Vector3 = e[2] if e[1] >= 0 else MaisonTripo.deplacer(e[2])      # auberge h2 Tripo : props hors de ses murs
 		if PropsQuaternius.remplace and e[1] >= 0:      # comptoir des étals Quaternius : dessus à 0,8 (au lieu de 0,9), z -0,45 à -0,75 ; réserve derrière inchangée
 			if lp.y > 0.5:
 				lp = Vector3(lp.x, lp.y - 0.1, -0.45 + (lp.z + 0.62) * 0.9)
