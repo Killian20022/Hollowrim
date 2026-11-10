@@ -12,6 +12,14 @@ const MODELES := {
 	"tripo_archer": preload("res://assets/pnj/tripo_archer_rig.glb"),
 }
 const EPEE := preload("res://assets/modeles/joueur/epee_nordique.glb")
+## Variantes de livrée (lot tripo/gardiens) : 0 = texture Tripo d'origine ; 1 « lie-de-vin », 2 « garance » (fer noirci), 3 « passé »
+## (rouge délavé) : textures précalculées par outils/generer_variantes_gardes_tripo.gd (assets/pnj/<id>_v<n>.png), chargées à la demande.
+const NB_VARIANTES := 3
+static func texture_variante(id: String, variante: int) -> Texture2D:
+	if variante <= 0 or variante > NB_VARIANTES:
+		return null
+	var ch := "res://assets/pnj/%s_v%d.png" % [id, variante]
+	return load(ch) as Texture2D if ResourceLoader.exists(ch) else null
 ## Prise de la main droite : celle du corps du joueur (corps_joueur.gd, PRISE) : milieu de la poignée dans le poing, lame dans l'axe de l'avant-bras.
 ## Inclinaison de la lame autour de l'axe de la main (degrés, + = pointe vers l'avant-bas) et échelle de l'épée (le garde est plus massif que le joueur).
 static var EPEE_INCL := -35.0
@@ -28,15 +36,17 @@ static var AMORTI := 0.40
 static var GRAVITE := 1.6
 const BRAS_DROIT := ["upperarm_r", "lowerarm_r", "hand_r"]
 
-static func creer(id: String, ressorts := true, avec_collisions := true) -> Node3D:
+## variante : livrée 0..NB_VARIANTES (voir texture_variante) ; même corps, même rig, mêmes clips.
+static func creer(id: String, ressorts := true, avec_collisions := true, variante := 0) -> Node3D:
 	var racine: Node3D = (MODELES[id] as PackedScene).instantiate()
+	var tex_var := texture_variante(id, variante)
 	racine.name = "Pnj" + id.capitalize().replace(" ", "")
 	var sq: Skeleton3D = racine.find_child("Skeleton3D", true, false)
 	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
 		for s in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(s)
 			if src is BaseMaterial3D and (src as BaseMaterial3D).albedo_texture != null:
-				var tex: Texture2D = (src as BaseMaterial3D).albedo_texture
+				var tex: Texture2D = tex_var if tex_var != null else (src as BaseMaterial3D).albedo_texture
 				var mat := Palette.materiau(tex, Vector2.ONE, Color.WHITE, true)   # double face
 				mat.set_shader_parameter("tex_neige", tex)
 				mi.set_surface_override_material(s, mat)
@@ -61,6 +71,7 @@ static func creer(id: String, ressorts := true, avec_collisions := true) -> Node
 	if ressorts:
 		_ressorts(sq, avec_collisions)
 	racine.set_meta("pnj_nordique", id)
+	racine.set_meta("variante_tripo", variante if tex_var != null else 0)
 	return racine
 
 ## Bibliothèque des humains ; pour le lancier, copie dont le bras droit reste figé dans la pose A du modèle (la hampe reste verticale, ne se

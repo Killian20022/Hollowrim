@@ -203,6 +203,10 @@ static func habitants_essai() -> Array:
 	push_warning("Villageois : JSON invalide : " + chemin)
 	return []
 
+## Haldor (id « garde ») en garde Tripo : corps et livrée (lot tripo/gardiens, data/gardes.json pour les autres gardes).
+const HALDOR_TRIPO := "tripo_garde_epee"
+const HALDOR_LIVREE := 3
+
 func _ready() -> void:
 	add_to_group("villageois")
 	add_to_group("cibles_combat")    # la lame et les sorts du joueur le touchent (Crime : avertissement, puis agression)
@@ -220,6 +224,8 @@ func _ready() -> void:
 	# corps Humain (Quaternius) par défaut ; --persos-kit : personnage de base unifié (PersoDefs)
 	if id == "chef" and ModelesTripo.actif("jarl") and not ModelesTripo.ancien_impose(donnees):      # jarl Tripo Gunnar (scripts/jarl_tripo.gd) par défaut : même id (dialogue, quêtes, factions, sommeil), autre corps ; ancien : --modeles-anciens=jarl
 		modele = JarlTripo.creer()
+	elif id == "garde" and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(donnees):      # Haldor (lot tripo/gardiens) : garde Tripo à l'épée, livrée « passé » (GardeTripo.texture_variante), comme les gardes du village ; ancien : --modeles-anciens=gardes ou "modele_ancien": true
+		modele = GardeTripo.creer(HALDOR_TRIPO, true, true, HALDOR_LIVREE)
 	elif donnees.has("pnj"):       # habitant anonyme (data/habitants.json) : dérivé d'un archétype nordique validé, ou l'ancien corps Humain pour l'avant/après
 		modele = Humain.creer(donnees.get("ancien", APPARENCES["chef"])) if PersosQuat.anciens() else PnjNordique.creer(String(donnees["pnj"]))
 	elif Personnage.kit_actif():
