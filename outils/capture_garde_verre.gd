@@ -97,6 +97,10 @@ func _go() -> void:
 			await _planche()
 		"film_simple":
 			await _film_simple()
+		"poing":
+			await _poing()
+		"village":
+			await _village()
 		"stills":
 			await _stills()
 		"film":
@@ -187,6 +191,96 @@ func _film_simple() -> void:
 			cam.fov = 32.0
 			_vue(c + Vector3(sin(az) * 3.6, 0.3, cos(az) * 3.6), c)
 			await process_frame
+
+## Gros plans de la main droite (épée cachée avec --sans_epee, ou tenue) dans plusieurs clips, vue le long de l'axe des jointures (pouce
+## et auriculaire), de dessus, de face et de dessous : forme du poing et place de la poignée.
+func _poing() -> void:
+	var dos := String(args.get("sortie", "/tmp/w/poing"))
+	DirAccess.make_dir_recursive_absolute(dos)
+	var ep := garde.find_child("EpeeJeu", true, false) as Node3D
+	if ep != null and args.has("sans_epee"):
+		ep.visible = false
+	var sq := garde.find_child("Skeleton3D", true, false) as Skeleton3D
+	var cote := String(args.get("main", "r"))
+	var ih := sq.find_bone("hand_" + cote)
+	for nom in String(args.get("clips", "Idle,Walk,Sword_Idle,Sword_Attack")).split(","):
+		var L := anim.get_animation(nom).length
+		for k in int(args.get("instants", "1")):
+			# vues prises AUTOUR du garde (directions du monde relatives à lui : le corps ne masque pas la main) ; côté droit du garde = -X
+			for v in [["face", Vector3(-0.35, 0.15, 1)], ["cote", Vector3(-1, 0.1, 0.1)], ["dos", Vector3(-0.35, 0.15, -1)], ["dessous", Vector3(-0.6, -0.5, 0.6)]]:
+				for i in 4:
+					_jouer(nom, L * (0.3 + k * 0.25))
+					await process_frame
+				var t := sq.global_transform * sq.get_bone_global_pose(ih)
+				var c := t * Vector3(0, 0.08, 0)
+				var d := (garde.global_basis * (v[1] as Vector3)).normalized()
+				cam.fov = float(args.get("fov", "18"))
+				cam.global_position = c + d * float(args.get("dist", "1.1"))
+				cam.look_at(c, Vector3.UP)
+				await _capt("%s/%s_%d_%s.png" % [dos, nom, k, v[0]])
+
+## EN SITUATION : le vrai garde n_e du village (GardesVillage), de jour, vu à hauteur d'yeux (1,65 m) à 3,5 m comme en 1re personne ;
+## puis son APPARITION : joueur éloigné (garde endormi, LOD 2), puis ramené à 4 m, images 1, 2, 4, 8, 16, 40 après le réveil.
+func _village() -> void:
+	var dos := String(args.get("sortie", "/tmp/w/village"))
+	DirAccess.make_dir_recursive_absolute(dos)
+	garde.queue_free()
+	m.cycle.heure = float(args.get("heure", "12"))
+	var gv: Node = m.find_child("GardesVillage", true, false)
+	var g: Node3D = null
+	for x in gv.gardes:
+		if String(x.donnees.get("id", "")) == String(args.get("id", "n_e")):
+			g = x
+	if g == null:
+		print("VILLAGE : garde introuvable")
+		return
+	var j: Node3D = m.joueur
+	var avant := g.global_basis.z.normalized()
+	print("VILLAGE garde ", g.name, " ", g.global_position, " modèle ", g.get("modele").name if g.get("modele") else "?")
+	var vues := [["face", 0.0], ["trois_quarts", 40.0], ["profil", 90.0], ["dos", 180.0], ["trois_quarts_g", -40.0]]
+	for v in vues:
+		var d := avant.rotated(Vector3.UP, deg_to_rad(v[1]))
+		var pc := g.global_position + d * 3.5
+		pc.y = m.hauteur(pc.x, pc.z) + 1.65
+		j.global_position = pc - Vector3(0, 1.65, 0)
+		for i in 40:
+			cam.fov = 60.0
+			_vue(pc, g.global_position + Vector3(0, 1.15, 0))
+			await process_frame
+		await _capt("%s/situation_%s.png" % [dos, v[0]])
+	# gros plan de la main droite à 1,4 m
+	for v in [["main_face", 20.0], ["main_profil", -70.0]]:
+		var sq := g.find_child("Skeleton3D", true, false) as Skeleton3D
+		for i in 20:
+			var hm := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("hand_r")).origin
+			var d := avant.rotated(Vector3.UP, deg_to_rad(v[1]))
+			cam.fov = 40.0
+			_vue(hm + d * 1.4 + Vector3(0, 0.25, 0), hm)
+			await process_frame
+		await _capt("%s/situation_%s.png" % [dos, v[0]])
+	# apparition
+	j.global_position = g.global_position + Vector3(150, 0, 0)
+	for i in 60:
+		await process_frame
+	print("VILLAGE apparition : lod avant ", g.get("lod"))
+	var pc2 := g.global_position + avant * 4.0
+	pc2.y = m.hauteur(pc2.x, pc2.z) + 1.65
+	j.global_position = pc2 - Vector3(0, 1.65, 0)
+	var vis0 := g.visible
+	var k := 0
+	var prises := [1, 2, 4, 8, 16, 40]
+	var n := 0
+	while n < 60:
+		cam.fov = 60.0
+		_vue(pc2, g.global_position + Vector3(0, 1.0, 0))
+		await process_frame
+		if g.visible and not vis0:
+			k += 1
+			if k in prises:
+				await _capt("%s/apparition_%02d.png" % [dos, k])
+		vis0 = vis0 and g.visible
+		n += 1
+	print("VILLAGE fin, lod ", g.get("lod"))
 
 func _jouer(nom: String, t := 0.0) -> void:
 	anim.play(nom)

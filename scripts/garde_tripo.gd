@@ -140,11 +140,26 @@ class LanceDroite extends SkeletonModifier3D:
 		var gp := sq.get_bone_global_pose(os_parent).basis.get_rotation_quaternion()
 		sq.set_bone_pose_rotation(os_haut, gp.inverse() * cible)
 
-## Garde en armure de verre : le gantelet Tripo suit l'os hand_r et ses phalanges (main du squelette, 1,15x) : même épée et même direction de
-## lame que le garde à l'épée (EPEE_DIR, dans l'axe de l'avant-bras), accrochée à hand_r, centre du poing au milieu du gantelet.
-static var CENTRE_POING_VERRE := Vector3(-0.009, 0.165, 0.003)
+## Garde en armure de verre : le gantelet est la main du squelette habillée (sources_blender/scripts/tripo_verre_rig.py), que les clips
+## referment en poing (même pose de doigts dans tous les clips). Prise MESURÉE sur ce poing (outils/prise_verre.gd) : la poignée passe dans le
+## creux du poing (cercle des jointures des quatre doigts), dans l'axe index -> auriculaire, garde juste au-dessus de l'index et du pouce,
+## tranchant dans la direction des doigts. Repère de hand_r.
+static var PRISE_VERRE_CENTRE := Vector3(-0.0258, 0.0952, 0.0056)
+static var PRISE_VERRE_AXE := Vector3(-0.01446, 0.24307, 0.96990)
+static var PRISE_VERRE_ECH := 1.0
+const MILIEU_POIGNEE := 0.04      # milieu de la poignée de cuir le long de la lame (epee_nordique.glb, y 0,002..0,078)
 static func _epee_en_main(sq: Skeleton3D) -> void:
-	_epee_au_flanc(sq, "hand_r", CENTRE_POING_VERRE)
+	var acc := BoneAttachment3D.new()
+	acc.name = "EpeeMain"
+	acc.bone_name = "hand_r"
+	sq.add_child(acc)
+	var arme: Node3D = EPEE.instantiate()
+	arme.name = "EpeeJeu"
+	var y := PRISE_VERRE_AXE.normalized()
+	var x := (Vector3.UP - y * Vector3.UP.dot(y)).normalized()      # tranchant vers le bout des doigts (axe y de la main)
+	arme.transform = Transform3D(Basis(x, y, x.cross(y)).scaled(Vector3.ONE * PRISE_VERRE_ECH), PRISE_VERRE_CENTRE - y * MILIEU_POIGNEE * PRISE_VERRE_ECH)
+	acc.add_child(arme)
+	_matieres_epee(arme)
 
 ## Épée du jeu (epee_nordique.glb, mêmes matières que l'épée du joueur) TENUE dans la main droite (BoneAttachment3D sur « hand_r »).
 static func _epee_au_flanc(sq: Skeleton3D, os_main := "lowerarm_r", centre := Vector3.INF) -> void:

@@ -27,7 +27,8 @@ S = float(arg("echelle", "3.09"))          # yeux du heaume (z source 0,55) à 1
 TRIS = int(arg("tris", "7000"))
 TEXN = int(arg("tex", "512"))
 # décalage le long du bras (u = |x| à l'échelle, m) : nœuds (u source, décalage) ; pente forte = partie molle étirée
-NOEUDS = [(0.10, 0.0), (0.193, 0.02), (0.328, 0.04), (0.400, 0.12), (0.458, 0.12), (0.477, 0.165), (9.0, 0.165)]
+# v2 : l'épaulière est poussée un peu plus vers l'extérieur (épaules +2,5 cm de chaque côté), la manche noire sous elle s'allonge moins
+NOEUDS = [(0.10, 0.0), (0.193, 0.045), (0.328, 0.07), (0.400, 0.12), (0.458, 0.12), (0.477, 0.165), (9.0, 0.165)]
 PIVOT_MAIN, K_MAIN = 0.50, float(arg("k_main", "1.15"))   # gantelet agrandi autour de ce point de l'avant-bras (main nue +10 %)
 J = [1.10, 0.86, 0.68, 0.50]                              # articulations du tabard (3 os) ; le bas est recalé sur le bord du tissu
 
@@ -198,15 +199,179 @@ bpy.ops.import_scene.gltf(filepath=HUMAIN)
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 corps = next(o for o in bpy.data.objects if o.type == "MESH" and o.name.startswith("SuperHero"))
 CP = np.array([corps.matrix_world @ v.co for v in corps.data.vertices])
+B0 = {b.name: (np.array((arm.matrix_world @ b.head_local)[:]), np.array((arm.matrix_world @ b.tail_local)[:])) for b in arm.data.bones}
+
+# ---------------------------------------------------------------- gantelets : la main nue du squelette (doigts séparés, pouce, poids faits pour
+# les clips : elle se referme en poing) habillée en gantelet : épaissie autour de ses os (x GANT_R), un peu allongée au bout des doigts,
+# texture propre 128 px (phalanges en plaques d'acier noirci à liseré gris, dos de main en verre émeraude, paume en cuir sombre)
+DOIGTS_N = ("index", "middle", "ring", "pinky", "thumb")
+def gantelets():
+    src = corps
+    gn_ = {g.index: g.name for g in src.vertex_groups}
+    bm = bmesh.new(); bm.from_mesh(src.data); bm.verts.ensure_lookup_table()
+    dl = bm.verts.layers.deform.verify()
+    def dom(v):
+        d = v[dl]
+        return gn_[max(d.items(), key=lambda kv: kv[1])[0]] if d else ""
+    garder = set()
+    for v in bm.verts:
+        n = dom(v)
+        if abs(v.co.x) > float(arg("gant_x0", "0.69")) and v.co.z > 1.3 and (n.startswith(("hand_", "lowerarm_")) or n.startswith(DOIGTS_N)):
+            garder.add(v.index)
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.index not in garder], context="VERTS")
+    me_g = bpy.data.meshes.new("gantelets"); bm.to_mesh(me_g); bm.free()
+    g = bpy.data.objects.new("gantelets", me_g); bpy.context.collection.objects.link(g)
+    for vg in src.vertex_groups:
+        g.vertex_groups.new(name=vg.name)
+    # (to_mesh garde les poids : couche deform recopiée)
+    G = np.array([v.co[:] for v in me_g.vertices])
+    gnm = {vg.index: vg.name for vg in g.vertex_groups}
+    W = [{gnm[e.group]: e.weight for e in v.groups if e.weight > 1e-4} for v in me_g.vertices]
+    R = float(arg("gant_r", "1.25")); L = float(arg("gant_l", "1.06"))
+    G2 = G.copy(); seg = []
+    for i, w in enumerate(W):
+        q = np.zeros(3); tot = 0.0; best = ("", 0.0, 0.0)
+        for n, wt in w.items():
+            if n not in B0:
+                continue
+            a, b = B0[n]; ab = b - a; t = float(np.clip((G[i] - a) @ ab / (ab @ ab), 0, 1))
+            q += (a + t * ab) * wt; tot += wt
+            if wt > best[1]:
+                best = (n, wt, t)
+        if tot <= 0:
+            seg.append(best); continue
+        q /= tot
+        r = R
+        if best[0].startswith(("hand_", "lowerarm_")):
+            r = 1.0 + (R - 1.0) * 0.8
+            # manchette évasée qui remonte dans le canon d'avant-bras : pas de jour au poignet quand la main plie
+            hx = abs(float(B0["hand_" + ("l" if G[i][0] > 0 else "r")][0][0])); x0 = float(arg("gant_x0", "0.69"))
+            r += float(arg("manchette", "0.25")) * float(np.clip((hx - abs(G[i][0])) / max(hx - x0, 1e-3), 0, 1))
+        d = G[i] - q
+        G2[i] = q + d * r
+        # bout des doigts un peu allongé (gantelet)
+        if best[0].endswith(("_03_l", "_03_r")):
+            a, b = B0[best[0]]
+            G2[i] += (b - a) * (L - 1.0) * best[2] * 2.0
+        seg.append(best)
+    me_g.vertices.foreach_set("co", G2.astype(np.float32).ravel()); me_g.update()
+    # UV et texture
+    TG = 128
+    img = bpy.data.images.new("gantelet", TG, TG)
+    pxg = np.zeros((TG, TG, 4)); pxg[..., 3] = 1
+    rng = np.random.default_rng(3)
+    acier, acier_c, liseré, joint = np.array([0.36, 0.38, 0.38]), np.array([0.58, 0.61, 0.60]), np.array([0.80, 0.82, 0.80]), np.array([0.02, 0.02, 0.02])
+    vert_f, vert_c = np.array([0.07, 0.20, 0.12]), np.array([0.22, 0.42, 0.30])
+    for yy in range(TG):
+        for xx in range(TG):
+            u, v = (xx + 0.5) / TG, (yy + 0.5) / TG
+            if u < 0.5:            # doigts : 3 plaques le long du doigt (joints noirs entre elles) ; dos (u<0,25) acier clair bombé, paume cuir
+                f = (v * 3) % 1.0
+                dos = u < 0.25
+                lat = abs((u % 0.25) / 0.25 - 0.5) * 2          # 0 au milieu du doigt, 1 sur les flancs
+                if dos:
+                    c = acier + (acier_c - acier) * (1 - abs(f - 0.45) * 2) * (1 - 0.6 * lat)
+                    if f < 0.12 or f > 0.90:
+                        c = joint
+                    elif f < 0.22:
+                        c = liseré
+                else:
+                    c = (np.array([0.20, 0.15, 0.11]) if 0.12 < f < 0.90 else joint)
+            elif u < 0.78:         # dos de la main : plaque de verre à facettes, liseré gris
+                uu, vv = (u - 0.5) / 0.28, v
+                fac = (abs(((uu * 3 + vv * 2) % 1.0) - 0.5) < 0.06) or (abs(((uu * 3 - vv * 2) % 1.0) - 0.5) < 0.06)
+                c = vert_f + (vert_c - vert_f) * (0.6 if fac else 0.0) + (vert_c - vert_f) * 0.25 * vv
+                if uu < 0.08 or uu > 0.92 or vv < 0.06 or vv > 0.94:
+                    c = liseré
+                if uu < 0.03 or uu > 0.97 or vv < 0.02 or vv > 0.98:
+                    c = joint
+            else:                  # paume : cuir sombre
+                c = np.array([0.14, 0.12, 0.10])
+            pxg[yy, xx, :3] = np.clip(c * (0.92 + 0.16 * rng.random()), 0, 1)
+    img.pixels[:] = pxg.ravel(); img.pack()
+    while me_g.uv_layers:                 # les UV du corps (copiées avec la main) passeraient avant les nôtres
+        me_g.uv_layers.remove(me_g.uv_layers[0])
+    uvl = me_g.uv_layers.new(name="UVMap")
+    me_g.uv_layers.active = uvl; uvl.active_render = True
+    me_g.calc_loop_triangles()
+    ordre_d = {n: k for k, n in enumerate(DOIGTS_N)}
+    # classe GÉOMÉTRIQUE de chaque sommet (les poids du corps donnent la base des doigts à la main) : au-delà des jointures (ou près du
+    # pouce) -> phalange la plus proche ; sinon dos / paume de la main
+    cls = []
+    for i in range(len(G)):
+        c_ = G[i]; s_ = "l" if c_[0] > 0 else "r"
+        jx = abs(float(B0["index_01_" + s_][0][0]))
+        best = (None, 9.0, 0.0)
+        for f in DOIGTS_N:
+            for k in (1, 2, 3):
+                n = "%s_0%d_%s" % (f, k, s_)
+                a_, b_ = B0[n]; ab = b_ - a_; t = float(np.clip((c_ - a_) @ ab / (ab @ ab), 0, 1))
+                d = float(np.linalg.norm(c_ - (a_ + t * ab)))
+                if d < best[1]:
+                    best = (n, d, t)
+        pouce = best[0].startswith("thumb") and best[1] < 0.022
+        if (abs(c_[0]) > jx - 0.004 and best[1] < 0.03) or pouce:
+            cls.append(best)
+        else:
+            cls.append((None, 0.0, 0.0))
+    for poly in me_g.polygons:
+        n_up = poly.normal.z > 0.0
+        fs = [cls[me_g.loops[li].vertex_index][0] for li in poly.loop_indices]
+        doigt = next((f for f in fs if f is not None), None)
+        tout_doigt = all(f is not None for f in fs)
+        for li in poly.loop_indices:
+            vi = me_g.loops[li].vertex_index
+            n, d, t = cls[vi]
+            if doigt is not None and (tout_doigt or n is not None):
+                n = n or doigt
+                k = int(n.split("_")[1]) - 1                 # 01, 02, 03 -> 0, 1, 2
+                fd = ordre_d[n.split("_")[0]]
+                a_, b_ = B0[n]; ab = b_ - a_
+                pr = a_ + float(np.clip((G[vi] - a_) @ ab / (ab @ ab), 0, 1)) * ab
+                lat = float(np.clip((G[vi][1] - pr[1]) / 0.011, -1, 1))   # travers du doigt (y en T-pose)
+                u0 = 0.0 if n_up else 0.25
+                uvl.data[li].uv = (u0 + 0.125 + 0.11 * lat, (k + float(np.clip(t, 0.0, 1.0))) / 3.0)
+            else:                                             # main : projection plane (le long de la main, en travers)
+                sg_ = 1 if G[vi][0] > 0 else -1
+                a = B0["hand_" + ("l" if sg_ > 0 else "r")][0]
+                ux = np.clip((abs(G[vi][0]) - abs(a[0]) + 0.02) / 0.13, 0, 1)
+                uy = np.clip((G[vi][1] - a[1] + 0.06) / 0.12, 0, 1)
+                uvl.data[li].uv = ((0.51 + 0.26 * uy) if n_up else (0.80 + 0.18 * uy), 0.04 + 0.92 * ux)
+    mt = bpy.data.materials.new("gantelet"); mt.use_nodes = True
+    nt = mt.node_tree; bs = next(nd for nd in nt.nodes if nd.type == "BSDF_PRINCIPLED")
+    ti = nt.nodes.new("ShaderNodeTexImage"); ti.image = img; ti.interpolation = "Closest"
+    nt.links.new(ti.outputs["Color"], bs.inputs["Base Color"])
+    me_g.materials.append(mt)
+    print("GANTELETS : %d sommets, %d tris (main nue x%.2f en épaisseur, bouts x%.2f)" % (len(me_g.vertices), len(me_g.loop_triangles), R, L))
+    return g
 # profondeur : le torse de l'armure centré sur celui du corps (z 1,15..1,40)
 def centre_y(Q):
     s = (Q[:, 2] > 1.15) & (Q[:, 2] < 1.40) & (np.abs(Q[:, 0]) < 0.12)
     return (Q[s, 1].min() + Q[s, 1].max()) / 2
 dy = centre_y(CP) - centre_y(P)
-P[:, 1] += dy; set_pts(garde, P); y = P[:, 1]
+P[:, 1] += dy
 print("PROFONDEUR : armure décalée de %.3f en y" % dy)
+# bras : axe du bras Tripo (bracelets) recalé en profondeur sur les os du bras (sinon le gantelet du squelette sort du canon) ;
+# fondu de l'épaule (u 0,15 -> 0,30) : l'épaulière suit, le torse reste en place
+for s_, sg in (("l", 1), ("r", -1)):
+    a = (sg * P[:, 0] > 0.50) & (sg * P[:, 0] < 0.68) & (P[:, 2] > 1.3)
+    ya = float(np.median(P[a, 1]))
+    yo = float((B0["lowerarm_" + s_][0][1] + B0["hand_" + s_][0][1]) / 2)
+    k = sstep(0.15, 0.30, sg * P[:, 0]) * sstep(1.15, 1.25, P[:, 2])
+    P[:, 1] += (yo - ya) * k
+    print("BRAS %s : axe en y %.3f -> os %.3f" % (s_, ya, yo))
+# main Tripo (bloc décimé, doigts soudés, hors des os des doigts) retirée au-delà du poignet ; remplacée plus bas par le gantelet
+GANT_X = float(arg("gant_x", "0.716"))
+bm = bmesh.new(); bm.from_mesh(me); bm.verts.ensure_lookup_table()
+for i, v in enumerate(bm.verts):
+    v.co = Vector(P[i])
+bmesh.ops.delete(bm, geom=[v for v in bm.verts if abs(v.co.x) > GANT_X and v.co.z > 1.3], context="VERTS")
+bm.to_mesh(me); bm.free(); me.update()
+nv = len(me.vertices); P = pts(garde); x, y, z = P[:, 0], P[:, 1], P[:, 2]
+print("MAIN TRIPO retirée : reste %d sommets, %d tris" % (nv, len(me.polygons)))
+gant = gantelets()
 for o in list(bpy.data.objects):
-    if o.type == "MESH" and o != garde:
+    if o.type == "MESH" and o not in (garde, gant, corps):
         bpy.data.objects.remove(o)
 def jambe_x(sg):
     cuisse = P[(z > 0.55) & (z < 0.75) & (sg * x > 0.03) & (np.abs(x) < 0.30)]
@@ -227,44 +392,34 @@ for b in arm.data.bones:
     b.use_deform = not (n == "root" or n.endswith("_leaf_l") or n.endswith("_leaf_r"))
 B = {b.name: (np.array((arm.matrix_world @ b.head_local)[:]), np.array((arm.matrix_world @ b.tail_local)[:])) for b in arm.data.bones}
 
-# ================================================================ C. poids du corps : chaleur sur un DOUBLE ÉTANCHE (remaillage voxel), reportés
-# sur l'armure par les plus proches sommets (la chaleur échoue sur les plaques Tripo à une face)
-prox = garde.copy(); prox.data = me.copy(); prox.name = "proxy"
-bpy.context.collection.objects.link(prox)
-for g in list(prox.vertex_groups):
-    prox.vertex_groups.remove(g)
-rm = prox.modifiers.new("vox", "REMESH"); rm.mode = "VOXEL"; rm.voxel_size = float(arg("voxel", "0.012"))
-bpy.context.view_layer.objects.active = prox
-bpy.ops.object.modifier_apply(modifier=rm.name)
-print("DOUBLE ÉTANCHE : %d sommets" % len(prox.data.vertices))
-for o in bpy.context.selected_objects:
-    o.select_set(False)
-prox.select_set(True); arm.select_set(True)
-bpy.context.view_layer.objects.active = arm
-bpy.ops.object.parent_set(type="ARMATURE_AUTO")
-pn = {g.index: g.name for g in prox.vertex_groups}
-PP = np.array([v.co[:] for v in prox.data.vertices])
-pw = [{pn[g.group]: g.weight for g in v.groups if g.weight > 1e-4} for v in prox.data.vertices]
-print("double : sommets sans poids :", sum(1 for w in pw if not w))
-kdp = kdtree.KDTree(len(PP))
-for i, p in enumerate(PP):
-    if pw[i]:
-        kdp.insert(Vector(p), i)
-kdp.balance()
+# ================================================================ C. poids du corps : transférés du CORPS HUMAIN du squelette (homme_vetu, poids faits
+# pour les clips) : 12 plus proches sommets du corps, pondérés en 1/d². (La chaleur directe échoue sur les plaques Tripo à une face, et
+# celle d'un double voxel n'est pas fiable.) Jambes et mains sont reprises plus bas par zones.
+cnoms = [g.name for g in corps.vertex_groups]
+CW = np.zeros((len(corps.data.vertices), len(cnoms)))
+for v in corps.data.vertices:
+    for e in v.groups:
+        CW[v.index, e.group] = e.weight
+kdc = kdtree.KDTree(len(CP))
+for i, p in enumerate(CP):
+    kdc.insert(Vector(p), i)
+kdc.balance()
 body = []
 for i in range(nv):
-    w = {}
-    for co, j, d in kdp.find_n(Vector(P[i]), 4):
-        f = 1.0 / (d + 0.004) ** 2
-        for n_, v_ in pw[j].items():
-            w[n_] = w.get(n_, 0.0) + v_ * f
-    # jambes : jamais l'os de l'autre jambe (le tabard et les tassettes relient les jambes dans le double)
+    acc = np.zeros(len(cnoms))
+    for co, j, d in kdc.find_n(Vector(P[i]), 12):
+        acc += CW[j] / (d + 0.01) ** 2
     if z[i] < 1.0:
         autre = "_r" if x[i] > 0 else "_l"
-        w = {n_: v_ for n_, v_ in w.items() if not (n_.endswith(autre) and n_.startswith(("thigh", "calf", "foot", "ball")))} or w
-    t_ = sum(w.values()) or 1.0
-    body.append({n_: v_ / t_ for n_, v_ in w.items()})
-bpy.data.objects.remove(prox)
+        acc *= np.array([0.0 if (n.endswith(autre) and n.startswith(("thigh", "calf", "foot", "ball"))) else 1.0 for n in cnoms])
+    t_ = acc.sum() or 1.0
+    body.append({cnoms[j]: acc[j] / t_ for j in np.nonzero(acc / t_ > 1e-3)[0]})
+bpy.data.objects.remove(corps)
+garde.parent = arm
+garde.matrix_parent_inverse = Matrix.Identity(4)
+for md in list(garde.modifiers):
+    garde.modifiers.remove(md)
+md = garde.modifiers.new("Armature", "ARMATURE"); md.object = arm
 garde.parent = arm
 garde.matrix_parent_inverse = Matrix.Identity(4)
 for md in list(garde.modifiers):
@@ -394,7 +549,9 @@ if arg("blend"):
     bpy.ops.wm.save_as_mainfile(filepath=arg("blend"), copy=True)
 for o in bpy.context.selected_objects:
     o.select_set(False)
-arm.select_set(True); garde.select_set(True)
+gant.parent = arm; gant.matrix_parent_inverse = Matrix.Identity(4)
+mg = gant.modifiers.new("Armature", "ARMATURE"); mg.object = arm
+arm.select_set(True); garde.select_set(True); gant.select_set(True)
 bpy.context.view_layer.objects.active = arm
 bpy.ops.export_scene.gltf(filepath=OUT_GLB, export_format="GLB", use_selection=True, export_skins=True, export_animations=False, export_apply=False)
 print("EXPORT OK", OUT_GLB, "tris", len(me.polygons), "os", len(arm.data.bones))
