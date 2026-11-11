@@ -30,6 +30,7 @@ TESTS=(
 	"test_dialogue_filtre|--nouvelle"   # étude Daggerfall : journal à index entier daté, répliques filtrées (première valide gagne)
 	"test_rangs_faction|--nouvelle"   # étude Daggerfall : factions jouables, rangs, délai, exclusion, avantages
 	"test_factions_vivantes|--nouvelle"   # factions vivantes : répliques de rang, quêtes de faction, crime vu -> réputation, dette
+	"test_combat_guide|--nouvelle"   # premier combat guidé (bloquer → frapper → coup puissant → se soigner, une fois, sautable) + bulles vol / prime / sommeil / serrure / rang
 	"test_prologue|--nouvelle --prologue --aides"   # accueil (arrivée, premier objectif, bulles d'aide), quêtes qui se répondent, répliques « après », fin du chapitre
 	"test_archer|--nouvelle"
 	"test_arc_joueur|--nouvelle"   # arc du joueur (armes/arc v7) : bander, tirer, balistique, 1re et 3e personne

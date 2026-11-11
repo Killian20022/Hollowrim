@@ -22,6 +22,9 @@ const REMISE_MAX := 0.3
 ## Nœud en service (un par monde) : lu par les fonctions statiques (Marchand, Sommeil).
 static var courant: Rangs = null
 
+## Un rang vient d'être gagné ou perdu (adhésion, promotion) : déclencheur de l'aide « rang de faction » (scripts/aides.gd).
+signal rang_change(faction: String, rang: int)
+
 var d := {}
 var joueur: CharacterBody3D
 var hud: Control
@@ -220,6 +223,7 @@ func promouvoir(faction: String) -> Array:
 func _fixer_rang(faction: String, r: int) -> void:
 	_rang[faction] = r
 	_dernier[faction] = _heure()
+	rang_change.emit(faction, r)
 	if r >= 0 and is_inside_tree():
 		Sons.interface(self, ["ui_quete_fin"], -9.0)
 
