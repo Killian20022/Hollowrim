@@ -38,11 +38,13 @@ const CAMP_CHASSEUR := [["q_tente", 0.0, 0.0, 0.0, 0.0, true, 0.8], ["q_feu_bois
 const RECOLTE := [["pq_tonneau_pommes", 0.0, 0.0, 0.0, 0.0, true], ["pq_sac", 0.8, 0.1, 20.0, 0.0, false], ["pq_sac", 1.3, -0.15, -30.0, 0.0, false],
 	["pq_cageot_carottes", -0.85, 0.15, 10.0, 0.0, false], ["pq_cageot_pommes", -0.85, 0.15, -5.0, 0.32, false], ["pq_seau_bois", 0.45, 0.75, 0.0, 0.0, false],
 	["pq_cageot_vide", -0.4, 0.85, 40.0, 0.0, false]]
-## Offrandes au pied de la stèle du cercle runique et devant le tertre : urne, vases, coupe, bougies éteintes, pain, pommes, pièces.
-const OFFRANDES := [["pq_vase_4", -0.45, 0.0, 0.0, 0.0, false], ["pq_urne_brisee", 0.5, 0.05, 30.0, 0.0, false], ["pq_calice", 0.0, 0.25, 0.0, 0.0, false],
-	["pq_bougie_2", -0.2, 0.45, 0.0, 0.0, false], ["pq_bougie_1", 0.22, 0.42, 0.0, 0.0, false], ["pq_bougie_2", -0.75, 0.3, 0.0, 0.0, false],
-	["q_pain", 0.3, 0.6, 70.0, 0.0, false], ["q_pomme", -0.05, 0.62, 0.0, 0.0, false], ["q_pomme", 0.08, 0.7, 0.0, 0.0, false],
-	["pq_tas_pieces", 0.62, 0.45, 0.0, 0.0, false]]
+## Offrandes au pied de la stèle du cercle runique et devant le tertre, sur une dalle de pierre posée à plat (lisible de loin) :
+## crâne, calice, bougies éteintes, pain, pomme, pièces sur la dalle ; grand vase, urne brisée, petit vase et pomme au pied.
+const OFFRANDES := [["q_bordure_1", 0.0, 0.15, 0.0, 0.0, true, Vector3(0.62, 1.4, 0.75)], ["pq_vase_2", -1.15, 0.35, 0.0, 0.0, false, 0.8],
+	["pq_urne_brisee", 1.1, 0.4, 30.0, 0.0, false, 0.7], ["pq_vase_4", -0.6, 0.75, 0.0, 0.0, false], ["q_pomme", 0.65, 0.75, 0.0, 0.0, false],
+	["q_crane", 0.0, 0.17, 10.0, 0.19, false, 0.42], ["pq_calice", -0.35, 0.2, 0.0, 0.19, false, 1.3], ["pq_bougie_1", -0.5, 0.05, 0.0, 0.19, false, 1.3],
+	["pq_bougie_2", 0.4, 0.05, 0.0, 0.19, false, 1.6], ["pq_bougie_2", 0.48, 0.25, 0.0, 0.19, false, 1.6], ["q_pain", 0.28, 0.3, 70.0, 0.19, false],
+	["q_pomme", -0.15, 0.34, 0.0, 0.19, false], ["pq_tas_pieces", 0.14, 0.02, 0.0, 0.19, false, 1.2]]
 ## Poteau indicateur à la fourche des chemins : poteau, deux planches clouées en flèche, lanterne murale éteinte.
 const POTEAU := [["q_poutre_ronde", 0.0, 0.0, 0.0, 0.0, true, Vector3(2.2, 1, 1), 0.0, 90.0], ["q_planches_sol", 0.3, 0.1, 90.0, 1.72, false, Vector3(0.2, 1, 0.34), 0.0, 90.0],
 	["q_planches_sol", -0.28, 0.1, 96.0, 1.4, false, Vector3(0.18, 1, 0.3), 0.0, 90.0], ["pq_lanterne_murale", 0.0, 0.1, 0.0, 0.95, false]]
@@ -111,8 +113,9 @@ static func creer(monde: Node3D) -> void:
 		await tree.physics_frame
 		_ecrire_vues(monde, racine, f)
 
-## Outil de captures (`-- --abords-vues=<fichier>`) : pour chaque composition posée, deux points de vue DÉGAGÉS (pas d'arbre, rayon
-## libre jusqu'à elle, terrain compris) parmi 16 directions à 5,5 puis 7,5 m ; écrit au format --captures (type monde, y des pieds).
+## Outil de captures (`-- --abords-vues=<fichier>`) : pour chaque composition posée, un gros plan et deux vues DÉGAGÉS (pas d'arbre, rayon
+## libre jusqu'à elle, terrain compris) parmi 16 directions à 3, 5,5 puis 7,5 m ; écrit au format --captures (type monde, y des pieds).
+## Le fichier peut être celui de --captures du même lancement (lu après les abords) : sa partie « # suite » est conservée.
 static func _ecrire_vues(monde: Node3D, racine: Node3D, chemin: String) -> void:
 	var espace: PhysicsDirectSpaceState3D = monde.get_world_3d().direct_space_state
 	var lignes := PackedStringArray(["# PropsMax v3 abords : vues dégagées choisies par AbordsProps._ecrire_vues"])
@@ -123,9 +126,9 @@ static func _ecrire_vues(monde: Node3D, racine: Node3D, chemin: String) -> void:
 		var c := (mi as MeshInstance3D).global_transform * ab.get_center()
 		var cible := Vector3(c.x, float(monde.hauteur(c.x, c.z)) + 0.5, c.z)
 		var n := 0
-		for d: float in [5.5, 7.5]:
+		for d: float in [3.0, 5.5, 7.5]:      # un gros plan à 3 m, puis deux vues d'ensemble
 			for k in 16:
-				if n >= 2:
+				if n >= 3 or (d < 4.0 and n >= 1):
 					break
 				var t := TAU * float(k) / 16.0
 				var cam := Vector3(c.x + cos(t) * d, 0, c.z + sin(t) * d)
@@ -155,8 +158,10 @@ static func _ecrire_vues(monde: Node3D, racine: Node3D, chemin: String) -> void:
 				n += 1
 		if n == 0:
 			push_warning("PropsMax : abords, aucune vue dégagée pour " + String(mi.name))
+	var ancien := FileAccess.get_file_as_string(chemin)      # ce qui suit « # suite » (vues de la crypte, de la grotte) est gardé
+	var k := ancien.find("# suite")
 	var fa := FileAccess.open(chemin, FileAccess.WRITE)
-	fa.store_string("\n".join(lignes) + "\n")
+	fa.store_string("\n".join(lignes) + "\n" + (ancien.substr(k) if k >= 0 else ""))
 	print("PropsMax : abords, %d vues écrites dans %s" % [lignes.size() - 1, chemin])
 
 ## Dernier recours (terrain en pente autour des ancres choisies) : couronnes de 3, 5 et 7 m autour de la première ancre, même lacet.
