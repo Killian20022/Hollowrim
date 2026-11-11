@@ -286,8 +286,8 @@ func _planche_tps() -> void:
 		imgs.append(_capture())
 	# gros plan des mains sur la poignée (repos)
 	var long0: float = j.camera_tp.bras.spring_length
-	j.camera_tp.bras.spring_length = 1.3
-	j.camera_tp.set("_orbite", deg_to_rad(-130.0))
+	j.camera_tp.bras.spring_length = 1.7
+	j.camera_tp.set("_orbite", deg_to_rad(-140.0))
 	j.camera_tp.recaler()
 	_texte("%s 3e pers. : mains sur la poignee" % etiq)
 	await _attendre(1.0)
@@ -405,7 +405,12 @@ func _planche_arme() -> void:
 		(om as Node3D).global_position = Vector3(0.0, 0.0, 4.6)
 		s.placer_joueur(Vector3(0, 0, 5.9), 0.0, -50.0)
 		await _attendre(0.8)
-		imgs.append(_capture())
+		var cs := _capture()
+		var w := cs.get_width()
+		var h := cs.get_height()
+		var zc := cs.get_region(Rect2i(w / 4, h / 4, w / 2, h / 2))   # centre agrandi x2 (pixels nets)
+		zc.resize(w, h, Image.INTERPOLATE_NEAREST)
+		imgs.append(zc)
 		om.queue_free()
 	_planche(imgs, "%s_planche_arme.png" % etiq, 2)
 

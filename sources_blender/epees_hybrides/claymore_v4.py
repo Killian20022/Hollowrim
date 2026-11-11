@@ -211,8 +211,9 @@ def construire():
     # ---- fusée : cuir, bagues, fil de fer en hélice
     F = Maille("fusee")
     n = 12
-    tour(F, [(ZB + LP * k / n, 0.0165 * (1.0 + 0.07 * math.sin(math.pi * k / n))) for k in range(n + 1)], "cuir", cotes=12,
-         ecrase_y=0.86, uv_tours=2.0)
+    for part in range(3):   # 3 tronçons : la texture du cuir garde le même grain en long et en travers (pas de « bois » étiré)
+        tour(F, [(ZB + LP * k / n, 0.0165 * (1.0 + 0.07 * math.sin(math.pi * k / n))) for k in range(part * 4, part * 4 + 5)], "cuir",
+             cotes=12, ecrase_y=0.86, uv_tours=2.0)
     for z0, z1 in ((ZB - 0.004, ZB + 0.016), (Z_HAUT - 0.016, Z_HAUT + 0.004)):
         tour(F, [(z0, 0.0168), (z0 + 0.004, 0.0205), (z1 - 0.004, 0.0205), (z1, 0.0175)], "fer", cotes=12, ecrase_y=0.86, uv_tours=1.0)
     tours_fil = 7.0

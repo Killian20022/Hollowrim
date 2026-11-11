@@ -571,9 +571,9 @@ class CoucheBras extends SkeletonModifier3D:
 ## (AVANT_DEG), à peine vers la droite (DROITE_DEG). La rotation est répartie entre l'avant-bras (PART_AVANT_BRAS, autour du
 ## coude) et la main (le reste, autour du poignet) : pas de poignet cassé. La main gauche suit (CibleSurArme passe après).
 class RedresseDeuxMains extends SkeletonModifier3D:
-	const AVANT_DEG := 24.0
+	const AVANT_DEG := 14.0
 	const DROITE_DEG := 12.0
-	const PART := 0.85            # part de l'écart corrigée (la tenue garde un peu de son naturel)
+	const PART := 0.95            # part de l'écart corrigée (la tenue garde un peu de son naturel)
 	const PART_AVANT_BRAS := 0.5
 	var tps: Node
 	var poids := 0.0
@@ -585,10 +585,14 @@ class RedresseDeuxMains extends SkeletonModifier3D:
 			return
 		var arme: Node3D = tps.get("_arme_d")
 		var voulu := 0.0
-		if arme != null and is_instance_valid(arme) and tps.categorie("droite") == "arme_deux_mains" and not tps.joueur.mort:
-			voulu = 1.0 - tps._poids_coup()
-		poids = lerpf(poids, voulu, 1.0 - exp(-14.0 * dt))
-		if poids < 0.01 or arme == null or not is_instance_valid(arme):
+		var pc: float = tps._poids_coup()
+		if arme != null and is_instance_valid(arme) and tps.categorie("droite") == "arme_deux_mains" and not tps.joueur.mort and pc < 0.001:
+			voulu = 1.0
+		# dès qu'un coup commence (CorpsCoupsTps, passé AVANT ce modificateur, pose alors lui-même la main gauche sur la poignée), le
+		# redressement s'efface vite (sinon la poignée bougerait sous la main gauche posée) ; il revient en douceur après le coup
+		poids = lerpf(poids, voulu, 1.0 - exp(-(30.0 if voulu < poids else 10.0) * dt))
+		var w := poids * (1.0 - pc)
+		if w < 0.01 or arme == null or not is_instance_valid(arme):
 			return
 		var ia := s.find_bone("lowerarm_r")
 		var im := s.find_bone("hand_r")
@@ -605,7 +609,7 @@ class RedresseDeuxMains extends SkeletonModifier3D:
 		var axe := lame.cross(cible)
 		if axe.length() < 1e-4:
 			return
-		var angle := lame.angle_to(cible) * PART * poids
+		var angle := lame.angle_to(cible) * PART * w
 		var q := Quaternion(axe.normalized(), angle * PART_AVANT_BRAS)
 		var pa := PiedsAuSol.pose_globale(s, ia)
 		PiedsAuSol.poser_globale(s, ia, Transform3D(Basis(q) * pa.basis, pa.origin))
