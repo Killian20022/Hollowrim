@@ -60,6 +60,7 @@ const EXTRAS := [
 const STICK_GAUCHE := {"avant": [JOY_AXIS_LEFT_Y, -1.0], "arriere": [JOY_AXIS_LEFT_Y, 1.0], "gauche": [JOY_AXIS_LEFT_X, -1.0], "droite": [JOY_AXIS_LEFT_X, 1.0]}
 const STICK_DROIT := {"regard_haut": [JOY_AXIS_RIGHT_Y, -1.0], "regard_bas": [JOY_AXIS_RIGHT_Y, 1.0], "regard_gauche": [JOY_AXIS_RIGHT_X, -1.0], "regard_droite": [JOY_AXIS_RIGHT_X, 1.0]}
 const UI_STICK := {"ui_up": [JOY_AXIS_LEFT_Y, -1.0], "ui_down": [JOY_AXIS_LEFT_Y, 1.0], "ui_left": [JOY_AXIS_LEFT_X, -1.0], "ui_right": [JOY_AXIS_LEFT_X, 1.0]}
+const UI_BOUTONS := {"ui_accept": JOY_BUTTON_A, "ui_cancel": JOY_BUTTON_B}
 ## Boutons qu'on ne peut pas attribuer : Start (pause), Guide.
 const RESERVES := [JOY_BUTTON_START, JOY_BUTTON_GUIDE]
 const REGLAGES_DEFAUT := {"sensibilite": 1.0, "inverser_y": false, "zone_morte": 0.2, "courbe": 1}
@@ -256,6 +257,14 @@ static func appliquer() -> void:
 			e.axis = UI_STICK[ui][0]
 			e.axis_value = UI_STICK[ui][1]
 			InputMap.action_add_event(ui, e)
+	# valider / retour des interfaces : A et B (les actions par défaut de Godot n'en ont pas toujours)
+	for ui: String in UI_BOUTONS:
+		if InputMap.has_action(ui):
+			var b := InputEventJoypadButton.new()
+			b.device = -1
+			b.button_index = UI_BOUTONS[ui]
+			if not InputMap.action_has_event(ui, b):
+				InputMap.action_add_event(ui, b)
 	for x: Dictionary in EXTRAS:
 		var id: String = x["id"]
 		if not InputMap.has_action(id):
