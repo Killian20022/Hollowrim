@@ -1660,11 +1660,14 @@ func sauvegarder(emplacement := -1) -> bool:
 		Jeu.copie_secours(chemin)   # copie de secours (dossier choisi dans les options ; échec = simple avertissement)
 	return true
 
-## --test-butin : remplit le sac (pièces, toutes les armures de armures.json, tous les tomes de sorts) et apprend tous les sorts.
+## --test-butin (ou Jeu.PERIODE_TEST_EQUIPEMENT sur une NOUVELLE partie) : remplit le sac (pièces, toutes les armes, armures et bijoux
+## du registre, flèches, tous les tomes de sorts) et apprend tous les sorts.
 ## Une seule fois par partie (drapeau « test_butin_fait » dans la sauvegarde) : pas de doublons au rechargement.
 var _test_butin_fait := false
 func _test_butin() -> void:
 	if not Jeu.test_butin() or _test_butin_fait:
+		return
+	if not Jeu.test_butin_argument() and not Jeu.nouvelle_partie:   # période de test : seulement une nouvelle partie (pas une sauvegarde chargée)
 		return
 	_test_butin_fait = true
 	var inv: Inventaire = joueur.inventaire
@@ -1673,6 +1676,11 @@ func _test_butin() -> void:
 	if armures is Dictionary:
 		for id in armures.get("objets", {}):
 			inv.ajouter(String(id))
+	for id in Inventaire.ids_connus():   # intégration n°3 : toutes les armes (catalogue, uniques, arc), armures et bijoux, une fois chacun
+		if Inventaire.categorie_de(id) in ["arme", "armure", "bijou"] and not inv.a(id):
+			inv.ajouter(id)
+	if Inventaire.connu("fleche"):
+		inv.ajouter("fleche", 100)
 	for id in Inventaire.OBJETS:   # tomes : fiches dont l'effet apprend un sort
 		var effets = Inventaire.OBJETS[id].get("effets", {})
 		if effets is Dictionary and effets.has("apprendre"):
@@ -1681,7 +1689,7 @@ func _test_butin() -> void:
 		joueur.mains.magie.eq.apprendre_tout()
 	inv.capacite_bonus += 10000.0
 	if hud != null:
-		hud.avis("Mode test : tout l'équipement est dans le sac")
+		hud.avis("Mode test : toutes les armes et armures sont dans le sac (I)")
 
 func charger() -> void:
 	if not FileAccess.file_exists(fichier_sauvegarde()):

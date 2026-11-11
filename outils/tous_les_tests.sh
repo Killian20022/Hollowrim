@@ -68,6 +68,7 @@ TESTS=(
 	"test_pnj_village|--nouvelle"
 	"test_habitants_pnj|--nouvelle"   # retours exe 6 : 10 habitants en variantes PnjNordique (os, clips, peau, apparences distinctes)
 	"test_gardes_village|--nouvelle --paisible"
+	"test_gardes_maison|--nouvelle"   # gardes en armure maison (pnj/gardes_armures_maison) : ensembles de data/gardes.json, armes, variété, démembrement, butin
 	"test_vie|--nouvelle --paisible"   # lot vie_pnj : planning jour/nuit, rentrée, sommeil, fuite, répliques, sauvegarde `vie`
 	"test_metiers_pnj|--nouvelle --paisible"   # lot vie/metiers : gestes de métier au poste (clips existants), causeries entre PNJ (filtres, sous-titres, perf)
 	"test_persos_base|--nouvelle"
@@ -154,6 +155,7 @@ TESTS=(
 	"test_jambieres|--nouvelle"   # jambières : emplacement à part (données, butin, boutique, sauvegarde ancienne), chausses par défaut du torse remplacées / rétablies
 	"test_armures_hd|--nouvelle"   # armures HD (données) : 5 ensembles par matériau, variantes enchantées, clés coup_* / resist_magie / vol_vie, butin par palier 1..5 (ButinTables.tirer_armure), Brodd, équilibrage
 	"test_armure_visible|--nouvelle"   # rpg/armures_legeres : armure PORTÉE visible (pièces skinnées sur le corps, masquage de la tenue, aucune traversée sur locomotion / coups / sorts tps, gants sur les bras FPS)
+	"test_periode_test_equipement|--nouvelle --test-butin"   # période de test de l'équipement (Jeu.PERIODE_TEST_EQUIPEMENT) : toutes les armes, armures, bijoux dans le sac, sans limite de poids
 	"test_migration_v2|v1;v2"   # sauvegarde v2 : migration v1 -> v2 sur une copie d'une vraie sauvegarde (niveau recalculé, points à dépenser), relue par un 2e processus
 	"test_progression|--nouvelle"   # RPG lot B : 8 compétences à l'usage, niveau (compétences + quêtes), arbre data/competences/arbre.json (achat, prérequis, réinit. Sigrún), effets des perks, sauvegarde
 	"test_onglets_rpg|--nouvelle"   # RPG lot D : onglets Compétences / Personnage / Quêtes (OngletMenu, coquille d'essai), arbre lu au mieux, choix d'attribut, annonce de niveau + gains de compétence discrets (EcranNiveau)

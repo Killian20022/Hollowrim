@@ -36,8 +36,21 @@ static func mode_outil() -> bool:
 			return true
 	return false
 
+## PÉRIODE DE TEST DE L'ÉQUIPEMENT (demande de l'utilisateur, 2026-11-12 : « mets-moi toutes les armes et armures à disposition
+## pour que je puisse les tester »). true = l'exe se comporte comme avec --test-butin, sans argument : toute NOUVELLE partie (écran
+## titre, « Nouvelle partie ») démarre avec TOUTES les armes (catalogue + armes uniques, arc et flèches), TOUTES les armures (toutes
+## familles, enchantées et uniques), tous les bijoux, tous les tomes, tous les sorts et 5000 pièces ; le sac n'a plus de limite de
+## poids (même en chargeant une partie). Jamais en mode outil (tests, captures : Jeu.mode_outil()).
+## FIN DE LA PÉRIODE DE TEST : repasser à false (seul réglage ; --test-butin / outils/Hollowrim_test.bat restent disponibles).
+const PERIODE_TEST_EQUIPEMENT := true
+
 ## Argument --test-butin (Hollowrim.exe -- --test-butin, outils/Hollowrim_test.bat) : sac plein d'armures, tomes et pièces au départ.
+## Vrai aussi pendant la PÉRIODE_TEST_EQUIPEMENT hors mode outil (voir plus haut).
 static func test_butin() -> bool:
+	return test_butin_argument() or (PERIODE_TEST_EQUIPEMENT and not mode_outil())
+
+## L'argument --test-butin lui-même (remplit aussi le sac d'une partie chargée qui ne l'a jamais été).
+static func test_butin_argument() -> bool:
 	return "--test-butin" in OS.get_cmdline_user_args()
 
 ## Argument --test-titre=<étape> (test automatique des menus, outils/test_menus.sh) ; "" sinon.
