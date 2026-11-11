@@ -604,11 +604,14 @@ def resserrer_piece(o, ident, mats, slot):
             return (0.014, 0.85) if fur else (0.010, 0.65)
         if bottes:
             return (0.010, 0.85) if fur else (0.004, 0.6)
+        # jeu minimal relevé (test_armure_visible : la tunique ressortait de 11 mm à travers le torse pendant gs_slash) ; plus de jeu
+        # encore sur les épaules / bras, qui tournent le plus pendant les coups
+        bras = x > 0.15 and y > 1.15
         if fur:
             if y > 1.36 and x < 0.30:          # col et épaules : la fourrure garde son volume
                 return (0.020, 0.92)
-            return (0.008, 0.6)
-        return (0.005, 0.45)
+            return (0.014, 0.65) if bras else (0.011, 0.6)
+        return (0.013, 0.55) if bras else (0.009, 0.45)
     RS.resserrer(o, fn)
     me.materials.clear()
 
