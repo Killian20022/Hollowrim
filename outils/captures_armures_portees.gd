@@ -11,6 +11,9 @@ const PIECES := {
 	"os": ["casque_os", "cuirasse_os", "gants_os", "bottes_os"],
 	"fer": ["casque_fer", "cuirasse_fer", "gantelets_fer", "bottes_fer"],
 	"acier": ["casque_acier_nordique", "cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
+	# sans casque : contrôle du col de fourrure sous le menton (affinage des lourdes, 2026-11-11)
+	"fer_sans_casque": ["cuirasse_fer", "gantelets_fer", "bottes_fer"],
+	"acier_sans_casque": ["cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
 	"uniques": ["heaume_jarl", "cuirasse_gardiens", "gantelets_hrafn", "bottes_rodeur"],
 	"uniques2": ["capuche_thaumaturge", "brigandine_braise", "gants_cuir", "bottes_cuir"],
 	"verre": ["casque_verre", "cuirasse_verre", "gantelets_verre", "bottes_verre"],
@@ -31,7 +34,7 @@ const PiecesEssai := preload("res://outils/pieces_essai.gd")
 const AVANT := "res://assets/modeles/armures/_avant_os/"
 var avant := false
 const NOMS := {"sans_armure": "Heros sans armure (reference)", "cuir": "CUIR", "fourrure": "FOURRURE", "os": "OS DE DRAUGR",
-	"verre": "VERRE", "verre_enchante": "VERRE RUNIQUE (enchante)", "fer": "FER", "acier": "ACIER NORDIQUE", "obsidienne": "OBSIDIENNE", "or": "OR",
+	"verre": "VERRE", "verre_enchante": "VERRE RUNIQUE (enchante)", "fer": "FER", "acier": "ACIER NORDIQUE", "fer_sans_casque": "FER (sans casque)", "acier_sans_casque": "ACIER NORDIQUE (sans casque)", "obsidienne": "OBSIDIENNE", "or": "OR",
 	"obsidienne_enchante": "OBSIDIENNE RUNIQUE", "or_enchante": "OR CONSACRE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir",
 	"rubis": "RUBIS", "saphir": "SAPHIR", "rubis_enchante": "RUBIS ENCHANTE", "saphir_enchante": "SAPHIR ENCHANTE"}
 var s: Node

@@ -18,7 +18,9 @@ import commun as C
 import pieces as PC
 import hd
 import peintres as PE
-for m in (C, PC, hd, PE):
+sys.path.insert(0, os.path.join(ICI, ".."))
+import retreindre as RT
+for m in (C, PC, hd, PE, RT):
     importlib.reload(m)
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
@@ -348,9 +350,9 @@ def obs_torse(P, t, r, st):
     for (zh, zb, g) in ((1.165, 1.055, 3), (1.255, 1.135, 5)):
         c = [(-60, zh), (0, zh + 0.006), (60, zh)] + arete((66, zh - 0.03), (60, zb + 0.01), 0) + \
             arete((60, zb + 0.01), (0, zb - 0.02), 3, 0.022, g=g) + arete((0, zb - 0.02), (-60, zb + 0.01), 3, 0.022, g=g + 1) + [(-66, zh - 0.03)]
-        hd.plaque(P, A(), PROJ_T, c, 0.011, 0.008, M, UV_D, bombe=0.006, anneaux=2)
+        hd.plaque(P, A(), PROJ_T, c, 0.007, 0.008, M, UV_D, bombe=0.006, anneaux=2)
     # dos : dossière haute et basse
-    for (zh, zb, g, dec) in ((1.17, 1.045, 7, 0.010), (1.47, 1.14, 9, 0.012)):
+    for (zh, zb, g, dec) in ((1.17, 1.045, 7, 0.006), (1.47, 1.14, 9, 0.007)):
         c = [(128, zh), (180, zh + 0.01), (232, zh)] + arete((238, (zh + zb) / 2), (232, zb), 0) + \
             arete((232, zb), (128, zb), 4, 0.03, g=g) + [(122, (zh + zb) / 2)]
         hd.plaque(P, A(), PROJ_T, c, dec, 0.008, M, UV_D, bombe=0.008, anneaux=2)
@@ -359,9 +361,9 @@ def obs_torse(P, t, r, st):
         c = [(5, 1.468), (32, 1.478), (56, 1.452), (69, 1.385), (67, 1.30)] + arete((63, 1.27), (9, 1.215), 3, 0.032, g=11 + s) + [(5, 1.30)]
         if s < 0:
             c = miroir(c)
-        hd.plaque(P, A(), PROJ_T, c, 0.012, 0.009, M, UV_D, bombe=0.012, anneaux=2)
+        hd.plaque(P, A(), PROJ_T, c, 0.007, 0.009, M, UV_D, bombe=0.010, anneaux=2)
     # arête du sternum (par-dessus)
-    hd.plaque(P, A(), PROJ_T, [(-7, 1.472), (7, 1.472), (10, 1.32), (0, 1.17), (-10, 1.32)], 0.012, 0.009, M, UV_D, bombe=0.009, anneaux=2)
+    hd.plaque(P, A(), PROJ_T, [(-7, 1.472), (7, 1.472), (10, 1.32), (0, 1.17), (-10, 1.32)], 0.008, 0.009, M, UV_D, bombe=0.009, anneaux=2)
     # boucle de ceinture
     hd.plaque(P, A(), PROJ_T, [(0, 1.06), (12, 1.0), (0, 0.94), (-12, 1.0)], 0.012, 0.007, M, UV_D, bombe=0.008, anneaux=2)
     gorgerin(P, A(), M, dents=3)
@@ -371,7 +373,7 @@ def obs_torse(P, t, r, st):
     hd.plaque(P, A(), PROJ_T, c, 0.007, 0.003, "tissu.rouge", UV_D, bombe=0.0, anneaux=3, biseau=0.3)
     # tassettes : dos, côtés, devant
     for s in (1, -1):
-        for (a0, a1, zb, dec, g) in ((112, 168, 0.76, 0.010, 31), (56, 106, 0.74, 0.012, 33), (15, 54, 0.72, 0.014, 35)):
+        for (a0, a1, zb, dec, g) in ((112, 168, 0.76, 0.006, 31), (56, 106, 0.74, 0.008, 33), (15, 54, 0.72, 0.010, 35)):
             c = [(a0, 0.985), (a1, 0.985)] + arete((a1 + 3, 0.86), (a1, zb), 0) + arete((a1, zb), (a0, zb + 0.02), 2, 0.05, g=g) + [(a0 - 2, 0.86)]
             if s < 0:
                 c = miroir(c)
@@ -393,7 +395,7 @@ def obs_torse(P, t, r, st):
         Aep = Vector((0.10 * s, 0.0, 1.47)); Bep = Vector((0.385 * s, 0.02, 1.44))
         pj = hd.proj_axe(Aep, Bep)
         bras = C.bvh(r, ["tunique", "peau"], {"upperarm_l" if s > 0 else "upperarm_r", "clavicle_l" if s > 0 else "clavicle_r", "spine_03"}, 0.3)
-        for (t0, t1, a, dec, bom, g) in ((0.90, 1.16, 92, 0.011, 0.004, 47), (0.66, 0.96, 100, 0.014, 0.005, 41), (0.40, 0.74, 106, 0.019, 0.007, 43), (0.02, 0.50, 114, 0.025, 0.014, 45)):
+        for (t0, t1, a, dec, bom, g) in ((0.90, 1.16, 92, 0.007, 0.004, 47), (0.66, 0.96, 100, 0.009, 0.005, 41), (0.40, 0.74, 106, 0.012, 0.007, 43), (0.02, 0.50, 114, 0.016, 0.012, 45)):
             c = [(-a, t0), (0, t0 - 0.02), (a, t0)] + arete((a + 4, (t0 + t1) / 2), (a, t1), 0) + arete((a, t1), (-a, t1), 4, 0.06, axe=1, signe=1, g=g) + \
                 [(-a - 4, (t0 + t1) / 2)]
             hd.plaque(P, [hd.bvh_piece(P), bras], pj, c, dec, 0.009, M, UV_D, bombe=bom, anneaux=2)
@@ -769,6 +771,8 @@ PIECES = {
     "bottes_or": lambda r: PC.bottes(r, _s(OR, id="bottes_or", mat_botte="cuir", niveaux=NIV_BOTTES, greve=False,
                                            decor=[jambes_or, lambda *a: cuissots(*a, mat="or.patine", dents=0, rangs=3)])),
 }
+RETREINT = {"obsidienne": dict(m=0.015, k=0.5, D1=0.12),
+            "or": dict(m=0.015, k=0.55, D1=0.12)}
 ENSEMBLE = {pid: ("obsidienne" if pid.endswith("obsidienne") else "or") for pid in PIECES}
 VARIANTE = {"obsidienne": {"obsidienne": "obsidienne.enchante"}, "or": {"tissu.bleu": "tissu.enchante", "tissu.cape": "tissu.enchante", "tissu.tabard": "tissu.enchante", "tissu.doublure": "tissu.enchante", "gemme": "gemme.enchante"}}
 
@@ -960,6 +964,9 @@ def bavolet_sur_cou(ob, r):
 def construire(pid, dossier=None, enchante=True):
     r = C.charger_reference()
     ob = PIECES[pid](r)
+    if "--epais" not in sys.argv:
+        # affinage 2026-11-11 : pièces rapprochées du corps (retour « trop épaisses ») ; l'obsidienne, la plus massive, plus serrée
+        RT.retreindre(ob, r, **RETREINT[ENSEMBLE[pid]])
     if pid == "casque_or":
         bavolet_sur_cou(ob, r)
     if pid == "bottes_or":
@@ -977,11 +984,13 @@ def construire(pid, dossier=None, enchante=True):
     hd.retirer_uv_sem(ob)
     hd.poser_image(ob, img)
     hd.couleur_blanche(ob)
-    C.exporter([ob], r, os.path.join(C.PORTE, pid + ".glb"))
-    version_sol(r, ob, pid)
+    EXP = "--pas-export" not in sys.argv
+    if EXP:
+        C.exporter([ob], r, os.path.join(C.PORTE, pid + ".glb"))
+        version_sol(r, ob, pid)
     if dossier:
         apercu(r, ob, dossier, pid)
-    if tab_e is not None:
+    if tab_e is not None and EXP:
         img_e = hd.image(pid + "_enchante", tab_e, TEXTURES)
         hd.poser_image(ob, img_e)
         for m in ob.data.materials:
