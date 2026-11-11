@@ -24,6 +24,12 @@ const SEUILS := {
 	"trous_max": 250,                 # nombre de trous tolérés
 	"arme_paume_max": 0.10,         # (m) distance milieu de poignée -> paume
 	"arme_angle_max": 85.0,         # (°) angle lame / avant-bras (sens ignoré, donc 0-90°) ; l'armure de verre tient la lame fléchie à ~78° en Idle
+	# EXCEPTION, désactivée par défaut (--seuil.arme_skinnee=1) : arme SKINNÉE dans le maillage du corps sur l'os de la main (lance des
+	# gardes lanciers Tripo, tripo_rig.py : 100 % hand_r). Sans elle, la hampe qui traverse la paume est mesurée comme de la main (rapport
+	# main / avant-bras 4,53 : faux ÉCHEC). Voir _exclure_armes_skinnees ; aucun autre seuil n'est changé.
+	"arme_skinnee": 0.0,
+	"arme_skinnee_dist": 0.20,      # (m) sommet de main à plus de cela du segment poignet -> bout des doigts = hampe
+	"arme_skinnee_rayon": 0.035,    # (m) rayon de la hampe autour de sa droite ajustée (la partie qui traverse la paume)
 }
 const GROUPES := ["haut", "avant", "main"]
 ## Centile du rapport d'arêtes pose / repos retenu par segment : médiane à l'épaule (le mélange de poids clavicule / bras y étire de 100 %
@@ -45,6 +51,7 @@ var anims: Dictionary = {}                 # nom -> Animation
 var avert: Array = []
 var _est_arme := PackedByteArray()
 var _est_poing := PackedByteArray()
+var _hampe := PackedByteArray()          # hampe d'une arme skinnée sur la main (--seuil.arme_skinnee) : hors largeur de main
 
 func _init(r: Node3D, o := {}) -> void:
 	racine = r
@@ -324,6 +331,8 @@ func calculer_groupes() -> void:
 	groupe.resize(nb_sommets)
 	_est_arme = PackedByteArray()
 	_est_arme.resize(nb_sommets)
+	_hampe = PackedByteArray()
+	_hampe.resize(nb_sommets)
 	_est_poing = PackedByteArray()
 	_est_poing.resize(nb_sommets)
 	for p: Dictionary in pieces:
@@ -348,6 +357,68 @@ func calculer_groupes() -> void:
 				_est_arme[d + i] = 1
 			if p["poing"]:
 				_est_poing[d + i] = 1
+
+## EXCEPTION --seuil.arme_skinnee=1 (lance des gardes lanciers Tripo, fondue dans le maillage et skinnée à 100 % sur hand_r ; la main
+## fait partie du même îlot que la hampe, on ne peut donc pas exclure par composante). Par côté : les sommets dominés par un os de main à
+## plus de `arme_skinnee_dist` du segment poignet -> bout des doigts (base du majeur prolongée d'une paume) sont la hampe (une main n'en
+## sort pas) ; une droite est ajustée sur eux (axe principal) et tout sommet de main à moins de `arme_skinnee_rayon` de cette droite en fait
+## partie aussi (la hampe qui traverse la paume). Ces sommets sont exclus de la SEULE mesure de largeur de la main (rapport main /
+## avant-bras) ; éclats, continuité, étirement et budget restent mesurés sur tout le maillage, hampe comprise. Le nombre est rapporté en
+## avertissement. Les seuils globaux ne changent pas.
+func _exclure_armes_skinnees(pos: PackedVector3Array) -> void:
+	var lim: float = seuil("arme_skinnee_dist")
+	var ray: float = seuil("arme_skinnee_rayon")
+	for ci in 2:
+		var c: String = ["l", "r"][ci]
+		if not os_bras.has(c):
+			continue
+		var d: Dictionary = os_bras[c]
+		var pw := _pos_os(d["main"])
+		var pb := _pos_os(d["bout"]) if d["bout"] >= 0 else pw
+		var ax := (pb + (pb - pw)) - pw
+		var loin: Array[int] = []
+		var main: Array[int] = []
+		for i in nb_sommets:
+			if groupe[i] != ci * 3 + 2:
+				continue
+			main.append(i)
+			var t := clampf((pos[i] - pw).dot(ax) / maxf(ax.length_squared(), 1e-8), 0.0, 1.0)
+			if pos[i].distance_to(pw + ax * t) > lim:
+				loin.append(i)
+		if loin.size() < 10:
+			continue
+		var cg := Vector3.ZERO
+		for i in loin:
+			cg += pos[i]
+		cg /= loin.size()
+		var u := Vector3.ZERO      # axe principal (itérations de puissance sur la covariance)
+		for i in loin:
+			var q := pos[i] - cg
+			if q.length() > u.length():
+				u = q
+		u = u.normalized()
+		for it in 12:
+			var nu := Vector3.ZERO
+			for i in loin:
+				var q := pos[i] - cg
+				nu += q * q.dot(u)
+			if nu.length() < 1e-9:
+				break
+			u = nu.normalized()
+		# rayon réel de la hampe : médiane de la distance des sommets « loin » à la droite (+ 4 mm ; lance du garde : 2,5 cm -> 2,9), plafonné par arme_skinnee_rayon,
+		# pour ne pas avaler la paume qui l'entoure
+		var dl := PackedFloat32Array()
+		for i in loin:
+			var q := pos[i] - cg
+			dl.append((q - u * q.dot(u)).length())
+		var rh := minf(ray, _pct(dl, 0.5) + 0.004)
+		var n := 0
+		for i in main:
+			var q := pos[i] - cg
+			if (q - u * q.dot(u)).length() < rh or loin.has(i):
+				_hampe[i] = 1
+				n += 1
+		avert.append("bras %s : arme skinnée sur la main (--seuil.arme_skinnee) : %d sommets (hampe à %d sommets hors de la main, rayon %.1f cm) exclus de la largeur de main (rien d'autre ne change)" % [c, n, loin.size(), rh * 100])
 
 # ===================================================================== utilitaires
 
@@ -582,6 +653,8 @@ func mesures_bras(cote: String, pos: PackedVector3Array) -> Dictionary:
 			if g == 1 and groupe[i] != ci * 3 + 1:
 				continue
 			if g == 2 and groupe[i] != ci * 3 + 1 and groupe[i] != ci * 3 + 2:      # poing lié à l'avant-bras (gardes à l'épée) compris
+				continue
+			if g == 2 and _hampe[i] == 1:
 				continue
 			var s := (pos[i] - (orig[g] as Vector3)).dot(a)
 			if s >= lo and s <= hi:
@@ -877,6 +950,8 @@ func controler() -> Dictionary:
 	poser_neutre()
 	var pos0 := sommets_poses()
 	calculer_groupes()
+	if float(seuil("arme_skinnee")) > 0.0:
+		_exclure_armes_skinnees(pos0)
 	rap["tris"] = controle_tris()
 	rap["composantes"] = controle_composantes(pos0)
 	rap["bras"] = controle_bras(clips, int(opts.get("images", 5)))
