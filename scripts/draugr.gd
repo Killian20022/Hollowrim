@@ -121,6 +121,7 @@ var _cote_pause := 1.0         # sens dans lequel il tourne autour du joueur ent
 var _esq_t := 0.0               # durée restante du pas de côté pour éviter un sort (s)
 var _esq_dir := Vector3.ZERO
 var _esq_attente := 0.0
+var _lecon := 0.0              # > 0 : draugr du premier combat guidé (aides.gd, differer_geste_annonce) — pas de charge du lanceur
 var _lateral := Vector3.ZERO   # vitesse latérale de contournement (m/s, recalculée à chaque image)
 var _t_groupe := 0.0
 var _allie_contact: Node3D     # allié déjà au contact du joueur (il passe alors sur le flanc)
@@ -455,6 +456,7 @@ func vivant() -> bool:
 ## pour que l'élève apprenne à bloquer, frapper et se soigner sans être puni par un coup qu'on ne lui a pas encore montré.
 func differer_geste_annonce(s: float) -> void:
 	_cd_lourd = maxf(_cd_lourd, s)
+	_lecon = 0.5   # rafraîchi à chaque image par aides.gd tant que la leçon dure : il ne charge pas l'élève qui se soigne au sort
 
 ## Cible de l'image : le rival (faction hostile, Rivalites) s'il est plus près que le joueur, sinon le joueur. Les chefs et les archers
 ## n'ont pas de rival (leurs pouvoirs et leurs tirs visent le joueur) ; un dormeur n'en cherche pas (un coup le réveille et le lui donne).
@@ -551,6 +553,7 @@ func _physics_process(dt: float) -> void:
 	_cd_lourd -= dt
 	_armure -= dt
 	_esq_attente -= dt
+	_lecon -= dt
 	_lateral = Vector3.ZERO
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
@@ -660,7 +663,7 @@ func _physics_process(dt: float) -> void:
 			elif dist > (PORTEE + AMORCE if _menace else PORTEE):
 				vitesse = _course if dist > 4.0 else _marche_proche
 				loco = "Jog_Fwd" if dist > 4.0 else "Walk"
-				if dist > ReglagesCombat.CHARGE_DIST_MIN and _joueur_lanceur() and c == joueur and not zombie and boss == "":
+				if dist > ReglagesCombat.CHARGE_DIST_MIN and _joueur_lanceur() and c == joueur and not zombie and boss == "" and _lecon <= 0.0:
 					vitesse = _course * ReglagesCombat.CHARGE_LANCEUR   # face à un lanceur : il charge au lieu de marcher vers lui
 					loco = "Jog_Fwd"
 				if _menace:
