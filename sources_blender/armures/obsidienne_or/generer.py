@@ -817,7 +817,7 @@ ARTIC = {
     "cuirasse_obsidienne": lambda cx: AR.couters(cx, mats=("obsidienne",)) + AR.tassettes(cx, lames=2, mats=("obsidienne",)),
     "cuirasse_or": lambda cx: AR.couters(cx, mats=("or",)),
 }
-RELIEF_P2 = {"casque": dict(max_rivets=12, ep=0.003), "cuirasse": dict(max_rivets=40, min_tris_bord=16), "gantelets": dict(max_rivets=12, ep=0.0035, min_tris_bord=30), "bottes": dict(max_rivets=20, min_tris_bord=16), "bottes_or": dict(max_rivets=20, bords_on=False), "casque_or": dict(max_rivets=0, ep=0.003, min_tris_bord=30)}
+RELIEF_P2 = {"casque": dict(max_rivets=12, ep=0.003), "cuirasse": dict(max_rivets=40, min_tris_bord=16), "gantelets": dict(max_rivets=12, ep=0.0035, min_tris_bord=30), "bottes": dict(max_rivets=20, min_tris_bord=16), "bottes_or": dict(max_rivets=20, bords_on=False), "casque_or": dict(max_rivets=0, bords_on=False)}
 # casque d'obsidienne : déjà ajusté (recul moyen 8 mm) ; rétreint, le cou traversait le bavolet de 12,5 mm (sort de zone)
 SANS_RETREINT = {"casque_obsidienne"}
 ENSEMBLE = {pid: ("obsidienne" if pid.endswith("obsidienne") else "or") for pid in PIECES}
