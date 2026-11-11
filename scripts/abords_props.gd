@@ -50,7 +50,7 @@ const POTEAU := [["q_poutre_ronde", 0.0, 0.0, 0.0, 0.0, true, Vector3(2.2, 1, 1)
 const RESERVE_BANDITS := [["pq_caisse", 0.0, 0.0, 8.0, 0.0, true], ["pq_caisse_fer", 0.72, 0.05, -10.0, 0.0, true], ["pq_caisse", 0.3, 0.0, -20.0, 0.71, false],
 	["pq_tonneau", -0.85, 0.15, 0.0, 0.0, true], ["pq_sac", 0.4, 0.75, 35.0, 0.0, false], ["q_buche", -0.4, 0.9, 70.0, 0.0, false], ["q_buche", -0.2, 1.05, 20.0, 0.0, false]]
 
-## Lieux : [nom, composition, ancres [x, z, lacet°]].
+## Lieux : [nom, composition, ancres [x, z, lacet°], marge aux chemins (facultative, 2 m)].
 const LIEUX := [
 	["charrette_champ_c", CHARRETTE, [[72.0, -6.5, 180.0], [71.8, -9.5, 170.0], [63.0, -13.0, 90.0], [63.0, -0.8, 90.0]]],
 	["epouvantail_a", EPOUVANTAIL, [[83.5, 35.2, 20.0], [82.0, 34.0, 20.0]]],
@@ -63,9 +63,9 @@ const LIEUX := [
 	["camp_chasseur", CAMP_CHASSEUR, [[-14.0, -27.0, 45.0], [-10.0, -24.0, 40.0], [-24.5, -13.5, 60.0], [6.0, -19.0, 0.0], [-20.0, 4.0, 90.0]]],
 	["offrandes_cercle", OFFRANDES, [[-38.0, -32.4, 180.0], [-36.5, -32.8, 160.0], [-39.5, -32.8, 200.0], [-38.0, -35.6, 0.0]]],
 	["offrandes_tumulus", OFFRANDES, [[-36.2, -46.4, 170.0], [-39.8, -46.4, 190.0], [-35.6, -45.2, 160.0], [-40.4, -45.2, 200.0]]],
-	["poteau_cercle", POTEAU, [[-6.0, -4.2, 225.0], [-8.5, -5.0, 220.0], [-4.0, -8.5, 225.0]]],
-	["poteau_tumulus", POTEAU, [[-32.6, -38.8, 200.0], [-33.6, -41.6, 200.0], [-36.8, -38.4, 160.0]]],
-	["poteau_grotte", POTEAU, [[79.0, 26.6, 150.0], [74.5, 29.5, 120.0], [82.5, 26.0, 160.0]]],
+	["poteau_cercle", POTEAU, [[-6.0, -4.2, 225.0], [-8.5, -5.0, 220.0], [-4.0, -8.5, 225.0]], 0.4],
+	["poteau_tumulus", POTEAU, [[-32.6, -38.8, 200.0], [-33.6, -41.6, 200.0], [-36.8, -38.4, 160.0]], 0.4],
+	["poteau_grotte", POTEAU, [[79.0, 26.6, 150.0], [74.5, 29.5, 120.0], [82.5, 26.0, 160.0]], 0.4],
 	["reserve_grotte", RESERVE_BANDITS, [[86.5, -21.5, 120.0], [88.0, -32.5, 60.0], [85.5, -30.0, 90.0], [97.0, -21.0, 210.0]]],
 ]
 
@@ -88,7 +88,7 @@ static func creer(monde: Node3D) -> void:
 				var lac := deg_to_rad(float(a[2]))
 				var b := Basis(Vector3.UP, lac)
 				var o := Vector3(float(a[0]), 0, float(a[1])) + b * Vector3(gl.x, 0, gl.y)
-				var raison := _essai(monde, l[1], o, lac, posees)
+				var raison := _essai(monde, l[1], o, lac, posees, float(l[3]) if l.size() > 3 else 2.0)
 				if raison == "":
 					_poser(monde, racine, String(l[0]), l[1], o, lac, posees)
 					print("PropsMax : abords, composition posée %s (%.1f, %.1f) lacet %.0f sol %.2f" % [l[0], o.x, o.z, float(a[2]), monde.hauteur(o.x, o.z)])
@@ -193,7 +193,8 @@ static func _coins(id: String, xf: Transform3D) -> Array:
 				r.append(Vector2(w.x, w.z))
 	return r
 
-static func _essai(monde: Node3D, items: Array, o: Vector3, lac: float, posees: Array) -> String:
+## `marge` : écart aux chemins (m, au-delà du rayon de l'item) ; 2 par défaut, ~0,4 pour ce qui se tient AU BORD du chemin (poteau).
+static func _essai(monde: Node3D, items: Array, o: Vector3, lac: float, posees: Array, marge := 2.0) -> String:
 	var espace: PhysicsDirectSpaceState3D = monde.get_world_3d().direct_space_state
 	var terrain: Object = monde.get_meta("corps_terrain", null)
 	for it: Array in items:
@@ -221,12 +222,12 @@ static func _essai(monde: Node3D, items: Array, o: Vector3, lac: float, posees: 
 			return "pente %s %.2f (r %.1f)" % [id, hmax - hmin, r]
 		if monde.arbres_autour(Vector3(centre.x, 0, centre.y), r + 0.8) > 0:
 			return "arbre " + id
-		if monde.chemins != null and monde.chemins.distance(centre.x, centre.y) < r + 2.0:
+		if monde.chemins != null and monde.chemins.distance(centre.x, centre.y) < r + marge:
 			return "chemin " + id
-		if monde._pres_du_chemin(centre.x, centre.y, r + 2.2):
+		if monde._pres_du_chemin(centre.x, centre.y, r + marge + 0.2):
 			return "sentier " + id
 		for ct: Array in RuesVillage.CHEMINS_TERRE:
-			if RuesVillage._d_polyligne(centre, ct[0]) < float(ct[1]) * 0.5 + r + 0.6:
+			if RuesVillage._d_polyligne(centre, ct[0]) < float(ct[1]) * 0.5 + r + minf(0.6, marge):
 				return "chemin de terre " + id
 		for pd: Array in posees:
 			if centre.distance_to(pd[0]) < r + float(pd[1]) - 0.1:

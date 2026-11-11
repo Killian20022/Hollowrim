@@ -1029,6 +1029,7 @@ func _compos_pq(m: Dictionary) -> void:
 			var v3 := PropsQuaternius.v3
 			if not _compo(m, "ratelier", C_RATELIER_SEUL, 18.9, -59.4, 0.0, y, Vector2(0.5, 0), v3) and v3:
 				if not _compo(m, "ratelier_o", C_RATELIER_SEUL, 16.6, -53.0, PI * 0.5, y, Vector2(0, 0.7), true):
+					# mur est (l'angle sud est une réserve : butin) ; la statue encapuchonnée du semis v2 qui s'y tenait s'en écarte (une de moins)
 					_compo(m, "ratelier_e", C_RATELIER_SEUL, 27.4, -55.6, -PI * 0.5, y, Vector2(0, -0.5))
 		"antichambre":      # offrandes à la Dame contre le mur ouest, entre le râtelier et la statue
 			_compo(m, "autel", C_AUTEL_COURT, -4.4, -58.8, PI * 0.5, y, Vector2(0, 0.3))
