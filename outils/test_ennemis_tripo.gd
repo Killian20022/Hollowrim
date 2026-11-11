@@ -74,6 +74,23 @@ func _lancer() -> void:
 	ok(zb != null and not zb.has_meta("tripo_ennemi"), "draugr zombie : garde l'ancien corps (mains nues)")
 	if zb:
 		zb.free()
+	# boss jarl gelé (docs/ARMURES_TRIPO.md) : corps draugr Tripo + couronne ; Svanhild garde l'ancien corps ; modele_ancien le rend
+	var jt := EnnemisNordiques.creer({"type": "guerrier", "boss": "jarl", "ident": "jarl_t", "apparence": app_d})
+	var jsq: Skeleton3D = jt.find_child("Skeleton3D", true, false) if jt else null
+	ok(jt != null and String(jt.get_meta("tripo_ennemi", "")) == "draugr" and jsq.get_node_or_null("Couronne") != null and jsq.get_node_or_null("CapeRoyale") == null, "boss jarl : draugr Tripo couronné (%s)" % (jt.get_meta("variante", "") if jt else "null"))
+	# copie d'un gabarit : l'aplomb de l'arme est relié à la copie (sinon lame du clip, de travers)
+	var apl: Node = jsq.get_node_or_null("Arme/Aplomb") if jsq else null
+	ok(apl != null and apl.get("ap") == jt.get_node("Animations") and apl.get("sq") == jsq and apl.get("arme") != null, "boss jarl : aplomb de l'épée relié à la copie")
+	if jt:
+		jt.free()
+	var ja := EnnemisNordiques.creer({"type": "guerrier", "boss": "jarl", "ident": "jarl_a", "apparence": app_d, "modele_ancien": true})
+	ok(ja != null and not ja.has_meta("tripo_ennemi") and String(ja.get_meta("variante", "")) == "boss_jarl", "boss jarl modele_ancien : ancien DraugrNordique (%s)" % (ja.get_meta("variante", "") if ja else "null"))
+	if ja:
+		ja.free()
+	var sv := EnnemisNordiques.creer({"type": "guerrier", "boss": "svanhild", "ident": "sv_t", "apparence": app_d})
+	ok(sv != null and not sv.has_meta("tripo_ennemi"), "boss svanhild : ancien corps (femme)")
+	if sv:
+		sv.free()
 	var sqa := EnnemisNordiques.squelette({"type": "squelette", "ident": "sq_anc", "modele_ancien": true})
 	ok(not sqa.has_meta("tripo_ennemi"), "modele_ancien : ancien SqueletteGuerrier")
 	sqa.free()
@@ -83,6 +100,10 @@ func _lancer() -> void:
 	ok(anc2 != null and not anc2.has_meta("tripo_ennemi"), "--modeles-anciens=ennemis : ancien corps sans option")
 	if anc2:
 		anc2.free()
+	var ja2 := EnnemisNordiques.creer({"type": "guerrier", "boss": "jarl", "ident": "jarl_a2", "apparence": app_d})
+	ok(ja2 != null and not ja2.has_meta("tripo_ennemi"), "--modeles-anciens=ennemis : boss jarl sur l'ancien corps")
+	if ja2:
+		ja2.free()
 	ModelesTripo.relire(["--modeles-anciens"])
 	ok(not ModelesTripo.actif("gardes") and not ModelesTripo.actif("jarl") and not EnnemiTripo.actif(), "--modeles-anciens : tous les groupes")
 	ok(not ModelesTripo.actif("mage") and not ModelesTripo.actif("puits") and not ModelesTripo.actif("maison"), "--modeles-anciens : aussi mage, puits, auberge h2 (lot 2)")

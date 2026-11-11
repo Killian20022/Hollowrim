@@ -235,7 +235,10 @@ static func _choix(spec: Dictionary) -> Dictionary:
 	if boss == "hrafn":
 		return {"t": "hrafn"}
 	elif boss == "svanhild" or boss == "jarl":
-		return {"t": "boss", "boss": boss}
+		var db := {"t": "boss", "boss": boss}
+		if ModelesTripo.ancien_impose(spec):
+			db["ancien"] = true      # jarl gelé : ancien corps DraugrNordique malgré le draugr Tripo (docs/ARMURES_TRIPO.md)
+		return db
 	elif bandit and spec.get("archer", false):
 		var homme := rng.randf() < 0.5                      # environ la moitié des archers bandits sont des hommes (corps homme de l'archétype)
 		return {"t": "barcher", "homme": homme, "s": rng.randi() % 3}
@@ -278,6 +281,8 @@ static func _def_corps(ch: Dictionary) -> Array:
 			return ["hrafn", func() -> Node3D: return GuerrierNordique.creer({"casque": true, "bouclier": "dos", "epee": true})]
 		"boss":
 			var b := String(ch["boss"])
+			if _boss_tripo(ch):
+				return ["boss_" + b + "_tripo", func() -> Node3D: return EnnemiTripo.creer("draugr", "epee")]
 			return ["boss_" + b, func() -> Node3D: return DraugrNordique.creer({"bouclier": "bras" if b == "jarl" else "", "epee": true, "corps": "femme" if b == "svanhild" else "homme"})]
 		"barcher":
 			var h: bool = ch["homme"]
@@ -330,6 +335,16 @@ static func _relier(gab: Node3D, copie: Node3D) -> void:
 	var sc := _sq(copie)
 	if sg == null or sc == null:
 		return
+	# Aplomb de l'arme des corps Tripo (arme_aplomb_tripo.gd) : ses variables de script ne sont pas copiées par duplicate() -> sans
+	# ce relais la copie gardait la lame du clip (« en broche » / de travers au repos et en marche).
+	var ag := sg.get_node_or_null("Arme/Aplomb")
+	var ac := sc.get_node_or_null("Arme/Aplomb")
+	if ag != null and ac != null:
+		for v: String in ["base", "centre", "ech", "grip", "incl", "os"]:
+			ac.set(v, ag.get(v))
+		ac.set("sq", sc)
+		ac.set("arme", (sc.get_node("Arme") as Node).get_child(0))
+		ac.set("ap", copie.get_node("Animations"))
 	var mg := sg.get_node_or_null("PoseArcher")
 	var mc := sc.get_node_or_null("PoseArcher")
 	if mg == null or mc == null:
@@ -417,12 +432,82 @@ static func _draugr(ch: Dictionary) -> Node3D:
 	n.set_meta("teinte", lueur)
 	return n
 
+## Boss sur un corps Tripo (seulement le jarl gelé : Svanhild est une femme, le draugr Tripo un homme) : modèles Tripo actifs (groupe
+## « ennemis ») et pas de « modele_ancien ».
+static func _boss_tripo(ch: Dictionary) -> bool:
+	return String(ch.get("boss", "")) == "jarl" and EnnemiTripo.actif() and not bool(ch.get("ancien", false))
+
+## Couronne du jarl gelé sur le heaume du draugr Tripo (repère du squelette au repos, mesuré sur tripo_draugr_rig.glb : coupe du heaume
+## à y = 1,75 -> x ±0,08, z -0,143 .. 0,093) : bandeau elliptique qui épouse le heaume + fleurons pointus. Les « cornes » en boîtes et
+## la cape-planche de DraugrNordique juraient sur le modèle Tripo (planche carrée, panneau raide sorti du dos) : écartées ; le dos
+## fourré du modèle Tripo fait office de manteau.
+const COURONNE_TRIPO := {"cen": Vector3(0.0, 1.745, -0.025), "rx": 0.098, "rz": 0.138, "haut": 0.04, "ep": 0.014, "seg": 16, "fleurons": 8, "pointe": 0.075}
+
+static func _couronne_tripo(sq: Skeleton3D) -> void:
+	var c: Dictionary = COURONNE_TRIPO
+	var cen: Vector3 = c["cen"]
+	var n: int = c["seg"]
+	var h: float = c["haut"]
+	var ep: float = c["ep"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pt := func(a: float, d: float, y: float) -> Vector3:
+		return cen + Vector3(sin(a) * (float(c["rx"]) + d), y, cos(a) * (float(c["rz"]) + d))
+	var sommet_uv := func(q: Vector3) -> void:      # UV cylindriques (le métal de la palette s'enroule autour du bandeau)
+		var d := q - cen
+		st.set_uv(Vector2(atan2(d.x, d.z) / TAU * 3.0, d.y * 10.0))
+		st.add_vertex(q)
+	var quad := func(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3) -> void:
+		for q: Vector3 in [p0, p1, p2, p0, p2, p3]:
+			sommet_uv.call(q)
+	for i in n:
+		var a0 := TAU * i / n
+		var a1 := TAU * (i + 1) / n
+		quad.call(pt.call(a0, ep, 0.0), pt.call(a1, ep, 0.0), pt.call(a1, ep, h), pt.call(a0, ep, h))          # face extérieure
+		quad.call(pt.call(a1, 0.0, 0.0), pt.call(a0, 0.0, 0.0), pt.call(a0, 0.0, h), pt.call(a1, 0.0, h))      # face intérieure
+		quad.call(pt.call(a0, 0.0, h), pt.call(a0, ep, h), pt.call(a1, ep, h), pt.call(a1, 0.0, h))            # dessus
+		quad.call(pt.call(a1, 0.0, 0.0), pt.call(a1, ep, 0.0), pt.call(a0, ep, 0.0), pt.call(a0, 0.0, 0.0))    # dessous
+	var nf: int = c["fleurons"]
+	for k in nf:
+		var a := TAU * k / nf
+		var l := 0.028
+		var pa := a - l / float(c["rx"])
+		var pb := a + l / float(c["rx"])
+		var haut: float = float(c["pointe"]) * (1.0 if k % 2 == 0 else 0.62)
+		var sommet: Vector3 = pt.call(a, ep * 0.5, h + haut)
+		var b0: Vector3 = pt.call(pa, ep, h)
+		var b1: Vector3 = pt.call(pb, ep, h)
+		var i0: Vector3 = pt.call(pa, 0.0, h)
+		var i1: Vector3 = pt.call(pb, 0.0, h)
+		for tri: Array in [[b0, b1, sommet], [i1, i0, sommet], [i0, b0, sommet], [b1, i1, sommet]]:
+			for q: Vector3 in tri:
+				sommet_uv.call(q)
+	st.generate_normals()
+	st.generate_tangents()
+	var mesh := st.commit()
+	mesh.surface_set_material(0, _materiau("couronne_jarl_tripo", ["#1d1a14", "#373020", "#544a2e", "#76693f"], Color(0.03, 0.025, 0.01)))
+	var acc := BoneAttachment3D.new()
+	acc.name = "Couronne"
+	acc.bone_name = "Head"
+	sq.add_child(acc)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.transform = sq.get_bone_global_rest(sq.find_bone("Head")).affine_inverse()
+	acc.add_child(mi)
+
 ## Chefs draugrs : couronne, givre, plus imposants (l'échelle ×1,1 est posée par draugr.gd / _regler_boss).
 static func _boss_draugr(ch: Dictionary) -> Node3D:
 	# Svanhild est une reine : corps femme ; le jarl gelé reste un homme
 	var boss := String(ch["boss"])
 	var n := _corps(ch)
 	var sq := _sq(n)
+	if _boss_tripo(ch):
+		# jarl gelé sur le corps du draugr Tripo (armure générée, épée du jeu au poing) : givre bleuté, couronne à cornes posée sur le
+		# heaume Tripo (plus bas et plus large que le crâne de DraugrNordique), cape royale décollée du dos fourré
+		_teinter_tout(n, Color(0.9, 0.98, 1.12))
+		_couronne_tripo(sq)
+		n.set_meta("variante", "boss_%s_tripo" % boss)
+		return n
 	if boss == "svanhild":
 		_teinter_tout(n, Color(0.82, 1.0, 1.28))
 		_couronne(sq, "givre")
