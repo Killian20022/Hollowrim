@@ -284,6 +284,15 @@ func _planche_tps() -> void:
 		await _attendre(1.2)
 		_mesure_tps("repos")
 		imgs.append(_capture())
+	# gros plan des mains sur la poignée (repos)
+	var long0: float = j.camera_tp.bras.spring_length
+	j.camera_tp.bras.spring_length = 1.3
+	j.camera_tp.set("_orbite", deg_to_rad(-130.0))
+	j.camera_tp.recaler()
+	_texte("%s 3e pers. : mains sur la poignee" % etiq)
+	await _attendre(1.0)
+	imgs.append(_capture())
+	j.camera_tp.bras.spring_length = long0
 	j.camera_tp.set("_orbite", deg_to_rad(-100.0))
 	j.camera_tp.recaler()
 	mains.entrees.forcer_garde(1.2)
@@ -367,8 +376,9 @@ func _planche_arme() -> void:
 		# [projection ortho ?, taille / fov, position caméra, cible, rotation de l'arme] ; couchée en travers du cadre 16:9
 		[true, lg * 0.62, Vector3(0.0, 0, 3), Vector3(0.0, 0, 0), Vector3(0, 0, -PI / 2)],
 		[true, lg * 0.62, Vector3(0.0, 0, 3), Vector3(0.0, 0, 0), Vector3(deg_to_rad(55), 0, -PI / 2)],
-		[false, 30.0, Vector3(0.16, 0.13, 0.40), Vector3(0.0, 0.11, 0.0), Vector3(0, deg_to_rad(10), 0)],
-		[false, 30.0, Vector3(-0.14, -0.13, 0.40), Vector3(0.0, -0.17, 0.0), Vector3(0, deg_to_rad(-15), 0)],
+		[false, 34.0, Vector3(0.20, 0.17, 0.52), Vector3(0.0, 0.14, 0.0), Vector3(0, deg_to_rad(10), 0)],
+		[false, 30.0, Vector3(-0.14, -0.15, 0.46), Vector3(0.0, -0.19, 0.0), Vector3(0, deg_to_rad(-15), 0)],
+		[false, 26.0, Vector3(0.10, 0.34, 0.36), Vector3(0.0, 0.33, 0.0), Vector3(0, deg_to_rad(25), 0)],
 	]
 	var imgs: Array[Image] = []
 	for v in vues:

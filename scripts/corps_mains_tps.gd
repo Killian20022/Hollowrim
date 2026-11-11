@@ -60,6 +60,7 @@ var _source_g: Node3D
 ## Arme à deux mains : la main gauche sur la poignée, sous la main droite (IK à deux os + orientation du poignet, comme à la 1re personne).
 var _ik_g: TwoBoneIK3D
 var _cible_maj: SkeletonModifier3D   # recale _cible_g sur la pose de l'image (pas celle de l'image d'avant)
+var _redresse: SkeletonModifier3D    # redresse la lame de la tenue à deux mains (RedresseDeuxMains)
 var _orient_g: SkeletonModifier3D
 var _cible_g: Node3D      # repère voulu pour la main gauche (enfant de l'arme du corps)
 var _pole_g: Node3D
@@ -92,6 +93,12 @@ func installer(squelette: Skeleton3D) -> void:
 	couche.name = "CoucheBrasTps"
 	sq.add_child(couche)
 	couche.preparer(sq)
+	# claymore v4 (retour utilisateur 2026-11-11 : « la claymore est trop penchée ») : tenue à deux mains redressée (après la couche
+	# des bras, avant la cible de la main gauche : la main gauche suit la poignée redressée)
+	_redresse = RedresseDeuxMains.new()
+	_redresse.name = "RedresseDeuxMains"
+	_redresse.set("tps", self)
+	sq.add_child(_redresse)
 	# deux mains : IK du bras gauche (éteinte sinon), cible posée sur la poignée de l'arme du corps
 	_cible_g = Node3D.new()
 	_cible_g.name = "CibleMainG2M"
@@ -557,6 +564,54 @@ class CoucheBras extends SkeletonModifier3D:
 				lisse.clear()
 
 # ======================================================================== cible de la main gauche (deux mains)
+
+## Tenue à DEUX MAINS redressée (claymore v4, 2026-11-11 : « la claymore est trop penchée », aussi à la 3e personne) : la tenue
+## Mixamo « great sword idle » porte la lame à ~50° de la verticale, pointe en travers devant le corps. Hors geste de combat (poids
+## 1 - poids du coup de CorpsCoupsTps), la lame est ramenée vers une tenue haute : pointe en haut et un peu en avant
+## (AVANT_DEG), à peine vers la droite (DROITE_DEG). La rotation est répartie entre l'avant-bras (PART_AVANT_BRAS, autour du
+## coude) et la main (le reste, autour du poignet) : pas de poignet cassé. La main gauche suit (CibleSurArme passe après).
+class RedresseDeuxMains extends SkeletonModifier3D:
+	const AVANT_DEG := 24.0
+	const DROITE_DEG := 12.0
+	const PART := 0.85            # part de l'écart corrigée (la tenue garde un peu de son naturel)
+	const PART_AVANT_BRAS := 0.5
+	var tps: Node
+	var poids := 0.0
+	var _coupe := OS.get_cmdline_user_args().has("--tps-sans-redresse")   # comparaison avant / après (captures)
+
+	func _process_modification_with_delta(dt: float) -> void:
+		var s := get_skeleton()
+		if s == null or tps == null or _coupe:
+			return
+		var arme: Node3D = tps.get("_arme_d")
+		var voulu := 0.0
+		if arme != null and is_instance_valid(arme) and tps.categorie("droite") == "arme_deux_mains" and not tps.joueur.mort:
+			voulu = 1.0 - tps._poids_coup()
+		poids = lerpf(poids, voulu, 1.0 - exp(-14.0 * dt))
+		if poids < 0.01 or arme == null or not is_instance_valid(arme):
+			return
+		var ia := s.find_bone("lowerarm_r")
+		var im := s.find_bone("hand_r")
+		if ia < 0 or im < 0:
+			return
+		var j: Node3D = tps.joueur
+		var inv := s.global_transform.basis.inverse()
+		var haut := (inv * Vector3.UP).normalized()
+		var avant := (inv * -j.global_basis.z).normalized()
+		var droite := (inv * j.global_basis.x).normalized()
+		var cible := (haut * cos(deg_to_rad(AVANT_DEG)) + avant * sin(deg_to_rad(AVANT_DEG)) + droite * sin(deg_to_rad(DROITE_DEG))).normalized()
+		var pm := PiedsAuSol.pose_globale(s, im)
+		var lame := (pm.basis * arme.transform.basis.y).normalized()
+		var axe := lame.cross(cible)
+		if axe.length() < 1e-4:
+			return
+		var angle := lame.angle_to(cible) * PART * poids
+		var q := Quaternion(axe.normalized(), angle * PART_AVANT_BRAS)
+		var pa := PiedsAuSol.pose_globale(s, ia)
+		PiedsAuSol.poser_globale(s, ia, Transform3D(Basis(q) * pa.basis, pa.origin))
+		pm = PiedsAuSol.pose_globale(s, im)
+		var q2 := Quaternion(axe.normalized(), angle * (1.0 - PART_AVANT_BRAS))
+		PiedsAuSol.poser_globale(s, im, Transform3D(Basis(q2) * pm.basis, pm.origin))
 
 ## Juste avant l'IK de la main gauche : recale _cible_g sur la pose de hand_r de CETTE image (dans _process, la poignée du corps est
 ## celle de l'image précédente : la main gauche traînait derrière la poignée pendant les gestes vifs).
