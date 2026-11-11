@@ -17,7 +17,7 @@ from mathutils import Vector, Matrix
 
 # ------------------------------------------------------------------------------------------------ styles
 # ACIER NORDIQUE : acier gris usé et riveté (planche), arêtes polies, peu de rouille ; cuir brun ; fourrure beige.
-ACIER = dict(pal=H.ACIER_NEUTRE, mat="acier", mat_rebord="acier", mat_main="cuir", mat_doigts="cuir", mat_genou="acier", base=0.40, contraste=0.36,
+ACIER = dict(pal=H.ACIER_NEUTRE, mat="acier.patine", mat_rebord="acier.patine", mat_main="cuir", mat_doigts="cuir", mat_genou="acier.patine", base=0.40, contraste=0.36,
              martele=0.15, cellule=3.2, oxyde=0.0, crasse=0.55, poli=0.18, patine=0.26,
              filet=dict(retrait=0.9, larg=0.42, haut=0.32, creux=0.24, poli=1.0, sombre=0.34), graver_epaule=True, graver_plastron=True, rouille=0.06, sale=0.85, poli_arete=1.0, poli_bord=0.5,
              rayures=2.2, r_rivet=0.8, k_rivet=0.74, graine=23, pal_cuir=H.CUIR, base_cuir=0.44, pal_maille=H.FER, base_maille=0.55,

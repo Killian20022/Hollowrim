@@ -535,10 +535,10 @@ def or_torse(P, t, r, st):
             wv = dl.cross(-ax).normalized(); hv = wv.cross(dl).normalized()
             def pl(s_, t_, wv=wv, hv=hv, dl=dl, hit=hit):
                 return hit + dl * 0.4 + wv * s_ + hv * t_, -dl
-            rond = [(0.132 * math.cos(TAU * k / 16), 0.132 * math.sin(TAU * k / 16)) for k in range(16)]
+            rond = [(0.088 * math.cos(TAU * k / 16), 0.088 * math.sin(TAU * k / 16)) for k in range(16)]   # affinage : 0,132 -> 0,088 (médaillon crédible)
             hd.plaque(P, arb, pl, rond, 0.006, 0.011, "or.lion", (0.80, 0.9, 0.85, 0.91), bombe=0.012, anneaux=1, centre=(0.0, 0.0), biseau=1.0)
             hit2, n2 = hd.lancer([hd.bvh_piece(P)], cible + dl * 0.5, -dl)
-            tete_lion(P, hit2 if hit2 is not None else hit, dl, -ax, 0.108)
+            tete_lion(P, hit2 if hit2 is not None else hit, dl, -ax, 0.072)
         o, d = pj(-78, 0.20)
         hit, n = hd.lancer(arb, o, d)
         if hit is not None:
@@ -773,6 +773,8 @@ PIECES = {
 }
 RETREINT = {"obsidienne": dict(m=0.015, k=0.5, D1=0.12),
             "or": dict(m=0.015, k=0.55, D1=0.12)}
+# casque d'obsidienne : déjà ajusté (recul moyen 8 mm) ; rétreint, le cou traversait le bavolet de 12,5 mm (sort de zone)
+SANS_RETREINT = {"casque_obsidienne"}
 ENSEMBLE = {pid: ("obsidienne" if pid.endswith("obsidienne") else "or") for pid in PIECES}
 VARIANTE = {"obsidienne": {"obsidienne": "obsidienne.enchante"}, "or": {"tissu.bleu": "tissu.enchante", "tissu.cape": "tissu.enchante", "tissu.tabard": "tissu.enchante", "tissu.doublure": "tissu.enchante", "gemme": "gemme.enchante"}}
 
@@ -964,7 +966,7 @@ def bavolet_sur_cou(ob, r):
 def construire(pid, dossier=None, enchante=True):
     r = C.charger_reference()
     ob = PIECES[pid](r)
-    if "--epais" not in sys.argv:
+    if "--epais" not in sys.argv and pid not in SANS_RETREINT:
         # affinage 2026-11-11 : pièces rapprochées du corps (retour « trop épaisses ») ; l'obsidienne, la plus massive, plus serrée
         RT.retreindre(ob, r, **RETREINT[ENSEMBLE[pid]])
     if pid == "casque_or":

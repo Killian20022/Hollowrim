@@ -147,8 +147,8 @@ def obsidienne(D, g=31, enchante=False):
     raye = (bruit(P, np.array([420.0, 35.0, 420.0]), g + 4) > 0.9) & (bruit(P, 12.0, g + 5) > 0.6)
     t = np.where(raye, t + 0.1, t)
     # fil taillé des bords (gris clair) et biseau sombre juste derrière
-    t = np.where(bord < 0.0035, t + 0.30 * (1.0 - bord / 0.0035) + 0.08, t)
-    b = np.where(bord < 0.0035, 1.0, b)
+    t = np.where(bord < 0.0035, t + 0.22 * (1.0 - bord / 0.0035) + 0.05, t)
+    b = np.where(bord < 0.0035, 0.62, b)          # affinage : fil moins brillant (points blancs scintillants en plein jour)
     t = np.where((bord >= 0.0035) & (bord < 0.0065), t - 0.07, t)
     c = rampe(OBSIDIENNE, t)
     # magma localisé
