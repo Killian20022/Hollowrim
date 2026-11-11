@@ -13,7 +13,8 @@ class_name AbordsProps
 ## physique (rochers, barrières, bâti, autres compositions) ou une composition déjà posée.
 
 const PORTEE := 70.0          # les lots disparaissent au-delà (brouillard)
-const PENTE_MAX := 0.42       # écart de sol maximal sous un item (m)
+const PENTE_MAX := 0.57       # écart de sol maximal sous un petit item (m) : il est posé à mi-pente, flotte ou s'enfonce de ~0,1 m au plus
+const PENTE_GRAND := 0.9      # sous un grand item solide (charrette, tente) : il est incliné comme le terrain (≤ ~15°)
 
 ## Charrette abandonnée au bord d'un champ : roue côté champ, sacs de grain renversés, tonneau, pioche couchée dans la neige.
 const CHARRETTE := [["q_chariot", 0.0, 0.0, 0.0, 0.0, true], ["pq_sac", 1.05, 0.55, 30.0, 0.0, false], ["pq_sac", 1.25, -0.2, -60.0, 0.0, false, 1.0, 0.0, 80.0],
@@ -83,7 +84,7 @@ static func creer(monde: Node3D) -> void:
 	var t0 := Time.get_ticks_msec()
 	for l: Array in LIEUX:
 		var fait := false
-		for a: Array in l[2]:
+		for a: Array in l[2] + _spirale(l[2][0]):
 			for gl: Vector2 in [Vector2.ZERO, Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1), Vector2(2, 0), Vector2(-2, 0), Vector2(0, 2), Vector2(0, -2)]:
 				var lac := deg_to_rad(float(a[2]))
 				var b := Basis(Vector3.UP, lac)
@@ -91,7 +92,7 @@ static func creer(monde: Node3D) -> void:
 				var raison := _essai(monde, l[1], o, lac, posees)
 				if raison == "":
 					_poser(monde, racine, String(l[0]), l[1], o, lac, posees)
-					print("PropsMax : abords, composition posée %s (%.1f, %.1f)" % [l[0], o.x, o.z])
+					print("PropsMax : abords, composition posée %s (%.1f, %.1f) lacet %.0f sol %.2f" % [l[0], o.x, o.z, float(a[2]), monde.hauteur(o.x, o.z)])
 					fait = true
 					nb += 1
 					break
@@ -102,6 +103,16 @@ static func creer(monde: Node3D) -> void:
 		if not fait:
 			push_warning("PropsMax : abords, composition refusée partout : " + String(l[0]))
 	print("PropsMax : abords, %d compositions en %d ms" % [nb, Time.get_ticks_msec() - t0])
+
+## Dernier recours (terrain en pente autour des ancres choisies) : couronnes de 3, 5 et 7 m autour de la première ancre, même lacet.
+## Les glissements de ±1/±2 m s'y appliquent aussi : chaque essai est bon marché (quelques requêtes), l'ordre reste déterministe.
+static func _spirale(a: Array) -> Array:
+	var r: Array = []
+	for d: float in [3.0, 5.0, 7.0]:
+		for k in 8:
+			var t := TAU * float(k) / 8.0 + d * 0.3
+			r.append([float(a[0]) + cos(t) * d, float(a[1]) + sin(t) * d, float(a[2])])
+	return r
 
 ## Repère monde d'un item (pied), sans la hauteur.
 static func _xf_item(it: Array, o: Vector3, lac: float) -> Transform3D:
@@ -151,8 +162,8 @@ static func _essai(monde: Node3D, items: Array, o: Vector3, lac: float, posees: 
 			var h: float = monde.hauteur(c.x, c.y)
 			hmin = minf(hmin, h)
 			hmax = maxf(hmax, h)
-		if hmax - hmin > PENTE_MAX:
-			return "pente " + id
+		if hmax - hmin > (PENTE_GRAND if _grand(it, r) else PENTE_MAX):
+			return "pente %s %.2f (r %.1f)" % [id, hmax - hmin, r]
 		if monde.arbres_autour(Vector3(centre.x, 0, centre.y), r + 0.8) > 0:
 			return "arbre " + id
 		if monde.chemins != null and monde.chemins.distance(centre.x, centre.y) < r + 2.0:
@@ -200,7 +211,14 @@ static func _poser(monde: Node3D, racine: Node3D, nom: String, items: Array, o: 
 			h = minf(h, monde.hauteur(c.x, c.y))
 		var ht: float = monde.hauteur(centre.x, centre.y)
 		var y := lerpf(h, ht, 0.5) - 0.03     # à moitié de la pente : un coin s'enfonce, aucun ne flotte de plus de quelques cm
-		xf.origin.y = y - _bas(id, xf)
+		if _grand(it, maxf((mx - mn).length() * 0.5, 0.15)):
+			xf = _incline(monde, id, xf)      # grand item : suit le terrain, posé par le milieu de son dessous
+			var bb := PropsQuaternius.boite(id)
+			var dessous := xf * Vector3(bb.get_center().x, bb.position.y, bb.get_center().z)
+			y = monde.hauteur(dessous.x, dessous.z) - 0.04
+			xf.origin.y += y - dessous.y
+		else:
+			xf.origin.y = y - _bas(id, xf)
 		poses.append([id, xf, bool(it[5])])
 		pieds.append([Vector2(xf.origin.x, xf.origin.z), y])
 		posees.append([centre, maxf((mx - mn).length() * 0.5, 0.15)])
@@ -222,6 +240,26 @@ static func _poser(monde: Node3D, racine: Node3D, nom: String, items: Array, o: 
 	if mi != null:
 		mi.visibility_range_end = PORTEE
 		mi.visibility_range_end_margin = 4.0
+
+## Grand item solide (charrette, tente, rondin-banc) : incliné comme le terrain au lieu d'être posé à plat à mi-pente.
+static func _grand(it: Array, r: float) -> bool:
+	return bool(it[5]) and r > 1.0
+
+## Incline le repère de l'item selon la pente du terrain mesurée aux bouts de ses deux axes (normale du plan moyen).
+static func _incline(monde: Node3D, id: String, xf: Transform3D) -> Transform3D:
+	var bb := PropsQuaternius.boite(id)
+	var c := xf * bb.get_center()
+	var ax := xf.basis.x * (bb.size.x * 0.5)
+	var az := xf.basis.z * (bb.size.z * 0.5)
+	ax.y = 0.0
+	az.y = 0.0
+	var lx := maxf(ax.length(), 0.2)
+	var lz := maxf(az.length(), 0.2)
+	var gx := (float(monde.hauteur(c.x + ax.x, c.z + ax.z)) - float(monde.hauteur(c.x - ax.x, c.z - ax.z))) / (2.0 * lx)
+	var gz := (float(monde.hauteur(c.x + az.x, c.z + az.z)) - float(monde.hauteur(c.x - az.x, c.z - az.z))) / (2.0 * lz)
+	var n := (Vector3.UP - ax / lx * gx - az / lz * gz).normalized()
+	var q := Quaternion(Vector3.UP, n)
+	return Transform3D(Basis(q) * xf.basis, xf.origin)
 
 ## Point le plus bas de la boîte de l'item sous son origine (une poutre dressée, une planche tournée) : posé sur ce point.
 static func _bas(id: String, xf: Transform3D) -> float:

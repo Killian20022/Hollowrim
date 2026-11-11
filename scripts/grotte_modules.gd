@@ -729,7 +729,7 @@ static func compo(g: Grotte, id: String, s: float, cote: float, items: Array) ->
 			base = q
 			lb = lac
 	if base != Vector3.INF:
-		print("PropsMax : composition de grotte posée %s s=%.1f (%s)" % [id, s, items[0][0]])
+		print("PropsMax : composition de grotte posée %s s=%.1f (s global %.1f, côté %d) (%s)" % [id, s, s + float(g.br[id]["decalage"]), int(cote), items[0][0]])
 	return base != Vector3.INF
 
 ## props/maximum v2 : les compositions sont posées EN DERNIER (GrotteDecor.finir, après glaçons, givre, congères et cailloux) :

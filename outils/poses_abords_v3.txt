@@ -1,0 +1,42 @@
+# PropsMax v3 abords : vues serrées (générées depuis le journal)
+v3a_charrette_champ_c monde 70.17,-12.35,-154.2,-20 y=7.21 heure=12
+v3a_charrette_champ_c_b monde 78.09,-10.54,128.4,-20 y=7.21 heure=12
+v3a_epouvantail_a monde 86.73,38.34,45.8,-20 y=5.72 heure=12
+v3a_epouvantail_a_b monde 81.14,39.03,-31.6,-20 y=5.72 heure=12
+v3a_epouvantail_b monde 81.84,50.22,10.8,-20 y=8.08 heure=12
+v3a_epouvantail_b_b monde 76.87,47.59,-66.6,-20 y=8.08 heure=12
+v3a_recolte_champ_b monde 80.45,45.54,115.8,-20 y=5.90 heure=12
+v3a_recolte_champ_b_b monde 79.20,51.02,38.4,-20 y=5.90 heure=12
+v3a_recolte_champ_c monde 62.04,-16.85,-154.2,-20 y=8.16 heure=12
+v3a_recolte_champ_c_b monde 67.52,-15.60,128.4,-20 y=8.16 heure=12
+v3a_bucher_ferme_b monde 59.61,3.90,25.8,-20 y=4.46 heure=12
+v3a_bucher_ferme_b_b monde 52.30,2.23,-51.6,-20 y=4.46 heure=12
+v3a_bucher_ferme_a monde 77.61,24.90,25.8,-20 y=4.97 heure=12
+v3a_bucher_ferme_a_b monde 70.30,23.23,-51.6,-20 y=4.97 heure=12
+v3a_bucher_feu monde 13.46,-4.13,55.8,-20 y=2.38 heure=12
+v3a_bucher_feu_b monde 6.29,-1.92,-21.6,-20 y=2.38 heure=12
+v3a_offrandes_cercle monde -39.96,-36.45,-154.2,-20 y=0.29 heure=12
+v3a_offrandes_cercle_b monde -34.48,-35.20,128.4,-20 y=0.29 heure=12
+v3a_offrandes_tumulus monde -35.42,-50.43,-164.2,-20 y=0.25 heure=12
+v3a_offrandes_tumulus_b monde -30.24,-48.24,118.4,-20 y=0.25 heure=12
+v3a_poteau_cercle monde -10.25,-5.68,-109.2,-20 y=2.27 heure=12
+v3a_poteau_cercle_b monde -5.49,-8.67,173.4,-20 y=2.27 heure=12
+v3a_poteau_tumulus monde -35.83,-41.94,-134.2,-20 y=0.29 heure=12
+v3a_poteau_tumulus_b monde -30.24,-42.63,148.4,-20 y=0.29 heure=12
+v3a_poteau_grotte monde 77.03,25.78,145.8,-20 y=4.97 heure=12
+v3a_poteau_grotte_b monde 78.68,31.15,68.4,-20 y=4.97 heure=12
+v3a_reserve_grotte monde 89.03,-25.22,145.8,-20 y=12.81 heure=12
+v3a_reserve_grotte_b monde 90.68,-19.85,68.4,-20 y=12.81 heure=12
+# crypte (v3 : râtelier de la salle de garde sur le mur est, sac éventré au pied des tonneaux ; caisses + cageot des quartiers)
+z3_garde_ratelier_e crypte 24.4,-54.1,-90,-16,-6 ouvre=s1,s2,s3,secret,herse
+z3_garde_sac crypte 24.0,-50.0,-54,-20,-6 ouvre=s1,s2,s3,secret,herse
+c_garde_est crypte 21.5,-53.4,-90,-12,-6 ouvre=s1,s2,s3,secret,herse
+z_quartiers_caisses crypte 21.7,-2.6,180,-14
+# grotte (v3 : halte étroite de la mine, guet à l'entrée du camp, vivres du camp)
+z_mine_halte grotte 169.5,0,0,-10
+g_halte grotte 28,-1,-35,-10
+z_repaire_guet grotte 265.5,0,0,-10
+g_repaire grotte 267,0,0,-6
+g_camp grotte 302,0,0,-8
+z_camp_vivres grotte 308.5,1.0,35,-10
+z_camp_ratelier grotte 303,-1.0,-35,-10
