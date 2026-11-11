@@ -23,6 +23,10 @@ const TRIS_HD := {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200, "ja
 ## Budgets propres à certaines pièces HD au niveau de détail du verre v5 (armure d'or v3 : lames articulées, genouillères, lions en relief).
 const TRIS_HD_ID := {"cuirasse_or": 3000, "cuirasse_or_enchante": 3000, "bottes_or": 3200, "bottes_or_enchante": 3200,
 		"cuirasse_or_serment": 3000, "bottes_or_fafnir": 3200}
+## Passe 2 « géométrie » des armures précieuses (2026-11-11, budget validé : ~6-8 k triangles par ensemble porté) : cadres de
+## cristal en volume, rivets, lanières, mèches. Pièces des familles ci-dessous (et leurs variantes enchantées).
+const TRIS_P2 := {"torse": 4000, "tete": 1500, "mains": 1350, "pieds": 1400, "jambes": 1200}
+const FAMILLES_P2 := ["verre", "rubis", "saphir", "cuir", "fourrure", "gardiens", "braise", "thaumaturge", "jarl", "rodeur", "hrafn"]
 const TEX_MAX := 1024
 const PiecesEssai := preload("res://outils/pieces_essai.gd")
 const CLIPS := ["Idle", "Walk", "Jog_Fwd", "Sprint", "Sword_Idle", "Sword_Attack", "Hit_Chest", "Jump", "Crouch_Fwd",
@@ -174,6 +178,8 @@ func _verifier_piece(id: String, e: String) -> void:
 	for s in mi.mesh.get_surface_count():
 		tris += mi.mesh.surface_get_array_index_len(s) / 3
 	var tmax: int = int(TRIS_HD_ID.get(id, TRIS_HD.get(e, TRIS_MAX)))
+	if FAMILLES_P2.any(func(f: String) -> bool: return id.trim_suffix("_enchante").ends_with("_" + f)):
+		tmax = maxi(tmax, int(TRIS_P2.get(e, tmax)))
 	ok(tris <= tmax, "%s : %d triangles (<= %d)" % [id, tris, tmax])
 	var mat := mi.get_surface_override_material(0) as ShaderMaterial
 	var tex: Texture2D = mat.get_shader_parameter("tex_base") if mat else null

@@ -480,7 +480,8 @@ static func _habiller_maillage(mi: MeshInstance3D, chemin: String, var_mat := ""
 static var _shaders_pierre := {}
 static func shader_pierre(saphir: bool) -> Shader:
 	if not _shaders_pierre.has(saphir):
-		var pale := "vec3(0.66, 0.82, 1.0)" if saphir else "vec3(0.95, 0.52, 0.50)"
+		# passe 2 : saphir = vrai cristal bleu (moins désaturé, moins de reflet d'environnement « chrome », cœur plus lumineux)
+		var pale := "vec3(0.45, 0.68, 1.0)" if saphir else "vec3(0.95, 0.52, 0.50)"
 		var bloc := """	{
 		vec3 gm_n = normalize(NORMAL);
 		vec3 gm_v = normalize(VIEW);
@@ -488,9 +489,9 @@ static func shader_pierre(saphir: bool) -> Shader:
 		vec3 gm_r = normalize((INV_VIEW_MATRIX * vec4(reflect(-gm_v, gm_n), 0.0)).xyz);
 		float gm_f = 1.0 - clamp(dot(gm_n, gm_v), 0.0, 1.0);
 		float gm_l = dot(ALBEDO, vec3(0.3, 0.59, 0.11));
-		ALBEDO = mix(ALBEDO, vec3(gm_l) * PALE * 1.1, 0.22 * gm_m);
+		ALBEDO = mix(ALBEDO, vec3(gm_l) * PALE * 1.1, DESAT * gm_m);
 		float gm_h = smoothstep(-0.25, 0.8, gm_r.y);
-		ALBEDO = mix(ALBEDO, ALBEDO * mix(vec3(0.55), vec3(1.4), gm_h), 0.55 * gm_m);
+		ALBEDO = mix(ALBEDO, ALBEDO * mix(vec3(0.55), vec3(1.4), gm_h), ENVM * gm_m);
 		float gm_c = 1.0 - gm_f;
 		EMISSION += ALBEDO * (0.30 + 0.55 * gm_c * gm_c) * EMIF * gm_m;
 		float gm_fr = floor(gm_f * gm_f * gm_f * 4.0) / 4.0;
@@ -500,7 +501,7 @@ static func shader_pierre(saphir: bool) -> Shader:
 		EMISSION += mix(PALE, vec3(1.0), 0.45) * (step(0.5, gm_s1) + 0.8 * step(0.5, gm_s2)) * 0.5 * gm_m;
 	}
 	ROUGHNESS = 1.0;
-}""".replace("PALE", pale).replace("EMIF", "1.0" if saphir else "1.5")
+}""".replace("PALE", pale).replace("EMIF", "1.25" if saphir else "1.5").replace("DESAT", "0.06" if saphir else "0.22").replace("ENVM", "0.30" if saphir else "0.55")
 		var sh := Shader.new()
 		sh.code = shader_armure().code.replace("\tROUGHNESS = 1.0;\n}", bloc)
 		_shaders_pierre[saphir] = sh

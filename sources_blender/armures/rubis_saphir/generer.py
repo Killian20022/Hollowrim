@@ -24,7 +24,8 @@ import commun as C
 import pieces as PC
 import armures_lib as L
 import resserrer as RS
-importlib.reload(C); importlib.reload(PC); importlib.reload(L); importlib.reload(RS)
+import relief as RF
+importlib.reload(C); importlib.reload(PC); importlib.reload(L); importlib.reload(RS); importlib.reload(RF)
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
@@ -448,7 +449,7 @@ PIECES = {
                                                         bombe=0.075, decor=[lambda *a: PC.deco_nasal(*a, mat="acier_rubis", long=0.07, larg=0.015),
                                                                             lambda *a: PC.deco_joues(*a, mat="plaque_rubis"),
                                                                             deco_nervures("rubis"), deco_visiere("rubis"), deco_bandeau("acier_rubis"), deco_masque("rubis"), deco_casque("rubis")]))),
-    "cuirasse_rubis": ("rubis", lambda r: PC.cuirasse(r, _s(RUBIS, id="cuirasse_rubis", n=24, lames=5, bombe=0.012, lames_epaule=4, z_plaques=(1.04, 1.47),
+    "cuirasse_rubis": ("rubis", lambda r: PC.cuirasse(r, _s(RUBIS, id="cuirasse_rubis", n=24, lames=3, ep_lames=[0.017, 0.026, 0.030], bombe=0.012, lames_epaule=4, z_plaques=(1.04, 1.47),
                                                             z_coeur=1.30, x_manche=X_MANCHE, decor=[deco_torse("rubis")]))),
     "gantelets_rubis": ("rubis", lambda r: PC.gantelets(r, _s(RUBIS, id="gantelets_rubis", evasement=0.034, debut_manchette=0.35,
                                                               decor=[deco_gant("rubis")]))),
@@ -458,7 +459,7 @@ PIECES = {
                                                           decor=[lambda *a: PC.deco_nasal(*a, mat="acier_saphir", long=0.06, larg=0.016),
                                                                  lambda *a: PC.deco_joues(*a, mat="plaque_saphir"),
                                                                  deco_nervures("saphir"), deco_visiere("saphir"), deco_bandeau("acier_saphir"), deco_masque("saphir", 1.615), deco_casque("saphir")]))),
-    "cuirasse_saphir": ("saphir", lambda r: PC.cuirasse(r, _s(SAPHIR, id="cuirasse_saphir", n=24, lames=5, bombe=0.012, lames_epaule=4, z_plaques=(1.04, 1.47),
+    "cuirasse_saphir": ("saphir", lambda r: PC.cuirasse(r, _s(SAPHIR, id="cuirasse_saphir", n=24, lames=3, ep_lames=[0.017, 0.026, 0.030], bombe=0.012, lames_epaule=4, z_plaques=(1.04, 1.47),
                                                               z_coeur=1.30, x_manche=X_MANCHE, decor=[deco_torse("saphir")]))),
     "gantelets_saphir": ("saphir", lambda r: PC.gantelets(r, _s(SAPHIR, id="gantelets_saphir", evasement=0.03, debut_manchette=0.35,
                                                                 decor=[deco_gant("saphir")]))),
@@ -684,7 +685,7 @@ def peindre_saphir(P, N, bd, U, ench):
 
 # v3 matière : GRENAT / BLEU NUIT profonds (jamais vifs), facettes à arêtes claires serties dans une structure de métal brun-noir.
 GRENAT = L.hexa("#0b0506", "#1c0c0f", "#341219", "#501b25", "#6d2733", "#8b3542", "#a64553", "#bd5b68", "#cf7783", "#e09aa2", "#f1c4c8")
-NUIT = L.hexa("#03040a", "#070a14", "#0c1226", "#121b38", "#1a2849", "#243759", "#314a70", "#425f8a", "#5f7fa6", "#8da8c6", "#c1d3e6")
+NUIT = L.hexa("#02040c", "#04091c", "#06102e", "#0a1a44", "#10275e", "#173879", "#214c96", "#2f63b2", "#4580cc", "#6aa2e2", "#a6cbf4")   # passe 2 : saphir franc (plus de « chrome »)
 CRISTAL_RUBIS = GRENAT
 CRISTAL_SAPHIR = NUIT
 
@@ -744,7 +745,7 @@ def peindre_plaque(P, N, bd, U, ens, ench):
     ang = idv * TAU
     dirc = np.stack([np.cos(ang), np.sin(ang) * 0.8, np.sin(ang * 1.7)], 1)
     t = np.clip(0.5 + 0.60 * (N * _LUM).sum(1), 0, 1)
-    v = (0.40 if ens == "rubis" else 0.30) + 0.16 * np.floor(t * 4.0) / 3.0 + 0.16 * (idv - 0.5)
+    v = (0.40 if ens == "rubis" else 0.44) + 0.16 * np.floor(t * 4.0) / 3.0 + 0.16 * (idv - 0.5)
     v += np.clip(((q - base_c - 0.5) * dirc).sum(1), -0.6, 0.6) * 0.20
     vein = d2 - d1
     v -= np.clip(vein / 0.30, 0, 1) * 0.08                       # cœur des facettes plus profond
@@ -771,7 +772,7 @@ def peindre_plaque(P, N, bd, U, ens, ench):
     rgb[gorge] = L.rampe(metal, np.full(gorge.sum(), 0.08)); al[gorge] = 0.1
     mv = 0.60 + (L.fbm(P, 24.0, 227, 2) - 0.5) * 0.16 + (L.bruit(P * np.array([1.0, 9.0, 1.0]), 90.0, 229) - 0.5) * 0.07
     cadre = bd < 0.0132
-    pal_cadre = clair if ens == "saphir" else metal
+    pal_cadre = metal          # passe 2 : cadre sombre pour les deux (le cadre argent clair du saphir lisait « chrome à bandes »)
     rgb[cadre] = L.rampe(pal_cadre, np.clip(mv[cadre] * (1.0 if ens == "saphir" else 1.05), 0, 1)) * (0.85 if ens == "saphir" else 1.0)
     al[cadre] = 0.42
     bis = bd < 0.0026
@@ -1119,6 +1120,11 @@ def construire(pid, rapide=False):
         ob = fab(r)
     finally:
         C.tube = tube0
+    # passe 2 : resserrage AVANT le relief (sinon la compression écrase les cadres), puis panneaux sertis en volume
+    if "--sans-resserrer" not in sys.argv:
+        RS.resserrer(ob, parametres_resserrer(pid))
+    if "--sans-relief" not in sys.argv:
+        relief_rs(ob, pid, ens)
     reorienter_gemmes(ob, {"rubis", "saphir", "serti_rubis", "serti_saphir", "cristal_rubis", "cristal_saphir", "plaque_rubis", "plaque_saphir"})
     plats = {i for i, m in enumerate(ob.data.materials) if m and m.name.split(".")[0] in ("rubis", "saphir", "cristal_rubis", "cristal_saphir", "plaque_rubis", "plaque_saphir")}
     for p in ob.data.polygons:
@@ -1127,6 +1133,31 @@ def construire(pid, rapide=False):
     taille = 1024 if "cuirasse" in pid else 512
     mats = cuire_hd(ob, pid, ens, taille, rapide)
     return r, ob, mats
+
+
+RELIEF_RS = {   # passe 2 : largeur du cadre (= liseré peint, bd < 13 mm), saillie, pyramide du cristal, rivets
+    "cuirasse": dict(largeur=0.012, saillie=0.0030, bombe=0.008, rivet=(0.0030, 0.0028)),
+    "casque": dict(largeur=0.010, saillie=0.0026, bombe=0.006, rivet=(0.0026, 0.0024)),
+    "gantelets": dict(largeur=0.008, saillie=0.0022, bombe=0.005, rivet=None, aire_min=0.0025),
+    "bottes": dict(largeur=0.010, saillie=0.0026, bombe=0.007, rivet=(0.0026, 0.0024), aire_min=0.0045),
+}
+
+
+def relief_rs(ob, pid, ens):
+    """Panneaux de cristal (plaque_*) SERTIS en volume : le cadre de métal peint (liseré bd < 13 mm de peindre_plaque) devient
+    un cadre en saillie, le cristal une pyramide basse à facettes ; rivets aux coins (matériau serti)."""
+    pr = dict(RELIEF_RS[pid.split("_")[0]])
+    riv = pr.pop("rivet")
+    aire_min = pr.pop("aire_min", 0.0015)
+    noms = [m.name.split(".")[0] if m else "" for m in ob.data.materials]
+    plaque = {i for i, n in enumerate(noms) if n.startswith("plaque_")}
+    serti = next((i for i, n in enumerate(noms) if n.startswith("serti_")), None)
+    if not plaque:
+        return
+    avant = C.compter_tris(ob)
+    RF.sertir(ob, plaque, lambda k: k, centre_fn=RF.corps_proche(RS.corps()), dehors_min=0.3, anneaux=1, rivets_max=2, aire_min=aire_min,
+              rivet=(riv[0], riv[1], serti) if (riv and serti is not None) else None, **pr)
+    print("RELIEF", pid, avant, "->", C.compter_tris(ob), "tris")
 
 
 def parametres_resserrer(pid):
@@ -1164,8 +1195,6 @@ def main():
             ids.append(a)
     for pid in ids:
         r, ob, mats = construire(pid, rapide)
-        if "--sans-resserrer" not in sys.argv:
-            RS.resserrer(ob, parametres_resserrer(pid))
         print("PIECE", pid, C.compter_tris(ob), "tris", "groupes", len(ob.vertex_groups), "matériaux", [m.name for m in mats[False]])
         poser_materiaux(ob, mats[False])
         C.exporter([ob], r, os.path.join(C.PORTE, pid + ".glb"))

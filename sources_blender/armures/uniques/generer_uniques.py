@@ -13,7 +13,8 @@ import pieces_hd as PH
 import decor_uniques as DU
 sys.path.insert(0, os.path.join(ICI, ".."))
 import resserrer as RS
-importlib.reload(RS)
+import relief as RF
+importlib.reload(RS); importlib.reload(RF)
 importlib.reload(C); importlib.reload(H); importlib.reload(PH); importlib.reload(DU)
 from mathutils import Vector, Matrix
 from decor_uniques import ligne_runes, rune, cercle, trait, poly
@@ -510,6 +511,38 @@ def parametres_resserrer(pid):
     return fn
 
 
+def _mat(ob, nom):
+    return next((i for i, m in enumerate(ob.data.materials) if m and m.name.split(".001")[0] == nom), None)
+
+
+def relief_uniques(ob, pid):
+    """Passe 2 « géométrie » : brigandine CLOUTÉE en relief (têtes de clous sur les écailles), arête médiane du plastron des gardiens,
+    capuche du thaumaturge à bord épais et couture de crâne en bourrelet. Repère Blender (C : Godot -> Blender)."""
+    avant_f = len(ob.data.polygons)
+    avant = C.compter_tris(ob)
+    corps = RF.corps_proche(RS.corps())
+    G2B = lambda x, y, z: Vector((x, -z, y))
+    if pid == "brigandine_braise":
+        k = _mat(ob, "cuir.braise")
+        pts = []
+        for y in [1.07 + 0.042 * i for i in range(9)]:
+            for a in range(-150, 181, 15):
+                ar = math.radians(a)
+                pts.append(G2B(0.20 * math.sin(ar), y, 0.16 * math.cos(ar)))
+        RF.rivets_sur(ob, pts, 0.0038, 0.0034, k if k is not None else 0, cotes=4)
+    elif pid == "cuirasse_gardiens":
+        k = _mat(ob, "acier.givre")
+        if k is not None:
+            RF.nervurer(ob, {k}, lambda p: abs(p.x) < 0.016 and p.y < -0.02 and 1.06 < p.z < 1.42, saillie=0.004, largeur=0.006,
+                        centre_fn=corps, dehors_min=0.3)
+            RF.ourler(ob, {k}, epaisseur=0.004, retour=0.002)
+    elif pid == "capuche_thaumaturge":
+        RF.ourler(ob, {0}, epaisseur=0.006, retour=0.004)
+        RF.nervurer(ob, {0}, lambda p: abs(p.x) < 0.02 and p.z > 1.64, saillie=0.004, largeur=0.006, centre_fn=corps, dehors_min=0.2)
+    n_uv = RF.reparer_uv(ob, avant_f)
+    print("RELIEF", pid, avant, "->", C.compter_tris(ob), "tris ; uv reprises", n_uv)
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     dossier = None
@@ -526,6 +559,8 @@ def main():
             # capuche du thaumaturge : le camail des épaules est fait de petits pans séparés (îles < 20 cm) qui suivaient la
             # capuche d'un bloc et restaient à 10 cm des épaules : îles traitées sommet par sommet, compression plus forte
             RS.resserrer(ob, parametres_resserrer(pid), **({"diag_ile": 0.05, "dmax": 0.14} if pid == "capuche_thaumaturge" else {}))
+        if "--sans-relief" not in sys.argv:
+            relief_uniques(ob, pid)
         print("PIECE", pid, C.compter_tris(ob), "tris", "groupes", len(ob.vertex_groups),
               "texture", next(n for n in ob.data.materials[0].node_tree.nodes if n.type == "TEX_IMAGE").image.size[:])
         if exporter:
