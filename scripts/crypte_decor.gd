@@ -2440,7 +2440,14 @@ const SUBST := {
 	"g_tabouret_a": ["q_tabouret", 0], "g_tabouret_b": ["q_tabouret", 0],
 }
 
+## props/maximum : avec les props texturés, ces modules gardent leur pièce maison : le seul remplaçant (grande table de 2,7 m,
+## râtelier SUR PIED de 1,3 m de fond) y était écrasé par l'ajustement aux bornes (table de 1,1 x 0,65 m : x 0,4 ; râtelier mural
+## de 17 cm de fond : z 0,13), et aucun pq_* n'a la bonne forme (petite table, râtelier mural).
+const SUBST_GARDE_PQ := ["table_a", "table_b", "table_c", "ratelier_cadre_a", "ratelier_cadre_b", "g_ratelier"]
+
 func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: bool) -> Variant:
+	if PropsQuaternius.pq and nom in SUBST_GARDE_PQ:
+		return null
 	var s: Array = SUBST[nom]
 	if s[0] == "":
 		return []
