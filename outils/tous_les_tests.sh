@@ -62,6 +62,7 @@ TESTS=(
 	"test_dragon_monde|--nouvelle"
 	"test_marche_pnj|--nouvelle"
 	"test_mort_ragdoll|--nouvelle"
+	"test_cadavres_couches|--nouvelle"   # cadavres debout (correctifs/cadavres_debout) : chaque draugr tué finit couché (ragdoll 3 s / 10 s, dépouille statique figée)
 	"test_ragdoll|--nouvelle"
 	"test_musique|--nouvelle"
 	"test_villageois|--nouvelle"
@@ -173,7 +174,7 @@ TESTS=(
 	"test_shaders_tiers|--nouvelle"   # reprises de shaders PS1 libres : fondu au noir soustractif en 32 pas, licences MIT
 )
 # tests dont le résultat dépend du pas de physique : lancés en temps réel (test_ragdoll : OK aussi en --fixed-fps depuis la correction du signe des limites de charnière, 10/10 sous charge ; gardé en temps réel par prudence)
-TEMPS_REEL="test_ragdoll test_mort_ragdoll"
+TEMPS_REEL="test_ragdoll test_mort_ragdoll test_cadavres_couches"
 nok=0; nko=0; RES=(); t_debut=$SECONDS
 for t in "${TESTS[@]}"; do
 	nom="${t%%|*}"; args="${t#*|}"
