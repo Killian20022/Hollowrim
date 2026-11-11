@@ -46,6 +46,8 @@ const GARDES_TRIPO := {"halle_o": "tripo_garde_lance", "ronde_place": "tripo_gar
 ## voisins n'aient jamais le même corps ET la même livrée. Carrure « taille » / « largeur » de l'entrée appliquée comme sur le Gardien.
 ## Les trois premiers (GARDES_TRIPO) restent tels quels. Ancien corps : `--modeles-anciens[=gardes]` ou « "modele_ancien": true ».
 static func corps_tripo(g: Dictionary) -> String:
+	if GardeMaison.actif(g):
+		return ""      # armures maison par défaut (GardeMaison, 2026-11-11) ; corps Tripo avec --gardes-armures-tripo
 	if not ModelesTripo.actif("gardes") or ModelesTripo.ancien_impose(g) or g.get("armure_tripo", false):
 		return ""
 	if g.get("armure_verre", false):
@@ -132,6 +134,7 @@ static func peupler(monde_: Node3D) -> GardesVillage:
 		if is_instance_valid(b):
 			b.free()      # les copies gardent les maillages et matières partagés
 	_bases.clear()
+	GardeMaison.liberer_bases()
 	print("Gardes : %d gardes au village (+ Haldor), créés en %d ms" % [gv.gardes.size(), (Time.get_ticks_usec() - t0) / 1000])
 	return gv
 
@@ -148,6 +151,8 @@ static func _place_vigie(village: Node3D, g: Dictionary) -> Vector3:
 ## Modèle d'un garde : le Gardien nordique ENTIER (bouclier au bras aux postes, dans le dos en ronde) + variante légère.
 ## g : "poil" (index de POILS), "peau" (index de PEAUX), "rase" (sans barbe), "taille", "largeur".
 static func creer_modele(g: Dictionary) -> Node3D:
+	if GardeMaison.actif(g):
+		return GardeMaison.creer(g)      # défaut (2026-11-11) : corps Quaternius + armures maison (data/gardes.json « ensembles » / « roles »)
 	if g.get("armure_verre", false) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
 		return GardeTripo.creer("tripo_garde_verre")      # armure de verre Tripo (garde n_e)
 	if g.get("armure_tripo", false) and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(g):
@@ -158,6 +163,14 @@ static func creer_modele(g: Dictionary) -> Node3D:
 		_bases[bouclier] = GardienNordique.creer({"bouclier": bouclier, "lance": true})
 	var n := (_bases[bouclier] as Node3D).duplicate() as Node3D
 	n.name = "GardeSkarnholt"
+	varier(n, g)
+	var h := clampf(float(g.get("taille", 1.0)), 0.9, 1.1)
+	var l := clampf(float(g.get("largeur", 1.0)), 0.92, 1.08)
+	n.scale = Vector3(h * l, h, h * l)
+	return n
+
+## Variante d'un garde sur un corps de Gardien (ancien Gardien ou GardeMaison) : teinte de la barbe et des cheveux, barbe rasée, teint.
+static func varier(n: Node3D, g: Dictionary) -> void:
 	var sq := n.find_child("Skeleton3D", true, false) as Skeleton3D
 	var ip := clampi(int(g.get("poil", 0)), 0, POILS.size() - 1)
 	var ik := clampi(int(g.get("peau", 0)), 0, PEAUX.size() - 1)
@@ -178,10 +191,6 @@ static func creer_modele(g: Dictionary) -> Node3D:
 			if m is ShaderMaterial:
 				var te: Variant = (m as ShaderMaterial).get_shader_parameter("teinte")
 				peau.set_surface_override_material(s, _mat_teinte(m, "peau_%d_%d" % [ik, s], (te if te is Color else Color.WHITE) * PEAUX[ik]))
-	var h := clampf(float(g.get("taille", 1.0)), 0.9, 1.1)
-	var l := clampf(float(g.get("largeur", 1.0)), 0.92, 1.08)
-	n.scale = Vector3(h * l, h, h * l)
-	return n
 
 ## ESSAI Tripo : garde en ARMURE DORÉE Tripo (scripts/armure_tripo.gd). Corps humain (Humain.creer) en sous-vêtement sombre ajusté (ni tunique ni pantalon : les vêtements épais avalaient plastron et jambières), les cinq
 ## pièces de l'armure accrochées aux os ; mêmes variantes de barbe, de peau et de carrure que les autres gardes.

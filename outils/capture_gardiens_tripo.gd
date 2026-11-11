@@ -164,13 +164,14 @@ func _figer(g: Node3D, clip := "Idle") -> AnimationPlayer:
 func _postes() -> void:
 	await _attendre(90)
 	var gardes: Array = []
-	for id: String in IDS:
+	var liste: Array = _arg("ids", ",".join(IDS)).split(",", false)      # --ids=halle_o,ronde_place,... (défaut : IDS)
+	for id: String in liste:
 		var g := _garde(id)
 		if g == null:
 			print("ABSENT ", id)
 			continue
 		var p := g.global_position
-		print("GARDE %-11s corps=%s variante=%s pos=(%.1f ; %.1f)" % [id, g.modele.get_meta("pnj_nordique", g.modele.name), g.modele.get_meta("variante_tripo", "-"), p.x, p.z])
+		print("GARDE %-11s corps=%s variante=%s pos=(%.1f ; %.1f)" % [id, g.modele.get_meta("pnj_nordique", g.modele.get_meta("garde_maison", g.modele.name)), g.modele.get_meta("variante_tripo", "-"), p.x, p.z])
 		gardes.append([id, g])
 	for x: Array in gardes:
 		var g: Node3D = x[1]

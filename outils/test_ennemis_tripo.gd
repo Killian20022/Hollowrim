@@ -125,8 +125,13 @@ func _lancer() -> void:
 		if g.get("armure_tripo", false):
 			dore = g
 	ok(String(dore.get("id", "")) == "halle_e" and not GardesVillage.GARDES_TRIPO.has("halle_e"), "armure dorée sur halle_e, hors des trois gardes Tripo")
-	var md := GardesVillage.creer_modele(dore)
-	ok(md != null and md.name == "GardeDore", "halle_e : corps en armure dorée par défaut")
+	# 2026-11-11 : armures Tripo des gardes abandonnées, défaut = armure maison (GardeMaison) ; l'armure dorée Tripo reste chargeable
+	var mdm := GardesVillage.creer_modele(dore)
+	ok(mdm != null and GardeMaison.pieces_portees(mdm).has("cuirasse_or"), "halle_e : armure d'or maison par défaut")
+	if mdm:
+		mdm.free()
+	var md := GardesVillage.creer_modele_dore(dore)
+	ok(md != null and md.name == "GardeDore", "halle_e : armure dorée Tripo toujours chargeable (--gardes-armures-tripo)")
 	if md:
 		md.free()
 	var dore_anc := dore.duplicate()
@@ -141,8 +146,12 @@ func _lancer() -> void:
 		if g.get("armure_verre", false):
 			verre = g
 	ok(String(verre.get("id", "")) == "n_e" and not verre.get("armure_tripo", false) and not GardesVillage.GARDES_TRIPO.has("n_e"), "armure de verre sur n_e, seule")
-	var mv := GardesVillage.creer_modele(verre)
-	ok(mv != null and String(mv.get_meta("pnj_nordique", "")) == "tripo_garde_verre", "n_e : corps en armure de verre Tripo par défaut")
+	var mvm := GardesVillage.creer_modele(verre)
+	ok(mvm != null and GardeMaison.pieces_portees(mvm).has("cuirasse_verre"), "n_e : armure de verre maison par défaut")
+	if mvm:
+		mvm.free()
+	var mv := GardeTripo.creer("tripo_garde_verre")
+	ok(mv != null and String(mv.get_meta("pnj_nordique", "")) == "tripo_garde_verre", "n_e : armure de verre Tripo toujours chargeable (--gardes-armures-tripo)")
 	if mv:
 		var sqv := mv.find_child("Skeleton3D", true, false) as Skeleton3D
 		ok(sqv != null and sqv.find_bone("tab_f_1") >= 0 and sqv.find_bone("hand_r") >= 0, "armure de verre : squelette des gardes + tabard")

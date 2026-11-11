@@ -237,6 +237,10 @@ func _ready() -> void:
 	# corps Humain (Quaternius) par défaut ; --persos-kit : personnage de base unifié (PersoDefs)
 	if id == "chef" and ModelesTripo.actif("jarl") and not ModelesTripo.ancien_impose(donnees):      # jarl Tripo Gunnar (scripts/jarl_tripo.gd) par défaut : même id (dialogue, quêtes, factions, sommeil), autre corps ; ancien : --modeles-anciens=jarl
 		modele = JarlTripo.creer()
+	elif id == "garde" and GardeMaison.actif(donnees):      # Haldor (2026-11-11) : corps Quaternius + armure maison (data/gardes.json « haldor ») ; Tripo : --gardes-armures-tripo
+		var g: Dictionary = (GardesVillage.donnees().get("haldor", {"role": "epee"}) as Dictionary).duplicate()
+		g["type"] = "poste"
+		modele = GardeMaison.creer(g)
 	elif id == "garde" and ModelesTripo.actif("gardes") and not ModelesTripo.ancien_impose(donnees):      # Haldor (lot tripo/gardiens) : garde Tripo à l'épée, livrée « passé » (GardeTripo.texture_variante), comme les gardes du village ; ancien : --modeles-anciens=gardes ou "modele_ancien": true
 		modele = GardeTripo.creer(HALDOR_TRIPO, true, true, HALDOR_LIVREE)
 	elif donnees.has("pnj"):       # habitant anonyme (data/habitants.json) : dérivé d'un archétype nordique validé, ou l'ancien corps Humain pour l'avant/après

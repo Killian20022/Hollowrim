@@ -174,7 +174,10 @@ func _sur_mort() -> void:
 		pnj = null
 
 func _contenu_butin() -> Dictionary:
-	return {"pieces": randi_range(8, 25) if est_garde else randi_range(2, 12)}
+	var c := {"pieces": randi_range(8, 25) if est_garde else randi_range(2, 12)}
+	for id: String in GardeMaison.pieces_portees(modele):      # garde en armure maison : les pièces qu'il portait (casque, cuirasse, gants, bottes)
+		c[id] = 1
+	return c
 
 func _finisher_permis() -> bool:
 	return mode == "hostile"
