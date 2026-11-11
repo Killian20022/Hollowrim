@@ -105,7 +105,8 @@ static func _mur(n: Vector3) -> String:
 		return "+Z"
 	return "-X" if n.x > 0.5 else "+X"
 
-## Bûches de chauffage empilées contre le mur (3 + 2 + 1 rondins de 0,75 m, bois de rondin maison) et leur boîte de collision.
+## Bûches de chauffage empilées contre le mur (3 + 2 + 1 rondins de 0,75 m, bois de rondin maison), bouts sciés vers la pièce (lisibles),
+## et leur boîte de collision.
 static func _buches(b: Interieurs, p: Vector3, lacet: float) -> void:
 	var F := Interieurs.F
 	var bz := Basis(Vector3.UP, lacet)
@@ -114,6 +115,6 @@ static func _buches(b: Interieurs, p: Vector3, lacet: float) -> void:
 	for rang in 3:
 		for k in 3 - rang:
 			var dz := (k - (2 - rang) * 0.5) * r * 2.05
-			var c := p + bz * Vector3(0, 0, dz - 0.0) + Vector3(0, F + r + rang * r * 1.75, 0)
-			b.rondin(c, lacet, 0.75, r * (1.0 + 0.06 * ((k + rang) % 2)), g + rang * 3 + k)
+			var c := p + bz * Vector3(dz, 0, 0) + Vector3(0, F + r + rang * r * 1.75, 0)
+			b.rondin(c, lacet + PI * 0.5, 0.75, r * (1.0 + 0.06 * ((k + rang) % 2)), g + rang * 3 + k)      # bout des bûches vers la pièce
 	b.solide(p + Vector3(0, F + 0.3, 0), Vector3(0.78, 0.6, 0.76), lacet)
