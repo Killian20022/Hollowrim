@@ -74,6 +74,9 @@ const MATIERES := {
 }
 ## Bois de la crypte : un peu moins saturé (rampe Bois travaillé « moins orange », INSPIRATION_IGNITE §3.6) sans retoucher la texture.
 const SATURATION_BOIS := 0.75
+## props/maximum : props texturés (atlas pq_*) sous terre (crypte, grotte) : saturation et teinte ramenées vers le bois patiné du décor.
+const PQ_SATURATION := 0.62
+const PQ_TEINTE := Color(0.78, 0.72, 0.68)
 static var _shader_brillant: Shader
 
 static func shader_brillant() -> Shader:
@@ -500,6 +503,9 @@ func mat(nom: String) -> Material:
 				sm.set_shader_parameter("relief", RELIEF.get(nom, 1.0))
 			if nom == "fer" or nom == "lame" or nom == "fer_mat" or nom.begins_with("pq_"):
 				sm.set_shader_parameter("crasse", 0.0)
+			if est_pq:      # props/maximum : sous terre, le bois orangé et propre du pack jurait avec le bois sombre de la crypte et du camp
+				sm.set_shader_parameter("saturation", PQ_SATURATION)
+				sm.set_shader_parameter("teinte", PQ_TEINTE)
 			if est_crypte:
 				sm.set_shader_parameter("ambiant", AMBIANT_CRYPTE)
 				sm.set_shader_parameter("grille", GRILLE_CRYPTE)
@@ -1676,7 +1682,10 @@ func _table_lot4(pos: Vector3, lacet: float) -> void:
 			continue
 		j0("garniture_lot4", lacet)
 		var e := Vector3.ONE * 1.3
-		if fait == 0:      # pile de 2 ou 3 livres
+		if fait == 0 and PropsQuaternius.pq:      # props/maximum : pile de livres texturée d'un seul tenant (couvertures de cuir du pack)
+			var nl := 2 + g.randi() % 2
+			_q4("pq_pile_livres" if nl == 2 else "pq_pile_livres_2", p, g.randf() * TAU, Vector3.ONE * 1.15)
+		elif fait == 0:      # pile de 2 ou 3 livres
 			var nl := 2 + g.randi() % 2
 			for i in nl:
 				_q4(["q_livre_d1", "q_livre_d2"][(i + g.randi()) % 2], p + Vector3(0, 0.09 * 1.3 * i, 0), g.randf() * TAU, e)
@@ -1707,7 +1716,7 @@ func _alea_pos(pos: Vector3) -> RandomNumberGenerator:
 ## Pose un prop du lot 4 fondu dans les tampons (sans emprise : celle de l'objet qui le porte existe déjà).
 func _q4(nom: String, pos: Vector3, lacet: float, ech: Vector3, mats := {}) -> void:
 	PropsQuaternius.preparer_crypte()
-	if not _modeles_de.has(nom):
+	if not _modeles_de.has(nom) and not (nom.begins_with("pq_") and _modeles_de.has("pq:" + nom)):
 		return
 	PropsQuaternius.compter("crypte_lot4")
 	var m := PropsQuaternius.MATS_CRYPTE.duplicate()
@@ -2193,7 +2202,8 @@ func parchemins_epars(centre: Vector3, rayon: float, n := 12) -> void:
 		var r := sqrt(rng.randf()) * rayon
 		var p := centre + Vector3(cos(a) * r, 0.01 + 0.004 * (k % 3), sin(a) * r)
 		if k % 4 == 0:
-			_q4(["q_livre_ouvert", "q_livre_d1", "q_livre_d2", "q_livre_ouvert"][nb % 4], p, rng.randf() * TAU, Vector3.ONE)
+			var livres: Array = ["q_livre_ouvert", "pq_livre_7", "pq_livre_5", "q_livre_ouvert"] if PropsQuaternius.pq else ["q_livre_ouvert", "q_livre_d1", "q_livre_d2", "q_livre_ouvert"]
+			_q4(livres[nb % 4], p, rng.randf() * TAU, Vector3.ONE * (1.1 if String(livres[nb % 4]).begins_with("pq_") else 1.0))
 			nb += 1
 		else:
 			boite("parchemin", p, Vector3(rng.randf_range(0.2, 0.34), 0.01, rng.randf_range(0.14, 0.24)), rng.randf() * TAU)
@@ -2435,7 +2445,7 @@ func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: b
 	if s[0] == "":
 		return []
 	PropsQuaternius.preparer_crypte()
-	if not _modeles_de.has(s[0]):
+	if not _modeles_de.has(s[0]) and not (PropsQuaternius.pq and _modeles_de.has("pq:" + s[0])):
 		return null
 	var ob := bornes_modele(nom)
 	var pb := PropsQuaternius.boite(s[0])

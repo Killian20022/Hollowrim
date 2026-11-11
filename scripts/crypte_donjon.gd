@@ -316,6 +316,106 @@ func plan() -> Array:
 func _q(nom: String, wx: float, wz: float, lacet_monde := 0.0, y := 0.0, solide := false, mats := {}, e := 1.0) -> void:
 	PropsQuaternius.crypte(d, nom, _l(wx, wz, y), _ll(lacet_monde), e, solide, mats)
 
+## props/maximum (2026-11-11) : COMPOSITION de props texturés posée d'un bloc (coin de vie, garde-manger, établi, autel…), en repère de
+## la crypte : ancre (wx, wz, y), lacet de l'ancre (radians, 0 = l'avant des props vers +Z), items [id, droite, devant, lacet°, hauteur,
+## solide, échelle, genre]. genre « tonneau » / « urne » : posé par CrypteDecor.tonneau / urne (cassable, butin) ; sinon _q (fondu, fer mat).
+## Les items AU SOL vérifient tous : dans la salle (hors soubassement et panneaux), hors des voies des portes, des réserves de la table
+## (ennemis, coffres, interactions, mécanismes), des rondes des gardiens et des emprises déjà posées. Refus = rien n'est posé ; essais
+## décalés le long de `glisse` (m, repère de la crypte). Renvoie vrai si posé. Seulement avec les props texturés (PropsQuaternius.pq).
+static var compos_posees := 0
+static var compos_refusees: Array = []
+func _compo(m: Dictionary, nom: String, items: Array, wx: float, wz: float, lacet: float, y := 0.0, glisse := Vector2.ZERO) -> bool:
+	if not PropsQuaternius.pq or d.muet:
+		return false
+	PropsQuaternius.preparer_crypte()
+	var dim: Vector2 = m["dim"]
+	var rondes: Array = []
+	for e: Dictionary in m.get("ennemis", []):
+		var pts: Array = (e.get("extra", {}) as Dictionary).get("patrouille", [])
+		for k in pts.size():
+			var a := lw(pts[k])
+			var b := lw(pts[(k + 1) % pts.size()])
+			rondes.append([Vector2(a.x, a.z), Vector2(b.x, b.z)])
+	var raisons: Array = []
+	for essai: float in [0.0, 1.0, -1.0, 2.0, -2.0, 3.0, -3.0]:
+		var raison := ""
+		var ax := wx + glisse.x * essai
+		var az := wz + glisse.y * essai
+		var b := Basis(Vector3.UP, lacet)
+		var ok := true
+		for it: Array in items:
+			if float(it[4]) > 0.05:
+				continue
+			var e := float(it[6]) if it.size() > 6 else 1.0
+			var bb := PropsQuaternius.boite(String(it[0]))
+			if bb.size == Vector3.ZERO:
+				ok = false
+				break
+			var lac := lacet + deg_to_rad(float(it[3]))
+			var cw := Vector3(ax, y, az) + b * Vector3(float(it[1]), 0, float(it[2])) + Basis(Vector3.UP, lac) * (bb.get_center() * e)
+			var cl := lw(cw)
+			var ll := lw_lacet(lac)
+			var demi := Vector2(bb.size.x, bb.size.z) * 0.5 * e
+			var bl := Basis(Vector3.UP, ll)
+			var ext := (bl * Vector3(demi.x, 0, 0)).abs() + (bl * Vector3(0, 0, demi.y)).abs()
+			var r := demi.length() * 0.8
+			var q := Vector2(cl.x, cl.z)
+			if absf(cl.x) + ext.x > dim.x * 0.5 - 0.55 or absf(cl.z) + ext.z > dim.y * 0.5 - 0.55:
+				ok = false
+				raison = "hors salle " + String(it[0])
+			for l: Array in _lanes:
+				var la: Vector2 = l[0]
+				var seg: Vector2 = (l[1] as Vector2) - la
+				var t := clampf((q - la).dot(seg) / maxf(seg.length_squared(), 0.0001), 0.0, 1.0)
+				if q.distance_to(la + seg * t) < r + 0.8:
+					ok = false
+					raison = "voie de porte " + String(it[0])
+			for rv: Array in _reserves.slice(0, _n_res_accroches):
+				if q.distance_to(rv[0]) < r + float(rv[1]) * 0.8:
+					ok = false
+					raison = "réserve " + String(it[0])
+			for rd: Array in rondes:
+				var ra: Vector2 = rd[0]
+				var sg: Vector2 = (rd[1] as Vector2) - ra
+				var t2 := clampf((q - ra).dot(sg) / maxf(sg.length_squared(), 0.0001), 0.0, 1.0)
+				if q.distance_to(ra + sg * t2) < r + 0.7:
+					ok = false
+					raison = "ronde " + String(it[0])
+			if ok and not d.rect_libre(cl, demi + Vector2(0.04, 0.04), ll, 0.03):
+				ok = false
+				raison = "emprise " + String(it[0])
+				for ee: Array in d.emprises:
+					if absf(float((ee[0] as Vector3).y) - cl.y) < 2.0 and CrypteDecor.dist_emprise(ee, cl) < r:
+						raison += "/" + String(ee[4])
+						break
+			if not ok:
+				break
+		if not ok:
+			raisons.append("%.0f:%s" % [essai, raison])
+			continue
+		for it: Array in items:
+			var e := float(it[6]) if it.size() > 6 else 1.0
+			var lac := lacet + deg_to_rad(float(it[3]))
+			var pw := Vector3(ax, 0, az) + b * Vector3(float(it[1]), 0, float(it[2]))
+			var genre: String = String(it[7]) if it.size() > 7 else ""
+			match genre:
+				"tonneau":
+					d.tonneau(_l(pw.x, pw.z, y), e)
+				"urne":
+					d.urne(_l(pw.x, pw.z, y), e)
+				_:
+					_q(String(it[0]), pw.x, pw.z, lac, y + float(it[4]), bool(it[5]), {}, e)
+		compos_posees += 1
+		print("PropsMax : composition posée %s / %s (%.1f, %.1f)" % [m["id"], nom, ax, az])
+		return true
+	compos_refusees.append(String(m["id"]) + ":" + nom)
+	push_warning("composition refusée (pas de place libre) : %s / %s %s" % [m["id"], nom, raisons])
+	if OS.get_cmdline_user_args().has("--compos-debug"):      # carte des emprises de la salle (repère de la crypte) pour choisir une ancre
+		for ee: Array in d.emprises:
+			var cw := mw(ee[0])
+			print("  emprise %s (%.1f, %.1f) demi %s" % [ee[4], cw.x, cw.z, ee[1]])
+	return false
+
 # ------------------------------------------------------------------ outils des récits (coordonnées de la crypte -> repère du module)
 func _l(wx: float, wz: float, y := 0.0) -> Vector3:
 	return lw(Vector3(wx, y, wz))
@@ -364,6 +464,7 @@ func _x_prep(_m: Dictionary) -> void:
 		_q("pq_chaine", -4.6, -26.9, 0.7)
 		_q("pq_cage", -5.85, -25.2, 0.2, 0.0, true)
 		_q("q_crane", -5.85, -25.2, 1.0, 0.03)
+	_compos_pq(_m)
 
 func _x_rituelle(_m: Dictionary) -> void:
 	# vasque centrale et cercle du rituel gravé au sol
@@ -425,6 +526,7 @@ func _x_antichambre(_m: Dictionary) -> void:
 	d.bougie(_l(-3.1, -55.0, 0.8), false)
 	d.urne(_l(1.8, -61.2), 1.3)      # à côté de la statue (elle y entrait)
 	d.os_tas(_l(0.6, -56.5), 2, 0.3)
+	_compos_pq(_m)
 
 # ------------------------------------------------------------------ arène : pièce maîtresse (estrade, piliers, glace)
 func _x_arene(_m: Dictionary) -> void:
@@ -604,6 +706,7 @@ func _x_galerie(_m: Dictionary) -> void:
 	d.instance_boite(pv, "mur1", Vector3(0.62, 0.3, 2.6), Vector3(0.03, 0.15, 1.3))
 	d.xf = saved
 	portes["secret"] = pv
+	_compos_pq(_m)
 
 func _x_tresor(_m: Dictionary) -> void:
 	or_tas(_l(-42.4, -42.0), 0.9, 0.5)
@@ -709,6 +812,7 @@ func _x_quartiers(_m: Dictionary) -> void:
 	# mur fragile : fissures et poussière au pied du mur est, courant d'air
 	d.fissures(_l(26.66, -4.0, 1.4), Vector3(-1, 0, 0), 2.2, 2.6, 3)
 	souffle(_l(26.4, -4.0, 0.3), Vector3(0.1, 0.12, 1.1), Vector3(-1, 0, 0), 12)
+	_compos_pq(_m)
 
 func _x_armurerie(_m: Dictionary) -> void:
 	d.ratelier_armes(_l(32.62, -2.8), -PI * 0.5, 1.8)
@@ -727,6 +831,7 @@ func _x_armurerie(_m: Dictionary) -> void:
 	d.bouclier_mural(_l(31.4, -6.7, 1.8), Vector3(0, 0, 1), 0.34, Color(0.5, 0.35, 0.3))
 	d.os_tas(_l(29.5, -4.0), 3, 0.4)
 	d.urne(_l(28.0, -6.2), 1.0)      # plus dans le coffre
+	_compos_pq(_m)
 
 func _x_trone(_m: Dictionary) -> void:
 	d.trone(_l(56.5, -30.0), -PI * 0.5, "mur4")
@@ -755,6 +860,7 @@ func _x_trone(_m: Dictionary) -> void:
 	d.arme(_l(52.0, -32.5), 2.0)
 	d.crane(_l(46.0, -27.5), 0.9)
 	interaction("inscription_jarl", _l(50.0, -36.0, 1.4), "Stèle du Jarl", "Lire la stèle", "texte", {"cle": "inscription_jarl"})
+	_compos_pq(_m)
 
 # ------------------------------------------------------------------ étage -1
 func _x_archives(_m: Dictionary) -> void:
@@ -793,6 +899,7 @@ func _x_barricade(_m: Dictionary) -> void:
 	d.boite("parchemin", _l(-11.9, -52.5, y + 0.82), Vector3(0.3, 0.012, 0.22), 0.1)
 	d.etagere_renversee(_l(-16.6, -50.4, y), PI * 0.5, 1.4)
 	d.tonneau(_l(-11.2, -54.8, y), 0.8)
+	_compos_pq(_m)
 
 ## Compagnon d'Eirik mort (pos dans le repère de la crypte, pas du module : le nœud est posé sous la racine) : personnage allongé (dernière image de Death01, comme le corps d'Eirik dans l'alcôve).
 func _compagnon_mort(pos: Vector3, lacet: float) -> void:
@@ -869,3 +976,48 @@ func _x_garde(_m: Dictionary) -> void:
 		_q("pq_chandelier_pied", 20.1, -52.0, 0.3, y)
 		_q("pq_chaine", 17.6, -55.2, 2.0, y)
 	d.bouclier_mural(_l(24.6, -59.7, y + 1.9), Vector3(0, 0, 1), 0.34, Color(0.5, 0.4, 0.3))      # pas sur l'applique
+	_compos_pq(_m)
+
+# ------------------------------------------------------------------ props/maximum : compositions texturées par salle
+## Compositions types (repère de la composition : x = droite, z = devant ; l'avant des props regarde +Z, donc la pièce quand l'ancre
+## est contre un mur). Items : [id, droite, devant, lacet°, hauteur, solide, échelle, genre].
+const T_PLATEAU := 0.76      # dessus de pq_grande_table
+const C_TABLE_GARDE := [["pq_grande_table", 0.0, 0.0, 0.0, 0.0, true], ["pq_banc", 0.0, -0.85, 0.0, 0.0, true],
+	["pq_chaise", -0.6, 0.82, 180.0, 0.0, true], ["pq_chaise", 0.7, 0.86, 172.0, 0.0, true],
+	["pq_chope", -0.45, -0.18, 20.0, T_PLATEAU, false], ["pq_chope", 0.42, 0.2, 80.0, T_PLATEAU, false],
+	["pq_assiette", -0.85, 0.12, 0.0, T_PLATEAU, false], ["pq_assiette", 0.78, -0.2, 0.0, T_PLATEAU, false],
+	["pq_bougeoir_triple", 0.05, 0.02, 8.0, T_PLATEAU, false], ["pq_bouteille", -0.15, 0.25, 0.0, T_PLATEAU, false]]
+const C_GARDE_MANGER := [["pq_support_tonneau", 0.0, 0.36, 0.0, 0.0, true], ["pq_tonneau", 1.15, 0.42, 0.0, 0.0, false, 0.9, "tonneau"],
+	["pq_caisse", -1.05, 0.4, 8.0, 0.0, true], ["pq_cageot_vide", -1.05, 0.4, -6.0, 0.7, false],
+	["pq_sac", 0.75, 1.05, 35.0, 0.0, false], ["pq_seau_bois", -0.35, 0.95, 0.0, 0.0, false]]
+const C_RATELIER := [["pq_rack_armes", 0.0, 0.75, 0.0, 0.0, true], ["pq_pierre_aiguiser", -1.5, 0.5, 15.0, 0.0, true],
+	["pq_caisse_fer", 1.35, 0.42, -10.0, 0.0, true]]
+const C_RATELIER_SEUL := [["pq_rack_armes", 0.0, 0.75, 0.0, 0.0, true], ["pq_caisse_fer", 1.35, 0.42, -10.0, 0.0, true]]
+const C_AUTEL_COURT := [["pq_buffet", 0.0, 0.2, 0.0, 0.0, true], ["pq_bougeoir_triple", -0.32, 0.18, 0.0, 0.9, false],
+	["pq_calice", 0.12, 0.22, 0.0, 0.9, false], ["pq_assiette", 0.42, 0.2, 0.0, 0.9, false]]
+const C_MANNEQUIN := [["pq_mannequin", 0.0, 0.32, 0.0, 0.0, true], ["pq_bouclier_bois", 0.62, 0.12, -12.0, 0.0, false]]
+const C_AUTEL := [["pq_buffet", 0.0, 0.2, 0.0, 0.0, true], ["pq_bougeoir_triple", -0.32, 0.18, 0.0, 0.9, false],
+	["pq_calice", 0.12, 0.22, 0.0, 0.9, false], ["pq_assiette", 0.42, 0.2, 0.0, 0.9, false],
+	["pq_vase_4", 0.95, 0.32, 0.0, 0.0, false, 1.0, "urne"], ["pq_vase_4", -0.95, 0.3, 0.0, 0.0, false, 0.85, "urne"]]
+const C_SCRIBE := [["pq_lutrin", 0.0, 0.45, 0.0, 0.0, true], ["pq_bibliotheque", 1.15, 0.2, 0.0, 0.0, true],
+	["pq_pile_livres", -0.6, 0.35, 25.0, 0.0, false], ["pq_chandelier_pied", -1.05, 0.5, 0.0, 0.0, false]]
+const C_BIVOUAC := [["pq_sac", 0.0, 0.32, 0.0, 0.0, false], ["pq_sac", 0.55, 0.38, 40.0, 0.0, false],
+	["pq_marmite", -0.6, 0.55, 0.0, 0.0, false], ["pq_seau_bois", -1.05, 0.32, 0.0, 0.0, false], ["pq_corde_2", 0.35, 0.95, 0.0, 0.0, false]]
+
+func _compos_pq(m: Dictionary) -> void:
+	if not PropsQuaternius.pq:
+		return
+	var y := float(m.get("y", 0.0))
+	match String(m["id"]):
+		"lb1":      # salle de garde (étage −1, sa table de jeu existe) : garde-manger contre le mur sud, râtelier contre le mur nord
+			_compo(m, "garde_manger", C_GARDE_MANGER, 24.6, -46.6, PI, y, Vector2(-0.6, 0))
+			_compo(m, "ratelier", C_RATELIER_SEUL, 18.9, -59.4, 0.0, y, Vector2(0.5, 0))
+		"antichambre":      # offrandes à la Dame contre le mur ouest, entre le râtelier et la statue
+			_compo(m, "autel", C_AUTEL_COURT, -4.4, -58.8, PI * 0.5, y, Vector2(0, 0.3))
+		"g4":      # salle du trône : râteliers de la garde du jarl de part et d'autre de l'entrée
+			_compo(m, "ratelier_n", C_RATELIER, 47.5, -37.4, 0.0, y, Vector2(-0.8, 0))
+			_compo(m, "ratelier_s", C_RATELIER, 47.5, -22.6, PI, y, Vector2(-0.8, 0))
+		"prep":
+			_compo(m, "ratelier", C_RATELIER, 3.6, -31.4, 0.0, y, Vector2(0.8, 0))
+		"reliquaires":      # coin du gardien des reliques contre le mur nord
+			_compo(m, "scribe", C_SCRIBE, -26.5, -50.4, 0.0, y, Vector2(0.8, 0))
