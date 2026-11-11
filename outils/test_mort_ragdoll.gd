@@ -40,6 +40,12 @@ func _mort(m: Node, x: float, z: float, puissant: bool) -> Dictionary:
 	_verifier(r == "tue", "coup %s : le draugr meurt (%s)" % ["puissant" if puissant else "léger", r])
 	_verifier(d.collision_layer == 0 and d.collision_mask == 0, "capsule coupée à la mort")
 	var pire := 1e9
+	# mort « titubante » (CombatEnnemi.type_mort : 45 % des coups légers) : l'encaissement est joué d'abord, le ragdoll part
+	# 0,38 s plus tard (draugr.gd, _mourir) ; le lire tout de suite donnait un faux « ragdoll non déclenché » (échec intermittent)
+	var attente := 0
+	while attente < 90 and not (d._ragdoll != null and d._ragdoll.actif):
+		await physics_frame
+		attente += 1
 	var rd: Ragdoll = d._ragdoll
 	_verifier(rd != null and rd.actif, "ragdoll déclenché")
 	var n := 0

@@ -91,7 +91,56 @@ static func modele_depouille(spec: Dictionary) -> Node3D:
 	var l := float(sp.get("lacet", 0.0))
 	m.rotation.y = l
 	m.position = -Vector3(sin(l), 0.0, cos(l)) * 0.6
+	# une fois en scène (après la pose Death01 rejouée par Draugr.figer_pose_allongee) : épouse la pente du sol
+	m.tree_entered.connect(func() -> void:
+		if is_instance_valid(m) and m.is_inside_tree():
+			m.get_tree().physics_frame.connect(func() -> void: poser_sur_terrain(m), CONNECT_ONE_SHOT), CONNECT_ONE_SHOT | CONNECT_DEFERRED)
 	return m
+
+## Dépouille posée à plat sur une pente : la tête (ou les pieds) flottait au-dessus du sol qui descend. On mesure le sol (calque 1,
+## terrain et décors) sous la tête, le bassin et les pieds, on incline le corps dans son axe (pieds -> tête) puis en travers
+## (pied gauche -> pied droit) et on le recale en hauteur pour que ces points gardent leur écart au sol de la pose à plat.
+const OS_SOL := ["Head", "pelvis", "foot_l", "foot_r"]
+static func poser_sur_terrain(m: Node3D) -> void:
+	if not is_instance_valid(m) or not m.is_inside_tree():
+		return
+	var sq := m.find_child("Skeleton3D", true, false) as Skeleton3D
+	if sq == null:
+		return
+	var espace := m.get_world_3d().direct_space_state
+	var base_y := m.global_position.y     # plan de la pose à plat (l'origine du modèle est au sol)
+	var pts := {}
+	for n: String in OS_SOL:
+		var i := sq.find_bone(n)
+		if i < 0:
+			return
+		pts[n] = (sq.global_transform * sq.get_bone_global_pose(i)).origin
+	var sol := {}
+	for n: String in OS_SOL:
+		var p: Vector3 = pts[n]
+		var q := PhysicsRayQueryParameters3D.create(Vector3(p.x, base_y + 0.6, p.z), Vector3(p.x, base_y - 1.5, p.z), 1)      # départ bas : pas de table ni de rebord au-dessus du corps
+		var r := espace.intersect_ray(q)
+		sol[n] = float(r["position"].y) if not r.is_empty() else base_y
+	var pieds: Vector3 = (pts["foot_l"] + pts["foot_r"]) * 0.5
+	var sol_pieds: float = (float(sol["foot_l"]) + float(sol["foot_r"])) * 0.5
+	var pivot := Vector3(pts["pelvis"].x, base_y, pts["pelvis"].z)
+	var rot := Basis()
+	var axe := Vector3(pts["Head"].x - pieds.x, 0.0, pts["Head"].z - pieds.z)
+	if axe.length() > 0.4:
+		var pente := atan2(float(sol["Head"]) - sol_pieds, axe.length())
+		rot = Basis(axe.normalized().cross(Vector3.UP).normalized(), clampf(pente, -0.6, 0.6)) * rot
+	var trav := Vector3(pts["foot_r"].x - pts["foot_l"].x, 0.0, pts["foot_r"].z - pts["foot_l"].z)
+	if trav.length() > 0.2:
+		var roulis := atan2(float(sol["foot_r"]) - float(sol["foot_l"]), trav.length())
+		rot = Basis(trav.normalized().cross(Vector3.UP).normalized(), clampf(roulis, -0.5, 0.5)) * rot
+	var xf := Transform3D(rot, pivot) * Transform3D(Basis(), -pivot)
+	# recalage vertical : écart moyen au sol après inclinaison ramené à celui de la pose à plat
+	var ecart := 0.0
+	for n: String in OS_SOL:
+		var p2: Vector3 = xf * (pts[n] as Vector3)
+		ecart += (p2.y - float(sol[n])) - ((pts[n] as Vector3).y - base_y)
+	ecart /= OS_SOL.size()
+	m.global_transform = Transform3D(Basis(), Vector3(0.0, -ecart, 0.0)) * xf * m.global_transform
 
 ## Un ennemi vient de laisser sa bourse `b` : au-delà de `max_cadavres` cadavres non fouillés dans la même zone (même parent),
 ## le plus ancien perd son ragdoll au profit de sa dépouille statique (même endroit, plus de physique ni d'os simulés).
