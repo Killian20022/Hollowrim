@@ -23,6 +23,21 @@ var m: Node3D
 var sortie := ""
 var _cam: Camera3D
 var _echecs := 0
+var _tic := 0
+var _n_film := 0
+var _cible_film := Vector3.INF
+
+## Film de la chute du draugr Tripo à l'épée (images numérotées dans <sortie>/film, assemblées par ffmpeg).
+func _image_film(c: Dictionary) -> void:
+	if _cible_film == Vector3.INF:
+		_cible_film = (c["bassin"] as Node3D).global_position + Vector3(0.9, -0.4, 0)
+	_cam.global_position = _cible_film + Vector3(0.0, 1.4, 3.4)
+	_cam.look_at(_cible_film + Vector3(0, 0.3, 0))
+	await RenderingServer.frame_post_draw
+	var img := root.get_viewport().get_texture().get_image()
+	DirAccess.make_dir_recursive_absolute(sortie.path_join("film"))
+	img.save_png(sortie.path_join("film/%04d.png" % _n_film))
+	_n_film += 1
 
 func _verif(ok: bool, msg: String) -> void:
 	print(("OK    " if ok else "ECHEC ") + msg)
@@ -53,7 +68,7 @@ func _h(n: Node3D) -> float:
 func _capturer(nom: String, cible: Vector3) -> void:
 	if sortie == "":
 		return
-	var depuis := cible + Vector3(2.2, 1.3, 2.2)
+	var depuis := cible + Vector3(1.3, 1.9, 1.3)
 	_cam.global_position = depuis
 	_cam.look_at(cible + Vector3(0, 0.4, 0))
 	await process_frame
@@ -72,6 +87,9 @@ func _go() -> void:
 	_cam = Camera3D.new()
 	root.add_child(_cam)
 	_cam.current = true
+	_cam.fov = 65.0
+	if sortie != "" and m.get("hud") != null:
+		(m.hud as CanvasItem).visible = false
 	var corps := []
 	var i := 0
 	for t: Array in TYPES:
@@ -102,6 +120,9 @@ func _go() -> void:
 		while temps < jalon:
 			await physics_frame
 			temps += 1.0 / Engine.physics_ticks_per_second
+			_tic += 1
+			if sortie != "" and temps < 3.5 and _tic % 2 == 0:
+				await _image_film(corps[1])
 		for c: Dictionary in corps:
 			var d: CharacterBody3D = c["d"]
 			var rd: Ragdoll = d._ragdoll if is_instance_valid(d) else null
@@ -126,16 +147,22 @@ func _go() -> void:
 		var dep: Node3D = BUTIN.modele_depouille(d.spec_depouille())
 		b.add_child(dep)
 		c["dep"] = dep
+		c["b"] = b
 		c["dtete"] = _att(dep, "Head")
 		c["dbassin"] = _att(dep, "pelvis")
 		i += 1
 	for k in 20:
 		await process_frame
 	for c: Dictionary in corps:
-		var ht := _h(c["dtete"])
+		# hauteur au-dessus de l'origine de la dépouille (pose couchée) puis au-dessus du terrain (Butin.poser_sur_terrain : suit la pente)
+		var y0: float = (c["b"] as Node3D).global_position.y
+		var ht: float = (c["dtete"] as Node3D).global_position.y - y0
+		var hb: float = (c["dbassin"] as Node3D).global_position.y - y0
 		var ap := (c["dep"] as Node).get_node_or_null("Animations") as AnimationPlayer
-		print("DEPOUILLE %-18s tete=%.2f bassin=%.2f death01=%s %s" % [c["nom"], ht, _h(c["dbassin"]), ap != null and ap.has_animation("Death01"), "COUCHE" if ht < 0.6 else "DEBOUT/HAUT"])
-		_verif(ht < 0.6 and ht > -0.15, "%s : dépouille statique couchée" % c["nom"])
+		print("DEPOUILLE %-18s tete=%.2f bassin=%.2f (terrain : tete %.2f) death01=%s %s" % [c["nom"], ht, hb, _h(c["dtete"]), ap != null and ap.has_animation("Death01"), "COUCHE" if ht < 0.6 else "DEBOUT/HAUT"])
+		var tt := _h(c["dtete"])
+		var tb := _h(c["dbassin"])
+		_verif(tt < 0.6 and tb < 0.5 and tt > -0.2 and tb > -0.2, "%s : dépouille au ras du sol, ni flottante ni enterrée (tête %.2f, bassin %.2f m)" % [c["nom"], tt, tb])
 		if ap:
 			var sqd: Skeleton3D = (c["dep"] as Node).find_child("Skeleton3D", true, false)
 			var ip := sqd.find_bone("pelvis")
