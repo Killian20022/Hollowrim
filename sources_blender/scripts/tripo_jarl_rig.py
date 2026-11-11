@@ -104,6 +104,32 @@ for i in range(nv):
 print("poids auto : sommets sans poids :", sum(1 for w in body if not w))
 bpy.data.objects.remove(cp)
 
+# 3b. pans du manteau (2026-11-11) : en pose A les mains pendent contre le manteau, et les poids automatiques y fuient (main / avant-bras
+# jusqu'à 0,28 sur l'ourlet), tout comme ceux des cuisses sur les pans extérieurs, à 0,5 m de la jambe. En course, le bras qui balance et
+# la cuisse qui monte tiraient ces sommets en pointes autour des jambes. Sous le coude (z < 1,30 m en pose A), un sommet que le bras ne
+# domine pas perd ses poids de bras, et hors des jambes (|x| > 0,24 m) les poids de jambe passent progressivement au bassin. --poids-v1=1 : poids d'avant.
+BRAS_ = ("upperarm_", "lowerarm_", "hand_", "index_", "middle_", "pinky_", "ring_", "thumb_")
+JAMBE_ = ("thigh_", "calf_", "foot_", "ball_")
+if not arg("poids-v1"):
+    n_bras_, n_jambe_ = 0, 0
+    for i in range(nv):
+        w = body[i]
+        if not w or P[i, 2] > 1.30:
+            continue
+        dom = max(w, key=w.get)
+        if not dom.startswith(BRAS_) and any(k.startswith(BRAS_) for k in w):
+            w = {k: v_ for k, v_ in w.items() if not k.startswith(BRAS_)} or {"pelvis": 1.0}
+            n_bras_ += 1
+        f = 1.0 - float(sstep(0.24, 0.40, abs(P[i, 0])))
+        if f < 1.0 and 0.15 < P[i, 2] < 1.15 and any(k.startswith(JAMBE_) for k in w):
+            jb = sum(v_ for k, v_ in w.items() if k.startswith(JAMBE_))
+            w = {k: (v_ * f if k.startswith(JAMBE_) else v_) for k, v_ in w.items()}
+            w["pelvis"] = w.get("pelvis", 0.0) + jb * (1.0 - f)
+            n_jambe_ += 1
+        tot = sum(w.values()) or 1.0
+        body[i] = {k: v_ / tot for k, v_ in w.items()}
+    print("manteau : poids de bras retirés sur", n_bras_, "sommets, poids de jambe allégés sur", n_jambe_)
+
 # ---------------------------------------------------------------- 4. manteau : classe (rouge lissé dans l'espace), os de cape, poids
 col = np.zeros((nv, 3)); cnt = np.zeros(nv)
 for p in me.polygons:
