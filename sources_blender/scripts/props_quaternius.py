@@ -205,8 +205,31 @@ def materiau_atlas(k):
     return m
 
 
-def importer_fusionner(chemin):
+def poser_action(nom):
+    """Pose d'une animation du glTF (ex. « Chest_Closed » : couvercle du coffre FERMÉ ; la pose de repos du pack est ouverte)."""
+    act = next((a for a in bpy.data.actions if a.name == nom or a.name.startswith(nom + "_") or a.name.startswith(nom + ".")), None)
+    if act is None:
+        act = next((a for a in bpy.data.actions if nom in a.name and "Close" in a.name), None)
+    if act is None:
+        print("POSE introuvable", nom, [a.name for a in bpy.data.actions])
+        return
+    for arm in [o for o in bpy.context.scene.objects if o.type == 'ARMATURE']:
+        ad = arm.animation_data or arm.animation_data_create()
+        ad.action = act
+        try:
+            if hasattr(ad, "action_slot") and ad.action_slot is None and len(act.slots):
+                ad.action_slot = act.slots[0]
+        except Exception as er:
+            print("slot", er)
+    bpy.context.scene.frame_set(int(act.frame_range[1]))
+    bpy.context.view_layer.update()
+    print("POSE", act.name, act.frame_range[:])
+
+
+def importer_fusionner(chemin, pose=None):
     bpy.ops.import_scene.gltf(filepath=chemin)
+    if pose:
+        poser_action(pose)
     for x in [x for x in bpy.context.scene.objects if x.type == 'MESH' and x.name.startswith("Icosphere")]:
         bpy.data.objects.remove(x, do_unlink=True)          # forme d'os créée par l'importeur (coffre à squelette), pas du contenu
     obs = [o for o in bpy.context.scene.objects if o.type == 'MESH']
@@ -485,7 +508,7 @@ def exporter(o, chemin):
 
 def convertir(e, src, infos):
     vider()
-    o = importer_fusionner(os.path.join(src, "Exports", "glTF", e["src"] + ".gltf"))
+    o = importer_fusionner(os.path.join(src, "Exports", "glTF", e["src"] + ".gltf"), e.get("pose"))
     src_col, atl, f = preparer(o, e)
     bpy.context.view_layer.update()
     d = max(o.dimensions)

@@ -102,6 +102,7 @@ var _t_audio := 0.0
 
 func _ready() -> void:
 	Chrono.demarre()
+	PropsQuaternius.prechauffer_pq()      # matériaux des props texturés (pq_*) créés ici, pas dans les fils de construction
 	Prechargement.lancer()
 	if Jeu.chargement_etale and not _arguments().has("sans-fonds"):
 		GrotteAcces.prelancer()   # la grotte se bâtit en fil PENDANT la construction du monde (voir _terminer_fonds)
@@ -228,6 +229,8 @@ func _ready() -> void:
 	AbordsTumulus.creer(self)  # lot F : abords du tertre (après sa création)
 	await _souffle()
 	await Dallage.poser(self)  # C1b : sentiers en dalles hors zone témoin + dalles du village moins enneigées
+	await _souffle()
+	await AbordsProps.creer(self)  # props/maximum v3 : compositions des abords (mode pq seulement)
 	await _souffle()
 	if _arguments().has("res"):  # résolution interne : 640x360 par défaut (project.godot) ; --res=480x270 pour comparer
 		var wh := String(_arguments()["res"]).split("x")
@@ -665,6 +668,7 @@ func _terrain() -> void:
 	# avec le rendu Mobile) et les morceaux hors champ ne sont pas dessinés
 	var corps := StaticBody3D.new()
 	add_child(corps)
+	set_meta("corps_terrain", corps)      # props/maximum v3 : exclu des requêtes d'emprise des compositions des abords
 	for mj in range(0, CASES, MORCEAU):
 		for mi_ in range(0, CASES, MORCEAU):
 			var st := SurfaceTool.new()
@@ -734,6 +738,13 @@ func _feu_de_camp() -> void:
 		ft.shape = bt
 		ft.transform = Transform3D(Basis(Vector3.UP, 0.0), sol + Vector3(0.5, 1.05, -5.4))
 		corps.add_child(ft)
+		if PropsQuaternius.pq:      # props/maximum : réserves du bivouac (MobilierVillage.BIVOUAC_PQ) : une boîte pour tonneaux et caisse
+			var fr := CollisionShape3D.new()
+			var br := BoxShape3D.new()
+			br.size = Vector3(0.8, 0.95, 2.6)
+			fr.shape = br
+			fr.transform = Transform3D(Basis(), sol + Vector3(-2.4, 0.47, -5.4))
+			corps.add_child(fr)
 
 	# grand feu en gros pixels (scripts/feu_fixe.gd) : cinq langues, lit de braises, braises qui montent, fumée, halo de chaleur, lumière à paliers
 	feu_pixels = FeuFixe.camp(self, sol)

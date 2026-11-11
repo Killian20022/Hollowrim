@@ -348,6 +348,8 @@ func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_
 	if arrays.size() <= Mesh.ARRAY_NORMAL or arrays[Mesh.ARRAY_VERTEX] == null or arrays[Mesh.ARRAY_NORMAL] == null:
 		return   # tableau vide ou incomplet : rien à ajouter (jamais d'erreur de type)
 	var sombre := mat == m_colombage and m_colombage != null
+	if ao_sol and mat.has_meta("pq"):
+		ao_sol = false      # props texturés (pq_*) : pied sombre déjà cuit
 	if sombre:
 		mat = m_poutres_h
 	var xf_lot := xf
@@ -936,6 +938,17 @@ func _poteau(parent: Node3D, pos: Vector3, rayon: float, h: float, mat: Material
 ## `reelle` = vraie OmniLight (une seule dans le village : la lanterne de la longue maison).
 func _torche_murale(parent: Node3D, pos: Vector3, vers: float, reelle := false) -> void:
 	# `vers` = +1 (mur vers +Z) ou -1 : sens de la saillie
+	if PropsQuaternius.pq and PropsQuaternius.existe("pq_torche_murale"):
+		# props texturés : applique Quaternius (Torch_Metal, platine au mur côté -Z du prop, coupe en haut) x1,35 ; même flamme, même lumière
+		var e := 1.35
+		var o := pos + Vector3(0, -0.22, 0.146 * e * vers)
+		PropsQuaternius.village(self, parent, "pq_torche_murale", Transform3D(Basis(Vector3.UP, 0.0 if vers > 0.0 else PI) * Basis.from_scale(Vector3.ONE * e), o))
+		PropsQuaternius.compter("village_ajouts")
+		var hq := o + Vector3(0, 0.47 * e, 0.06 * e * vers)
+		Torche.flamme_fixe(parent, hq + Vector3(0, 0.08, 0), 1.3, absf(sin(pos.x * 12.9898 + pos.z * 78.233)) * 4.0)
+		if reelle:
+			_feu(parent, hq, 0.6, 1.4, 7.0)
+		return
 	_boite(parent, Vector3(0.07, 0.07, 0.3), Transform3D(Basis(), pos + Vector3(0, -0.15, 0.13 * vers)), m_fer)
 	_boite(parent, Vector3(0.07, 0.5, 0.07), Transform3D(Basis(Vector3.RIGHT, 0.25 * vers), pos + Vector3(0, 0.05, 0.28 * vers)), m_poutres)
 	var haut := pos + Vector3(0, 0.38, 0.34 * vers)
@@ -2136,7 +2149,15 @@ func _enclos(centre: Vector3, lacet := 0.0, sechoir := true) -> Node3D:
 		MobilierVillage.poser_dans(self, p, "meule_foin", Transform3D(Basis(Vector3.UP, pos.x * 1.3), pos))
 	if sechoir:
 		MobilierVillage.poser_dans(self, p, "sechoir_peaux", Transform3D(Basis(), Vector3(0, 0, demi.y + 2.2)))
+		if PropsQuaternius.pq:      # props/maximum : coin d'abreuvoir et de grain dans l'angle est de l'enclos (hors de la barrière d'entrée, z > 0, |x| < 2), fondu dans les lots
+			for e: Array in ENCLOS_PQ:
+				PropsQuaternius.village(self, p, String(e[0]), Transform3D(Basis(Vector3.UP, deg_to_rad(float(e[2]))), e[1]), bool(e[3]))
 	return p
+
+## props/maximum (2026-11-11) : coin d'abreuvoir de l'enclos d'Ylva (repère de l'enclos, demi 3,5 x 2,5) : [prop, position, lacet°, solide].
+const ENCLOS_PQ := [["pq_tonneau", Vector3(2.85, 0, 1.75), 0.0, true], ["pq_seau_bois", Vector3(2.2, 0, 1.95), 0.0, false],
+	["pq_seau_bois", Vector3(2.95, 0, 0.95), 40.0, false], ["pq_sac", Vector3(2.9, 0, -0.1), 70.0, false], ["pq_sac", Vector3(2.45, 0, -0.45), 15.0, false],
+	["pq_cageot_vide", Vector3(2.1, 0, 1.25), 20.0, false]]
 
 ## Tonneau cerclé (module tonneau_c de mobilier_village.py, lot L7) ; même collision qu'avant (cylindre r 0,3 x 0,8).
 func _tonneau(parent: Node3D, pos: Vector3) -> void:

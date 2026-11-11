@@ -1,0 +1,10 @@
+# v3 : vues plongeantes de repérage des abords (y absolu)
+h_feu monde 0,0,0,-89 y=40 heure=12
+h_sentier monde 20,18,0,-89 y=45 heure=12
+h_champs_e monde 82,38,0,-89 y=50 heure=12
+h_champ_n monde 63,-7,0,-89 y=50 heure=12
+h_grotte monde 88,-22,0,-89 y=50 heure=12
+h_cercle monde -36,-34,0,-89 y=45 heure=12
+h_tumulus monde -38,-52,0,-89 y=45 heure=12
+h_chemin_cercle monde -18,-17,0,-89 y=45 heure=12
+h_chemin_grotte monde 85,10,0,-89 y=50 heure=12

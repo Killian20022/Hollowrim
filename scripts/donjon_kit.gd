@@ -69,12 +69,19 @@ func differer(pos: Vector3, r: float, fn: Callable, genre := "sol") -> void:
 	d.muet = false
 	_differes.append([pos, r, fn, st, st2, genre])
 
-func _emettre_differes(m: Dictionary) -> void:
+func _emettre_differes(m: Dictionary, seulement: Array = []) -> void:
 	if _differes.is_empty():
 		return
 	var boites := CrypteV2._boites_sol(self, m)
 	var liste := _differes
 	_differes = []
+	if not seulement.is_empty():      # props/maximum : d'abord les poses porteuses de lumière (braseros), le reste après les compositions
+		var reste: Array = []
+		var choisis: Array = []
+		for e: Array in liste:
+			(choisis if String(e[5]) in seulement else reste).append(e)
+		liste = choisis
+		_differes = reste
 	for e: Array in liste:
 		var p: Vector3 = e[0]
 		var r: float = e[1]
@@ -262,6 +269,10 @@ func demande_meca(genre: String, id: String, args: Dictionary) -> void:
 				(modules[_m["id"]]["cibles"] as Array).append({"id": id, "pos": p})
 
 # ------------------------------------------------------------------ construction d'un module
+## Crochet des sous-classes (props/maximum) : appelé après le récit et les poses différées (braseros, lumières), AVANT CrypteV2.finir.
+func _apres_module(_m: Dictionary) -> void:
+	pass
+
 func module(m: Dictionary) -> void:
 	_m = m
 	var id: String = m["id"]
@@ -356,6 +367,9 @@ func module(m: Dictionary) -> void:
 		if m.has("extra"):
 			call(m["extra"], m)
 		d.remplir_niches_os()      # C7 : contenu des niches d'ossuaire, une fois sarcophages, estrade et meubles posés
+		if PropsQuaternius.pq:      # props/maximum : braseros posés AVANT les compositions (ils ne bougent plus) ; gravats, éboulis et semis v2 APRÈS (ils s'en écartent)
+			_emettre_differes(m, ["brasero"])
+			_apres_module(m)
 		_emettre_differes(m)
 		if v2_actif:
 			CrypteV2.finir(self, m)      # mode auto : piliers, panneaux, bannières, lumières de statue (après le récit de la salle)

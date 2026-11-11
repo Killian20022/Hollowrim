@@ -149,6 +149,8 @@ func _init(village: Node3D, interieur: Interieur, materiaux_: Dictionary, longue
 	v = village
 	ip = interieur
 	M = materiaux_
+	if PropsQuaternius.pq and not M.has("pq_bois"):      # props texturés (pq_*) : un matériau partagé par atlas (contexte intérieur)
+		M.merge(PropsQuaternius.mats_pq("interieur"))
 	L = longueur
 	W = largeur
 	y0 = 0.4 + hauteur_murs
@@ -336,7 +338,8 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 ## Lot 4 : nourriture et vaisselle Quaternius (Ultimate Food) : laine = rouge sourd de la crypte (viande, pommes), pas la tenture.
 const MATS_NOURRITURE := {"laine": "laine_q"}
 const MATS_Q := {"bois": "bois", "herbe": "herbe", "fer": "fer_mat", "lin": "lin", "jute": "jute", "os": "os", "pierre": "pierre", "or": "or",
-	"argile": "argile", "laine": "tenture_r", "toile": "tenture_b", "noir": "noir", "lame": "etain"}
+	"argile": "argile", "laine": "tenture_r", "toile": "tenture_b", "noir": "noir", "lame": "etain",
+	"pq_bois": "pq_bois", "pq_fer": "pq_fer", "pq_fer_v": "pq_fer_v", "pq_tissu": "pq_tissu", "pq_tissu_v": "pq_tissu_v", "pq_props": "pq_props", "pq_props_v": "pq_props_v", "pq_page": "pq_page"}
 
 ## Pose un prop Quaternius fondu dans les lots de la pièce : `pos` (y < 0,2 = posé sur le sol), lacet, échelle uniforme ; `mats` remplace
 ## une matière (ex. {"fer": "argile"} pour un vase) ; `solide_` : boîte de collision tirée de l'emprise du prop (gros objets).
@@ -350,11 +353,11 @@ func q(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}, solide_ :=
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(Vector3.ONE * e), pos)
 	if not solide_ and _vivant(nom, xf, mats):
 		return
-	for m: Array in PropsQuaternius.morceaux(nom):
+	for m: Array in PropsQuaternius.morceaux(nom, mats):
 		var cible: String = mats.get(m[0], MATS_Q.get(m[0], "bois"))
 		v._ajouter(_p(), m[1], xf, M[cible])
 	if solide_:
-		var bb := PropsQuaternius.boite(nom)
+		var bb := PropsQuaternius.boite(nom, mats)
 		solide(pos + Basis(Vector3.UP, lacet) * (bb.get_center() * e), bb.size * e, lacet)
 
 ## Prop Quaternius AJUSTÉ à une boîte cible `taille` (X largeur, Y hauteur, Z profondeur du prop ; 0 = axe libre, échelle moyenne des autres) :
@@ -362,7 +365,7 @@ func q(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}, solide_ :=
 func qf(nom: String, pos: Vector3, lacet: float, taille: Vector3, mats := {}, solide_ := false) -> void:
 	if not PropsQuaternius.existe(nom):
 		return
-	var bb := PropsQuaternius.boite(nom)
+	var bb := PropsQuaternius.boite(nom, mats)
 	var sc := Vector3.ONE
 	var somme := 0.0
 	var n := 0
@@ -379,7 +382,7 @@ func qf(nom: String, pos: Vector3, lacet: float, taille: Vector3, mats := {}, so
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(sc), pos)
 	if not solide_ and _vivant(nom, xf, mats):
 		return
-	for m: Array in PropsQuaternius.morceaux(nom):
+	for m: Array in PropsQuaternius.morceaux(nom, mats):
 		var cible: String = mats.get(m[0], MATS_Q.get(m[0], "bois"))
 		v._ajouter(_p(), m[1], xf, M[cible])
 	if solide_:
@@ -395,7 +398,7 @@ func _vivant(nom: String, xf: Transform3D, mats: Dictionary) -> bool:
 ## Prop posé par une transformation complète (repère de la pièce), sans recalage au sol.
 func _q_xf(nom: String, xf: Transform3D, mats := {}, double_ := Vector3.ONE) -> void:
 	PropsQuaternius.compter("interieurs")
-	for m: Array in PropsQuaternius.morceaux(nom):
+	for m: Array in PropsQuaternius.morceaux(nom, mats):
 		v._ajouter(_p(), m[1], xf, M[mats.get(m[0], MATS_Q.get(m[0], "bois"))])
 		if double_ != Vector3.ONE:      # pièce plane : seconde face (axe de la normale mis à -1)
 			v._ajouter(_p(), m[1], xf * Transform3D(Basis.from_scale(double_), Vector3.ZERO), M[mats.get(m[0], MATS_Q.get(m[0], "bois"))])
@@ -678,7 +681,9 @@ func tabouret(pos: Vector3, haut := 0.45) -> void:
 func coffre(pos: Vector3, lacet := 0.0, taille := Vector3(0.9, 0.46, 0.55), _ouvert := false) -> void:
 	if rempl("q_coffre"):      # décor (les coffres de butin interactifs sont posés par le monde, pas ici)
 		solide(pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
-		qf("q_coffre", pos, lacet, Vector3(taille.x, taille.y, taille.z))
+		# pq : couvercle FERMÉ (pq_coffre_ferme, pose « Chest_Closed » du pack) sauf coffre ouvert ; q_* (--props-quat-ancien) : ouvert
+		var nc := "q_coffre_ferme" if not _ouvert and PropsQuaternius.pq_de("q_coffre_ferme") != "" else "q_coffre"
+		qf(nc, pos, lacet, Vector3(taille.x, taille.y, taille.z))
 		return
 	solide(pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
 	modele("coffre_" + variante(pos, 3), pos, lacet, taille / Vector3(0.9, 0.46, 0.55))

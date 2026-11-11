@@ -1594,7 +1594,7 @@ func q4(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, solide_b := false, ab
 	if not PropsQuaternius.lot4 or muet:
 		return Vector3.INF
 	PropsQuaternius.preparer_crypte()
-	if not _modeles_de.has(nom):
+	if not _modeles_de.has(nom) and not (nom.begins_with("pq_") and PropsQuaternius.pq and _modeles_de.has("pq:" + nom)):
 		return Vector3.INF
 	var bb := PropsQuaternius.boite(nom)
 	var hx := bb.size.x * 0.5 * e
@@ -1622,6 +1622,8 @@ func q4(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, solide_b := false, ab
 	return pos
 
 var _tris_lot4 := 0
+## props/maximum : compositions de props texturés en attente (GrotteModules.differer) : [branche, [[s, côté]…], items].
+var compos_differees: Array = []
 
 func feu_camp(pos: Vector3) -> void:
 	objet_debut("feu_camp")
@@ -1663,6 +1665,7 @@ func finir() -> void:
 	if racine is Grotte:
 		_habiller(racine as Grotte)
 		(racine as Grotte).poser_cailloux()
+		GrotteModules.poser_differees(racine as Grotte)      # props/maximum : compositions en dernier (le décor aléatoire ne bouge pas)
 	super.finir()
 	for cle in _coq:
 		var b: Dictionary = _coq[cle]

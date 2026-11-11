@@ -451,6 +451,19 @@ func _quai(modele: Node) -> void:
 		_piece(modele, "Quai_Planches", n, "planches")
 		_piece(modele, "Quai_Pieux", n, "rondins")
 	_boite(QUAI + Vector3(4.5, -0.06, 1.1), Vector3(9.0, 0.12, 2.25))
+	if not _args_eau().has("eau-ancienne"):      # props/maximum : matériel de pêche au bout du quai (côté large, hors du point « quai » des PNJ en x 5)
+		var po: Array = []
+		for e: Array in QUAI_PQ:
+			po.append([e[0], Transform3D(Basis(Vector3.UP, deg_to_rad(float(e[2]))), e[1]), e[3]])
+		var mq := PropsQuaternius.lot_pq(n, "QuaiPeche", po)
+		if mq != null:
+			mq.visibility_range_end = 85.0
+
+## props/maximum (2026-11-11) : matériel de pêche au bout du quai (repère du quai : x 0..9 le long de la berge, z 0..2,2 vers l'eau,
+## dessus des planches à y 0) : [prop, position, lacet°, solide].
+const QUAI_PQ := [["pq_tonneau", Vector3(8.35, 0, 0.5), 0.0, true], ["pq_caisse", Vector3(7.5, 0, 0.45), 12.0, true],
+	["pq_cageot_vide", Vector3(7.5, 0.71, 0.45), -8.0, false], ["pq_corde_3", Vector3(8.0, 0, 1.45), 30.0, false],
+	["pq_seau_bois", Vector3(7.0, 0, 1.25), 0.0, false], ["pq_sac", Vector3(8.5, 0, 1.3), 70.0, false]]
 
 func _args_eau() -> Dictionary:
 	return monde.call("_arguments")

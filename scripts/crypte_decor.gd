@@ -74,6 +74,9 @@ const MATIERES := {
 }
 ## Bois de la crypte : un peu moins saturé (rampe Bois travaillé « moins orange », INSPIRATION_IGNITE §3.6) sans retoucher la texture.
 const SATURATION_BOIS := 0.75
+## props/maximum : props texturés (atlas pq_*) sous terre (crypte, grotte) : saturation et teinte ramenées vers le bois patiné du décor.
+const PQ_SATURATION := 0.62
+const PQ_TEINTE := Color(0.78, 0.72, 0.68)
 static var _shader_brillant: Shader
 
 static func shader_brillant() -> Shader:
@@ -492,13 +495,17 @@ func mat(nom: String) -> Material:
 					sm.set_shader_parameter(k, mt[k])
 			sm.shader = sh
 			var nom_tex: String = ALIAS_TEXTURE.get(nom, nom)
-			sm.set_shader_parameter("tex_base", _texture(nom_tex))
-			var nm := _pentes(nom_tex)
+			var est_pq := nom.begins_with("pq_")      # props texturés : atlas partagé (PropsQuat), pas de relief peint
+			sm.set_shader_parameter("tex_base", PropsQuat.texture(nom) if est_pq else _texture(nom_tex))
+			var nm: ImageTexture = null if est_pq else _pentes(nom_tex)
 			if nm != null:
 				sm.set_shader_parameter("tex_nm", nm)
 				sm.set_shader_parameter("relief", RELIEF.get(nom, 1.0))
-			if nom == "fer" or nom == "lame" or nom == "fer_mat":
+			if nom == "fer" or nom == "lame" or nom == "fer_mat" or nom.begins_with("pq_"):
 				sm.set_shader_parameter("crasse", 0.0)
+			if est_pq:      # props/maximum : sous terre, le bois orangé et propre du pack jurait avec le bois sombre de la crypte et du camp
+				sm.set_shader_parameter("saturation", PQ_SATURATION)
+				sm.set_shader_parameter("teinte", PQ_TEINTE)
 			if est_crypte:
 				sm.set_shader_parameter("ambiant", AMBIANT_CRYPTE)
 				sm.set_shader_parameter("grille", GRILLE_CRYPTE)
@@ -1675,7 +1682,10 @@ func _table_lot4(pos: Vector3, lacet: float) -> void:
 			continue
 		j0("garniture_lot4", lacet)
 		var e := Vector3.ONE * 1.3
-		if fait == 0:      # pile de 2 ou 3 livres
+		if fait == 0 and PropsQuaternius.pq:      # props/maximum : pile de livres texturée d'un seul tenant (couvertures de cuir du pack)
+			var nl := 2 + g.randi() % 2
+			_q4("pq_pile_livres" if nl == 2 else "pq_pile_livres_2", p, g.randf() * TAU, Vector3.ONE * 1.15)
+		elif fait == 0:      # pile de 2 ou 3 livres
 			var nl := 2 + g.randi() % 2
 			for i in nl:
 				_q4(["q_livre_d1", "q_livre_d2"][(i + g.randi()) % 2], p + Vector3(0, 0.09 * 1.3 * i, 0), g.randf() * TAU, e)
@@ -1706,7 +1716,7 @@ func _alea_pos(pos: Vector3) -> RandomNumberGenerator:
 ## Pose un prop du lot 4 fondu dans les tampons (sans emprise : celle de l'objet qui le porte existe déjà).
 func _q4(nom: String, pos: Vector3, lacet: float, ech: Vector3, mats := {}) -> void:
 	PropsQuaternius.preparer_crypte()
-	if not _modeles_de.has(nom):
+	if not _modeles_de.has(nom) and not (nom.begins_with("pq_") and _modeles_de.has("pq:" + nom)):
 		return
 	PropsQuaternius.compter("crypte_lot4")
 	var m := PropsQuaternius.MATS_CRYPTE.duplicate()
@@ -2192,7 +2202,8 @@ func parchemins_epars(centre: Vector3, rayon: float, n := 12) -> void:
 		var r := sqrt(rng.randf()) * rayon
 		var p := centre + Vector3(cos(a) * r, 0.01 + 0.004 * (k % 3), sin(a) * r)
 		if k % 4 == 0:
-			_q4(["q_livre_ouvert", "q_livre_d1", "q_livre_d2", "q_livre_ouvert"][nb % 4], p, rng.randf() * TAU, Vector3.ONE)
+			var livres: Array = ["q_livre_ouvert", "pq_livre_7", "pq_livre_5", "q_livre_ouvert"] if PropsQuaternius.pq else ["q_livre_ouvert", "q_livre_d1", "q_livre_d2", "q_livre_ouvert"]
+			_q4(livres[nb % 4], p, rng.randf() * TAU, Vector3.ONE * (1.1 if String(livres[nb % 4]).begins_with("pq_") else 1.0))
 			nb += 1
 		else:
 			boite("parchemin", p, Vector3(rng.randf_range(0.2, 0.34), 0.01, rng.randf_range(0.14, 0.24)), rng.randf() * TAU)
@@ -2359,6 +2370,8 @@ func _modele_cache(cle_mat: String, alpha: float, miroir: bool) -> Dictionary:
 		var data: Dictionary = _modeles[cle_mat]
 		var v: PackedVector3Array = data["v"]
 		var cc: PackedColorArray = data["c"]
+		var su: PackedVector2Array = data.get("u", PackedVector2Array())      # props texturés (pq_*) : UV du prop
+		var ou := PackedVector2Array()
 		var ov := PackedVector3Array()
 		var on := PackedVector3Array()
 		var oc := PackedColorArray()
@@ -2379,9 +2392,13 @@ func _modele_cache(cle_mat: String, alpha: float, miroir: bool) -> Dictionary:
 			if miroir:      # la pose inverse l'orientation : ordre a, b, c
 				ov.append(a); ov.append(b); ov.append(c)
 				oc.append(ca); oc.append(cb); oc.append(c3)
+				if not su.is_empty():
+					ou.append(su[q]); ou.append(su[q + 1]); ou.append(su[q + 2])
 			else:           # face avant = sens horaire (comme _tri)
 				ov.append(a); ov.append(c); ov.append(b)
 				oc.append(ca); oc.append(c3); oc.append(cb)
+				if not su.is_empty():
+					ou.append(su[q]); ou.append(su[q + 2]); ou.append(su[q + 1])
 			on.append(n); on.append(n); on.append(n)
 		var bmin := Vector3(INF, INF, INF)
 		var bmax := -bmin
@@ -2389,6 +2406,8 @@ func _modele_cache(cle_mat: String, alpha: float, miroir: bool) -> Dictionary:
 			bmin = bmin.min(v[q])
 			bmax = bmax.max(v[q])
 		r = {"v": ov, "n": on, "c": oc, "taille": (bmax - bmin) if v.size() > 0 else Vector3.ZERO, "bmin": bmin, "bmax": bmax}
+		if not su.is_empty():
+			r["u"] = ou
 		_cache_modeles[cle] = r
 	_modeles_verrou.unlock()
 	return r
@@ -2421,12 +2440,19 @@ const SUBST := {
 	"g_tabouret_a": ["q_tabouret", 0], "g_tabouret_b": ["q_tabouret", 0],
 }
 
+## props/maximum : avec les props texturés, ces modules gardent leur pièce maison : le seul remplaçant (grande table de 2,7 m,
+## râtelier SUR PIED de 1,3 m de fond) y était écrasé par l'ajustement aux bornes (table de 1,1 x 0,65 m : x 0,4 ; râtelier mural
+## de 17 cm de fond : z 0,13), et aucun pq_* n'a la bonne forme (petite table, râtelier mural).
+const SUBST_GARDE_PQ := ["table_a", "table_b", "table_c", "ratelier_cadre_a", "ratelier_cadre_b", "g_ratelier"]
+
 func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: bool) -> Variant:
+	if PropsQuaternius.pq and nom in SUBST_GARDE_PQ:
+		return null
 	var s: Array = SUBST[nom]
 	if s[0] == "":
 		return []
 	PropsQuaternius.preparer_crypte()
-	if not _modeles_de.has(s[0]):
+	if not _modeles_de.has(s[0]) and not (PropsQuaternius.pq and _modeles_de.has("pq:" + s[0])):
 		return null
 	var ob := bornes_modele(nom)
 	var pb := PropsQuaternius.boite(s[0])
@@ -2452,6 +2478,8 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 		var rs: Variant = _modele_subst(nom, pos, lacet, ech, emp)
 		if rs != null:
 			return rs
+	if PropsQuaternius.pq and (nom.begins_with("q_") or nom.begins_with("pq_")):      # prop texturé (pq_*) à la place du q_* (même encombrement)
+		nom = PropsQuaternius.nom_crypte(nom, mats)
 	var jn := not pose_sol
 	if jn:
 		j0(nom, lacet)
@@ -2475,8 +2503,8 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 			for q in range(0, v.size(), 3):
 				points.append(pos + b * v[q])
 			continue
-		var cible: String = mats.get(mat, MAT_MODELE.get(mat, mat if TUILE.has(mat) else "mur0"))
-		var nom_mat: String = theme.get(cible, cible) if not theme.is_empty() else cible
+		var cible: String = mat if mat.begins_with("pq_") else mats.get(mat, MAT_MODELE.get(mat, mat if TUILE.has(mat) else "mur0"))
+		var nom_mat: String = cible if cible.begins_with("pq_") else (theme.get(cible, cible) if not theme.is_empty() else cible)
 		var inv := 1.0 / float(TUILE.get(nom_mat, 1.0))
 		var cm := _modele_cache("%s__%s" % [nom, mat], niveau_a, miroir)
 		var cols: PackedColorArray = cm["c"]
@@ -2500,8 +2528,11 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 		var wn: PackedVector3Array = TN * (cm["n"] as PackedVector3Array)
 		var nb := wv.size()
 		var uv := PackedVector2Array()
-		uv.resize(nb)
-		for q in range(0, nb, 3):
+		if cm.has("u"):
+			uv = cm["u"]
+		else:
+			uv.resize(nb)
+		for q in range(0, nb if not cm.has("u") else 0, 3):
 			var nq := wn[q]
 			var ax := absf(nq.x)
 			var ay := absf(nq.y)
@@ -2673,6 +2704,8 @@ func vaciller(t: float) -> void:
 
 ## Construit les maillages fusionnés (un par cellule de 8 m et par matériau).
 func finir() -> void:
+	if PropsQuaternius.pq:
+		print("PropsQuaternius : pq_* posés (cumul, à la fin du décor %s) %d" % ["crypte" if est_crypte else "grotte/autre", PropsQuaternius.nb_pq])
 	attendre_tout()
 	_cassables_finir()
 	for cle in _bufs:

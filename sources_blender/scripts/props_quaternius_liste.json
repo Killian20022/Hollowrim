@@ -312,6 +312,14 @@
   "ancien": "q_coffre"
  },
  {
+  "id": "pq_coffre_ferme",
+  "src": "Chest_Wood",
+  "categorie": "rangement",
+  "pose": "Chest_Closed",
+  "note": "couvercle fermé (animation Chest_Closed du pack) : coffres de butin fermés",
+  "ech": 0.5542
+ },
+ {
   "id": "pq_piece",
   "src": "Coin",
   "categorie": "objets_petits",
