@@ -77,6 +77,8 @@ static func creer(monde: Node3D) -> void:
 	var tree := monde.get_tree()
 	await tree.physics_frame      # les corps posés pendant la construction entrent dans l'espace physique
 	await tree.physics_frame
+	if not is_instance_valid(monde) or not monde.is_inside_tree():   # monde libéré pendant l'attente (tests : test_vegetation_biome)
+		return
 	var racine := Node3D.new()
 	racine.name = "AbordsProps"
 	monde.add_child(racine)
@@ -103,8 +105,11 @@ static func creer(monde: Node3D) -> void:
 				break
 		if not fait:
 			push_warning("PropsMax : abords, composition refusée partout : " + String(l[0]))
-		await tree.process_frame      # une composition par image : l'écran de chargement reste animé
-	print("PropsMax : abords, %d compositions en %d ms (une par image)" % [nb, Time.get_ticks_msec() - t0])
+		if Jeu.chargement_etale:      # une composition par image : l'écran de chargement reste animé (pas en test : chargement d'un bloc, comme Monde._souffle)
+			await tree.process_frame
+			if not is_instance_valid(monde) or not monde.is_inside_tree():
+				return
+	print("PropsMax : abords, %d compositions en %d ms" % [nb, Time.get_ticks_msec() - t0])
 	var f := ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--abords-vues="):
