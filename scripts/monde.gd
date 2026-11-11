@@ -230,6 +230,8 @@ func _ready() -> void:
 	await _souffle()
 	await Dallage.poser(self)  # C1b : sentiers en dalles hors zone témoin + dalles du village moins enneigées
 	await _souffle()
+	await AbordsProps.creer(self)  # props/maximum v3 : compositions des abords (mode pq seulement)
+	await _souffle()
 	if _arguments().has("res"):  # résolution interne : 640x360 par défaut (project.godot) ; --res=480x270 pour comparer
 		var wh := String(_arguments()["res"]).split("x")
 		get_window().content_scale_size = Vector2i(int(wh[0]), int(wh[1]))
@@ -665,6 +667,7 @@ func _terrain() -> void:
 	# avec le rendu Mobile) et les morceaux hors champ ne sont pas dessinés
 	var corps := StaticBody3D.new()
 	add_child(corps)
+	set_meta("corps_terrain", corps)      # props/maximum v3 : exclu des requêtes d'emprise des compositions des abords
 	for mj in range(0, CASES, MORCEAU):
 		for mi_ in range(0, CASES, MORCEAU):
 			var st := SurfaceTool.new()

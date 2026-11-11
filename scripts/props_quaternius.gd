@@ -498,17 +498,29 @@ static func maillage_brut(nom: String, mat: String) -> ArrayMesh:
 ## Un groupe de pq_* (ou q_* servis en pq_*) posé d'un bloc sous `parent` : UN MeshInstance3D (une surface par atlas, matériaux
 ## partagés de `contexte`) et UN StaticBody3D (boîtes des items marqués solides). Poses : [[id, Transform3D (repère de parent), solide]].
 ## Aucun nœud par prop. Renvoie le MeshInstance3D (null sans props texturés).
-static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exterieur") -> MeshInstance3D:
+## `v` (le village, v3 abords) : les q_* sans pq_* (charrette, tente, rondins, souche…) y sont admis, une surface par matière de
+## mats_village (bois, fer, jute…) ; sans `v` ils sont ignorés.
+static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exterieur", v: Object = null) -> MeshInstance3D:
 	if not pq:
 		return null
 	var sts := {}
+	var mats_q := {}
 	var corps: StaticBody3D = null
 	for p: Array in poses:
 		var id: String = p[0]
 		var xf: Transform3D = p[1]
-		if pq_de(id) == "":
+		var parts: Array = []
+		if pq_de(id) != "":
+			parts = morceaux(id)
+		elif v != null and existe(id):
+			var mv := mats_village(v)
+			for m: Array in morceaux(id, {}, false):
+				var cle := "q:" + String(m[0])
+				mats_q[cle] = mv[m[0]] if mv.has(m[0]) else mv["bois"]
+				parts.append([cle, m[1]])
+		else:
 			continue
-		for m: Array in morceaux(id):
+		for m: Array in parts:
 			if not sts.has(m[0]):
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -534,7 +546,7 @@ static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exter
 	for a: String in sts:
 		var st: SurfaceTool = sts[a]
 		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, st.commit_to_arrays())
-		am.surface_set_material(am.get_surface_count() - 1, PropsQuat.materiau(a, contexte))
+		am.surface_set_material(am.get_surface_count() - 1, mats_q[a] if mats_q.has(a) else PropsQuat.materiau(a, contexte))
 	var mi := MeshInstance3D.new()
 	mi.name = nom
 	mi.mesh = am
