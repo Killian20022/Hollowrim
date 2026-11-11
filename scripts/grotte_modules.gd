@@ -602,6 +602,9 @@ static func _carrefour(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> vo
 			d.arme(pp + Vector3(0.5, 0.02, 0.3), 1.0)         # pioche rouillée : la mine
 		else:
 			d.crane(pp + Vector3(0.4, 0.0, 0.2), 0.5)
+	for sc: Array in [[s0 + 3.4, 1.0], [s0 + 3.0, -1.0]]:      # props/maximum : halte (banc, tonneau) face au foyer éteint
+		if compo(g, id, float(sc[0]), float(sc[1]), G_HALTE):
+			break
 
 # ------------------------------------------------------------------ vieille mine
 static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: String) -> void:
@@ -636,6 +639,9 @@ static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Stri
 			d.tonneau(tn, 1.0)
 			d.solide_rond(tn + Vector3(0, 0.5, 0), 0.38, 1.0)
 			d.caisse(_p(g, id, s0 + 11.0, 2.3), Vector3(0.8, 0.5, 0.5), 0.15)
+			for sc: Array in [[s0 + 17.0, -1.0], [s0 + 18.5, 1.0], [s0 + 3.0, 1.0]]:      # props/maximum : réserve des mineurs
+				if compo(g, id, float(sc[0]), float(sc[1]), G_RESERVE):
+					break
 		"ressources":
 			# poste des mineurs-bandits : table, tabourets, lit de camp, caisses, sacs de minerai, râtelier de pioches
 			var tb: Vector3 = d.pose_objet(_p(g, id, s0 + 4.0, -1.2), 0.55, 0.33, 0.4, 0.8, GrotteDecor.DROIT, 0.5, 0.45, true)["p"]
@@ -657,6 +663,9 @@ static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Stri
 			rails(g, id, s0 + 1.0, s1 - 1.0, lat_rail)
 			chariot(g, id, s0 + 7.0, lat_rail, r, 1)
 			chariot(g, id, s0 + 13.0, lat_rail, r, 2)
+			for sc: Array in [[s0 + 10.5, -1.0], [s0 + 11.5, -1.0], [s0 + 12.5, 1.0]]:      # props/maximum : établi des mineurs
+				if compo(g, id, float(sc[0]), float(sc[1]), G_ETABLI):
+					break
 		"secret":
 			_eboulis(g, z, r)
 		"repos":
@@ -670,6 +679,57 @@ static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Stri
 			d.arme(_p(g, id, s0 + 9.6, 0.3), 3.6)
 			d.caisse(_p(g, id, s0 + 15.0, 2.1), Vector3(0.8, 0.5, 0.5), 0.15)
 			d.caisse(_p(g, id, s0 + 15.8, 2.2), Vector3(0.6, 0.42, 0.45), 0.5)
+
+## props/maximum (2026-11-11) : COMPOSITION de props texturés adossée à une paroi (établi de mineur, réserve, halte), seulement avec
+## PropsQuaternius.pq. Ancre : abscisse `s`, côté `cote` (+1 droite, -1 gauche), à 0,75 m de la paroi ; items [id, le long (m, sens de la
+## galerie), hors de la paroi (m), lacet°, hauteur, solide, échelle] ; lacet 0 = l'avant des props vers le milieu de la galerie. Le premier
+## item porte ceux qui ont une hauteur (posés sur LUI, à sa pose réelle). Refus (rien posé) si un point des items au sol n'est pas libre
+## (voie centrale, ennemis et rondes, coffres, ressources : Grotte.libre).
+static func compo(g: Grotte, id: String, s: float, cote: float, items: Array) -> bool:
+	if not PropsQuaternius.pq or not PropsQuaternius.lot4:
+		return false
+	var d := g.decor
+	var dl := g.demi_l(id, s)
+	var w := dl.y if cote > 0.0 else dl.x
+	var lat0 := cote * (w - 0.75)
+	for it: Array in items:
+		if float(it[4]) > 0.05:
+			continue
+		var lat := lat0 - cote * float(it[2])
+		var bb := PropsQuaternius.boite(String(it[0]))
+		if not g.libre(id, s + float(it[1]), lat, maxf(bb.size.x, bb.size.z) * 0.4):
+			push_warning("composition de grotte refusée : %s s=%.1f (%s)" % [id, s, it[0]])
+			return false
+	var lacet0 := _vers(-g.droite(id, s) * cote)
+	var base := Vector3.INF
+	var lb := 0.0
+	for it: Array in items:
+		var e := float(it[6]) if it.size() > 6 else 1.0
+		var lac := lacet0 + deg_to_rad(float(it[3]))
+		if float(it[4]) > 0.05:
+			if base == Vector3.INF:
+				continue
+			var b := Basis(Vector3.UP, lb)
+			d.q4(String(it[0]), base + b * Vector3(float(it[1]), 0, float(it[2])) + Vector3(0, float(it[4]), 0), lac, e, false, true)
+			continue
+		var p := _p(g, id, s + float(it[1]), lat0 - cote * float(it[2]))
+		var q := d.q4(String(it[0]), p, lac, e, bool(it[5]))
+		if base == Vector3.INF and q != Vector3.INF:
+			base = q
+			lb = lac
+	if base != Vector3.INF:
+		print("PropsMax : composition de grotte posée %s s=%.1f (%s)" % [id, s, items[0][0]])
+	return base != Vector3.INF
+
+## Établi de mineur : plan de travail, pioche dressée, seau de fer, caisse ferrée ; sur l'établi lanterne éteinte (chandelier), parchemin,
+## chope. Réserve : caisses et sacs. Halte : banc, tonneau, seau.
+const G_ETABLI := [["pq_etabli", 0.0, 0.0, 0.0, 0.0, true], ["pq_bougie_2", -0.6, 0.05, 0.0, 0.85, false], ["pq_parchemin", 0.1, 0.1, 20.0, 0.85, false],
+	["pq_chope", 0.55, -0.05, 0.0, 0.85, false], ["pq_pioche", 1.35, -0.1, 80.0, 0.0, false], ["pq_seau_fer", -1.3, 0.25, 0.0, 0.0, false],
+	["pq_caisse_fer", -1.25, -0.6, 10.0, 0.0, true]]
+const G_RESERVE := [["pq_caisse", 0.0, 0.0, 8.0, 0.0, true], ["pq_caisse_fer", 0.85, 0.05, -12.0, 0.0, true], ["pq_sac", -0.75, 0.25, 30.0, 0.0, false],
+	["pq_pioche", 1.6, 0.0, 95.0, 0.0, false]]
+const G_HALTE := [["pq_banc", 0.0, 0.25, 0.0, 0.0, true], ["pq_tonneau", 1.6, 0.15, 0.0, 0.0, true], ["pq_seau_bois", -1.5, 0.3, 0.0, 0.0, false],
+	["pq_sac", -1.4, -0.35, 50.0, 0.0, false]]
 
 ## Éboulement : un mur de blocs ferme la baie latérale, avec un passage (variante : position) ; arêtes de blocs au bord du couloir.
 static func _eboulis(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> void:
