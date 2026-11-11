@@ -36,7 +36,7 @@ const FIST_MAX := 0.9
 ## La main gauche du modèle est décalée de l'os (~6 cm vers -z) : l'arc posé sur l'os seul flottait à côté des doigts.
 ## L'archer draugr Tripo (« archer ») : même chaîne, sa main gauche est elle aussi décalée de l'os (~5,5 cm vers -z), jointures à ~40-49° de +x.
 const PRISE_ARC := {
-	"squelette": {"paume_l": Vector3(0.034, 0.095, -0.06), "paume_r": Vector3(-0.045, 0.16, -0.012), "rot_l": -48.0, "rot_r": 53.0, "tendu": 0.985},
+	"squelette": {"paume_l": Vector3(0.036, 0.087, -0.066), "paume_r": Vector3(-0.045, 0.16, -0.012), "rot_l": -48.0, "rot_r": 53.0, "tendu": 0.985},
 	"archer": {"paume_l": Vector3(0.05, 0.08, -0.053), "paume_r": Vector3(-0.025, 0.15, 0.005), "rot_l": -44.0, "rot_r": 55.0, "tendu": 0.985},
 }
 
