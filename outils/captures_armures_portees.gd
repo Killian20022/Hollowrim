@@ -318,6 +318,12 @@ func _planches() -> void:
 			_placer_cam({"buste": 30.0, "buste_dos": 150.0}[v], 1.5, 1.35, 1.55)
 			await _attendre(0.15)
 			await _capture("%s_%s" % [f, v], Rect2i(240, 0, 480, 540), "buste " + ("3/4 face" if v == "buste" else "3/4 dos"))
+		if OS.get_cmdline_user_args().has("--details"):
+			# gros plans des articulations (passe 2 « géométrie » des armures lourdes) : épaule, coude, genou
+			for g in [["epaule", 70.0, 0.95, 1.42, 1.55], ["coude", 95.0, 0.95, 1.08, 1.15], ["genou", 25.0, 0.95, 0.55, 0.75], ["epaule_dos", 140.0, 0.95, 1.42, 1.55]]:
+				_placer_cam(g[1], g[2], g[3], g[4])
+				await _attendre(0.15)
+				await _capture("%s_%s" % [f, g[0]], Rect2i(240, 0, 480, 540), "gros plan " + g[0])
 		if f == "sans_armure":
 			continue
 		# pièces posées au sol, devant le héros (vue plongeante)

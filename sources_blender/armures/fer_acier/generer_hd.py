@@ -11,13 +11,16 @@ import hd as H
 import pieces_hd as PH
 sys.path.insert(0, os.path.join(ICI, ".."))
 import retreindre as RT
-importlib.reload(C); importlib.reload(H); importlib.reload(PH); importlib.reload(RT)
+import relief as RL
+import articulees as AR
+importlib.reload(C); importlib.reload(H); importlib.reload(PH); importlib.reload(RT); importlib.reload(RL); importlib.reload(AR)
 RETREINT = dict(m=0.015, k=0.55, D1=0.11)
+RELIEF = {"tete": dict(max_rivets=20, ep=0.003), "torse": dict(max_rivets=50, min_tris_bord=16), "mains": dict(max_rivets=16, ep=0.0035, min_tris_bord=30), "pieds": dict(max_rivets=24, min_tris_bord=16)}
 from mathutils import Vector, Matrix
 
 # ------------------------------------------------------------------------------------------------ styles
 # ACIER NORDIQUE : acier gris usé et riveté (planche), arêtes polies, peu de rouille ; cuir brun ; fourrure beige.
-ACIER = dict(pal=H.ACIER_NEUTRE, mat="acier.patine", mat_rebord="acier.patine", mat_main="cuir", mat_doigts="cuir", mat_genou="acier.patine", base=0.40, contraste=0.36,
+ACIER = dict(pal=H.ACIER_NEUTRE, mat="acier.patine", mat_rebord="acier.patine", mat_main="cuir", mat_doigts="cuir", mat_genou="acier.patine", base=0.33, contraste=0.34,
              martele=0.15, cellule=3.2, oxyde=0.0, crasse=0.55, poli=0.18, patine=0.26,
              filet=dict(retrait=0.9, larg=0.42, haut=0.32, creux=0.24, poli=1.0, sombre=0.34), graver_epaule=True, graver_plastron=True, rouille=0.06, sale=0.85, poli_arete=1.0, poli_bord=0.5,
              rayures=2.2, r_rivet=0.8, k_rivet=0.74, graine=23, pal_cuir=H.CUIR, base_cuir=0.44, pal_maille=H.FER, base_maille=0.55,
@@ -64,6 +67,14 @@ PIECES = {
                                                              rivets_lames=5, evasement=0.03, jointures=True, debut_manchette=0.08)),
     "bottes_acier_nordique": lambda r: PH.bottes(r, _s(ACIER, id="bottes_acier_nordique", greve=False, revers_fourrure=True, sangles=(0.08, 0.20, 0.32), ep_revers=1.35, cuissots=3,
                                                        embout=False, ailette=0.032, rivets_greve=True, pal_fourrure=H.FOURRURE_BEIGE, base_fourrure=0.6)),
+}
+
+CRETE = {"casque_fer": dict(h=0.005, larg=0.0075, th0=22, th1=170), "casque_acier_nordique": dict(h=0.011, larg=0.0055, th0=30, th1=160)}
+ARTIC = {
+    "cuirasse_fer": lambda cx: AR.epaulieres(cx, lames=2, dome=(-0.02, 0.07), angles=(-100, 100), na=8) + AR.couters(cx, aile=False),
+    "cuirasse_acier_nordique": lambda cx: AR.epaulieres(cx, lames=3, dome=(-0.035, 0.075), angles=(-108, 108)) + AR.couters(cx),
+    "bottes_fer": lambda cx: AR.genouilleres(cx, aile=False),
+    "bottes_acier_nordique": lambda cx: AR.genouilleres(cx),
 }
 
 MASQUE = {"tete": {"Hair_Long"}, "torse": {"tunique", "mante", "accessoires", "pantalon"}, "mains": set(), "pieds": {"bottes"}}
@@ -177,6 +188,16 @@ def main():
         if "--epais" not in sys.argv:
             # affinage 2026-11-11 : pièces rapprochées du corps (retour « trop épaisses »), même loi pour toutes les pièces
             RT.retreindre(ob, r, **RETREINT)
+        if "--sans-relief" not in sys.argv and pid in ARTIC:
+            # passe 2 : plaques articulées superposées (épaulières à lames, couters, genouillères)
+            cx = AR.Contexte(ob, r, RT.arbre_corps(r))
+            print("ARTIC", pid, ARTIC[pid](cx), "tris ajoutés")
+        if "--sans-relief" not in sys.argv and pid in CRETE:
+            # passe 2 : crête sagittale en relief, du front à la nuque
+            print("CRETE", pid, AR.crete(ob, Vector((0, 0.0, 1.68)), **CRETE[pid]), "tris")
+        if "--sans-relief" not in sys.argv:
+            # passe 2 « géométrie » : bordures roulées + rivets en relief
+            RL.relief(ob, **RELIEF.get(_famille(pid), {}))
         print("PIECE", pid, C.compter_tris(ob), "tris", "groupes", len(ob.vertex_groups),
               "texture", next(n for n in ob.data.materials[0].node_tree.nodes if n.type == "TEX_IMAGE").image.size[:])
         _rep = {}
