@@ -232,7 +232,7 @@ if RETIRER and not arg("avec-arme"):
 
 # ---------------------------------------------------------------- 7. îlots du poignet raccordés à leur surface (raccord_ilots.py : posés sur le voisin
 # à <= 4 mm et mêmes poids, rien n'est supprimé) ; modèles listés ici seulement, les autres sortent comme avant. --sans-raccord=1 : sans.
-if MODELE in ("squelette",) and not arg("sans-raccord"):
+if MODELE in ("squelette", "draugr") and not arg("sans-raccord"):
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import raccord_ilots
     raccord_ilots.raccorder(garde, arm)
