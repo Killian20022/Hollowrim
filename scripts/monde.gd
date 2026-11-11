@@ -267,6 +267,7 @@ func _ready() -> void:
 func _accueil() -> void:
 	var narre := not Jeu.mode_outil() or _arguments().has("prologue")
 	aides.dialogue = dialogue
+	aides.brancher(crime, rangs, cycle, sbire)   # vol vu / prime / rang de faction / nuit, et le draugr du premier combat guidé
 	quetes.evenement.connect(_sur_evenement_histoire)
 	if narre and (Jeu.nouvelle_partie or _arguments().has("prologue")) and not quetes.vus.has("prologue_vu"):
 		hud.demarrer(false)
@@ -1325,6 +1326,8 @@ func _draugrs() -> void:
 		var dr := _draugr(String(d[0]), float(d[1]), float(d[2]), bool(d[3]), float(d[4]))
 		if i == DRAUGRS_SURFACE.size() - 1:
 			sbire = dr          # le rôdeur de la forêt (repris par les scènes de test et les captures)
+			if aides != null:
+				aides.guide_cible = dr   # c'est lui, isolé entre le feu et le cercle, le draugr du premier combat guidé (aides.gd)
 		else:
 			await _souffle()
 

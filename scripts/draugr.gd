@@ -451,6 +451,11 @@ func _ligne_de_vue() -> bool:
 func vivant() -> bool:
 	return etat != MORT
 
+## Premier combat guidé (scripts/aides.gd) : retarde le prochain geste rouge annoncé (non parable) d'au moins `s` secondes,
+## pour que l'élève apprenne à bloquer, frapper et se soigner sans être puni par un coup qu'on ne lui a pas encore montré.
+func differer_geste_annonce(s: float) -> void:
+	_cd_lourd = maxf(_cd_lourd, s)
+
 ## Cible de l'image : le rival (faction hostile, Rivalites) s'il est plus près que le joueur, sinon le joueur. Les chefs et les archers
 ## n'ont pas de rival (leurs pouvoirs et leurs tirs visent le joueur) ; un dormeur n'en cherche pas (un coup le réveille et le lui donne).
 func _cible_du_moment(dt: float) -> Node3D:
