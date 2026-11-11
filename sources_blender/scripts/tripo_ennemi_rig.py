@@ -1,5 +1,6 @@
 # Ennemis Tripo animés (draugr, archer, squelette, gobelin) : habillage du squelette nordique (65 os de homme_vetu.glb), poids automatiques, pose A -> T cuite.
-#   blender.exe -b --python tripo_ennemi_rig.py -- --modele=draugr|archer|squelette|gobelin [--debug=<dossier>]
+#   blender.exe -b --python tripo_ennemi_rig.py -- --modele=draugr|archer|squelette|gobelin [--debug=<dossier>] [--mains-rigides=1] [--avec-arme=1]
+#   Squelette du jeu : --modele=squelette --mains-rigides=1 (l'arme Tripo restée dans sa main gauche est retirée, voir RETIRER plus bas).
 # Entrée : assets/pnj/ennemis/tripo_<modele>.glb (sortie de tripo_ennemi_prep.py, pieds à z=0, face -Y). Sortie : tripo_<modele>_rig.glb.
 # Dérivé de tripo_rig.py (gardes) sans tabard ni arme : l'arme est celle du jeu, posée dans Godot (BoneAttachment3D sur hand_r).
 import bpy, bmesh, math, os, sys
@@ -186,6 +187,55 @@ bpy.ops.pose.armature_apply()
 bpy.ops.object.mode_set(mode="OBJECT")
 garde.name = "tripo_" + MODELE
 arm.name = "Armature"
+
+# ---------------------------------------------------------------- 6. reste de l'arme Tripo fondu dans le corps : retiré par îlots, après la cuisson
+# (repère en T de la sortie : bras le long de ±x, mains vers z = 1,4) ; les poids des autres sommets ne changent pas.
+# Îlot = composante connexe de faces après soudure des sommets par position (0,5 mm), comme outils/controle_modele.gd.
+# Critère : n (faces), mn, mx (boîte de l'îlot) -> True pour l'îlot à retirer. --avec-arme=1 : sortie d'avant la correction.
+RETIRER = {
+    # lame sombre que le modèle source tient dans la main gauche (elle pend sous la main en pose A) : 7 îlots, 130 faces. Ses poids
+    # mêlés main / cuisse la faisaient passer devant les jambes en course. La main (phalanges repliées) reste intacte.
+    "squelette": [("lame de la main gauche", lambda n, mn, mx: mn.x > 0.45 and mn.z < 1.30)],
+}.get(MODELE, [])
+if RETIRER and not arg("avec-arme"):
+    bm = bmesh.new(); bm.from_mesh(me); bm.verts.ensure_lookup_table()
+    cle_, rep_ = {}, []
+    for v in bm.verts:
+        rep_.append(cle_.setdefault(tuple(round(c_ / 0.0005) for c_ in v.co), v.index))
+    par_ = list(range(len(bm.verts)))
+    def rac_(i):
+        while par_[i] != i:
+            par_[i] = par_[par_[i]]; i = par_[i]
+        return i
+    for f_ in bm.faces:
+        r0_ = rac_(rep_[f_.verts[0].index])
+        for v in f_.verts[1:]:
+            r1_ = rac_(rep_[v.index])
+            if r1_ != r0_:
+                par_[r1_] = r0_
+    ilots_ = {}
+    for f_ in bm.faces:
+        ilots_.setdefault(rac_(rep_[f_.verts[0].index]), []).append(f_)
+    a_suppr = set()
+    for desc_, crit_ in RETIRER:
+        nf_, ni_ = 0, 0
+        for fs_ in ilots_.values():
+            co_ = [v.co for f_ in fs_ for v in f_.verts]
+            mn_ = Vector([min(c_[k] for c_ in co_) for k in range(3)])
+            mx_ = Vector([max(c_[k] for c_ in co_) for k in range(3)])
+            if crit_(len(fs_), mn_, mx_):
+                a_suppr.update(fs_); nf_ += len(fs_); ni_ += 1
+        print("arme retirée (%s) : %d îlots, %d faces" % (desc_, ni_, nf_))
+    bmesh.ops.delete(bm, geom=list(a_suppr), context="FACES")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.to_mesh(me); bm.free(); me.update()
+
+# ---------------------------------------------------------------- 7. îlots du poignet raccordés à leur surface (raccord_ilots.py : posés sur le voisin
+# à <= 4 mm et mêmes poids, rien n'est supprimé) ; modèles listés ici seulement, les autres sortent comme avant. --sans-raccord=1 : sans.
+if MODELE in ("squelette",) and not arg("sans-raccord"):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import raccord_ilots
+    raccord_ilots.raccorder(garde, arm)
 
 if arg("blend"):
     bpy.ops.wm.save_as_mainfile(filepath=arg("blend"))
