@@ -111,6 +111,7 @@ var _serie_max := 1            # longueur tirée de la série
 var _lourd := false            # le geste en cours est le coup de taille ANNONCÉ (non parable)
 var _lourd_pre := 0.0          # durée du clip avant l'impact (s, à vitesse 1)
 var _centre_lourd := Vector3.ZERO   # centre du repère au sol, figé au début de la préparation
+var vigilance := 0.0           # furtivité (scripts/furtivite.gd) : jauge de repérage 0..1 d'un garde / patrouilleur
 var _alerte: Node3D            # repère rouge au sol (telegraphe_sol.gd)
 var _marque: Label3D           # « ! » rouge au-dessus de la tête pendant la préparation (lisible aussi quand le sol est hors champ)
 var _pulsation: Tween          # lueur pulsée du corps pendant la préparation
@@ -567,7 +568,7 @@ func _physics_process(dt: float) -> void:
 	match etat:
 		DORT:
 			regard = false
-			if dist < REVEIL_DISTANCE and not c_mort and not _attend:
+			if dist < REVEIL_DISTANCE * (Furtivite.facteur_reveil(c) if c == joueur else 1.0) and not c_mort and not _attend:
 				_changer(REVEIL)
 				_reveiller()
 				Sons.jouer_a(self, ["giant1", "giant2", "giant3"], global_position + Vector3.UP, -2.0, 0.15)
@@ -585,7 +586,7 @@ func _physics_process(dt: float) -> void:
 			else:
 				regard = false
 				_jouer("Sword_Idle")
-			if dist < DETECTION and not c_mort:
+			if _reperer(dt, c, dist, true, c_mort):
 				_changer(TRAQUE)
 				Sons.jouer_a(self, ["mnstr1", "mnstr2", "mnstr3", "mnstr4"], global_position + Vector3.UP, -4.0, 0.15)
 		PATROUILLE:
@@ -604,7 +605,7 @@ func _physics_process(dt: float) -> void:
 					vitesse = _marche * 0.85
 					loco = "Walk"
 			# détection : à plus de 8 m, il lui faut voir le joueur (pas de repérage à travers les murs)
-			if dist < DETECTION and not c_mort and (dist < 8.0 or c != joueur or _voit(dt)):
+			if _reperer(dt, c, dist, dist < 8.0 or c != joueur or _voit(dt), c_mort):
 				_changer(TRAQUE)
 				Sons.jouer_a(self, ["mnstr1", "mnstr2", "mnstr3", "mnstr4"], global_position + Vector3.UP, -4.0, 0.15)
 		TRAQUE:
@@ -858,6 +859,20 @@ func _physics_process(dt: float) -> void:
 		return
 	_immo = 0.0
 	move_and_slide()
+
+## Furtivité : met à jour la jauge de repérage ; vrai quand elle est pleine. Seul le joueur est soumis à la jauge (un rival, faction
+## hostile, est repéré tout de suite dans le rayon DETECTION, comme avant).
+func _reperer(dt: float, cible: Node3D, dist: float, voit: bool, c_mort: bool) -> bool:
+	if c_mort:
+		vigilance = 0.0
+		return false
+	if cible != joueur:
+		return dist < DETECTION
+	vigilance = Furtivite.observer(self, joueur, vigilance, dt, dist, DETECTION, voit)
+	if vigilance >= 1.0:
+		vigilance = 0.0
+		return true
+	return false
 
 ## Ligne de vue vers le joueur, rafraîchie 5 fois par seconde.
 func _voit(dt: float) -> bool:
@@ -1219,7 +1234,8 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, in
 	var de_face := vers.normalized().dot(global_transform.basis.z) > 0.3
 	var peut_bloquer := (type == "guerrier" or _os or boss == "jarl") and etat in [TRAQUE]
 	# attaque furtive (ReglagesCombat.FURTIF) : pas encore en combat, frappé dans le dos — ou endormi, de n'importe où
-	var surpris := etat == DORT or (etat in [GARDE, PATROUILLE] and not de_face)
+	var inapercu: bool = joueur != null and joueur.get("accroupi") == true and vigilance < Furtivite.SEUIL_SURPRIS   # accroupi, pas encore remarqué : même de face
+	var surpris := etat == DORT or (etat in [GARDE, PATROUILLE] and (not de_face or inapercu))
 	var r := combat.analyser(quantite, origine_coup, puissant, info, {"de_face": de_face, "peut_bloquer": peut_bloquer, "surpris": surpris,
 		"en_attaque": etat == ATTAQUE, "coup_donne": _coup_donne, "hauteur_visee": CombatEnnemi.hauteur_visee(joueur, self)})
 	if r["bloque"]:

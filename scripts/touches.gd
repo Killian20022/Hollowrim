@@ -14,6 +14,7 @@ const ACTIONS := [
 	{"id": "gauche", "nom": "Aller à gauche", "defaut": [KEY_A, KEY_LEFT]},
 	{"id": "droite", "nom": "Aller à droite", "defaut": [KEY_D, KEY_RIGHT]},
 	{"id": "course", "nom": "Courir", "defaut": [KEY_SHIFT, KEY_NONE]},
+	{"id": "accroupi", "nom": "S'accroupir (furtivité)", "defaut": [KEY_CTRL, KEY_NONE]},
 	{"id": "saut", "nom": "Sauter", "defaut": [KEY_SPACE, KEY_NONE]},
 	{"id": "esquive", "nom": "Esquiver (pas de côté / en arrière)", "defaut": [KEY_ALT, KEY_C]},
 	{"id": "interagir", "nom": "Parler, ouvrir, ramasser", "defaut": [KEY_E, KEY_NONE]},

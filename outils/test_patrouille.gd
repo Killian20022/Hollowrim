@@ -49,7 +49,7 @@ func _tester() -> void:
 	_verif(g.etat == g.PATROUILLE, "toujours en patrouille sans joueur")
 	# --- détection
 	j.global_position = _sol(g.global_position.x + 7.0, g.global_position.z)
-	for i in 30:
+	for i in 150:   # détection progressive (furtivité) : ≈ 0,7 s à 7 m
 		await physics_frame
 	_verif(g.etat in [g.TRAQUE, g.ATTAQUE], "il repère le joueur à 7 m (état %d)" % g.etat)
 	# --- abandon : retour à la patrouille

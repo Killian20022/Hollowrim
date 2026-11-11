@@ -122,6 +122,7 @@ TESTS=(
 	"test_defense|--nouvelle"   # défense phase 3 : garde orientée, garde brisée, anti-spam, parade parfaite (vrai draugr), contre, finisher joueur
 	"test_finishers|--nouvelle"   # finishers alignés : épée plantée (lame DANS le torse), pommeau, décapitation, dos, plongé ; choix selon le contexte
 	"test_esquive|--nouvelle"   # esquive du joueur (2026-11-05) : pas de côté, 0,2 s d invulnérabilité, coût, refus, annulation de la récupération, combo strict, caméra
+	"test_furtivite|--nouvelle"   # furtivité (2026-11-10) : accroupi, bruit par allure, visibilité (torche, nuit), détection progressive des gardes, coup furtif sans cumul, compétence, œil du HUD
 	"test_mage_bot|--n=2 --nouvelle"   # banc « bot MAGE » (2026-11-05, docs/MAGIE.md « Équilibrage ») : feu / glace / électricité / ténèbres, simple et double, contre 1 puis 2 draugrs, seuils
 	"test_menace_bot|--nouvelle"   # banc « bot » de la menace des ennemis courants (2026-11-05) : spam / garde / parade / esquive contre 1 puis 2 draugrs, seuils
 	"test_demembrement|--nouvelle"   # démembrement (draugr, bandit) : choix du membre selon le coup, morceaux, moignons, jets, pool, option

@@ -82,7 +82,7 @@ func _tester() -> void:
 
 	# --- B. détection
 	_devant(m, 10.0)
-	await _frames(15)
+	await _frames(100)   # détection progressive (furtivité)
 	_verif(m.en_combat(), "détecte le joueur à 10 m (état %d)" % m.etat)
 
 	# --- C. trait de givre : projectile visible qui touche le joueur immobile, ralentissement
