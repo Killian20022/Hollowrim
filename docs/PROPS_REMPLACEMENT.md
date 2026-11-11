@@ -286,3 +286,56 @@ sont à ±1,5 ms. La hausse 19,8 -> 31,7 ms de la v1 venait de la charge (autres
 avant/après, sauf la 1re passe de la halle (175, même passe que le +10,9 ms). Aucun nœud par prop : compositions fondues dans les
 tampons (crypte, grotte, village), lot_pq du quai = 1 maillage + 1 corps statique ; +63 nœuds au total = MeshInstance3D des lots par
 atlas des intérieurs (fusion props/quaternius), sans script.
+
+## Props v3 : abords, restes, intérieurs (props/maximum, 2026-11-11)
+
+Interrupteur A/B : `-- --sans-props-v3` (`PropsQuaternius.v3`) rend EXACTEMENT la v2 (mêmes refus, mêmes places) ; `--props-quat-ancien`
+reste l'état d'avant tous les props texturés. Même esprit que la v2 : des scènes de vie lisibles, jamais un objet seul, fondues dans un
+maillage par composition (aucun nœud par prop), le décor tiré au hasard ne bouge pas, tout reste nordique (pièces hors thème écartées).
+
+### Abords du village et du monde (`scripts/abords_props.gd`, `AbordsProps.creer`, appelé par `monde.gd` après le dallage)
+
+Une composition = UN `MeshInstance3D` + UN `StaticBody3D` (`PropsQuaternius.lot_pq`, qui admet maintenant les `q_*` du kit Medieval
+Village sans équivalent pq_* — charrette, tente, rondins, souche, poutre — une surface par matière du village), visible jusqu'à 70 m
+(brouillard). Chaque ancre est essayée telle quelle puis glissée de ±1 / ±2 m, puis sur des couronnes de 3, 5 et 7 m ; elle est refusée si
+un item au sol touche un arbre, un chemin (marge 2 m, 0,4 m pour les poteaux indicateurs qui se tiennent AU BORD du chemin), une pente trop
+forte (0,57 m sous un petit item ; 0,9 m sous un grand item solide, qui est alors INCLINÉ comme le terrain), un corps physique (rochers,
+barrières, bâti) ou une autre composition. Une composition par image (l'écran de chargement reste animé). Nature maison non touchée.
+
+| Lieu | Composition | Contenu |
+|---|---|---|
+| bord du champ nord (73, −6,5) | charrette abandonnée | q_chariot, sacs renversés, tonneau, pioche couchée, seau |
+| champs est (83,5, 35 / 81, 46) | 2 épouvantails | perche + traverse (poutres), sac en tête, haillon de toile |
+| portail des champs B et C | récolte rentrée | tonneau de pommes, sacs, cageots de carottes et de pommes, seau |
+| fermes A et B, lisière du feu de camp | 3 bûchers | rondins en trois rangs, billot (souche) + hache plantée, bûches |
+| lisière sud (7, −19) | campement de chasseur | tente, foyer éteint + marmite, rondin-banc, séchoir (viande, poisson), 2 pièges à ours, sac, corde, seau, hachette |
+| cercle runique, tumulus | offrandes | vases, urne brisée, calice, bougies éteintes, pain, pommes, pièces |
+| fourches (cercle, tumulus, grotte) | 3 poteaux indicateurs | poteau, deux planches en flèche, lanterne murale éteinte |
+| devant la grotte (86,5, −21,5) | réserve des bandits | caisses empilées, caisse ferrée, tonneau, sac, bûches |
+
+Retiré : la charrette du champ A (pente > 0,9 m partout autour, même inclinée). Outil de captures : `-- --abords-vues=<fichier>` écrit deux
+points de vue DÉGAGÉS par composition (pas d'arbre, rayon libre jusqu'à elle, ni relief ni bâtiment entre) au format `--captures`
+(`outils/poses_abords_auto.txt`, repris dans `outils/poses_abords_v3.txt` avec les vues de la crypte et de la grotte).
+
+### Restes de la v2 (compositions refusées partout)
+
+| Lieu | v2 | v3 |
+|---|---|---|
+| grotte, galerie de repos de la mine (A) | halte refusée (banc + tonneau trop larges) | repli ÉTROIT `G_HALTE_ETROITE` (tabouret, caisse + chope, seau, sac) aux mêmes places |
+| grotte, poste de guet du repaire (B) | refusé : couloir d'accès trop étroit partout | passe à l'entrée du camp (T2), version étroite en repli |
+| grotte, vivres du camp (T2) | refusés (3 places seulement) | + candidats tous les 2,5 m |
+| grotte, objets longs (banc, support à tonneaux) | testés sur leur rayon | testés par trois cercles le long de leur flanc (la paroi ne les refuse plus pour rien) |
+| crypte, salle de garde (lb1) | râtelier refusé (mur nord) | repli mur ouest puis mur est : râtelier garni au mur est ; le sac éventré passe au pied des tonneaux ; la statue encapuchonnée du semis qui s'y tenait s'en écarte (une de moins) |
+| crypte, quartiers | caisse + caisse ferrée + sac | caisses empilées + cageot de carottes + sac |
+
+Les replis de la crypte ne préviennent plus (`_compo(..., repli = true)`) : seul l'échec du dernier emplacement est un avertissement.
+
+### Intérieurs : coins de métier (branche `props/maximum-interieurs`, `scripts/interieurs_metiers.gd`)
+
+Après le mobilier de fonction des bâtiments ouverts (`BatimentsOuverts.amenager`), `InterieursMetiers.habiller` pose au plus 6 coins par
+pièce contre les murs avec le même répartiteur (`Murs.poser_ou` : porte, vantail, fenêtres et meubles dégagés, milieu libre), fondus dans
+les lots de la pièce ; aucune lumière, aucun tirage de `b.rng`. Chasseurs et trappeurs : séchoir à peau, peau + raquette au mur, pièges,
+caisse + corde + hachette, bûches, sac. Paysans et fermes : sacs, cageot de carottes + choux, outils au mur (pioche, hache), support à
+tonneaux, cageots, bûches. Moulins : sacs de farine, caisses + sac, tonneaux. Grenier : caisses, tonneau de pommes, cageots, sacs. Grange :
+établi, outils, sacs, bûches, seau. Étable : seaux, sac. Tour du guet : caisse + bouclier, tonneau. Bûches empilées bouts sciés vers la
+pièce (lisibles). `test_interieurs` : OK (1 087 s, machine chargée).
