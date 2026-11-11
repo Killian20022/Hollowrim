@@ -1083,7 +1083,7 @@ func attribuer_lit(l: Lit, place: int, porte_int := Vector3.ZERO, ip: Interieur 
 
 ## Point (monde) où il se tient debout avant de s'asseoir sur son lit.
 func abord_lit() -> Vector3:
-	return lit.point_abord(place_lit, cote_lit) if lit != null else global_position
+	return lit.point_abord(place_lit, cote_lit) if lit != null and is_instance_valid(lit) else global_position
 
 ## La route passe par la porte d'un intérieur : il l'ouvre à 1,9 m et la referme derrière lui.
 func traverser(ip: Interieur, centre: Vector3) -> void:
@@ -1274,7 +1274,9 @@ func _au_lit(dt: float) -> void:
 				_seq_t = 0.0
 				_jouer("Sitting_Idle", 0.2)
 		"assis":
-			if _seq_t > 0.6:
+			if lit == null or not is_instance_valid(lit):      # lit libéré (intérieur déchargé) pendant qu'il s'asseyait : il se relève
+				_se_lever(false)
+			elif _seq_t > 0.6:
 				var b := _bassin_local()
 				if b != Vector3.INF:
 					_o_assis = b
