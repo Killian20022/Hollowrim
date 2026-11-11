@@ -270,7 +270,7 @@ func _fiche() -> void:
 		y += 10.0 if r[0] != "" else 4.0
 	if defilement + places < rendu.size():
 		Parchemin.texte_droite(self, _police, 618, bas, "suite (molette)", Parchemin.PALE)
-	var rec: Dictionary = q.recompense_de(choix) if q.has_method("recompense_de") else f.get("recompense", {})   # issues comprises
+	var rec: Dictionary = q.recu_de(choix) if q.has_method("recu_de") else (q.recompense_de(choix) if q.has_method("recompense_de") else f.get("recompense", {}))   # issues et objets remis par un choix compris
 	var parts := ["%d XP" % int(rec.get("xp", Progression.XP_QUETE_DEFAUT))]
 	if int(rec.get("pieces", 0)) > 0:
 		parts.append("%d pièces" % int(rec["pieces"]))

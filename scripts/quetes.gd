@@ -366,6 +366,20 @@ func recompense_de(id: String) -> Dictionary:
 				r[cle] = v
 	return r
 
+## Ce que le journal affiche à la ligne « Reçu » : la récompense (recompense_de) plus les objets déjà remis sur le moment par un
+## choix (issue "recu": {"objets": {...}} dans data/quetes.json, ex. l'anneau de cuivre de Brodd) ; affichage seul, rien n'est donné.
+func recu_de(id: String) -> Dictionary:
+	var r := recompense_de(id)
+	var q := _quete(id)
+	for i in (q.get("etapes", []) as Array).size():
+		var deja: Variant = _issue(q, i).get("recu")
+		if deja is Dictionary and (deja as Dictionary).get("objets") is Dictionary:
+			var d: Dictionary = (r.get("objets", {}) as Dictionary).duplicate()
+			for k in deja["objets"]:
+				d[k] = int(d.get(k, 0)) + int(deja["objets"][k])
+			r["objets"] = d
+	return r
+
 ## Choix proposés dans le dialogue de `id_pnj` (data/quetes.json, "choix" d'une quête : {id, pnj, index, si?, texte, repond,
 ## effets?, exige?, refus?}) : [{texte, action}] pour ServicesPnj.options. Un choix n'est offert que si la quête est à l'index
 ## voulu et si ses filtres `si` (ceux de RepliquesFiltrees : heure, journal, vu…) passent. Le valider signale

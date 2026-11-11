@@ -575,7 +575,12 @@
               }
             },
             "issue:fil_rouge:brulee": {
-              "journal": "J’ai jeté l’écorce dans le foyer de Brodd sans la lire. Ylva ne saura pas. Brodd a regardé le bouleau se tordre, puis il a parlé d’un fer qu’il aurait dû fondre, et m’a donné un anneau de cuivre forgé la nuit du départ d’Eirik."
+              "journal": "J’ai jeté l’écorce dans le foyer de Brodd sans la lire. Ylva ne saura pas. Brodd a regardé le bouleau se tordre, puis il a parlé d’un fer qu’il aurait dû fondre, et m’a donné un anneau de cuivre forgé la nuit du départ d’Eirik.",
+              "recu": {
+                "objets": {
+                  "anneau_cuivre": 1
+                }
+              }
             },
             "issue:fil_rouge:rendue": {
               "journal": "J’ai rendu l’écorce à Sigrún : c’est à elle de parler, avec sa propre voix. Elle a gardé l’écorce un long moment dans ses mains, comme un oiseau mort.",

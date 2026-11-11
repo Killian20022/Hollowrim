@@ -208,6 +208,7 @@ func _tester() -> void:
 	r = _parler("volva")
 	_verif(q.fini("fil_rouge") and _txt(r[0]).contains("bouleau"), "Sigrún a senti le bouleau : quête terminée")
 	_verif(String(q.entrees("fil_rouge")[-1]["texte"]).contains("deux, maintenant"), "journal : le silence partagé")
+	_verif(int((q.recu_de("fil_rouge").get("objets", {}) as Dictionary).get("anneau_cuivre", 0)) == 1, "journal : l'anneau de cuivre figure dans la ligne « Reçu »")
 	_une_fois("chasseuse", "drôle de tête", "après : Ylva devine qu'on lui cache quelque chose")
 	_une_fois("forgeron", "flamme verte", "après : Brodd et la flamme verte")
 	await _restaurer(avant2)
