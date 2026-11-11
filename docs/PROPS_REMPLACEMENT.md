@@ -157,3 +157,31 @@ Sources : Medieval Dungeon, Survival et Ultimate Food (Quaternius, CC0), matièr
 - **Interrupteur** : `-- --sans-lot4` (exe 3 = lot 3 seul), lu dans `PropsQuaternius.lot4` ; `--sans-remplacement` coupe tout.
 - **Perf** : non remesurée sur ce lot (marché/place/intérieurs mesurés au lot 2 seulement) ; la nourriture ajoute des dizaines de petites instances par table, à surveiller en intérieur.
 - **Limites** : sous l'éclairage sombre des intérieurs et à distance, la nourriture est peu lisible (silhouettes brunes sur bois brun) ; plusieurs pièces de la crypte (livres) restent petites et grisâtres comparées à l'ancien décor brun ; mêmes tests headless OK (crypte, cassables, butin, interieurs, grotte). Planches : `Skyrim captures/props_lot4/planches_v2/{crypte_v2,village_v2,grotte}`.
+
+## Props TEXTURÉS PS1 partout (props/quaternius, 2026-11-10)
+
+Les `q_*` (couleurs de face, sans texture) sont remplacés par leurs `pq_*` texturés (94 props + `pq_coffre_ferme`, catalogue
+`data/props_quaternius.json`, champ `ancien`) PARTOUT où le code les pose, sans toucher aux sites d'appel :
+
+- **Données** : `outils/export_props_quat_dat.gd` (headless, à relancer après toute régénération des glb) écrit
+  `assets/modeles/props_quat/props_quat.dat` (« PQD1 » : par prop, surfaces = atlas + sommets position/normale/UV/couleur + index).
+  `PropsQuaternius._charger_pq` le lit par FileAccess dans le fil qui en a besoin (aucun .glb chargé dans un fil) et ramène chaque
+  `pq_*` à l'encombrement de son `q_*` (échelle uniforme, pied et centre de l'emprise alignés) : poses, plateaux, collisions inchangés.
+- **API inchangée** : `morceaux / triangles / maillage_brut / boite / nb_triangles / village / crypte` renvoient le `pq_*` (matière
+  d'un morceau = atlas `pq_bois`, `pq_fer`, `pq_fer_v`, `pq_tissu(_v)`, `pq_props(_v)`, `pq_page`) ; un matériau partagé par
+  (atlas, contexte) : `PropsQuat.materiau` dehors (ps1, neige) et dedans (ps1_interieur), `CrypteDecor.mat` (shader de la crypte,
+  atlas, sans neige) sous terre. Lots regroupés PAR ATLAS : 8 matériaux au plus par lot en plus de ceux déjà là.
+  Crypte / grotte : modules versés sous « pq:<q_*> » dans `CrypteDecor._modeles` avec leurs UV (`_modele_cache` les garde).
+- **Interrupteur** : `-- --props-quat-ancien` = les `q_*` d'avant (captures « avant », mesures A/B). Les `q_*` restent dans le .dat.
+- **Exceptions** (le `q_*` reste) : kitbash reteint (`KITBASH_SI_MATS` : carotte = saucisson, bourse = jambon, toile de bannière =
+  peau / tapis, sac = foin ou cuir, marmite d'argile, épée = fer de lance ; quand la pose change une matière) ; objets ramassables
+  (`ObjetsVivants.morceaux_q` : leurs modèles relèvent de data/objets/, autre chantier).
+- **Coffres** : `Interieurs.coffre` (décor, fermé par défaut) pose `pq_coffre_ferme` (pose « Chest_Closed » du pack,
+  `props_quaternius.py` entrée `pose`) ; le `pq_coffre` ouvert reste pour les coffres ouverts.
+- **Ajouts** : torches murales du village (`Village._torche_murale` : applique Torch_Metal, même flamme et même lumière), râtelier
+  d'armes de la halle (`pq_rack_armes`), crypte : chaîne lovée et cage au crâne (salle de préparation), lutrin et candélabre éteint
+  (archives), candélabre éteint et chaîne (salle de garde).
+- **Perf** (`outils/mesure_perf.gd`, fenêtre, 2 tours alternés ancien/pq, moyenne des médianes GPU, machine chargée par d'autres
+  agents) : village jour 16,00 → 16,24 ms (+1,5 %, +15 à +28 draw calls, +64 k à +78 k primitives) ; marché 15,50 → 14,50 ms
+  (bruit, +10 draw calls) ; halle 11,23 → 11,23 ms (+12 à +16 draw calls) ; crypte 1,37 → 1,36 ms (±1 draw call). Sous le plafond
+  de +5 %.

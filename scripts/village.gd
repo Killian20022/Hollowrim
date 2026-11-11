@@ -348,6 +348,8 @@ func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_
 	if arrays.size() <= Mesh.ARRAY_NORMAL or arrays[Mesh.ARRAY_VERTEX] == null or arrays[Mesh.ARRAY_NORMAL] == null:
 		return   # tableau vide ou incomplet : rien à ajouter (jamais d'erreur de type)
 	var sombre := mat == m_colombage and m_colombage != null
+	if ao_sol and mat.has_meta("pq"):
+		ao_sol = false      # props texturés (pq_*) : pied sombre déjà cuit
 	if sombre:
 		mat = m_poutres_h
 	var xf_lot := xf
@@ -936,6 +938,17 @@ func _poteau(parent: Node3D, pos: Vector3, rayon: float, h: float, mat: Material
 ## `reelle` = vraie OmniLight (une seule dans le village : la lanterne de la longue maison).
 func _torche_murale(parent: Node3D, pos: Vector3, vers: float, reelle := false) -> void:
 	# `vers` = +1 (mur vers +Z) ou -1 : sens de la saillie
+	if PropsQuaternius.pq and PropsQuaternius.existe("pq_torche_murale"):
+		# props texturés : applique Quaternius (Torch_Metal, platine au mur côté -Z du prop, coupe en haut) x1,35 ; même flamme, même lumière
+		var e := 1.35
+		var o := pos + Vector3(0, -0.22, 0.146 * e * vers)
+		PropsQuaternius.village(self, parent, "pq_torche_murale", Transform3D(Basis(Vector3.UP, 0.0 if vers > 0.0 else PI) * Basis.from_scale(Vector3.ONE * e), o))
+		PropsQuaternius.compter("village_ajouts")
+		var hq := o + Vector3(0, 0.47 * e, 0.06 * e * vers)
+		Torche.flamme_fixe(parent, hq + Vector3(0, 0.08, 0), 1.3, absf(sin(pos.x * 12.9898 + pos.z * 78.233)) * 4.0)
+		if reelle:
+			_feu(parent, hq, 0.6, 1.4, 7.0)
+		return
 	_boite(parent, Vector3(0.07, 0.07, 0.3), Transform3D(Basis(), pos + Vector3(0, -0.15, 0.13 * vers)), m_fer)
 	_boite(parent, Vector3(0.07, 0.5, 0.07), Transform3D(Basis(Vector3.RIGHT, 0.25 * vers), pos + Vector3(0, 0.05, 0.28 * vers)), m_poutres)
 	var haut := pos + Vector3(0, 0.38, 0.34 * vers)

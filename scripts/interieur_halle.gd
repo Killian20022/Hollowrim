@@ -76,6 +76,9 @@ static func construire(b: Interieurs) -> void:
 	_rateau_armes(b, Vector3(1.95, 1.55, zf), PI, "haches")
 	b.tenture(Vector3(-5.6, 1.7, zf), PI, 1.5, 2.0, "tenture_v")
 	b.tenture(Vector3(5.6, 1.7, zf), PI, 1.5, 2.0, "tenture_b")
+	if PropsQuaternius.pq and PropsQuaternius.existe("pq_rack_armes"):      # props texturés (ajout) : râtelier d'armes des gardes contre le pan avant
+		b.qf("pq_rack_armes", Vector3(-3.75, F, zf - 0.47), PI, Vector3(1.25, 0, 0), {}, true)
+		PropsQuaternius.compter("interieurs_ajouts")
 	b.applique(Vector3(-0.95, 1.9, zf - 0.02), PI, 1.5, 5.5, false)
 	b.applique(Vector3(0.95, 1.9, zf - 0.02), PI, 1.5, 5.5, false)
 

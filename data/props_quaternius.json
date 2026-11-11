@@ -2335,6 +2335,42 @@
    ]
   },
   {
+   "id": "pq_coffre_ferme",
+   "source": "Chest_Wood",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_coffre_ferme.glb",
+   "dimensions_m": [
+    0.707,
+    0.396,
+    0.419
+   ],
+   "tris": 1006,
+   "tris_source": 2546,
+   "reduction": "collapse 0.53",
+   "budget": 1007,
+   "echelle": 0.5542,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 136.8,
+    "bois": 58.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.707,
+     0.396,
+     0.419
+    ],
+    "centre_y": 0.198
+   },
+   "octets": 59720,
+   "note": "couvercle fermé (animation Chest_Closed du pack) : coffres de butin fermés",
+   "remplace": []
+  },
+  {
    "id": "pq_piece",
    "source": "Coin",
    "categorie": "objets_petits",

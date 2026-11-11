@@ -102,6 +102,7 @@ var _t_audio := 0.0
 
 func _ready() -> void:
 	Chrono.demarre()
+	PropsQuaternius.prechauffer_pq()      # matériaux des props texturés (pq_*) créés ici, pas dans les fils de construction
 	Prechargement.lancer()
 	if Jeu.chargement_etale and not _arguments().has("sans-fonds"):
 		GrotteAcces.prelancer()   # la grotte se bâtit en fil PENDANT la construction du monde (voir _terminer_fonds)

@@ -44,6 +44,9 @@ static func existe(id: String) -> bool:
 	return catalogue().has(id)
 
 ## Texture d'atlas (filtre plus proche ; mipmaps seulement dedans, par ps1_interieur).
+static func texture(atlas: String) -> Texture2D:
+	return _texture(atlas)
+
 static func _texture(atlas: String) -> Texture2D:
 	return load(TEXTURES + atlas + ".png") as Texture2D
 
@@ -72,6 +75,7 @@ static func materiau(atlas: String, contexte := "exterieur") -> Material:
 		if contexte == "crypte":
 			me.set_shader_parameter("tex_neige", tex)      # pas de neige sous terre
 		m = me
+	m.set_meta("pq", true)      # Village._ajouter : pas d'occlusion de pied en plus (le pied sombre est déjà dans la couleur de sommet)
 	_verrou.lock()
 	_mats[cle] = m
 	_verrou.unlock()

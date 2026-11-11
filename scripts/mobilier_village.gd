@@ -117,8 +117,11 @@ const POSES_L4 := [
 const MATS_L4 := {"laine": "laine_q", "herbe": "herbe", "argile": "argile"}
 ## Matières des props Quaternius -> matières du mobilier (fer MAT : fer du village, déjà terne ; voir _materiau pour lin et os).
 ## Même table pour les props posés par substitut() dans le village (matière du prop -> matière de PropsQuaternius.mats_village).
-const MATS_Q_V := {"fer": "fer", "bois": "bois", "jute": "jute", "lin": "lin", "os": "os", "pierre": "pierre", "or": "fer", "noir": "fer", "toile": "lin", "laine": "lin", "argile": "argile"}
-const MATS_Q := {"bois": "planches_h", "fer": "fer", "jute": "foin", "lin": "lin", "os": "os", "pierre": "pierre_brute", "or": "fer", "noir": "fer"}
+const MATS_Q_V := {"fer": "fer", "bois": "bois", "jute": "jute", "lin": "lin", "os": "os", "pierre": "pierre", "or": "fer", "noir": "fer", "toile": "lin", "laine": "lin", "argile": "argile",
+	"pq_bois": "pq_bois", "pq_fer": "pq_fer", "pq_fer_v": "pq_fer_v", "pq_tissu": "pq_tissu", "pq_tissu_v": "pq_tissu_v", "pq_props": "pq_props", "pq_props_v": "pq_props_v", "pq_page": "pq_page"}
+## Atlas des props texturés (pq_*) : gardés tels quels (matériau partagé PropsQuat, contexte « exterieur »).
+const MATS_Q := {"bois": "planches_h", "fer": "fer", "jute": "foin", "lin": "lin", "os": "os", "pierre": "pierre_brute", "or": "fer", "noir": "fer",
+	"pq_bois": "pq_bois", "pq_fer": "pq_fer", "pq_fer_v": "pq_fer_v", "pq_tissu": "pq_tissu", "pq_tissu_v": "pq_tissu_v", "pq_props": "pq_props", "pq_props_v": "pq_props_v", "pq_page": "pq_page"}
 ## Primeurs : les fruits et légumes du pack Standard sont blancs à l'origine et sortaient en « fer » bleu-noir : terre cuite orangée.
 const PRIMEURS := ["q_cageot_pommes", "q_cageot_carottes", "q_carotte", "q_tonneau_pommes"]
 
@@ -198,7 +201,7 @@ static func substitut(mod: String) -> Array:
 			# montant pendait en l'air. KITBASH : une hampe ronde du sol jusque sous la traverse, à la place du montant ; la toile est
 			# celle de Banner_1_Cloth (le nœud Tissu, deux faces, balancée) ; la plaque « fer » (toile d'une seule face, sans support) et
 			# les clous sont retirés.
-			r = [["q_banniere", _fit("q_banniere", Vector3.ZERO, 0.0, Vector3(1.8, 3.95, 0.21)), {"fer": ""}]]      # profondeur 0,21 (était 0,4 : montant 0,28 m d'épais) : la hampe le couvre
+			r = [["q_banniere", _fit("q_banniere", Vector3.ZERO, 0.0, Vector3(1.8, 3.95, 0.21)), {"fer": "", "pq_tissu": "", "pq_tissu_v": ""}]]      # profondeur 0,21 (était 0,4 : montant 0,28 m d'épais) : la hampe le couvre
 			if PropsQuaternius.existe("q_poutre_ronde"):
 				var d := HAMPE_D
 				r.append(["q_poutre_ronde", Transform3D(Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(HAMPE_HAUT + 0.2, d / 0.1568, d / 0.1568)),
@@ -229,7 +232,7 @@ static func substitut(mod: String) -> Array:
 				var idx := k if k < 3 else (k - 3 if k < 5 else 0)
 				var nb := 3 if rang == 0 else (2 if rang == 1 else 1)
 				var x := (idx - (nb - 1) * 0.5) * 0.62
-				r.append(["q_sac", _fit("q_sac", Vector3(x, rang * 0.38, 0.0), 0.4 * k, Vector3(0.7, 0.62, 0.55)), {}])
+				r.append(["q_sac", _fit("q_sac", Vector3(x, rang * 0.38, 0.0), 0.4 * k, Vector3(0.7, 0.62, 0.55)), {"jute": "foin"}])      # foin : kitbash reteint (q_sac gardé)
 		"sechoir_peaux":      # KITBASH : deux poteaux (poutre ronde), traverse, peaux = tissu de bannière Quaternius teinté lin
 			for sx in [-1.2, 1.2]:
 				r.append(["q_poutre_ronde", Transform3D(Basis(Vector3.BACK, PI * 0.5) * Basis.from_scale(Vector3(1.9, 0.8, 0.8)), Vector3(sx, 0.95, 0)), {}])
@@ -281,6 +284,8 @@ static func creer(monde_: Node) -> MobilierVillage:
 	return m
 
 static func _materiau(nom: String) -> Material:
+	if PropsQuaternius.est_pq(nom):
+		return PropsQuat.materiau(nom, "exterieur")
 	match nom:
 		# E/pierre_chaude : margelle du puits, socle du brasero en pierre chaude comme le bâti (étaient gris-bleu (0.9, 0.92, 0.98), (0.92, 0.94, 1.0))
 		"pierre_brute": return TexturesBati.m_pierre_brute_e(Color(1.0, 0.95, 0.86))
@@ -432,7 +437,7 @@ static func poser_dans(v, parent: Node3D, mod: String, xf: Transform3D, mats := 
 		if e[0] == "" or not PropsQuaternius.existe(e[0]):
 			continue
 		var mv := PropsQuaternius.mats_village(v)
-		for m: Array in PropsQuaternius.morceaux(e[0]):
+		for m: Array in PropsQuaternius.morceaux(e[0], e[2]):
 			var cible: String = (e[2] as Dictionary).get(m[0], MATS_Q_V.get(m[0], m[0]))
 			v._ajouter(parent, m[1], xf * (e[1] as Transform3D), mv[cible] if mv.has(cible) else mv["bois"])
 			if e.size() > 3:      # pièce plane : seconde face (même plan, orientation inverse)
@@ -461,7 +466,7 @@ static func noeud_modules(poses: Array, nom_noeud: String) -> Node3D:
 		for e: Array in sub:
 			if e[0] == "" or not PropsQuaternius.existe(e[0]):
 				continue
-			for t: Array in PropsQuaternius.triangles(e[0]):
+			for t: Array in PropsQuaternius.triangles(e[0], e[2]):
 				var mq: String = (e[2] as Dictionary).get(t[0], MATS_Q.get(t[0], "planches_h"))
 				if not st_par.has(mq):
 					var stq := SurfaceTool.new()
@@ -489,7 +494,8 @@ static func noeud_modules(poses: Array, nom_noeud: String) -> Node3D:
 				(st_par[mat] as SurfaceTool).add_vertex(xf * pos[k])
 	for mat: String in st_par:
 		var st: SurfaceTool = st_par[mat]
-		st.generate_normals()
+		if not PropsQuaternius.est_pq(mat):      # pq_* : normales lissées du glb gardées
+			st.generate_normals()
 		var mi := MeshInstance3D.new()
 		mi.name = "Mobilier_" + mat
 		mi.mesh = st.commit()
@@ -560,7 +566,8 @@ func _construire() -> void:
 		if mod == "banniere":
 			for mat: String in cible:
 				var stm: SurfaceTool = cible[mat]
-				stm.generate_normals()
+				if not PropsQuaternius.est_pq(mat):
+					stm.generate_normals()
 				var mm := MeshInstance3D.new()
 				mm.name = "Mat_%s_%d" % [mat, num]
 				mm.mesh = stm.commit()
@@ -580,11 +587,13 @@ func _construire() -> void:
 					stq.append_from(PropsQuaternius.maillage_brut("q_banniere_toile", t[0]), 0, Transform3D(xt.basis, Vector3(0, -3.7, 0.0)))
 					# seconde face : DEMI-TOUR autour de la verticale. Le miroir (z -1) d'avant gardait l'ordre des sommets, donc la même
 					# face visible : vue de dos, la bannière n'avait pas de toile (« d'un certain angle… »).
-					stq.append_from(PropsQuaternius.maillage_brut("q_banniere_toile", t[0]), 0, Transform3D(Basis(Vector3.UP, PI) * xt.basis, Vector3(0, -3.7, -0.01)))
-					stq.generate_normals()
+					var tq := PropsQuaternius.est_pq(String(t[0]))      # toile texturée : matériau double face, pas de seconde face
+					if not tq:
+						stq.append_from(PropsQuaternius.maillage_brut("q_banniere_toile", t[0]), 0, Transform3D(Basis(Vector3.UP, PI) * xt.basis, Vector3(0, -3.7, -0.01)))
+						stq.generate_normals()
 					var mq := MeshInstance3D.new()
 					mq.mesh = stq.commit()
-					mq.material_override = _materiau("tenture_rouge")
+					mq.material_override = _materiau(String(t[0]) if tq else "tenture_rouge")
 					mq.visibility_range_end = PORTEE - 2.0
 					piv.add_child(mq)
 					tris += (t[1] as PackedVector3Array).size() / 3
@@ -643,7 +652,8 @@ func _construire() -> void:
 	tris += nq.x
 	for mat: String in fusion:
 		var st: SurfaceTool = fusion[mat]
-		st.generate_normals()
+		if not PropsQuaternius.est_pq(mat):      # pq_* : normales lissées du glb gardées
+			st.generate_normals()
 		var mi := MeshInstance3D.new()
 		mi.name = "Mobilier_" + mat
 		mi.mesh = st.commit()
@@ -658,7 +668,7 @@ func _construire() -> void:
 		add_child(etal)
 		ObjetsVivants.peupler(etal, _vivants[i], "marche_%d" % i)
 	print("MobilierVillage : %d props Quaternius (%d triangles)" % [nq.y, nq.x])
-	print("PropsQuaternius : remplacements ", PropsQuaternius.compte)
+	print("PropsQuaternius : remplacements ", PropsQuaternius.compte, " ; pq_* posés (cumul) ", PropsQuaternius.nb_pq)
 	print("MobilierVillage : %d poses, %d triangles, %d matières, %d tissus, %d collisions, %d ms" % [POSES.size(), tris, fusion.size(), _tissus.size(), _corps.get_child_count(), Time.get_ticks_msec() - t0])
 
 ## Pose les remplaçants Quaternius d'un module (substitut()) dans les SurfaceTool par matière, sous la transformation `xf` du module.
@@ -668,7 +678,7 @@ func _poser_sub(fusion: Dictionary, sub: Array, xf: Transform3D, _mod: String) -
 		if e[0] == "" or not PropsQuaternius.existe(e[0]):
 			continue
 		PropsQuaternius.compter("village_marche")
-		for t: Array in PropsQuaternius.triangles(e[0]):
+		for t: Array in PropsQuaternius.triangles(e[0], e[2]):
 			var mat: String = (e[2] as Dictionary).get(t[0], MATS_Q.get(t[0], "planches_h"))
 			if mat == "":
 				continue      # matière retirée de ce substitut
@@ -729,7 +739,7 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 				_vivants[e[1]] = []
 			(_vivants[e[1]] as Array).append(ObjetsVivants.spec(nom, xf, ObjetsVivants.morceaux_q(nom, func(m: String) -> Material: return _mat_cache(_mat_q(nom, m, est_l4, e)))))
 			continue
-		for t: Array in PropsQuaternius.triangles(nom):
+		for t: Array in PropsQuaternius.triangles(nom, e[5] if e.size() > 5 else {}):
 			var mat := _mat_q(nom, String(t[0]), est_l4, e)
 			if not fusion.has(mat):
 				var st := SurfaceTool.new()
@@ -738,7 +748,7 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(nom, t[0]), 0, xf)
 			tris += (t[1] as PackedVector3Array).size() / 3
 		if e[4]:
-			var bb := PropsQuaternius.boite(nom)
+			var bb := PropsQuaternius.boite(nom, e[5] if e.size() > 5 else {})
 			var forme := CollisionShape3D.new()
 			forme.set_meta("objet", "%s#q%d" % [nom, num])
 			var bs := BoxShape3D.new()

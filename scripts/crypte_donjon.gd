@@ -360,6 +360,10 @@ func _x_prep(_m: Dictionary) -> void:
 	d.chaine(_l(-5.6, -28.7, 4.4), _l(-5.6, -28.7, 3.4))
 	d.chaine(_l(-5.6, -27.7, 4.4), _l(-5.6, -27.7, 3.3))
 	d.banniere(_l(-6.55, -23.0, 3.4), Vector3(1, 0, 0), 1.9, 0.8, Color(0.5, 0.42, 0.34), "os", 1)
+	if PropsQuaternius.pq:      # props texturés (ajouts) : chaîne lovée sous les chaînes pendues, cage de fer et son crâne contre le mur ouest
+		_q("pq_chaine", -4.6, -26.9, 0.7)
+		_q("pq_cage", -5.85, -25.2, 0.2, 0.0, true)
+		_q("q_crane", -5.85, -25.2, 1.0, 0.03)
 
 func _x_rituelle(_m: Dictionary) -> void:
 	# vasque centrale et cercle du rituel gravé au sol
@@ -769,6 +773,9 @@ func _x_archives(_m: Dictionary) -> void:
 	d.boite("bois", _l(-8.0, -39.6, y + 0.35), Vector3(3.4, 0.3, 0.3), 0.5)       # poutre tombée
 	d.os_tas(_l(-12.0, -44.8, y), 3, 0.4)
 	d.banniere(_l(-6.34, -42.0, y + 3.5), Vector3(-1, 0, 0), 2.0, 0.9, Color(0.3, 0.6, 0.55), "eau", 2)
+	if PropsQuaternius.pq:      # props texturés (ajouts) : lutrin contre les rayonnages sud, candélabre éteint près de la table
+		_q("pq_lutrin", -14.3, -46.9, 0.0, y, true)
+		_q("pq_chandelier_pied", -10.4, -46.4, 0.4, y)
 
 func _x_barricade(_m: Dictionary) -> void:
 	var y := BAS
@@ -858,4 +865,7 @@ func _x_garde(_m: Dictionary) -> void:
 	if PropsQuaternius.lot4:      # props/lot4 : coffre décoratif contre le mur ouest de la salle de garde
 		_q("q_coffre_d", 16.75, -48.6, PI * 0.5, y, true)
 	d.sac_dechire(_l(26.0, -54.0, y), 0.8)
+	if PropsQuaternius.pq:      # props texturés (ajouts) : candélabre éteint au bout de la table de jeu, chaîne lovée au pied du râtelier
+		_q("pq_chandelier_pied", 20.1, -52.0, 0.3, y)
+		_q("pq_chaine", 17.6, -55.2, 2.0, y)
 	d.bouclier_mural(_l(24.6, -59.7, y + 1.9), Vector3(0, 0, 1), 0.34, Color(0.5, 0.4, 0.3))      # pas sur l'applique

@@ -107,7 +107,7 @@ static func morceaux_q(nom: String, choisir: Callable) -> Array:
 			for k in mq.get_surface_count():
 				res.append([mq.surface_get_arrays(k), mq.surface_get_material(k)])
 		return res
-	for m: Array in PropsQuaternius.morceaux(nom):
+	for m: Array in PropsQuaternius.morceaux(nom, {}, false):      # objets ramassables : modèle q_* (leurs modèles sont l'affaire de data/objets/)
 		res.append([m[1], choisir.call(String(m[0]))])
 	return res
 

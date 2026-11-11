@@ -25,6 +25,32 @@ static var remplace := actif and not ("--sans-remplacement" in OS.get_cmdline_us
 ## `-- --sans-lot4` : état de l'exe 3 (props du lot 3) sans les pièces du lot 4 (Medieval Dungeon, Survival, Ultimate Food ; props/lot4,
 ## 2026-11-04) : captures « avant » et mesures A/B du lot 4. Toute pose ou substitution du lot 4 teste `PropsQuaternius.lot4`.
 static var lot4 := remplace and not ("--sans-lot4" in OS.get_cmdline_user_args())
+## Props TEXTURÉS PS1 (pq_*, props/quaternius_remplacement, 2026-11-10) : partout où le code pose un q_* qui a son pq_* (catalogue
+## data/props_quaternius.json, champ « ancien »), c'est le pq_* qui est fondu dans les mêmes lots, AU MÊME ENCOMBREMENT (le pq_* est mis à
+## l'échelle de la boîte du q_*, origine au pied : poses, plateaux et collisions inchangés). Données : assets/modeles/props_quat/props_quat.dat
+## (outils/export_props_quat_dat.gd : UV + couleur de sommet + atlas, lu par FileAccess, aucun .glb dans un fil) ; matière d'un morceau
+## = nom d'atlas « pq_bois », « pq_fer »… -> un matériau partagé par (atlas, contexte) (PropsQuat.materiau) : lots regroupés PAR ATLAS.
+## `-- --props-quat-ancien` : retour aux q_* (couleurs de face), même lancement que le jeu (captures « avant », mesures A/B).
+static var pq := actif and not ("--props-quat-ancien" in OS.get_cmdline_user_args())
+const DAT_PQ := "res://assets/modeles/props_quat/props_quat.dat"
+const ATLAS_PQ := ["pq_bois", "pq_fer", "pq_fer_v", "pq_tissu", "pq_tissu_v", "pq_props", "pq_props_v", "pq_page"]
+## Kitbash : ces q_* servent aussi de PIÈCES RETEINTES (carotte retournée = saucisson, bourse = jambon, toile de bannière = peau ou tapis,
+## sac = foin ou cuir de soufflet, marmite d'argile, épée = fer de lance) : quand la pose remplace une matière par une autre (hors fer mat),
+## le q_* reste (le prop texturé y montrerait une carotte, un sac de jute…).
+const KITBASH_SI_MATS := ["q_carotte", "q_bourse", "q_banniere_toile", "q_banniere_2_toile", "q_sac", "q_marmite", "q_epee_mur"]
+## Recolorations sans effet sur l'identité du prop (fer mat, étain, matières de la crypte) : n'empêchent pas le pq_*.
+const MATS_NEUTRES := {"fer": ["fer", "fer_mat", "etain", "fer_noir", "noir", "or"], "herbe": ["jute"], "os": ["os", "cire"], "bois": ["bois"]}
+## Jamais remplacés : les tas de pièces texturés n'ont que quelques gros disques ; agrandis aux tas d'or de la crypte (bornes des anciens
+## modules) ils sortaient en meules de fromage (captures avant/après, trésor). Les q_* (nombreuses petites pièces) restent.
+const PQ_EXCLUS := ["q_pieces", "q_tas_pieces", "q_tas_pieces_2"]
+static var _pq_de := {}       # nom q_* (ou pq_* posé directement) -> id pq_*
+static var _pq_mods := {}     # id pq_* -> [[atlas, arrays indexés (UV, normales, couleurs)], …], déjà à l'encombrement du q_*
+static var _pq_boites := {}   # id pq_* -> AABB
+static var _pq_lu := false
+## Poses servies en pq_* (une par morceaux() / triangles() / module de crypte) : « PropsQuaternius : pq_* posés » dans le journal.
+static var nb_pq := 0
+static var nb_pq_ajouts := 0
+
 ## Compteur de props posés par les remplacements (zone -> nombre) : « PropsQuaternius : remplacements … » dans le journal (bilan du rapport).
 static var compte := {}
 static func compter(zone: String, n := 1) -> void:
@@ -71,20 +97,138 @@ static func _charger() -> void:
 					for q in nb:
 						bb = bb.expand(pos[q])
 					_boites[mc[0]] = bb
+	if pq and not _pq_lu:
+		_pq_lu = true
+		_charger_pq()
 	_verrou.unlock()
+
+## Lecture de props_quat.dat (sous le verrou de _charger) ; chaque pq_* est ramené à l'encombrement de son q_* : échelle UNIFORME
+## (rapport des sommes des côtés des deux boîtes), centre de l'emprise et pied alignés.
+static func _charger_pq() -> void:
+	var f := FileAccess.open(DAT_PQ, FileAccess.READ)
+	if f == null:
+		push_error("PropsQuaternius : %s introuvable (outils/export_props_quat_dat.gd)" % DAT_PQ)
+		return
+	f.get_buffer(4)
+	var n := f.get_32()
+	for _k in n:
+		var id := f.get_buffer(f.get_8()).get_string_from_utf8()
+		var anc := f.get_buffer(f.get_8()).get_string_from_utf8()
+		var ns := f.get_8()
+		var surfs := []
+		var bb := AABB()
+		var premier := true
+		for _s in ns:
+			var atlas := f.get_buffer(f.get_8()).get_string_from_utf8()
+			var nv := f.get_32()
+			var fl := f.get_buffer(nv * 48).to_float32_array()
+			var ni := f.get_32()
+			var ii := f.get_buffer(ni * 4).to_int32_array()
+			var v := PackedVector3Array()
+			var nn := PackedVector3Array()
+			var uv := PackedVector2Array()
+			var cc := PackedColorArray()
+			v.resize(nv)
+			nn.resize(nv)
+			uv.resize(nv)
+			cc.resize(nv)
+			for q in nv:
+				var o := q * 12
+				v[q] = Vector3(fl[o], fl[o + 1], fl[o + 2])
+				nn[q] = Vector3(fl[o + 3], fl[o + 4], fl[o + 5])
+				uv[q] = Vector2(fl[o + 6], fl[o + 7])
+				cc[q] = Color(fl[o + 8], fl[o + 9], fl[o + 10], fl[o + 11])
+				if premier:
+					bb = AABB(v[q], Vector3.ZERO)
+					premier = false
+				else:
+					bb = bb.expand(v[q])
+			surfs.append([atlas, v, nn, uv, cc, ii])
+		var ech := 1.0
+		var dep := Vector3.ZERO
+		if anc != "" and _boites.has(anc) and _boites[anc].size.length() > 0.001 and bb.size.length() > 0.001:
+			var bq: AABB = _boites[anc]
+			ech = (bq.size.x + bq.size.y + bq.size.z) / (bb.size.x + bb.size.y + bb.size.z)
+			var cq := bq.get_center()
+			var cp := bb.get_center() * ech
+			dep = Vector3(cq.x - cp.x, bq.position.y - bb.position.y * ech, cq.z - cp.z)
+		var res := []
+		for su: Array in surfs:
+			var v: PackedVector3Array = su[1]
+			for q in v.size():
+				v[q] = v[q] * ech + dep
+			var a := []
+			a.resize(Mesh.ARRAY_MAX)
+			a[Mesh.ARRAY_VERTEX] = v
+			a[Mesh.ARRAY_NORMAL] = su[2]
+			a[Mesh.ARRAY_TEX_UV] = su[3]
+			a[Mesh.ARRAY_COLOR] = su[4]
+			a[Mesh.ARRAY_INDEX] = su[5]
+			res.append([su[0], a])
+		_pq_mods[id] = res
+		_pq_boites[id] = AABB(bb.position * ech + dep, bb.size * ech)
+		_pq_de[id] = id
+		if anc != "":
+			_pq_de[anc] = id
+
+## Id du pq_* posé à la place de `nom` pour cette pose ("" = le q_* reste) : interrupteur global, prop sans équivalent, kitbash reteint.
+static func pq_de(nom: String, mats := {}) -> String:
+	if not pq:
+		return ""
+	_charger()
+	if nom in PQ_EXCLUS:
+		return ""
+	var id: String = _pq_de.get(nom, "")
+	if id == "" or mats.is_empty() or not (nom in KITBASH_SI_MATS):
+		return id
+	for k: String in mats:
+		var cible := String(mats[k])
+		if k.begins_with("@") or cible == k or cible in (MATS_NEUTRES.get(k, []) as Array):
+			continue
+		return ""
+	return id
+
+## Vrai pour une matière de morceau texturée (atlas pq_*).
+static func est_pq(matiere: String) -> bool:
+	return matiere.begins_with("pq_")
+
+## Matériaux partagés des atlas pour un contexte (exterieur / interieur / crypte) : {"pq_bois": Material, …}.
+static func mats_pq(contexte: String) -> Dictionary:
+	var r := {}
+	for a: String in ATLAS_PQ:
+		r[a] = PropsQuat.materiau(a, contexte)
+	return r
+
+## À appeler du fil principal au démarrage : atlas et matériaux des trois contextes créés (aucune ressource chargée dans un fil ;
+## le .dat, lui, est lu par FileAccess dans le fil qui en a besoin le premier).
+static func prechauffer_pq() -> void:
+	if not pq:
+		return
+	for c: String in PropsQuat.CONTEXTES:
+		mats_pq(c)
 
 static func existe(nom: String) -> bool:
 	_charger()
-	return _brut.has(nom)
+	return _brut.has(nom) or (pq and _pq_de.has(nom))
 
 ## Boîte englobante du prop dans son repère (origine au sol, au centre de l'emprise ; X largeur, Y hauteur, Z profondeur).
-static func boite(nom: String) -> AABB:
+## Celle du pq_* qui le remplace pour cette pose (même encombrement, à quelques mm près).
+static func boite(nom: String, mats := {}) -> AABB:
 	_charger()
+	var id := pq_de(nom, mats)
+	if id != "":
+		return _pq_boites[id]
 	return _boites.get(nom, AABB())
 
 ## Tableaux indexés (sommets dédoublonnés, normales plates) de chaque matière du prop : [[matière, arrays], …] (cache).
-static func morceaux(nom: String) -> Array:
+## Version texturée (pq_*) : matière = atlas (« pq_bois »…), tableaux AVEC UV ; `avec_pq` false : toujours le q_* (objets ramassables).
+static func morceaux(nom: String, mats := {}, avec_pq := true) -> Array:
 	_charger()
+	if avec_pq:
+		var id := pq_de(nom, mats)
+		if id != "":
+			nb_pq += 1
+			return _pq_mods[id]
 	_verrou.lock()
 	if not _mods.has(nom):
 		var res := []
@@ -124,14 +268,38 @@ static func morceaux(nom: String) -> Array:
 	return r
 
 ## Triangles bruts (ordre Godot) d'une matière, pour un SurfaceTool : [[matière, positions, couleurs], …].
-static func triangles(nom: String) -> Array:
+## Version texturée : [[atlas, positions, couleurs]] (triangles dépliés) ; maillage_brut(nom, atlas) donne alors le maillage avec UV.
+static func triangles(nom: String, mats := {}) -> Array:
 	_charger()
+	var id := pq_de(nom, mats)
+	if id != "":
+		nb_pq += 1
+		var cle := "pq_tri:" + id
+		_verrou.lock()
+		var r: Array = _brut_pq_tri.get(cle, [])
+		_verrou.unlock()
+		if r.is_empty():
+			for m: Array in _pq_mods[id]:
+				var a: Array = m[1]
+				var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+				var c: PackedColorArray = a[Mesh.ARRAY_COLOR]
+				var pp := PackedVector3Array()
+				var pc := PackedColorArray()
+				for k: int in (a[Mesh.ARRAY_INDEX] as PackedInt32Array):
+					pp.append(v[k])
+					pc.append(c[k])
+				r.append([m[0], pp, pc])
+			_verrou.lock()
+			_brut_pq_tri[cle] = r
+			_verrou.unlock()
+		return r
 	return _brut.get(nom, [])
+static var _brut_pq_tri := {}
 
 ## Nombre de triangles d'un prop (mesure du coût).
-static func nb_triangles(nom: String) -> int:
+static func nb_triangles(nom: String, mats := {}) -> int:
 	var n := 0
-	for e: Array in triangles(nom):
+	for e: Array in triangles(nom, mats):
 		n += (e[1] as PackedVector3Array).size() / 3
 	return n
 
@@ -146,21 +314,62 @@ static func preparer_crypte() -> void:
 		CrypteDecor._charger_modeles()
 		CrypteDecor._modeles_verrou.lock()
 		CrypteDecor._lire_dat(DAT)
+		if pq:
+			_verser_pq_crypte()
 		CrypteDecor._modeles_verrou.unlock()
 	_verrou.unlock()
+
+## Verse les pq_* dans les modules de CrypteDecor sous « pq:<q_*> » (matière = atlas, UV du prop gardés ; ordre Blender comme les
+## autres .dat : CrypteDecor._modele_cache le remet dans l'ordre de Godot). CrypteDecor.modele() choisit « pq:<nom> » (voir nom_crypte).
+static func _verser_pq_crypte() -> void:
+	_charger()
+	for nom: String in _pq_de:
+		var id: String = _pq_de[nom]
+		var cle := "pq:" + nom
+		if CrypteDecor._modeles_de.has(cle):
+			continue
+		var mats := []
+		for m: Array in _pq_mods[id]:
+			var a: Array = m[1]
+			var ii: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+			var sv: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var su: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+			var sc: PackedColorArray = a[Mesh.ARRAY_COLOR]
+			var v := PackedVector3Array()
+			var u := PackedVector2Array()
+			var c := PackedColorArray()
+			for t in range(0, ii.size(), 3):
+				for j: int in [0, 2, 1]:
+					var k := ii[t + j]
+					v.append(sv[k])
+					u.append(su[k])
+					c.append(sc[k])
+			CrypteDecor._modeles["%s__%s" % [cle, m[0]]] = {"v": v, "c": c, "u": u}
+			mats.append(m[0])
+		CrypteDecor._modeles_de[cle] = mats
+
+## Module de la crypte / de la grotte à poser pour `nom` : « pq:<nom> » si son pq_* le remplace pour cette pose, sinon `nom`.
+static func nom_crypte(nom: String, mats := {}) -> String:
+	if not pq or nom.begins_with("pq:") or not (nom.begins_with("q_") or nom.begins_with("pq_")):
+		return nom
+	preparer_crypte()
+	if pq_de(nom, mats) != "" and CrypteDecor._modeles_de.has("pq:" + nom):
+		nb_pq += 1
+		return "pq:" + nom
+	return nom
 
 static func crypte(d: CrypteDecor, nom: String, pos: Vector3, lacet := 0.0, e := 1.0, solide := false, mats := {}) -> void:
 	if not actif:
 		return
 	preparer_crypte()
 	if pos.y < 0.05:      # au sol : écarté du soubassement des murs (même règle que le mobilier de la crypte)
-		var bb0 := boite(nom)
+		var bb0 := boite(nom, mats)
 		pos = d._ecarter(pos, Vector2(bb0.size.x, bb0.size.z) * 0.5 * e, lacet)
 	var m := MATS_CRYPTE.duplicate()
 	m.merge(mats, true)
 	d.modele(nom, pos, lacet, Vector3.ONE * e, m, true)
 	if solide:
-		var bb := boite(nom)
+		var bb := boite(nom, mats)
 		var c := pos + Basis(Vector3.UP, lacet) * (bb.get_center() * e)
 		var t := bb.size * e
 		var b := Basis(Vector3.UP, lacet)
@@ -193,6 +402,8 @@ static func mats_village(v) -> Dictionary:
 		_mats_v["laine_q"] = TexturesBati.materiau("laine", Color(0.92, 0.86, 0.84), 64.0, 0.4)
 		_mats_v["herbe"] = TexturesBati.m_foin_e(Color(0.55, 0.78, 0.45))
 		_mats_v["toile"] = _mats_v["lin"]
+		if pq:
+			_mats_v.merge(mats_pq("exterieur"), true)
 	return _mats_v
 
 ## Pose un prop dehors, fondu dans les lots du village (Village._ajouter) ; `xf` dans le repère de `parent` (sol à y 0) ; `mats` :
@@ -201,10 +412,10 @@ static func village(v, parent: Node3D, nom: String, xf: Transform3D, solide := f
 	if not actif or not existe(nom):
 		return
 	var mv := mats_village(v)
-	for m: Array in morceaux(nom):
+	for m: Array in morceaux(nom, mats):
 		v._ajouter(parent, m[1], xf, mv[mats.get(m[0], m[0])] if mv.has(mats.get(m[0], m[0])) else mv["bois"])
 	if solide:
-		var bb := boite(nom)
+		var bb := boite(nom, mats)
 		var s := xf.basis.get_scale()
 		v._collision(parent, BoxShape3D.new(), Transform3D(xf.basis.orthonormalized(), xf * bb.get_center()), bb.size * s)
 
@@ -217,6 +428,38 @@ static func maillage_brut(nom: String, mat: String) -> ArrayMesh:
 	var m: ArrayMesh = _brut_mesh.get(cle)
 	_verrou.unlock()
 	if m != null:
+		return m
+	if est_pq(mat):      # maillage déplié (non indexé) avec UV, normales et couleurs du pq_*
+		for e: Array in _pq_mods.get(String(_pq_de.get(nom, "")), []):
+			if e[0] != mat:
+				continue
+			var a: Array = e[1]
+			var ii: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+			var sv: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var sn: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+			var su: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
+			var sc: PackedColorArray = a[Mesh.ARRAY_COLOR]
+			var dv := PackedVector3Array()
+			var dn := PackedVector3Array()
+			var du := PackedVector2Array()
+			var dc := PackedColorArray()
+			for k: int in ii:
+				dv.append(sv[k])
+				dn.append(sn[k])
+				du.append(su[k])
+				dc.append(sc[k])
+			var d := []
+			d.resize(Mesh.ARRAY_MAX)
+			d[Mesh.ARRAY_VERTEX] = dv
+			d[Mesh.ARRAY_NORMAL] = dn
+			d[Mesh.ARRAY_TEX_UV] = du
+			d[Mesh.ARRAY_COLOR] = dc
+			m = ArrayMesh.new()
+			m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, d)
+			break
+		_verrou.lock()
+		_brut_mesh[cle] = m
+		_verrou.unlock()
 		return m
 	for e: Array in triangles(nom):
 		if e[0] != mat:
