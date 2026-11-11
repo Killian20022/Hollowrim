@@ -83,9 +83,9 @@ def deplier(ob, px):
     bpy.ops.uv.smart_project(angle_limit=math.radians(62), island_margin=0.0, area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
     bpy.ops.uv.select_all(action="SELECT")
     try:
-        bpy.ops.uv.pack_islands(margin=4.0 / px * 1.5, rotate=True, shape_method="CONCAVE")
+        bpy.ops.uv.pack_islands(margin=2.0 / px, rotate=True, shape_method="CONCAVE")
     except TypeError:
-        bpy.ops.uv.pack_islands(margin=4.0 / px * 1.5, rotate=True)
+        bpy.ops.uv.pack_islands(margin=2.0 / px, rotate=True)
     bpy.ops.object.mode_set(mode="OBJECT")
     return ancien
 
@@ -164,7 +164,7 @@ def cuire_cycles(ob, hd, px, uv_nom):
     hd.data.materials.clear()
     hd.data.materials.append(mb)
     cartes = {}
-    for typ, kw, ech in (("NORMAL", dict(normal_space="OBJECT"), 4), ("AO", {}, 64)):
+    for typ, kw, ech in (("NORMAL", dict(normal_space="OBJECT"), 4), ("AO", {}, 160)):
         img = bpy.data.images.new("cuisson_" + typ, px, px, alpha=False, float_buffer=True)
         img.colorspace_settings.name = "Non-Color"
         noeuds = []
@@ -317,7 +317,7 @@ DEMI = LUM + VUE; DEMI /= np.linalg.norm(DEMI)
 
 # forces de la composition (réglées sur les captures Godot, shader ps1, 480 x 270)
 FORCE = dict(eclair0=0.50, eclair=0.72, spec_exp=9, spec=0.32, ao_exp=1.7, occ_acier=0.88, occ_autre=0.7, crasse_acier=0.7,
-             use=0.85, acier_nu=(0.60, 0.61, 0.62), marbre=0.16)
+             use=0.9, acier_nu=(0.64, 0.65, 0.66), marbre=0.24, coulures=0.28)
 
 
 def _tangentes(n):
@@ -390,6 +390,8 @@ def composer(pid, ob, K, base, cartes, dbg=None):
     # mipmaps en 480 x 270)
     cv = flou(cv, 1)
     cvl = np.clip(flou(cv, 5) * 2.2, -1, 1)
+    # occlusion débruitée (Cycles sans débruiteur : grain par texel = damier en gros plan)
+    ao = flou(np.where(m, ao, 1.0), 2)
     convexe = np.clip(cv, 0, 1); creux = np.clip(-cv, 0, 1)
     convexe_l = np.clip(cvl, 0, 1); creux_l = np.clip(-cvl, 0, 1)
     F = FORCE
@@ -400,13 +402,16 @@ def composer(pid, ob, K, base, cartes, dbg=None):
     spec = np.clip((nf * DEMI).sum(-1), 0, 1) ** F["spec_exp"]
     # --- couleur
     rgb = base[..., :3].copy(); bri = base[..., 3].copy()
-    bruit_u = np.zeros((N, N)); bruit_u[m] = D.fbm3(K.pos[m], 77, oct=((0.03, 0.6), (0.008, 0.4)))
+    bruit_u = np.zeros((N, N)); bruit_u[m] = D.fbm3(K.pos[m], 77, oct=((0.03, 0.6), (0.014, 0.4)))
     marbre = np.zeros((N, N)); marbre[m] = D.fbm3(K.pos[m], 91, oct=((0.07, 0.6), (0.025, 0.4)))
     occl = ao ** F["ao_exp"]
-    # nuances par plaque (patine inégale, comme une tôle réelle)
+    # nuances par plaque (patine inégale, comme une tôle réelle) et coulures verticales (pluie, neige fondue : traînées sombres)
     rgb = rgb * np.where(acier, 1.0 + F["marbre"] * (marbre - 0.5) * 2, 1.0)[..., None]
+    coul = np.zeros((N, N)); coul[m] = D.fbm3(K.pos[m] * np.array([1.0, 1.0, 0.18]), 55, oct=((0.03, 0.6), (0.014, 0.4)))
+    kcoul = np.where(acier, F["coulures"], 0.0) * D.lisse(0.52, 0.75, coul) * (1 - 0.5 * np.clip(nf[..., 2], 0, 1))
+    rgb = rgb * (1 - kcoul[..., None])
     # crasse / patine sombre (creux, gravures, occlusion), un peu brune : acier nordique patiné, pas de plastique
-    crasse = np.clip((1 - ao) * 1.6 + creux * 0.7 + creux_l * 1.2 + GRAV * 0.9, 0, 1) * (0.6 + 0.6 * bruit_u)
+    crasse = np.clip((1 - ao) * 1.6 + creux * 0.35 + creux_l * 1.4 + GRAV * 0.8, 0, 1) * (0.6 + 0.6 * bruit_u)
     CRASSE = np.array([0.035, 0.030, 0.026])
     k_occ = np.where(acier | maille, F["occ_acier"], F["occ_autre"])
     rgb = rgb * (1 - k_occ[..., None] * (1 - occl[..., None]))
@@ -414,7 +419,7 @@ def composer(pid, ob, K, base, cartes, dbg=None):
     kc = np.where(acier, F["crasse_acier"], np.where(cuir, 0.45, 0.3)) * crasse
     rgb = rgb * (1 - kc[..., None]) + CRASSE * kc[..., None]
     # arêtes usées : acier mis à nu, clair et poli (usure plus forte là où le bruit le veut, jamais un liseré uniforme)
-    use = np.clip(convexe * 1.3 + convexe_l * 1.6 - 0.06, 0, 1) * (0.5 + 0.8 * bruit_u) * np.clip(occl * 1.3, 0, 1)
+    use = np.clip(convexe * 0.6 + convexe_l * 2.0 - 0.06, 0, 1) * (0.5 + 0.8 * bruit_u) * np.clip(occl * 1.3, 0, 1)
     ACIER_NU = np.array(F["acier_nu"])
     ku = np.where(acier, F["use"], 0.0) * np.clip(use, 0, 1)
     rgb = rgb * (1 - ku[..., None]) + ACIER_NU * ku[..., None]
@@ -422,7 +427,7 @@ def composer(pid, ob, K, base, cartes, dbg=None):
     kcu = np.where(cuir, 0.4, 0.0) * np.clip(use * 1.2, 0, 1)
     rgb = rgb * (1 + kcu[..., None] * 0.8)
     # rayures : traits clairs (métal frais)
-    kr = np.where(acier, 0.6, 0.0) * RAY * occl
+    kr = np.where(acier, 0.35, 0.0) * RAY * occl
     rgb = rgb * (1 - kr[..., None]) + np.array([0.56, 0.57, 0.58]) * kr[..., None]
     # reflet cuit : traînée claire sur les bombés (le « sculpté » Tripo)
     ks = np.where(acier, F["spec"], np.where(maille, F["spec"] * 0.5, np.where(cuir, 0.05, 0.0))) * spec * occl
@@ -453,7 +458,7 @@ def cuire(pid, px, niveau, dbg, exporter, apercu):
     ancien = deplier(ob, px)
     K = RS.rasteriser(ob, "cuisson", ancien, px)
     print("RASTER", pid, round(float(K.masque.mean()), 3), "de l'atlas couvert")
-    base = RS.echantillonner(base_src, K.uv_src)
+    base = RS.echantillonner_lisse(base_src, K.uv_src)
     hd = haute_def(ob, pid, niveau)
     cartes = cuire_cycles(ob, hd, px, "cuisson")
     out = composer(pid, ob, K, base, cartes, dbg)

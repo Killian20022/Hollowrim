@@ -40,9 +40,9 @@ def _s(b0, **kw):
 
 
 # gorgerin d'acier (retour utilisateur 2026-11-11 : le col de fourrure ne se lisait pas) ; voir pieces_hd.cuirasse
-GORGERIN = dict(devant=0.035, ecart=0.006, cote=0.18, r_max=0.175, r_max_cote=0.02, lames=(
+GORGERIN = dict(n=16, devant=0.035, ecart=0.006, cote=0.18, r_max=0.175, r_max_cote=0.02, lames=(
     # (z au dos, rayon) de bas en haut, rebord rentré compris
-    ((1.441, 0.160), (1.444, 0.168), (1.462, 0.152), (1.480, 0.134), (1.512, 0.104)),
+    ((1.441, 0.160), (1.444, 0.168), (1.480, 0.134), (1.512, 0.104)),
     ((1.499, 0.104), (1.502, 0.110), (1.525, 0.095), (1.546, 0.081)),
     ((1.533, 0.080), (1.536, 0.086), (1.556, 0.080), (1.575, 0.078), (1.579, 0.084), (1.583, 0.087))))
 

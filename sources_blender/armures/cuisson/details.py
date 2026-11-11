@@ -71,7 +71,7 @@ def martelage(p, cell=0.022, prof=0.00018, g=5):
     return -prof * cuv
 
 
-def coups(p, cell=0.11, proba=0.38, g=9):
+def coups(p, cell=0.11, proba=0.26, g=9):
     """Bosses de combat : enfoncements ronds épars (rayon 1,2-2,6 cm, 0,7-1,8 mm), un au plus par cellule de 11 cm."""
     f = p / cell
     i = np.floor(f)
@@ -83,14 +83,14 @@ def coups(p, cell=0.11, proba=0.38, g=9):
                 on = _hash3(cx, cy, cz, g + 3) < proba
                 ctr = np.stack([cx + _hash3(cx, cy, cz, g), cy + _hash3(cx, cy, cz, g + 1), cz + _hash3(cx, cy, cz, g + 2)], -1) * cell
                 rr = 0.012 + 0.014 * _hash3(cx, cy, cz, g + 4)
-                pr = 0.0007 + 0.0011 * _hash3(cx, cy, cz, g + 5)
+                pr = 0.0004 + 0.0007 * _hash3(cx, cy, cz, g + 5)
                 d2 = ((p - ctr) ** 2).sum(-1) / (rr * rr)
                 # cuvette au bourrelet léger (le métal repoussé autour)
                 h = h + np.where(on, -pr * np.exp(-2.2 * d2) + pr * 0.18 * np.exp(-0.9 * (np.sqrt(d2) - 1.15) ** 2 * 6), 0.0)
     return h
 
 
-def rayures(p, cell=0.075, n_par=2, g=13, larg=0.00055):
+def rayures(p, cell=0.09, n_par=1, g=13, larg=0.0009):
     """Rayures de lame (métal mis à nu) : segments droits de 2 à 7 cm, orientation aléatoire ; masque 0..1."""
     f = p / cell
     i = np.floor(f)

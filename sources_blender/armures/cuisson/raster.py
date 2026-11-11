@@ -81,6 +81,19 @@ def echantillonner(img_np, uv):
     return img_np[y, x]
 
 
+def echantillonner_lisse(img_np, uv):
+    """Bilinéaire : la peinture de la passe 2 (texels plus gros que ceux de l'atlas cuit) reprise sans marches d'escalier — en
+    plus proche voisin, ses texels agrandis et contrastés par la cuisson faisaient un damier « camouflage » en gros plan."""
+    H, W = img_np.shape[:2]
+    x = uv[..., 0] % 1.0 * W - 0.5
+    y = uv[..., 1] % 1.0 * H - 0.5
+    x0 = np.floor(x); y0 = np.floor(y)
+    fx = (x - x0)[..., None]; fy = (y - y0)[..., None]
+    x0 = np.clip(x0.astype(np.int64), 0, W - 1); y0 = np.clip(y0.astype(np.int64), 0, H - 1)
+    x1 = np.clip(x0 + 1, 0, W - 1); y1 = np.clip(y0 + 1, 0, H - 1)
+    return (img_np[y0, x0] * (1 - fx) + img_np[y0, x1] * fx) * (1 - fy) + (img_np[y1, x0] * (1 - fx) + img_np[y1, x1] * fx) * fy
+
+
 def dilater(img, masque, passes=12):
     """Étend les îlots dans les marges (mipmaps sans liseré) : chaque passe recopie la moyenne des voisins valides."""
     img = img.copy(); m = masque.copy()
