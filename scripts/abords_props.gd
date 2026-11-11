@@ -71,7 +71,7 @@ const LIEUX := [
 ]
 
 static func creer(monde: Node3D) -> void:
-	if not PropsQuaternius.pq or monde.village == null:
+	if not PropsQuaternius.pq or monde.village == null or OS.get_cmdline_user_args().has("--sans-props-v3"):      # A/B : les abords de la v2
 		return
 	var tree := monde.get_tree()
 	await tree.physics_frame      # les corps posés pendant la construction entrent dans l'espace physique
