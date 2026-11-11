@@ -602,9 +602,7 @@ static func _carrefour(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> vo
 			d.arme(pp + Vector3(0.5, 0.02, 0.3), 1.0)         # pioche rouillée : la mine
 		else:
 			d.crane(pp + Vector3(0.4, 0.0, 0.2), 0.5)
-	for sc: Array in [[s0 + 3.4, 1.0], [s0 + 3.0, -1.0]]:      # props/maximum : halte (banc, tonneau) face au foyer éteint
-		if compo(g, id, float(sc[0]), float(sc[1]), G_HALTE):
-			break
+	differer(g, id, [[s0 + 3.4, 1.0], [s0 + 3.0, -1.0]], G_HALTE)      # props/maximum : halte (banc, tonneau) face au foyer éteint
 
 # ------------------------------------------------------------------ vieille mine
 static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: String) -> void:
@@ -639,9 +637,7 @@ static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Stri
 			d.tonneau(tn, 1.0)
 			d.solide_rond(tn + Vector3(0, 0.5, 0), 0.38, 1.0)
 			d.caisse(_p(g, id, s0 + 11.0, 2.3), Vector3(0.8, 0.5, 0.5), 0.15)
-			for sc: Array in [[s0 + 17.0, -1.0], [s0 + 18.5, 1.0], [s0 + 3.0, 1.0]]:      # props/maximum : réserve des mineurs
-				if compo(g, id, float(sc[0]), float(sc[1]), G_RESERVE):
-					break
+			differer(g, id, [[s0 + 17.0, -1.0], [s0 + 18.5, 1.0], [s0 + 3.0, 1.0]], G_RESERVE)      # props/maximum : réserve des mineurs
 		"ressources":
 			# poste des mineurs-bandits : table, tabourets, lit de camp, caisses, sacs de minerai, râtelier de pioches
 			var tb: Vector3 = d.pose_objet(_p(g, id, s0 + 4.0, -1.2), 0.55, 0.33, 0.4, 0.8, GrotteDecor.DROIT, 0.5, 0.45, true)["p"]
@@ -663,12 +659,11 @@ static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Stri
 			rails(g, id, s0 + 1.0, s1 - 1.0, lat_rail)
 			chariot(g, id, s0 + 7.0, lat_rail, r, 1)
 			chariot(g, id, s0 + 13.0, lat_rail, r, 2)
-			for sc: Array in [[s0 + 10.5, -1.0], [s0 + 11.5, -1.0], [s0 + 12.5, 1.0]]:      # props/maximum : établi des mineurs
-				if compo(g, id, float(sc[0]), float(sc[1]), G_ETABLI):
-					break
+			differer(g, id, [[s0 + 10.5, -1.0], [s0 + 11.5, -1.0], [s0 + 12.5, 1.0]], G_ETABLI)      # props/maximum : établi des mineurs
 		"secret":
 			_eboulis(g, z, r)
 		"repos":
+			differer(g, id, [[s0 + 9.0, -1.0], [s0 + 9.5, 1.0], [s0 + 2.0, -1.0]] + _cands(s0 + 1.0, s1 - 1.0), G_HALTE)      # props/maximum : halte des mineurs
 			d.os_tas(_p(g, id, s0 + 3.0, 1.4), 3, 0.4)
 			if g.libre(id, s0 + 5.5, -2.0, 0.4):
 				d.tonneau(_p(g, id, s0 + 5.5, -2.0), 1.0)
@@ -679,6 +674,7 @@ static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Stri
 			d.arme(_p(g, id, s0 + 9.6, 0.3), 3.6)
 			d.caisse(_p(g, id, s0 + 15.0, 2.1), Vector3(0.8, 0.5, 0.5), 0.15)
 			d.caisse(_p(g, id, s0 + 15.8, 2.2), Vector3(0.6, 0.42, 0.45), 0.5)
+			differer(g, id, [[s0 + 11.0, -1.0], [s0 + 5.0, 1.0], [s0 + 18.0, -1.0]], G_RESERVE)      # props/maximum : réserve abandonnée
 
 ## props/maximum (2026-11-11) : COMPOSITION de props texturés adossée à une paroi (établi de mineur, réserve, halte), seulement avec
 ## PropsQuaternius.pq. Ancre : abscisse `s`, côté `cote` (+1 droite, -1 gauche), à 0,75 m de la paroi ; items [id, le long (m, sens de la
@@ -697,8 +693,10 @@ static func compo(g: Grotte, id: String, s: float, cote: float, items: Array) ->
 			continue
 		var lat := lat0 - cote * float(it[2])
 		var bb := PropsQuaternius.boite(String(it[0]))
-		if not g.libre(id, s + float(it[1]), lat, maxf(bb.size.x, bb.size.z) * 0.4):
-			push_warning("composition de grotte refusée : %s s=%.1f (%s)" % [id, s, it[0]])
+		var rr := maxf(bb.size.x, bb.size.z) * 0.4
+		var pl := _p(g, id, s + float(it[1]), lat)
+		var hb := maxf(bb.size.x, bb.size.z) * 0.5
+		if not g.libre(id, s + float(it[1]), lat, rr) or not bool(d.pose_objet(pl, hb, hb, 0.0, bb.size.y, GrotteDecor.DROIT, 0.5, 0.45, bool(it[5]))["ok"]):
 			return false
 	var lacet0 := _vers(-g.droite(id, s) * cote)
 	var base := Vector3.INF
@@ -721,6 +719,37 @@ static func compo(g: Grotte, id: String, s: float, cote: float, items: Array) ->
 		print("PropsMax : composition de grotte posée %s s=%.1f (%s)" % [id, s, items[0][0]])
 	return base != Vector3.INF
 
+## props/maximum v2 : les compositions sont posées EN DERNIER (GrotteDecor.finir, après glaçons, givre, congères et cailloux) :
+## le décor tiré au hasard ne dépend plus d'elles (mêmes tirages, mêmes places) ; elles s'écartent de lui (GrotteDecor.q4).
+static func differer(g: Grotte, id: String, candidats: Array, items: Array) -> void:
+	if not PropsQuaternius.pq or not PropsQuaternius.lot4:
+		return
+	g.decor.compos_differees.append([id, candidats, items])
+
+## Candidats réguliers (tous les 2,5 m, des deux côtés) entre a et b.
+static func _cands(a: float, b: float) -> Array:
+	var r: Array = []
+	var x := a
+	while x <= b:
+		r.append([x, 1.0])
+		r.append([x, -1.0])
+		x += 2.5
+	return r
+
+static func poser_differees(g: Grotte) -> void:
+	for c: Array in g.decor.compos_differees:
+		var fait := false
+		for sc: Array in c[1]:
+			for ds: float in [0.0, 0.8, -0.8, 1.6, -1.6]:
+				if compo(g, String(c[0]), float(sc[0]) + ds, float(sc[1]), c[2]):
+					fait = true
+					break
+			if fait:
+				break
+		if not fait:
+			push_warning("composition de grotte refusée partout : %s %s" % [c[0], (c[2] as Array)[0][0]])
+	g.decor.compos_differees.clear()
+
 ## Établi de mineur : plan de travail, pioche dressée, seau de fer, caisse ferrée ; sur l'établi lanterne éteinte (chandelier), parchemin,
 ## chope. Réserve : caisses et sacs. Halte : banc, tonneau, seau.
 const G_ETABLI := [["pq_etabli", 0.0, 0.0, 0.0, 0.0, true], ["pq_bougie_2", -0.6, 0.05, 0.0, 0.85, false], ["pq_parchemin", 0.1, 0.1, 20.0, 0.85, false],
@@ -728,6 +757,13 @@ const G_ETABLI := [["pq_etabli", 0.0, 0.0, 0.0, 0.0, true], ["pq_bougie_2", -0.6
 	["pq_caisse_fer", -1.25, -0.6, 10.0, 0.0, true]]
 const G_RESERVE := [["pq_caisse", 0.0, 0.0, 8.0, 0.0, true], ["pq_caisse_fer", 0.85, 0.05, -12.0, 0.0, true], ["pq_sac", -0.75, 0.25, 30.0, 0.0, false],
 	["pq_pioche", 1.6, 0.0, 95.0, 0.0, false]]
+const G_RATELIER := [["pq_rack_armes", 0.0, 0.35, 0.0, 0.0, true], ["pq_epee_mur", -0.42, 0.35, 0.0, 0.08, false], ["pq_hache_outil", 0.0, 0.35, 0.0, 0.08, false], ["pq_epee_mur", 0.42, 0.35, 6.0, 0.08, false], 
+	["pq_caisse_fer", 1.35, 0.1, -12.0, 0.0, true], ["pq_bouclier_bois", 1.35, 0.1, -6.0, 0.7, false],
+	["pq_epee_mur", -1.05, -0.2, 0.0, 0.0, false]]
+const G_GARDE_MANGER := [["pq_support_tonneau", 0.0, 0.0, 0.0, 0.0, true], ["pq_caisse", 1.2, 0.05, 8.0, 0.0, true], ["pq_cageot_vide", 1.2, 0.05, -5.0, 0.71, false],
+	["pq_sac", -1.1, 0.2, 30.0, 0.0, false], ["pq_sac", -0.75, 0.75, -40.0, 0.0, false]]
+const G_GUET := [["pq_tonneau", 0.0, 0.0, 0.0, 0.0, true], ["pq_caisse", 0.95, 0.0, 15.0, 0.0, true], ["pq_tabouret", -0.6, 0.55, 0.0, 0.0, true],
+	["pq_chope", 0.1, 0.05, 0.0, 0.96, false]]
 const G_HALTE := [["pq_banc", 0.0, 0.25, 0.0, 0.0, true], ["pq_tonneau", 1.6, 0.15, 0.0, 0.0, true], ["pq_seau_bois", -1.5, 0.3, 0.0, 0.0, false],
 	["pq_sac", -1.4, -0.35, 50.0, 0.0, false]]
 
@@ -876,6 +912,7 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 			d.trophee(_p(g, id, s1 - 1.4, 3.0), 1.7, -0.6)
 			d.os_tas(_p(g, id, s1 - 4.5, 1.2), 4, 0.5)
 			d.applique(g.mur_en(id, s1 - 3.0, -1.0), g.droite(id, s1 - 3.0), _p(g, id, s1 - 3.0, -3.0).y + 2.0, 5.0, 1.7, true)
+			differer(g, id, [[s0 + 2.5, 1.0], [s0 + 3.5, -1.0], [s1 - 5.5, 1.0]] + _cands(s0 + 1.0, s1 - 1.0), G_GUET)      # props/maximum : poste de guet du repaire
 		return
 	# --- camp : feu, marmite, couchages, caisses, table, râteliers, trophées, butin
 	var feu_s := 8.0 + r.randf_range(-0.6, 0.6)
@@ -916,6 +953,8 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 	d.solide(tp + Vector3(0, 0.4, 0), Vector3(1.2, 0.8, 0.8))
 	d.ratelier(_p(g, id, 14.8, -5.65), -PI * 0.5)
 	d.ratelier(_p(g, id, 2.0, -5.65), -PI * 0.5)
+	differer(g, id, [[5.5, 1.0], [4.5, 1.0], [11.5, -1.0]] + _cands(1.5, 16.0), G_RATELIER)      # props/maximum : râtelier garni des bandits
+	differer(g, id, [[11.0, -1.0], [6.0, 1.0], [16.0, -1.0]], G_GARDE_MANGER)      # props/maximum : vivres du camp
 	# butin et trophées
 	var cb := _p(g, id, 14.6, -3.6)
 	d.pieces(cb + Vector3(0.9, 0, 0.5), 18, 0.35)
