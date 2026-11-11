@@ -223,46 +223,66 @@ propre, servi par le pq_* du même objet (`PropsQuaternius.ALIAS_PQ`, nouveau). 
 | | galerie, chambre de la mine et carrefour sans poste de travail | — | AJOUT : établi, réserve, halte |
 | tumulus (extérieur) | pierres levées, stèle, dalles, butte | — | gardé (consigne) |
 
-### Compositions ajoutées (scènes de vie, jamais un objet seul)
+### Compositions ajoutées (scènes de vie, jamais un objet seul) — v2
 
 Crypte : `CrypteDonjon._compo` (fin de `crypte_donjon.gd`, tables `C_*`) pose une composition d'un bloc et la REFUSE (rien de posé,
 avertissement « composition refusée … » avec la raison de chaque essai) si un item au sol sort de la salle (soubassement + panneaux),
 touche une voie de porte, une réserve de la table (ennemi, coffre, interaction, mécanisme), une ronde de gardien ou une emprise déjà
-posée ; essais décalés le long du mur. `-- --compos-debug` imprime la carte des emprises de la salle refusée. Collisions : boîtes des gros
-items (solide), tonneaux et urnes par `CrypteDecor.tonneau / urne` (cassables, butin inchangé).
+posée ; essais décalés le long du mur. `-- --compos-debug` imprime la carte des emprises de la salle refusée.
+Ordre dans `DonjonKit.module` (seulement avec les props texturés) : récit de la salle → BRASEROS différés (`_emettre_differes(m,
+["brasero"])` : ils ne bougent plus) → compositions (`_apres_module`) → gravats, détritus, givre différés et semis v2 (`CrypteV2.finir`)
+qui s'écartent des compositions. Sans pq_* l'ordre d'avant est intact. Bougies ALLUMÉES seulement si chaque maillage de 8 m touché garde
+6 lumières au plus (`lumiere_possible(..., 6)` : marge de 2 pour les lumières du semis ; test_crypte « 8 lumières par maillage » OK).
+Collisions : boîtes des gros items, tonneaux et urnes par `CrypteDecor.tonneau / urne` (cassables, butin inchangé). Remplissage libéré
+pour faire de la place : coffre décoratif q_coffre_d des quartiers, arme au sol de l'armurerie (sans valeur de jeu).
 
 | Salle | Composition | Contenu |
 |---|---|---|
-| prep (préparation) | râtelier, mur nord | pq_rack_armes, pierre à aiguiser, caisse ferrée |
-| antichambre | offrandes à la Dame, mur ouest entre râtelier et statue | buffet, bougeoir triple, calice, assiette |
-| reliquaires | coin du gardien des reliques, mur nord | lutrin, bibliothèque, pile de livres, candélabre éteint |
-| g4 (trône) | deux râteliers de la garde du jarl de part et d'autre de l'entrée | rack, pierre à aiguiser, caisse ferrée (x2) |
-| lb1 (salle de garde) | garde-manger mur sud ; râtelier mur nord | support à tonneaux, tonneau cassable, caisse + cageot, sac, seau ; rack + caisse ferrée |
-| quartiers, armurerie, barricade (lb2b) | — | refusées par le contrôle : salles déjà pleines (5 lits, râteliers, coffre ; barricade, sacs, table) |
+| prep (préparation) | râtelier garni, mur nord | pq_rack_armes, pierre à aiguiser, caisse ferrée + bouclier, épée et hache dressées |
+| antichambre | offrandes à la Dame, mur ouest | buffet, bougeoir triple, calice, assiette, bougie allumée |
+| reliquaires | coin du gardien des reliques, mur nord | lutrin, bibliothèque, pile de livres + bougie, candélabre |
+| quartiers | table de jeu sur tonneau ; caisses empilées entre les lits du mur sud | tonneau, 2 tabourets, chopes, pièces, bougie ; caisse + caisse ferrée + sac |
+| armurerie | mannequin d'armurier, mur sud | mannequin, bouclier |
+| g4 (trône) | 2 râteliers entre les statues et les coffres givrés | rack, caisse ferrée, bouclier, épée |
+| lb1 (salle de garde) | garde-manger, mur sud | support à tonneaux, tonneau cassable, 2 caisses + cageot, 2 sacs, seau |
+| lb2b (barricade) | bivouac de l'expédition, mur nord | 2 sacs, marmite, seau, corde |
+| lb1 râtelier | — | refusé : mur nord pris par l'archer, les coffres et le brasero |
 
-Grotte : `GrotteModules.compo` (adossée à une paroi, chaque item posé par `GrotteDecor.q4` : sol réel, inclinaison bornée, empreinte ;
-refus si un point n'est pas `Grotte.libre`) : établi des mineurs (chambre de la mine : établi, bougie, parchemin, chope, pioche, seau de
-fer, caisse ferrée), réserve (galerie de la mine : caisses, sac, pioche), halte face au foyer éteint (carrefour : banc, tonneau, seau, sac).
+Pièces écrasées corrigées : avec les pq_*, `table_a/b/c`, `ratelier_cadre_a/b` (crypte) et `g_ratelier` (grotte) gardent leur pièce
+maison (`CrypteDecor.SUBST_GARDE_PQ`) : la grande table de 2,7 m tassée à 1,1 x 0,65 m (x 0,4) et le râtelier SUR PIED aplati en râtelier
+mural (17 cm de fond, z 0,13) étaient déformés, et aucun pq_* n'a la bonne forme.
 
-Village : réserves du bivouac du feu de camp contre le flanc ouest de la tente (`MobilierVillage.BIVOUAC_PQ` : 2 tonneaux, caisse +
-cageot, sac, seau, corde ; une boîte de collision dans `monde._feu_de_camp`).
+Grotte : `GrotteModules.differer` met les compositions en attente ; `poser_differees` les pose EN DERNIER (`GrotteDecor.finir`, après
+glaçons, givre, congères et cailloux) : le décor aléatoire est identique à celui d'avant (mêmes tirages, mêmes places), les compositions
+s'en écartent (`Grotte.libre` + `GrotteDecor.pose_objet` vérifié pour chaque item au sol, essais à ±0,8 / ±1,6 m et candidats tous les
+2,5 m des deux côtés). Établi des mineurs (chambre), réserves (galerie, sortie du lac), halte (carrefour, retour de la mine), poste de guet
+(abords du repaire), râtelier garni et vivres (camp des bandits).
+
+Village : réserves du bivouac du feu de camp (`MobilierVillage.BIVOUAC_PQ`, une boîte de collision) ; matériel de pêche au bout du quai
+(`EauVillage.QUAI_PQ`, `PropsQuaternius.lot_pq` : UN maillage par atlas et UN corps statique pour le groupe) ; coin d'abreuvoir et de
+grain dans l'enclos d'Ylva (`Village.ENCLOS_PQ`, fondu dans les lots du village). Forge, halle et marché : déjà pleins (lots 2 à 4).
 
 Sous terre, les atlas pq_* passent par `CrypteDecor.mat` avec `PQ_SATURATION` 0,62 et `PQ_TEINTE` (0,78 ; 0,72 ; 0,68) : le bois orangé
 et propre du pack jurait avec le bois patiné de la crypte et du camp (planches avant/après).
 
-### Perf (avant = `--props-quat-ancien`, nuit 21 h)
+### Perf (avant = `--props-quat-ancien`, nuit 21 h) — v2
 
-`outils/audit_mesure_lieu.gd`, 12 s de mesure, PC sur secteur (1re série ; la 2e est tombée sur batterie, GPU x4 : écartée) :
+`outils/audit_mesure_lieu.gd`, 12 s de mesure, PC sur secteur, AUCUN autre Godot actif, 3 passes ALTERNÉES avant/après dans la même
+fenêtre de temps (30 lancements, `/tmp/pm_banc.sh`). La machine refroidit d'une passe à l'autre (le GPU du témoin passe de 11 à 8 ms
+dans les DEUX modes) : on lit les écarts PAR PAIRE (après − avant de la même passe), puis leur moyenne.
 
-| Lieu | gpu_med avant -> après (ms) | appels | primitives | images > 33 ms |
-|---|---|---|---|---|
-| crypte (prep) | 3,03 -> 3,02 | 271 -> 273 | 88 k -> 93 k | 10 -> 11 |
-| grotte | 3,48 -> 3,59 (+0,11) | 367 -> 373 | 114 k -> 125 k | 0 -> 0 |
-| témoin (feu de camp) | 11,00 -> 9,66 | 503 -> 503 | 510 k -> 518 k | 56 -> 142 |
-| halle | 13,48 -> 10,17 | 569 -> 575 | 705 k -> 729 k | 110 -> 192 |
+| Lieu | gpu_med avant -> après (médianes) | écarts gpu par paire (ms) | dt_med (CPU + GPU) écarts par paire | appels | primitives | images > 33 ms (3 passes) |
+|---|---|---|---|---|---|---|
+| témoin (feu de camp) | 9,21 -> 10,13 | -0,14 / +0,92 / +0,26 (moy. +0,35) | -4,5 / +1,4 / +0,5 | 500 -> 506 | +2,3 % | 26, 33, 28 -> 15, 38, 32 |
+| halle | 14,20 -> 10,37 | -3,8 / -3,8 / -1,5 | +10,9 / -4,9 / -1,2 | 567 -> 567 | +2,9 % | 56, 62, 7 -> 175, 41, 35 |
+| place | 15,20 -> 12,41 | -1,4 / -2,8 / -0,5 | -1,3 / -3,1 / +0,1 | 931 -> 985 | +7,0 % | 52, 33, 2 -> 85, 32, 1 |
+| crypte (prep) | 2,98 -> 2,99 | +0,04 / +0,01 / 0,00 | -1,0 / +0,2 / +0,1 | 270 -> 275 | +9,3 % | 3, 4, 4 -> 5, 6, 6 |
+| grotte | 3,41 -> 3,47 | 0,00 / +0,08 / +0,06 | +4,0 / -0,2 / +1,1 | 367 -> 377 | +6,8 % | 0 -> 0 |
 
-Les images > 33 ms du témoin et de la halle suivent dt_med (19,8 -> 31,7 ms et 29,6 -> 37,3 ms) : CPU de la machine partagée
-avec d'autres agents Godot pendant la mesure, pas le GPU (qui baisse). Vues des planches (`--mesure-rendu`, 60 images par vue,
-deux séries, lancements parallèles donc bruités) : appels +0 à +10 par vue, primitives +1 à +13 % ; crypte -0,2 à +0,4 ms ;
-grotte +0,0 à +0,6 ms (halte du carrefour +0,4 / +0,9 : bruit du même ordre) ; intérieurs -2 à -6 ms dans les DEUX séries (le
-matériau ps1_interieur partagé des pq_* coûte moins que les matières reteintes des q_*).
+Lecture : aucun lieu ne dépasse le budget de +0,5 ms GPU en moyenne (témoin +0,35 ms, une paire à +0,9 ms ; halle et place PLUS
+légères : le matériau partagé ps1_interieur et les atlas pq_* coûtent moins que les matières reteintes des q_*). Le CPU (dt_med) n'a pas
+d'écart stable : la 1re passe (machine pas encore refroidie) donne +10,9 ms à la halle mais -4,5 ms au témoin ; les deux passes suivantes
+sont à ±1,5 ms. La hausse 19,8 -> 31,7 ms de la v1 venait de la charge (autres agents Godot). Images > 33 ms : même ordre de grandeur
+avant/après, sauf la 1re passe de la halle (175, même passe que le +10,9 ms). Aucun nœud par prop : compositions fondues dans les
+tampons (crypte, grotte, village), lot_pq du quai = 1 maillage + 1 corps statique ; +63 nœuds au total = MeshInstance3D des lots par
+atlas des intérieurs (fusion props/quaternius), sans script.
