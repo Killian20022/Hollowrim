@@ -9,8 +9,8 @@ class_name GardeMaison
 ##   « ensembles » : nom -> {tete, torse, mains, pieds[, jambes]} (ids d'armures) ;
 ##   « roles »     : rôle -> {ensemble, arme (lance | epee | arc), bouclier (bras | dos | "" ; défaut : bras aux postes, dos en ronde)} ;
 ##   par garde     : « role », et pour la variété « ensemble » (autre ensemble), « pieces » ({emplacement: id | ""} : remplace une pièce ;
-##                   "" = aucune), « sans_casque » (pas de pièce de tête : le casque à nasal du Gardien reste), « tete_nue » (ni l'un ni
-##                   l'autre : cheveux au vent), plus poil / peau / rase / taille / largeur comme les autres gardes.
+##                   "" = aucune), « sans_casque » (pas de pièce de tête : le casque à nasal du Gardien reste), plus poil / peau / rase /
+##                   taille / largeur comme les autres gardes.
 ## Armes : lance (clips à la lance du Gardien : faction lance droite, garde, estoc), épée du jeu au poing (clips d'épée d'Humain),
 ## arc du jeu (ChasseresseNordique.equiper_arc, clips Pistol_*). Lance et bouclier du Gardien sont SORTIS du maillage des accessoires
 ## (maillage « armes_garde ») avant l'habillage : le masquage d'ArmureVisible (zones des mains, du dos) ne les ronge pas.
@@ -24,7 +24,7 @@ const EPEE := preload("res://assets/modeles/joueur/epee_nordique.glb")
 const PRISE_EPEE := Transform3D(Basis(Vector3(-0.999251, -0.038334, -0.005288), Vector3(-0.014458, 0.24307, 0.969901), Vector3(-0.035895, 0.969252, -0.243442)), Vector3(-0.007936, 0.142938, 0.002241))
 const META := "armure_garde"           # méta du modèle : {emplacement: id} portés
 
-static var _bases := {}                # "arme|bouclier|tete_nue" -> Gardien de référence (hors arbre, accessoires déjà séparés)
+static var _bases := {}                # "arme|bouclier" -> Gardien de référence (hors arbre, lance et bouclier déjà séparés)
 static var _ensembles := {}
 static var _roles := {}
 
@@ -64,14 +64,14 @@ static func role_de(g: Dictionary) -> String:
 			return "archer"
 	return "epee"
 
-## Pièces portées {emplacement: id} : ensemble du rôle (ou « ensemble »), puis « pieces », « sans_casque », « tete_nue ».
+## Pièces portées {emplacement: id} : ensemble du rôle (ou « ensemble »), puis « pieces », « sans_casque ».
 static func pieces_de(g: Dictionary) -> Dictionary:
 	var r: Dictionary = roles().get(role_de(g), {})
 	var nom := String(g.get("ensemble", r.get("ensemble", "acier")))
 	var p: Dictionary = (ensembles().get(nom, {}) as Dictionary).duplicate()
 	for e: String in (g.get("pieces", {}) as Dictionary):
 		p[e] = String(g["pieces"][e])
-	if g.get("sans_casque", false) or g.get("tete_nue", false):
+	if g.get("sans_casque", false):
 		p["tete"] = ""
 	for e: String in p.keys():
 		if String(p[e]) == "":
@@ -108,10 +108,9 @@ static func liberer_bases() -> void:
 static func creer(g: Dictionary) -> Node3D:
 	var arme := arme_de(g)
 	var bouclier := bouclier_de(g)
-	var tete_nue: bool = g.get("tete_nue", false)
-	var cle := "%s|%s|%s" % [arme, bouclier, tete_nue]
+	var cle := "%s|%s" % [arme, bouclier]
 	if not _bases.has(cle) or not is_instance_valid(_bases[cle]):
-		_bases[cle] = _base(arme, bouclier, tete_nue)
+		_bases[cle] = _base(arme, bouclier)
 	var n := (_bases[cle] as Node3D).duplicate() as Node3D
 	n.name = "GardeMaison"
 	var sq := n.find_child("Skeleton3D", true, false) as Skeleton3D
@@ -124,7 +123,7 @@ static func creer(g: Dictionary) -> Node3D:
 		ap.add_animation_library("", Humain.bibliotheque())
 	match arme:
 		"epee":
-			_epee(sq)
+			_epee(sq, n.get_node("Animations"))
 		"arc":
 			ChasseresseNordique.equiper_arc(n, sq)
 	var pieces := pieces_de(g)
@@ -144,21 +143,20 @@ static func creer(g: Dictionary) -> Node3D:
 	n.scale = Vector3(h * l, h, h * l)
 	return n
 
-## Gardien de référence d'une combinaison : lance et bouclier sortis des accessoires (maillage « armes_garde »), casque retiré si tête nue.
-static func _base(arme: String, bouclier: String, tete_nue: bool) -> Node3D:
+## Gardien de référence d'une combinaison : lance et bouclier sortis des accessoires (maillage « armes_garde »).
+static func _base(arme: String, bouclier: String) -> Node3D:
 	var b := GardienNordique.creer({"bouclier": bouclier, "lance": arme == "lance"}).duplicate() as Node3D
 	var sq := b.find_child("Skeleton3D", true, false) as Skeleton3D
 	var acc := sq.get_node_or_null("accessoires") as MeshInstance3D
 	if acc != null:
-		_separer_armes(sq, acc, tete_nue)
+		_separer_armes(sq, acc)
 	return b
 
 ## Triangles de la lance (rigides sur hand_r, le long de la hampe) et du bouclier (rigides sur son os, dans son disque) -> « armes_garde ».
-## Tête nue : triangles du casque (atlas R_CASQUE / R_BANDEAU) retirés.
-static func _separer_armes(sq: Skeleton3D, acc: MeshInstance3D, tete_nue: bool) -> void:
+static func _separer_armes(sq: Skeleton3D, acc: MeshInstance3D) -> void:
 	var lance: Array = sq.get_meta("lance", [])
 	var bouc: Array = sq.get_meta("bouclier", [])
-	if lance.is_empty() and bouc.is_empty() and not tete_nue:
+	if lance.is_empty() and bouc.is_empty():
 		return
 	var src := acc.mesh
 	var reste := ArrayMesh.new()
@@ -169,7 +167,6 @@ static func _separer_armes(sq: Skeleton3D, acc: MeshInstance3D, tete_nue: bool) 
 		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
 		var bo: PackedInt32Array = a[Mesh.ARRAY_BONES]
 		var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
-		var uv: PackedVector2Array = a[Mesh.ARRAY_TEX_UV]
 		var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX] if a[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
 		if idx.is_empty():
 			idx.resize(v.size())
@@ -192,10 +189,6 @@ static func _separer_armes(sq: Skeleton3D, acc: MeshInstance3D, tete_nue: bool) 
 			if arme:
 				pris.append_array(tri)
 				continue
-			if tete_nue and s == 0 and not uv.is_empty():
-				var u := (uv[tri[0]] + uv[tri[1]] + uv[tri[2]]) / 3.0 * Vector2(GuerrierTextures.ATLAS)
-				if ArmureVisible._dans(GardienTextures.R_CASQUE, u) or ArmureVisible._dans(GardienTextures.R_BANDEAU, u):
-					continue
 			garde.append_array(tri)
 		var a1 := a.duplicate()
 		a1[Mesh.ARRAY_INDEX] = garde if not garde.is_empty() else PackedInt32Array([0, 0, 0])
@@ -229,8 +222,14 @@ static func _rigide(bo: PackedInt32Array, w: PackedFloat32Array, nb: int, tri: A
 			return false
 	return true
 
-## Épée du jeu au poing droit (prise du héros), mêmes matières que l'épée des gardes Tripo.
-static func _epee(sq: Skeleton3D) -> void:
+## Épée du jeu au poing droit (prise du héros), mêmes matières que l'épée des gardes Tripo. Hors des clips d'épée, le poignet fléchit
+## (GardeTripo.PoignetRepos) : la lame descend le long de la jambe au lieu de pointer derrière le garde.
+static func _epee(sq: Skeleton3D, ap: AnimationPlayer) -> void:
+	var pr := GardeTripo.PoignetRepos.new()
+	pr.name = "PoignetRepos"
+	pr.os_main = sq.find_bone("hand_r")
+	pr.anim = ap
+	sq.add_child(pr)
 	var acc := BoneAttachment3D.new()
 	acc.name = "EpeeMain"
 	acc.bone_name = "hand_r"

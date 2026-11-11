@@ -40,6 +40,8 @@ func _soleil() -> void:
 func _photo(texte: String, region := Rect2i()) -> Image:
 	_soleil()
 	l.text = texte
+	l.position = Vector2(region.position) + Vector2(6, 4)
+	l.size = Vector2(maxf(region.size.x, 300) - 12, 0)
 	await _attendre(3)
 	await RenderingServer.frame_post_draw
 	var im := root.get_viewport().get_texture().get_image()
@@ -89,10 +91,11 @@ func _go() -> void:
 	root.add_child(calque)
 	l = Label.new()
 	l.add_theme_font_override("font", Palette.police())
-	l.add_theme_font_size_override("font_size", 14)
+	l.add_theme_font_size_override("font_size", 12)
 	l.add_theme_color_override("font_outline_color", Color.BLACK)
 	l.add_theme_constant_override("outline_size", 6)
 	l.position = Vector2(8, 4)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	calque.add_child(l)
 	cam = Camera3D.new()
 	s.add_child(cam)
@@ -111,9 +114,11 @@ func _go() -> void:
 		var vues: Array = []
 		_poser(mod, "Idle", 0.6)
 		var cadre := Rect2i(300, 0, 360, 540)
+		var pp := GardeMaison.pieces_portees(mod)
+		var defaut := "\ncol de fourrure trop haut :\ndefaut du glb (correction\nen cours, armures lourdes)" if pp.has("cuirasse_fer") or pp.has("cuirasse_acier_nordique") else ""
 		for v: Array in [[0.0, "face"], [35.0, "3/4"], [90.0, "profil"], [180.0, "dos"]]:
 			_cadrer(v[0], 3.3, 0.95, 1.25)
-			vues.append(await _photo(id + "  " + String(v[1]), cadre))
+			vues.append(await _photo(id + "  " + String(v[1]) + ("\n" + String(GardeMaison.role_de(g)) + " : " + ", ".join(pp) + defaut if v[1] == "face" else ""), cadre))
 		var attaque := "Lance_Estoc" if GardeMaison.arme_de(g) == "lance" else ("Pistol_Aim_Neutral" if GardeMaison.arme_de(g) == "arc" else "Sword_Attack")
 		var gros: Array = []
 		var cg := Rect2i(240, 30, 480, 480)

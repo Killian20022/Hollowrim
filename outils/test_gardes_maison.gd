@@ -3,7 +3,7 @@ extends SceneTree
 ##   - chaque rôle de data/gardes.json donne un corps de Gardien habillé par ArmureVisible avec les pièces de son ensemble (ids connus,
 ##     glb présents), les pièces recouvertes du corps masquées ;
 ##   - armes : lance (clips Lance_Estoc) / épée au poing / arc ; lance et bouclier sortis des accessoires (« armes_garde ») ;
-##   - variété : sans_casque, tete_nue, pieces ; carrure ;
+##   - variété : sans_casque, pieces ; carrure ;
 ##   - démembrement : le morceau tranché emporte les pièces d'armure ; ragdoll ;
 ##   - butin : un garde tué (PnjCombat) laisse les pièces qu'il portait.
 ##   godot --headless --path . --script res://outils/test_gardes_maison.gd -- --nouvelle
@@ -56,8 +56,8 @@ func _tester() -> void:
 				_verif(not ap.has_animation("Lance_Estoc") and sq.find_child("EpeeJeu", true, false) != null, "%s : épée au poing, clips d'épée" % id)
 			"arc":
 				_verif(sq.get_node_or_null("arc_porte") != null and ap.has_animation("Pistol_Aim_Neutral"), "%s : arc du jeu porté" % id)
-		if g.get("tete_nue", false):
-			_verif(not pieces.has("casque_acier_nordique") and (sq.get_node("Hair_Long") as MeshInstance3D).visible, "%s : tête nue, cheveux visibles" % id)
+		if g.get("sans_casque", false):
+			_verif(not pieces.has("casque_acier_nordique"), "%s : sans heaume (casque à nasal du Gardien)" % id)
 		# masquage : la cotte du Gardien n'a plus de triangles sous la cuirasse (milieu du torse)
 		var cotte := sq.get_node_or_null("tunique") as MeshInstance3D
 		if cotte != null and av != null and av.maillage("torse") != null:
