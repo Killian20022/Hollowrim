@@ -381,9 +381,16 @@ func charge(main: String) -> float:
 
 # ------------------------------------------------------------------ une image
 
+## Secondes depuis que le joueur incante, charge, canalise ou lance (les ennemis le lisent : ReglagesCombat.LANCEUR_MEMOIRE).
+var t_sans_sort := 99.0
+
+func est_lanceur() -> bool:
+	return t_sans_sort < ReglagesCombat.LANCEUR_MEMOIRE
+
 ## Appelée par mains.avancer à la FIN de chaque image (après la pose de l'épée).
 func avancer(dt: float) -> void:
 	horloge += dt
+	t_sans_sort = 0.0 if (inc["gauche"].active() or inc["droite"].active()) else t_sans_sort + dt
 	lanceur.avancer(dt)
 	for k in recharges.keys():
 		recharges[k] = float(recharges[k]) - dt
@@ -664,6 +671,7 @@ func _lancer(m: String, s: DonneesSort, charge: float) -> void:
 	else:
 		var vue := _vue()
 		lanceur.lancer(s, _p(m), vue[0], vue[1], charge, (transitions[m] as TransitionSort).source)
+		t_sans_sort = 0.0
 	if s.recharge > 0.0:
 		recharges[s.id] = s.recharge
 	i.depuis_lancement = 0.0

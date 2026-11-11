@@ -97,6 +97,31 @@ static func vie(sorte: String, defaut := 80.0) -> float:
 static func degats(sorte: String, defaut := 11.0) -> float:
 	return float(DEGATS.get(sorte, defaut))
 
+# ------------------------------------------------------------------ distance risquée contre un lanceur (docs/MAGIE.md « Le risque de la distance »)
+
+## Le joueur est « lanceur » tant qu'il incante/charge/canalise ou qu'il a lancé un sort depuis moins de LANCEUR_MEMOIRE s.
+const LANCEUR_MEMOIRE := 2.5
+## Un ennemi courant (draugr guerrier/squelette, ni zombie, ni chef, ni archer) qui traque un lanceur à plus de CHARGE_DIST_MIN m
+## court à CHARGE_LANCEUR × sa course (3,4 m/s -> ~4,8) : plus vite que la marche arrière (2,6 m/s) du mage, pas que le sprint.
+## CHARGE_DIST_MIN = 0 : il charge JUSQU'À sa portée d'attaque (à 3 m, il repassait à la marche 1,2 m/s et le mage qui recule
+## gardait 3 m pour toujours : banc test_mage_bot, 0 coup reçu).
+const CHARGE_LANCEUR := 1.4
+const CHARGE_DIST_MIN := 0.0
+## Esquive d'un projectile de sort qu'il voit venir : tirage UNE fois par projectile et par ennemi, jamais en dessous de
+## ESQ_ENNEMI_PREAVIS_MIN s avant l'impact (temps de réaction), jamais au-delà de ESQ_ENNEMI_PREAVIS_MAX. Chance = (ESQ_ENNEMI_V0 - v) / ESQ_ENNEMI_PENTE
+## plafonnée à ESQ_ENNEMI_CHANCE_MAX (boule de feu 24 m/s ~ 40 %, ombre 30 m/s ~ 25 %, éclat de glace 34 m/s ~ 15 %). Pas de côté de
+## ESQ_ENNEMI_VITESSE m/s pendant ESQ_ENNEMI_DUREE s, puis ESQ_ENNEMI_ATTENTE s avant la suivante.
+const ESQ_ENNEMI_PREAVIS_MIN := 0.18
+const ESQ_ENNEMI_PREAVIS_MAX := 0.9
+const ESQ_ENNEMI_V0 := 40.0
+const ESQ_ENNEMI_PENTE := 40.0
+const ESQ_ENNEMI_CHANCE_MAX := 0.5
+const ESQ_ENNEMI_VITESSE := 5.0
+const ESQ_ENNEMI_DUREE := 0.4
+const ESQ_ENNEMI_ATTENTE := 2.0
+## Archers : cadence de tir multipliée par cette part quand le joueur est lanceur (ils le punissent de rester planté à distance).
+const ARCHER_CADENCE_LANCEUR := 0.65
+
 # ------------------------------------------------------------------ coups du joueur
 
 ## Poids des coups du joueur (retour exe 5 : « j'attaque moins vite »). Diviseur de la vitesse de l'arme appliqué à TOUT le geste

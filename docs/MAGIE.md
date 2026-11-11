@@ -215,6 +215,34 @@ posture / réaction que l'épée : un mage nordique (seuil 7) est interrompu par
 chargée, le troll (poids 2) encaisse. Interruption du JOUEUR : un coup reçu ≥ `seuil_interruption` (8, jets 10, protection
 jamais) coupe incantation / charge / canalisation (récupération 0,5 s, rien n'est lancé, rien n'est payé pour une charge).
 
+### Le risque de la distance (2026-11-11, branche gameplay/magie_risque)
+But : pas de spam sûr à distance. Le mage paie déjà la mana, la charge et l'interruption (coup ≥ 8 = sort coupé) ; s'y ajoute
+une **exposition** : lancer un sort se voit, et les ennemis y répondent. Réglages : `ReglagesCombat` (bloc « distance risquée »).
+- **Lanceur** (`MainSort.est_lanceur()`) : vrai tant qu'une main incante / charge / canalise, et pendant `LANCEUR_MEMOIRE` = 2,5 s
+  après un lancer (`t_sans_sort`).
+- **Charge** (draugr.gd, TRAQUE) : un ennemi courant (draugr guerrier / squelette / bandit ; ni zombie, ni chef, ni archer) qui
+  traque un lanceur court à `CHARGE_LANCEUR` = 1,4 × sa course (3,4 → ~4,8 m/s) **jusqu'à sa portée d'attaque**
+  (`CHARGE_DIST_MIN` = 0) : la marche arrière (2,6 m/s) ne garde plus la distance, seul le sprint (vigueur) la reprend. Avec un
+  seuil à 3 m, le draugr repassait à la marche (1,2 m/s) et le mage qui recule tenait 3 m indéfiniment (0 coup au banc) : corrigé.
+- **Esquive des projectiles** : chaque projectile de sort du joueur (groupe `projectiles_joueur`, posé par `LanceurSorts`) est
+  jugé UNE fois par ennemi courant, entre 0,18 et 0,9 s avant l'impact et à moins de 1,2 m de sa ligne : chance
+  `(40 - v) / 40` plafonnée à 50 % (boule de feu 24 m/s ~ 40 %, trait d'ombre 30 m/s ~ 25 %, éclat 34 m/s ~ 15 % ; arc / jets
+  canalisés : jamais). Succès : pas de côté de 5 m/s pendant 0,4 s, puis 2 s sans nouvelle esquive. Le tir rapproché ou le sort
+  rapide passe ; le tir lent de loin se voit venir.
+- **Archers** : recharge × `ARCHER_CADENCE_LANCEUR` = 0,65 contre un lanceur (ils punissent le mage planté à distance).
+
+Banc `test_mage_bot` (graine fixe, n = 6 essais contre 1 draugr / 3 contre 2, départ 5,4 m), AVANT (28409609) → APRÈS :
+| Bot | Mesure | AVANT | APRÈS |
+|---|---|---|---|
+| parfait (recule, esquive 100 %) | PV perdus, 16 lignes | 0 partout sauf trait d'ombre ×2 draugrs 4,4 | 0 partout sauf trait d'ombre ×2 draugrs 1,8 ; durées ±1 s ; seuils OK |
+| `--esquive=0.6` (joueur réel) | PV perdus cumulés (16 lignes) | 98 | **216** (glace ×2 draugrs 19 → 39 ; ombre ×2 12 → 36 ; ombre double ×2 23 → 61, 1 mort sur 3) |
+| naïf (planté, sans défense) | PV perdus contre 1 draugr | feu 2, glace 7, arc 0, ombre 20 | feu 21, glace 16, arc 9, ombre 24 (mêlée qui spamme : 23) |
+| naïf | PV perdus contre 2 draugrs | feu 12, glace 47, arc 0, ombre 98 | feu 42, glace 66, arc 36, ombre 89 |
+Lecture : le combat reste gagnable (bot parfait : 100 % tués, 0 mort, 2,4-23,5 s ; joueur à 60 % d'esquive : 100 % des combats à
+1 draugr gagnés en 2,4-7,2 s), mais rester planté à distance coûte désormais autant que la mêlée qui spamme, et un joueur qui
+rate ses esquives paie le double. `--esquive=<p>` (0-1) : chance de réussir chaque esquive ; en dessous de 1 le banc MESURE
+(les seuils, calibrés sur le bot parfait, n'échouent pas).
+
 ### Double incantation (phase 3)
 Même sort dans les deux mains, seconds appuis dans les **0,15 s** : la main « meneuse » lance la version double (données ×
 `double` du sort), la « suiveuse » l'accompagne (pose rapprochée, aura × 1,5, `EffetsMagie.double`). Relâcher l'une des
@@ -259,7 +287,7 @@ et la cible ne peut plus réagir pendant `recharge_cible`. Dégâts plafonnés �
 
 ## Réactions des ennemis
 
-- Draugrs / squelettes / bandits (draugr.gd) et EnnemiBase : gel = ralentis ; choc = titubent (attaque interrompue) ;
+- Draugrs / squelettes / bandits (draugr.gd) et EnnemiBase : gel = ralentis ; choc = titubent (attaque interrompue) ; face à un lanceur : chargent, esquivent parfois les sorts lents (voir « Le risque de la distance ») ;
   les sorts usent la posture comme l'épée (étourdi → finisher). Morts-vivants : ténèbres × 0,7, feu × 1,25.
 - Troll de givre : feu × 1,75, glace × 0,25 ; brûlure = pas de régénération ; **peur du feu** : déjà en flammes et touché
   par le feu, il recule d'effroi (4 m/s, 0,7 s ; une fois toutes les 6 s ; jamais en rage, étourdi, sonné ou en charge) ;
@@ -378,7 +406,7 @@ d'abord : enchantement et deux mains). Les 21 sorts sont connus d'office (pas en
   jet de flammes, lance de givre, chaîne d'éclairs, drain de vie. Le bot tire dès que le sort est prêt (charge tenue jusqu'au bout,
   jets tenus tant que la cible est à portée), recule en marchant (2,6 m/s) quand un draugr est à moins de 4 m ou que la mana est vide
   (fond de salle à 1,5 m), esquive ~0,1 s avant l'impact des gestes ennemis ; `--statique` : ne recule jamais. Mesures : durée, PV perdus,
-  mana restante / dépensée, ennemis tués, morts. Options : `--n=<essais>`, `--config=`, `--dist=<m>` (5,4 par défaut), `--nb=1|2`, `--trace`.
+  mana restante / dépensée, ennemis tués, morts. Options : `--n=<essais>`, `--config=`, `--dist=<m>` (5,4 par défaut), `--nb=1|2`, `--esquive=<0-1>` (mesure), `--trace` ; colonne `coups` = coups reçus.
   Seuils : voir `_verifier` et « Équilibrage » ci-dessus.
 - Non-régression : test_combat_epee, test_defense, test_degats, test_troll_ia, test_mage_ia, test_menace_bot (la mêlée ne bouge pas).
 

@@ -38,6 +38,7 @@ var trace := false
 var variantes := false   # --variantes : ajoute jet de flammes, lance de givre, chaîne d'éclairs, drain de vie (contre 1 draugr)
 var dist_depart := 5.4   # --dist=<m> : distance de départ du premier draugr (5,4 m : celle du banc de mêlée ; la mêlée y tue en ~3,6 s)
 var sans_esquive := false   # --sans-esquive : ne se défend jamais (pendant du bot « spam » de la mêlée)
+var p_esquive := 1.0   # --esquive=0.6 : chance de réussir chaque esquive (le bot parfait = 1,0 ; un joueur réel ~0,5-0,7)
 var statique := false   # --statique : le mage ne recule jamais (il tient sa place et esquive) ; sinon il recule (voir plus haut)
 var seul_nb := 0   # --nb=2 : seulement les essais contre 2 draugrs (mise au point)
 var film := ""
@@ -48,6 +49,7 @@ func _init() -> void:
 		if a.begins_with("--n="): n = int(a.substr(4))
 		elif a.begins_with("--config="): config = a.substr(9)
 		elif a == "--trace": trace = true
+		elif a.begins_with("--esquive="): p_esquive = float(a.substr(10))
 		elif a == "--statique": statique = true
 		elif a == "--sans-esquive": sans_esquive = true
 		elif a.begins_with("--dist="): dist_depart = float(a.substr(7))
@@ -58,8 +60,8 @@ func _init() -> void:
 
 func _verif(cond: bool, msg: String) -> void:
 	print(("OK     " if cond else "ECHEC  ") + msg)
-	if not cond:
-		_ok = false
+	if not cond and p_esquive >= 1.0:
+		_ok = false   # --esquive < 1 : MESURE seulement (seuils calibrés sur le bot parfait ; docs/MAGIE.md « Le risque de la distance »)
 
 func _pas(k := 1) -> void:
 	for i in k:
@@ -101,7 +103,7 @@ func _go() -> void:
 	s.mannequin.position = Vector3(-8, 0, -8)
 	var res := {}
 	var liste: Array = [config] if config != "" else (BASE + VARIANTES if variantes else BASE)
-	var explicite := config != "" or statique or sans_esquive
+	var explicite := config != "" or statique or sans_esquive or p_esquive < 1.0
 	for c in liste:
 		res[c + "_1"] = []
 		for e in (0 if seul_nb == 2 else n):
@@ -137,7 +139,7 @@ func _tues(l: Array, nb: int) -> float:
 	return _moy(l, "tues") / float(nb)
 
 func _bilan(k: String, l: Array, nb: int) -> void:
-	print("BILAN %-22s n=%d  durée=%.1fs  PV perdus=%.1f  mana restante=%.0f  mana dépensée=%.0f  tués=%.0f %%  morts=%.0f %%" % [k, l.size(), _moy(l, "duree"), _moy(l, "degats"), _moy(l, "mana"), _moy(l, "depense"), _tues(l, nb) * 100.0, _moy(l, "mort") * 100.0])
+	print("BILAN %-22s n=%d  durée=%.1fs  coups=%.1f  PV perdus=%.1f  mana restante=%.0f  mana dépensée=%.0f  tués=%.0f %%  morts=%.0f %%" % [k, l.size(), _moy(l, "duree"), _moy(l, "coups"), _moy(l, "degats"), _moy(l, "mana"), _moy(l, "depense"), _tues(l, nb) * 100.0, _moy(l, "mort") * 100.0])
 
 func _verifier(res: Dictionary) -> void:
 	for k in res:
@@ -186,9 +188,11 @@ func _tirer(sort: DonneesSort, double: bool, dist: float, mana_ok: bool, ctx: Di
 		DonneesSort.Type.CANALISE:
 			for m in mains_l:
 				var i: Incantation = magie.inc[m]
+				# canalisation COUPÉE par un coup (bouton encore tenu, incantation retombée) : le joueur relâche puis rappuie
+				var coupee_c := i.tenu and i.etat != Incantation.CANALISE and i.etat != Incantation.INCANTE
 				if voulu and not i.tenu and i.libre():
 					magie.appuyer(m)
-				elif not voulu and i.tenu:
+				elif (not voulu or coupee_c) and i.tenu:
 					magie.relacher(m)
 		DonneesSort.Type.CHARGE:
 			for m in mains_l:
@@ -266,6 +270,8 @@ func _essai(nom: String, nb: int, idx: int) -> Dictionary:
 	var mana0: float = j.mana
 	var depense := 0.0
 	var mana_prec: float = j.mana
+	var vie_prec: float = j.vie
+	var coups := 0   # nombre de coups reçus (baisses de vie)
 	var t_ := 0.0
 	var ctx := {"rel": 0}
 	var t_esquive := -1.0
@@ -306,6 +312,8 @@ func _essai(nom: String, nb: int, idx: int) -> Dictionary:
 				var avant: float = _impact(d) - d._t
 				if not sans_esquive and avant <= 0.12 and avant > -0.02 and j.esquive_t < 0.0 and t_ - t_esquive > 0.25:
 					t_esquive = t_
+					if p_esquive < 1.0 and randf() >= p_esquive:
+						continue   # esquive ratée (joueur humain) : le coup part
 					var somme := 0.0
 					for e in _vivants(liste):
 						somme += (e.global_position - j.global_position).dot(j.global_transform.basis.x)
@@ -321,14 +329,17 @@ func _essai(nom: String, nb: int, idx: int) -> Dictionary:
 		if j.mana < mana_prec:
 			depense += mana_prec - j.mana
 		mana_prec = j.mana
+		if j.vie < vie_prec - 0.01:
+			coups += 1
+		vie_prec = j.vie
 	var tues := 0
 	for d in liste:
 		if not is_instance_valid(d) or d.etat == d.MORT:
 			tues += 1
 	magie.relacher("droite")
 	magie.relacher("gauche")
-	var r := {"duree": t_, "degats": vie0 - maxf(j.vie, 0.0), "mana": j.mana, "depense": depense, "tues": tues, "mort": 1.0 if j.vie <= 0.0 else 0.0}
-	print("ESSAI %s ennemis=%d essai=%d durée=%.1fs PV perdus=%.0f mana restante=%.0f dépensée=%.0f tués=%d/%d%s" % [nom, nb, idx, t_, r["degats"], j.mana, depense, tues, nb, " MORT" if r["mort"] > 0 else ""])
+	var r := {"duree": t_, "degats": vie0 - maxf(j.vie, 0.0), "coups": coups, "mana": j.mana, "depense": depense, "tues": tues, "mort": 1.0 if j.vie <= 0.0 else 0.0}
+	print("ESSAI %s ennemis=%d essai=%d durée=%.1fs coups=%d PV perdus=%.0f mana restante=%.0f dépensée=%.0f tués=%d/%d%s" % [nom, nb, idx, t_, coups, r["degats"], j.mana, depense, tues, nb, " MORT" if r["mort"] > 0 else ""])
 	for d in liste:
 		if is_instance_valid(d):
 			d.queue_free()
