@@ -42,7 +42,12 @@ func _tester() -> void:
 	_verif(s.vie_max == ReglagesCombat.vie("svanhild"), "Svanhild : %d de vie (ReglagesCombat)" % int(s.vie_max))
 	var p_j := _sol(base.x, base.z - 7.0)  # devant elle (regarde vers +z → on la place à -z, elle pivote)
 	j.global_position = p_j
-	await _frames(40, j, p_j)
+	# furtivité (scripts/furtivite.gd) : repérage PROGRESSIF, plus lent dans son dos (~1,1 s à 7 m) → jusqu'à 3 s pour la jauge
+	for i in 180:
+		await _frames(1, j, p_j)
+		if s.etat in [s.TRAQUE, s.ATTAQUE]:
+			break
+	await _frames(20, j, p_j)
 	_verif(s.etat in [s.TRAQUE, s.ATTAQUE], "phase 1 : elle attaque (état %d)" % s.etat)
 	_verif(s._phase == 1 and not m.draugrs.has("svanhild_garde_1"), "phase 1 : pas de squelettes")
 	s.vie = s.vie_max * 0.5 - 1.0
