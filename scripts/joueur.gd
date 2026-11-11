@@ -212,8 +212,24 @@ func basculer_vue(troisieme_personne: bool) -> void:
 
 func _actions() -> void:
 	Touches.installer()   # avant/arriere/gauche/droite/saut/course/esquive… : actions de l'InputMap, touches réglables (Options > Touches)
+	Manette.installer(get_tree())   # manette : dernière entrée et filtre des axes (déjà posé par l'autoload en jeu ; tests --script)
+
+## Manette (scripts/manette.gd) : stick droit = regard, à chaque image (zone morte, courbe, sensibilité, inversion Y des Options).
+## Les mains reçoivent le même balancement d'inertie qu'avec la souris (en pixels équivalents).
+func _process(dt: float) -> void:
+	if mort or en_dialogue:
+		return
+	var r := Manette.rotation_regard(dt)
+	if r == Vector2.ZERO:
+		return
+	rotate_y(r.x)
+	tete.rotation.x = clampf(tete.rotation.x + r.y, -1.45, 1.45)
+	if mains != null and mains.get("passifs") != null:
+		mains.passifs.souris(Vector2(-r.x, -r.y) / SENSIBILITE)
 
 func _unhandled_input(e: InputEvent) -> void:
+	if e is InputEventJoypadButton and e.pressed and e.button_index != JOY_BUTTON_START and DisplayServer.get_name() != "headless":
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED   # manette en jeu (curseur rendu par Échap) : les mains reprennent les entrées
 	if e is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not mort and not en_dialogue:
 		# screen_relative : non réduit par l'agrandissement du rendu 480x270
 		var k := SENSIBILITE * Jeu.sensibilite   # options du joueur (menu Options)
@@ -458,11 +474,20 @@ func _surcharge(dt: float) -> void:
 		_t_avis_surcharge = 4.0
 		avis.emit("Surchargé : impossible de courir (%.0f / %.0f)." % [inventaire.poids(), inventaire.capacite()])
 
+## Image de physique précédente et dialogue à l'image précédente : le bouton qui FERME un menu (jeu en pause) ou un dialogue
+## (B de la manette = aussi l'esquive, Y = le saut…) ne déclenche pas l'action du jeu à la reprise.
+var _image_physique := -1
+var _dialogue_avant := false
+
 func _physics_process(dt: float) -> void:
 	_t += dt
+	var image := Engine.get_physics_frames()
+	var reprise := (_image_physique >= 0 and image - _image_physique > 1) or _dialogue_avant
+	_image_physique = image
+	_dialogue_avant = en_dialogue
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
-	elif Input.is_action_just_pressed("saut") and not mort and not en_dialogue and vigueur > 5.0:
+	elif Input.is_action_just_pressed("saut") and not mort and not en_dialogue and not reprise and vigueur > 5.0:
 		velocity.y = SAUT
 		depenser(6.0)
 		EffetsSol.saut(self)
@@ -502,7 +527,7 @@ func _physics_process(dt: float) -> void:
 	velocity.x = lerpf(velocity.x, cible.x, reactivite)
 	velocity.z = lerpf(velocity.z, cible.z, reactivite)
 	_esquive_attente = maxf(0.0, _esquive_attente - dt)
-	if not mort and not en_dialogue and Input.is_action_just_pressed("esquive"):
+	if not mort and not en_dialogue and not reprise and Input.is_action_just_pressed("esquive"):
 		esquiver()
 	if esquive_t >= 0.0:
 		# vitesse décroissante (somme = ESQUIVE_DISTANCE sur ESQUIVE_DUREE) : le départ est vif, l'arrivée douce

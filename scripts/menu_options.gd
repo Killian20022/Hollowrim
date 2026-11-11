@@ -16,6 +16,8 @@ var _premier: Control
 var _touches: Control
 ## Remappage : boutons (id, rang) -> Button ; commande en attente d'une touche ([id, rang]) ; ligne de retour d'information.
 var _boutons_touches := {}
+## Manette (scripts/manette.gd) : id -> Button de la colonne « Manette » ; la saisie en attente d'un bouton a le rang 2.
+var _boutons_manette := {}
 var _attente_touche: Array = []
 var _message_touches: Label
 ## Sous-panneau « Caméra » (balancement de l'arme, mouvement de tête, secousses) : remplace la grille tant qu'il est ouvert
@@ -107,6 +109,15 @@ func _ready() -> void:
 		Jeu.regler("commandes", "sensibilite", v / 100.0))
 	_case(g, "Inverser l'axe Y", Jeu.option("commandes", "inverser_y"), func(v: bool) -> void:
 		Jeu.regler("commandes", "inverser_y", v))
+	# manette (stick droit) : réglages à part de la souris (Manette.regler : options.cfg, section « manette »)
+	_curseur(g, "Sensibilité manette", 20, 300, 10, Manette.sensibilite() * 100.0, "%d %%", func(v: float) -> void:
+		Manette.regler("sensibilite", v / 100.0))
+	_case(g, "Inverser l'axe Y (manette)", Manette.inverser_y(), func(v: bool) -> void:
+		Manette.regler("inverser_y", v))
+	_curseur(g, "Zone morte des sticks", 5, 50, 5, Manette.zone_morte() * 100.0, "%d %%", func(v: float) -> void:
+		Manette.regler("zone_morte", v / 100.0))
+	_choix(g, "Courbe du stick droit", Manette.NOMS_COURBES, int(Manette.reglage("courbe")), func(v: int) -> void:
+		Manette.regler("courbe", v))
 	# sang et démembrement du combat (membres tranchés, plaies, jets, flaques) : complet par défaut ; réduit = moitié moins de
 	# membres coupés, pas de coupe en deux, moins de sang
 	_choix(g, "Sang et démembrement", ["Désactivé", "Réduit", "Complet"], int(Jeu.option("combat", "gore")), func(v: int) -> void:
@@ -164,12 +175,13 @@ func _ready() -> void:
 	var t := VBoxContainer.new()
 	t.add_theme_constant_override("separation", 0)
 	var gt := GridContainer.new()
-	gt.columns = 3
+	gt.columns = 4
 	gt.add_theme_constant_override("h_separation", roundi(8 * echelle))
 	gt.add_theme_constant_override("v_separation", 0)
 	gt.add_child(MenuStyle.etiquette("Commande", MenuStyle.GRIS))
 	gt.add_child(MenuStyle.etiquette("Touche", MenuStyle.GRIS))
 	gt.add_child(MenuStyle.etiquette("Autre touche", MenuStyle.GRIS))
+	gt.add_child(MenuStyle.etiquette("Manette", MenuStyle.GRIS))
 	for a: Dictionary in Touches.ACTIONS:
 		var id: String = a["id"]
 		gt.add_child(MenuStyle.etiquette(a["nom"]))
@@ -180,18 +192,29 @@ func _ready() -> void:
 			bt.tooltip_text = "Cliquer, puis appuyer sur la nouvelle touche (Échap annule%s)." % ("" if rang == 0 else ", Retour arrière efface")
 			_boutons_touches[[id, rang]] = bt
 			gt.add_child(bt)
+		_cellule_manette(gt, id)
+	# commandes propres à la manette (souris / chiffres fixes au clavier) : seule la colonne Manette se règle
+	for x: Dictionary in Manette.EXTRAS:
+		if _boutons_manette.has(x["id"]):
+			continue   # « accroupi » déjà dans Touches.ACTIONS (furtivité)
+		gt.add_child(MenuStyle.etiquette(x["nom"]))
+		var fixe := "Clic gauche" if x.get("souris", -1) == MOUSE_BUTTON_LEFT else ("Clic droit" if x.has("souris") else (Touches.nom_touche(int(x["touche"])) if x.has("touche") else "—"))
+		gt.add_child(MenuStyle.etiquette(fixe, MenuStyle.GRIS))
+		gt.add_child(Control.new())
+		_cellule_manette(gt, String(x["id"]))
 	t.add_child(gt)
 	_message_touches = MenuStyle.etiquette("", MenuStyle.RUNE)
 	_message_touches.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_message_touches.custom_minimum_size = Vector2(360, 0) * echelle
 	t.add_child(_message_touches)
-	var fixes := MenuStyle.etiquette("Fixes : souris (clic gauche frapper, clic droit parer), 1 - 0 raccourcis, Échap pause, F11 plein écran.", MenuStyle.GRIS)
+	var fixes := MenuStyle.etiquette("Fixes : 5 - 0 raccourcis, Échap / Start pause, F11 plein écran ; manette : stick gauche déplacement, stick droit regard. Bouton de manette : Échap annule, Retour arrière efface.", MenuStyle.GRIS)
 	fixes.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	fixes.custom_minimum_size = Vector2(360, 0) * echelle
 	t.add_child(fixes)
 	t.add_child(MenuStyle.bouton("Rétablir les touches d'origine", func() -> void:
 		Touches.retablir()
-		_maj_touches("Touches d'origine rétablies.")))
+		Manette.retablir()
+		_maj_touches("Touches et boutons d'origine rétablis.")))
 	t.visible = false
 	_touches = t
 	_contenu.add_child(t)
@@ -289,8 +312,22 @@ func _basculer_touches() -> void:
 		_maj_touches()
 		(_boutons_touches[["avant", 0]] as Button).grab_focus.call_deferred()
 
+## Colonne « Manette » d'une commande : bouton réglable, ou « Stick G » (déplacement, fixe).
+func _cellule_manette(gt: GridContainer, id: String) -> void:
+	if Manette.STICK_GAUCHE.has(id):
+		gt.add_child(MenuStyle.etiquette("Stick G", MenuStyle.GRIS))
+		return
+	var bm := MenuStyle.bouton("", func() -> void: _attendre(id, 2))
+	bm.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	bm.custom_minimum_size = Vector2(70, 0) * echelle
+	bm.tooltip_text = "Choisir, puis appuyer sur le nouveau bouton de la manette (Échap annule, Retour arrière efface)."
+	_boutons_manette[id] = bm
+	gt.add_child(bm)
+
 ## Texte des boutons de touche (celle qu'on est en train de régler : « Appuyez… »).
 func _maj_touches(message := "") -> void:
+	for id: String in _boutons_manette:
+		(_boutons_manette[id] as Button).text = "Appuyez…" if _attente_touche == [id, 2] else Manette.libelle(id)
 	for id_rang: Array in _boutons_touches:
 		var bt: Button = _boutons_touches[id_rang]
 		var k: int = int(Touches.touches_de(id_rang[0])[id_rang[1]])
@@ -301,7 +338,17 @@ func _maj_touches(message := "") -> void:
 
 func _attendre(id: String, rang: int) -> void:
 	_attente_touche = [id, rang]
-	_maj_touches("Appuyez sur la nouvelle touche (Échap : annuler).")
+	_maj_touches("Appuyez sur le nouveau bouton de la manette (Échap : annuler)." if rang == 2 else "Appuyez sur la nouvelle touche (Échap : annuler).")
+
+## Attribue un bouton de manette (code Manette) à la commande `id` (saisie ; direct dans les tests). Renvoie la commande échangée.
+func attribuer_manette(id: String, code: int) -> String:
+	var autre := Manette.lier(id, code)
+	_attente_touche = []
+	var msg := "Bouton enregistré." if code != Manette.AUCUN else "Bouton effacé."
+	if autre != "":
+		msg = "%s utilisait déjà ce bouton : elle a pris l'ancien." % Manette.nom_action(autre)
+	_maj_touches(msg)
+	return autre
 
 ## Attribue une touche à la commande en attente (appelé par la saisie ; direct dans les tests). Renvoie la commande échangée ("" si aucune).
 func attribuer(id: String, rang: int, k: int) -> String:
@@ -322,6 +369,26 @@ func _input(e: InputEvent) -> void:
 	if e is InputEventMouseButton and e.pressed:
 		_attente_touche = []   # un clic ailleurs annule la saisie ; le clic sur un bouton la relance de lui-même
 		_maj_touches()
+		return
+	if int(_attente_touche[1]) == 2:   # bouton de manette attendu : la manette ne navigue plus dans le panneau
+		if Manette.est_manette(e):
+			get_viewport().set_input_as_handled()
+			var code := Manette.code_evenement(e)
+			if code == Manette.AUCUN:
+				return
+			if Manette.attribuable(code):
+				attribuer_manette(_attente_touche[0], code)
+			else:
+				_maj_touches("Ce bouton est réservé (Start : pause) ; les sticks restent au déplacement et au regard.")
+			return
+		if e is InputEventKey and e.pressed and not e.echo:
+			get_viewport().set_input_as_handled()
+			var kc: int = (e as InputEventKey).physical_keycode
+			if kc == KEY_ESCAPE:
+				_attente_touche = []
+				_maj_touches()
+			elif kc == KEY_BACKSPACE or kc == KEY_DELETE:
+				attribuer_manette(_attente_touche[0], Manette.AUCUN)
 		return
 	if not (e is InputEventKey and e.pressed and not e.echo):
 		return

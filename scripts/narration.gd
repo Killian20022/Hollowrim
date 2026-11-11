@@ -65,6 +65,14 @@ func _unhandled_input(e: InputEvent) -> void:
 				return
 	elif e is InputEventMouseButton and e.pressed and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
 		suivant = true
+	elif e is InputEventJoypadButton and e.pressed:   # manette : A = page suivante, B / Start = passer
+		match (e as InputEventJoypadButton).button_index:
+			JOY_BUTTON_A:
+				suivant = true
+			JOY_BUTTON_B, JOY_BUTTON_START:
+				_terminer()
+				get_viewport().set_input_as_handled()
+				return
 	if suivant:
 		get_viewport().set_input_as_handled()
 		if _t < 0.5:
@@ -121,6 +129,6 @@ func _draw() -> void:
 	var pos := Vector2(roundf(cx - LARGEUR_TEXTE * 0.5), y + 42.0)
 	draw_multiline_string(_police, pos + Vector2(1, 1), texte, HORIZONTAL_ALIGNMENT_CENTER, LARGEUR_TEXTE, Palette.TAILLE_POLICE, -1, Color(FOND, ap))
 	draw_multiline_string(_police, pos, texte, HORIZONTAL_ALIGNMENT_CENTER, LARGEUR_TEXTE, Palette.TAILLE_POLICE, -1, Color(PARCHEMIN, ap))
-	var pied := "E : continuer   Échap : passer   (%d / %d)" % [mini(page + 1, pages.size()), pages.size()]
+	var pied := Manette.ou("E : continuer   Échap : passer", "A : continuer   B : passer") + "   (%d / %d)" % [mini(page + 1, pages.size()), pages.size()]
 	var lp := _police.get_string_size(pied, HORIZONTAL_ALIGNMENT_LEFT, -1, Palette.TAILLE_POLICE).x
 	MenuStyle.texte_detoure(self, _police, Vector2(roundf(cx - lp * 0.5), size.y - 44.0), pied, Palette.TAILLE_POLICE, GRIS, a * clampf((_t - 1.2) / 0.6, 0.0, 1.0))

@@ -70,13 +70,24 @@ const OBJECTIF_DUREE := 4.0
 var _objectif_t := 0.0
 var aide_lignes: Array = construire_aide()
 
-## Lignes de l'aide : les touches RÉELLES du joueur (Touches : suivent le remappage et la disposition du clavier).
+## Lignes de l'aide : les touches RÉELLES du joueur (Touches : suivent le remappage et la disposition du clavier) ; boutons de la
+## manette (Manette, remappage compris) quand la dernière entrée vient d'elle.
 static func construire_aide() -> Array:
+	if Manette.actif():
+		var l: Array = [["Stick G", "marcher"], ["Stick D", "regarder"]]
+		for p: Array in [["course", "courir"], ["accroupi", "accroupi"], ["saut", "sauter"], ["main_droite", "frapper"], ["main_gauche", "parer"],
+				["esquive", "esquiver"], ["interagir", "agir"], ["menu", "menu"], ["carte", "carte"], ["raccourci_1", "raccourcis"],
+				["torche", "torche"], ["attendre", "attendre"], ["vue", "vue"]]:
+			if Manette.code_de(p[0]) != Manette.AUCUN:
+				l.append([Manette.libelle(p[0]) if p[0] != "raccourci_1" else "Croix", p[1]])
+		l.append(["Start", "pause"])
+		return l
 	return [[Touches.libelle_deplacement(), "marcher"], [Touches.libelle("course"), "courir"], [Touches.libelle("accroupi"), "accroupi"], [Touches.libelle("saut"), "sauter"],
 		["Clic gauche", "frapper"], ["Clic droit", "parer"], [Touches.libelle("interagir"), "agir"], [Touches.libelle("menu"), "menu"],
 		[Touches.libelle("inventaire"), "sac"], ["1 - 0", "raccourcis"], [Touches.libelle("torche"), "torche"],
 		[Touches.libelle("attendre"), "attendre"], [Touches.libelle("vue"), "vue"], ["Échap", "pause"]]
 var aide_t := 0.0          # secondes d'affichage restantes (fondu sur la dernière)
+var _generation_manette := Manette.generation   # clavier <-> manette : l'aide est réécrite (construire_aide)
 var aide_forcee := false   # F1
 ## Menu du personnage (MenuPersonnage, posé par lui-même) : `panneau_ouvert` lit son état ; l'écrire l'ouvre ou le ferme
 ## (fenêtre de butin, boutique, menu pause le ferment). Sans menu (scènes de test) : simple drapeau.
@@ -200,6 +211,9 @@ func _unhandled_input(e: InputEvent) -> void:
 
 func _process(dt: float) -> void:
 	EchelleUi.appliquer(self)
+	if _generation_manette != Manette.generation:
+		_generation_manette = Manette.generation
+		aide_lignes = construire_aide()
 	_objectif_t = maxf(0.0, _objectif_t - dt)
 	_marqueurs_t -= dt
 	if joueur == null:
@@ -370,7 +384,7 @@ func _dessiner_aide() -> void:
 		col = maxf(col, _police.get_string_size(l[0], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
 	for l: Array in aide_lignes:
 		larg = maxf(larg, col + 8.0 + _police.get_string_size(l[1], HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
-	var pied := "%s : masquer" % Touches.libelle("aide")
+	var pied := "%s : masquer" % (Manette.libelle("aide") if Manette.actif() and Manette.code_de("aide") != Manette.AUCUN else Touches.libelle("aide"))
 	larg = maxf(larg, _police.get_string_size(pied, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
 	var t := Vector2(ceilf(larg) + 28.0, 59.0 + 10.0 * aide_lignes.size())
 	var o := Vector2(floorf(size.x - t.x - 6.0), 36.0)

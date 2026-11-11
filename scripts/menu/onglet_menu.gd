@@ -33,6 +33,7 @@ func fermer() -> void:
 func entree(_e: InputEvent) -> bool:
 	return false
 
-## Bandeau d'aide : [[touche, action], …] ex. [["Clic gauche", "Équiper"], ["R", "Lâcher"]] (touches du clavier seulement : pas de manette en jeu).
+## Bandeau d'aide : [[touche, action], …] ex. [["Clic gauche", "Équiper"], ["R", "Lâcher"]] — touches du clavier ; à la manette, la
+## coquille les remplace par leurs boutons (Manette.traduire : E -> A, R -> Y, G -> X, Échap -> B…).
 func aide() -> Array:
 	return []

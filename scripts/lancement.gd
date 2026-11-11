@@ -15,6 +15,7 @@ func _init() -> void:
 	Touches.charger()   # touches du joueur (Options > Touches) appliquées à l'InputMap
 
 func _ready() -> void:
+	Manette.installer(get_tree())   # suivi de la dernière entrée (clavier / manette) et filtre des axes, aussi en mode outil
 	if Jeu.mode_outil():
 		return
 	if Jeu.sortie_directe():

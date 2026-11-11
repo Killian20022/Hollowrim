@@ -165,6 +165,25 @@ func _input(e: InputEvent) -> void:
 			return
 		get_viewport().set_input_as_handled()
 		return
+	if e is InputEventJoypadButton or e is InputEventJoypadMotion:   # manette : croix / stick gauche = heures, A = valider, B = annuler
+		get_viewport().set_input_as_handled()
+		match Manette.bouton_ou_croix(e):
+			JOY_BUTTON_DPAD_LEFT:
+				regler(heures - 1)
+			JOY_BUTTON_DPAD_RIGHT:
+				regler(heures + 1)
+			JOY_BUTTON_DPAD_UP:
+				regler(heures + 4)
+			JOY_BUTTON_DPAD_DOWN:
+				regler(heures - 4)
+			JOY_BUTTON_A:
+				if _boutons[1].has_focus():
+					fermer()
+				else:
+					valider()
+			JOY_BUTTON_B, JOY_BUTTON_BACK:
+				fermer()
+		return
 	if not (e is InputEventKey) or not e.pressed:
 		return
 	var k := (e as InputEventKey).physical_keycode

@@ -60,6 +60,7 @@ static func charger() -> void:
 		# options écrites avant « Attendre » : la torche y est encore sur T, qui revient désormais à l'attente
 		if liaisons["torche"][0] == KEY_T and liaisons["attendre"][0] == KEY_T:
 			liaisons["torche"][0] = KEY_H
+	Manette.charger_liaisons()   # boutons de manette (scripts/manette.gd), appliqués avec les touches
 	appliquer()
 
 ## Crée (si besoin) les actions et leur donne leurs touches. Sans danger si appelé plusieurs fois (joueur, menus…).
@@ -82,6 +83,7 @@ static func appliquer() -> void:
 				var e := InputEventKey.new()
 				e.physical_keycode = k as Key
 				InputMap.action_add_event(id, e)
+	Manette.appliquer()   # manette : sticks, boutons et commandes propres (main droite / gauche, raccourcis, accroupi)
 
 static func touches_de(id: String) -> Array:
 	installer()

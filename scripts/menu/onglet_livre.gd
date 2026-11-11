@@ -188,6 +188,13 @@ static func direction(e: InputEvent) -> int:
 				return -2
 			JOY_BUTTON_DPAD_RIGHT:
 				return 2
+	elif e is InputEventJoypadMotion and Manette.changement(e):   # stick gauche : un pas par poussée (scripts/manette.gd)
+		var m := e as InputEventJoypadMotion
+		if absf(m.axis_value) >= Manette.SEUIL:
+			if m.axis == JOY_AXIS_LEFT_Y:
+				return -1 if m.axis_value < 0.0 else 1
+			if m.axis == JOY_AXIS_LEFT_X:
+				return -2 if m.axis_value < 0.0 else 2
 	return 0
 
 ## Code d'une touche physique pressée (0 si ce n'est pas une touche pressée).

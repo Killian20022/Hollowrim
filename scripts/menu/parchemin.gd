@@ -439,6 +439,7 @@ static func touche(ci: CanvasItem, police: Font, pos: Vector2, k: String, action
 
 ## Bandeau des touches centré sur le cuir du bas (y ≈ 340 à 640x360).
 static func bandeau_touches(ci: CanvasItem, police: Font, taille: Vector2, lignes: Array) -> void:
+	lignes = Manette.traduire(lignes)   # dernière entrée à la manette : boutons (« A Équiper », « B Fermer »)
 	var tot := 0.0
 	for l: Array in lignes:
 		tot += ceilf(largeur(police, String(l[0]))) + 10.0 + ceilf(largeur(police, String(l[1]))) + 16.0

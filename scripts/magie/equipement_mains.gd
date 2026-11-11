@@ -366,7 +366,7 @@ func fiche(id: String) -> Dictionary:
 			"bouclier":
 				f["nom"] = a.nom
 				l.append("Garde : %d %% (endurance x%s)" % [roundi(a.reduction_garde * 100.0), str(snappedf(a.cout_garde, 0.05))])
-				l.append("Clic droit : lever le bouclier")
+				l.append(Manette.ou("Clic droit", Manette.libelle("main_gauche")) + " : lever le bouclier")
 			"torche":
 				f["nom"] = a.nom
 				l.append("Éclaire les grottes et la nuit.")

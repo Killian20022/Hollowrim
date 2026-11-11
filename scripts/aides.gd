@@ -52,6 +52,46 @@ const ORDRE_GUIDE := ["guide_garde", "guide_frappe", "guide_puissant", "guide_so
 const DIST_GUIDE := 12.0    # m : le draugr est « sur » le joueur
 const DELAI_ETAPE := 10.0   # s : sans le geste demandé, l'étape suivante vient quand même
 const SEUIL_SOIN := 0.6     # part de la vie sous laquelle vient la bulle « se soigner »
+## Mêmes bulles à la manette (dernière entrée : Manette.actif()) : %s = boutons réels, remappage compris (texte_de()).
+const TEXTES_MANETTE := {
+	"ennemi": "%s : frapper (maintiens %s : coup puissant). Maintiens %s : garde. %s : esquive. Recule quand ta vie baisse : mieux vaut fuir que mourir.",
+	"sort": "Un sort est en main. Maintiens %s (main droite) ou %s (main gauche) pour le charger, relâche pour le lancer. Le mana revient tout seul. La croix change de sorts.",
+	"coffre": "%s : ouvrir, puis choisis ce que tu emportes. Le sac a une limite de poids : trop chargé, tu ralentis.",
+	"menu": "%s : sac, magie, compétences, journal des quêtes et carte du royaume (LB / RB : page suivante). Start : pause.",
+	"guide_garde": "Il marche sur toi. Maintiens %s : ta garde se lève. Levée quand son arme arrive : parade, il vacille.",
+	"guide_frappe": "%s : coup rapide. Frappe quand il vacille, puis remets ta garde. Chaque coup coûte de l'endurance.",
+	"guide_puissant": "Maintiens %s, puis relâche. Lent et coûteux, mais il brise sa garde et le renverse.",
+	"guide_soin": "Recule et soigne-toi : potion de soin dans le sac (%s, Potions), ou sort de soin (raccourci de la croix), %s maintenu.",
+}
+
+## Texte manette d'une bulle ("" : pas de version manette, ou dernière entrée au clavier ; texte_de() prend alors le texte clavier).
+static func _texte_manette(cle: String) -> String:
+	if not Manette.actif() or not TEXTES_MANETTE.has(cle):
+		return ""
+	var d := Manette.libelle("main_droite")
+	var g := Manette.libelle("main_gauche")
+	match cle:
+		"ennemi":
+			return TEXTES_MANETTE[cle] % [d, d, g, Manette.libelle("esquive")]
+		"sort":
+			return TEXTES_MANETTE[cle] % [d, g]
+		"coffre":
+			return TEXTES_MANETTE[cle] % Manette.libelle("interagir")
+		"menu":
+			return TEXTES_MANETTE[cle] % Manette.libelle("menu")
+		"guide_garde":
+			return TEXTES_MANETTE[cle] % g
+		"guide_frappe", "guide_puissant":
+			return TEXTES_MANETTE[cle] % d
+		"guide_soin":
+			return TEXTES_MANETTE[cle] % [_bouton("inventaire", "menu"), d]
+	return ""
+
+## Bouton d'une commande à la manette ; celui de `repli` si elle n'a pas de bouton (ex. le sac sans bouton : on l'ouvre par le menu).
+static func _bouton(id: String, repli: String = "") -> String:
+	if Manette.code_de(id) != Manette.AUCUN or repli == "":
+		return Manette.libelle(id)
+	return Manette.libelle(repli)
 
 var hud: Control
 var joueur: CharacterBody3D
@@ -311,14 +351,21 @@ func _fin_sans_draugr(vie: float, vie_max: float) -> void:
 		passer_guide()
 
 ## Texte affiché : les jetons {action} deviennent les touches réelles du joueur (configuration des contrôles).
+## Texte d'une bulle pour l'appareil de la dernière entrée : version manette (TEXTES_MANETTE) si elle existe, sinon texte clavier
+## dont les {commande} prennent la touche réelle (ou le bouton de manette quand la manette est active et la commande liée).
 static func texte_de(cle: String) -> String:
+	var m := _texte_manette(cle)
+	if m != "":
+		return m
 	var t: String = String((TEXTES[cle] if TEXTES.has(cle) else GUIDE[cle])[1])
 	for a: Dictionary in Touches.ACTIONS:
-		t = t.replace("{" + String(a["id"]) + "}", Touches.libelles(String(a["id"])))
+		var id := String(a["id"])
+		var lib := Manette.libelle(id) if Manette.actif() and Manette.code_de(id) != Manette.AUCUN else Touches.libelles(id)
+		t = t.replace("{" + id + "}", lib)
 	return t
 
 static func passer_de() -> String:
-	return "%s : passer" % Touches.libelles("aide")
+	return "%s : passer" % (Manette.libelle("aide") if Manette.actif() and Manette.code_de("aide") != Manette.AUCUN else Touches.libelles("aide"))
 
 static func titre_de(cle: String) -> String:
 	return String((TEXTES[cle] if TEXTES.has(cle) else GUIDE[cle])[0])

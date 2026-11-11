@@ -221,7 +221,7 @@ func _unhandled_input(e: InputEvent) -> void:
 	if ouvert:
 		return
 	var id := "-"
-	if e is InputEventKey and e.pressed and not e.echo:
+	if (e is InputEventKey and e.pressed and not e.echo) or (e is InputEventJoypadButton and e.pressed):   # manette : Vue, RB (carte)… (scripts/manette.gd)
 		if e.is_action_pressed("menu", false):
 			id = ""
 		else:
@@ -229,8 +229,6 @@ func _unhandled_input(e: InputEvent) -> void:
 				if e.is_action_pressed(action, false):
 					id = ACTIONS_ONGLETS[action]
 					break
-	elif e is InputEventJoypadButton and e.pressed and (e as InputEventJoypadButton).button_index == JOY_BUTTON_BACK:
-		id = ""
 	if id == "-" or not peut_ouvrir():
 		return
 	get_viewport().set_input_as_handled()

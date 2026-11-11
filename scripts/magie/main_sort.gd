@@ -129,14 +129,18 @@ func _actions() -> void:
 
 ## Appelé par mains._unhandled_input AVANT l'épée : vrai = l'événement est pris par la magie (l'épée ne le voit pas).
 func intercepter(e: InputEvent) -> bool:
-	if e is InputEventKey and e.pressed and not e.echo:
-		for i in 10:
-			if e.is_action_pressed("raccourci_%d" % ((i + 1) % 10)):
-				raccourci(i)
-				return true
+	if (e is InputEventKey and not e.echo) or e is InputEventJoypadButton:   # manette : croix = raccourcis 1 à 4 (scripts/manette.gd)
+		if e.is_pressed():
+			for i in 10:
+				if e.is_action_pressed("raccourci_%d" % ((i + 1) % 10)):
+					raccourci(i)
+					return true
+		if e is InputEventKey:
+			return false
+	if not (e is InputEventMouseButton or e is InputEventKey or e is InputEventJoypadButton or e is InputEventJoypadMotion):
 		return false
-	if not (e is InputEventMouseButton or e is InputEventKey or e is InputEventJoypadButton):
-		return false
+	if e is InputEventJoypadMotion and not Manette.changement(e):
+		return e.is_action("main_droite") or e.is_action("main_gauche")   # gâchette tenue : seuls l'appui et le relâchement comptent
 	if e.is_action("main_droite"):
 		var cat := eq.categorie("droite")
 		if cat.begins_with("arme"):

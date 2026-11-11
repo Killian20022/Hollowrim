@@ -81,7 +81,7 @@ func equiper(main: String, id: String) -> String:
 			return _dire(refus, true)
 		Sons.jouer(self, ["cloth1", "cloth2"], -12.0)
 		_rafraichir()
-		return _dire("Arc de chasseur en main : clic gauche maintenu pour bander, relâcher pour tirer (%d flèches)." % arc.fleches(), false)
+		return _dire("Arc de chasseur en main : %s pour bander, relâcher pour tirer (%d flèches)." % [Manette.ou("clic gauche maintenu", Manette.libelle("main_droite") + " maintenu"), arc.fleches()], false)
 	if id.begins_with("conso:"):
 		return utiliser(id.substr(6))
 	if id.begins_with("sac:"):
