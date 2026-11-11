@@ -27,6 +27,8 @@ APERCU = next((a.split("=", 1)[1] for a in ARGS if a.startswith("apercu=")), "")
 _argv = sys.argv
 sys.argv = [_argv[0], "--", "aucune"]          # gen_legeres ne génère rien à l'import : on ne garde que ses outils
 import armures_lib as L
+import resserrer as RS
+import relief_precieuses as RF
 import gen_legeres as X
 sys.argv = _argv
 from armures_lib import B, G
@@ -411,16 +413,24 @@ def rgba(rgb, a):
 
 def peau(P, N, pal, base, g, brillance=0.35, fort=1.0):
     v = base + grain(P, g, fort) + np.clip(N[:, 1], -1, 1) * 0.05
+    # affinage 2026-11-11 (niveau des cuirs Tripo) : cuir USÉ — zones claires élimées par plaques lentes, taches d'huile sombres,
+    # griffures claires fines ; plus de contraste de valeur qu'un aplat brun
+    use = np.clip((L.fbm(P, 3.2, g + 40) - 0.52) * 3.0, 0, 1)
+    v = v + use * 0.12
+    tache = np.clip((L.fbm(P, 5.5, g + 41) - 0.60) * 4.0, 0, 1)
+    v = v - tache * 0.10
+    gr = np.abs(np.sin((P[:, 0] * 1.7 - P[:, 1] * 0.6 + P[:, 2] * 1.1) * 140.0 + L.fbm(P, 7.0, g + 42) * 9.0)) < 0.05
+    v = np.where(gr & (L.bruit(P, 9.0, g + 43) > 0.70), v + 0.10, v)
     return v, rgba(L.rampe(pal, np.clip(v, 0, 0.999)), 0.10 + v * brillance)
 
 
 def finition_bords(out, de, ds, dv, dr, dvr, m, couture=True, rivets=True):
     """Sur les texels m : biseau usé clair au bord visible (de), rainure, points de couture (ds : distance au point le plus
     proche), rivets bombés (dr, dvr)."""
-    k = m & (de < 0.0022)
-    out[k, :3] = out[k, :3] * 1.22 + 0.025
-    k = m & (de >= 0.0022) & (de < 0.0042)
-    out[k, :3] *= 0.70
+    k = m & (de < 0.0030)
+    out[k, :3] = out[k, :3] * 1.38 + 0.035          # biseau élimé, bien lisible (cuir usé au bord)
+    k = m & (de >= 0.0030) & (de < 0.0050)
+    out[k, :3] *= 0.62
     if couture:
         t = m & (ds < 0.0016)
         out[t, :3] = out[t, :3] * 0.15 + FIL * (0.80 + 0.35 * (dv[t, 1] / 0.0016)[:, None] * 0.3)
@@ -478,6 +488,12 @@ def fourrure_tex(P, N, bd, pal, base, g, sens=(0.0, 1.0, 0.0), meche=False):
         + (L.fbm(P, 4.0, g + 3) - 0.5) * 0.10 + np.clip(N[:, 1], -1, 1) * 0.06
     jarre = L.bruit(Q, 520.0, g + 4) > 0.86                     # poils de jarre clairs, rares
     v = np.where(jarre, v + 0.08, v)
+    # affinage : poils groupés en MÈCHES (touffes allongées dans le sens du poil, racines sombres entre les touffes, pointes claires)
+    tou = L.bruit(Q * np.array([1.0, 1.0, 1.0]), 48.0, g + 5)
+    v = v + (tou - 0.5) * 0.22
+    v = np.where(tou < 0.22, v - 0.12, v)
+    pointe = np.mod(P @ s / 0.035 + L.fbm(Q, 20.0, g + 6) * 2.0, 1.0)
+    v = v + (pointe - 0.5) * 0.10
     if meche:
         v = np.where(bd < 0.0016, v - 0.16, np.where(bd < 0.006, v + 0.03, v))   # chaque mèche se détache (bord sombre, coeur clair)
     rgb = L.rampe(pal, np.clip(v, 0, 0.999))
@@ -567,8 +583,98 @@ ZONES = [(0, 0, 1024, 576), (0, 576, 384, 448), (384, 576, 288, 448), (672, 576,
 JSON_PIECES = []
 
 
+def resserrer_piece(o, ident, mats, slot):
+    """Affinage 2026-11-11 (« bonhomme gonflé ») : cuir et tissu au plus près du corps ; la fourrure ne garde son volume qu'au col et
+    aux épaules ; les gants (mains) ne bougent pas. Matières par face via la partie (même règle que slot)."""
+    if ident.startswith("gants"):
+        return
+    me = o.data
+    me.materials.clear()
+    for nm in mats:
+        me.materials.append(bpy.data.materials.get("_rs_" + nm) or bpy.data.materials.new("_rs_" + nm))
+    attr = me.attributes.get("partie")
+    if slot is not None:
+        for p in me.polygons:
+            p.material_index = slot(attr.data[p.index].value if attr else 0)
+    tete = ident.startswith(("capuche", "casque"))
+    bottes = ident.startswith("bottes")
+    def fn(p, m):
+        x, y = abs(p.x), p.y
+        fur = "fourrure" in m
+        if tete:
+            return (0.014, 0.85) if fur else (0.010, 0.65)
+        if bottes:
+            return (0.010, 0.85) if fur else (0.004, 0.6)
+        # jeu minimal relevé (test_armure_visible : la tunique ressortait de 11 mm à travers le torse pendant gs_slash) ; plus de jeu
+        # encore sur les épaules / bras, qui tournent le plus pendant les coups
+        bras = x > 0.15 and y > 1.15
+        if fur:
+            if y > 1.36 and x < 0.30:          # col et épaules : volume gardé, moins gonflé (passe 2 : mèches en volume)
+                return (0.016, 0.72)
+            return (0.014, 0.65) if bras else (0.011, 0.6)
+        return (0.013, 0.55) if bras else (0.009, 0.45)
+    RS.resserrer(o, fn)
+    me.materials.clear()
+
+
+TRIS_P2 = {"armure": 4100, "capuche": 1500, "casque": 1500, "gants": 1400, "bottes": 1700}   # passe 2 (relief) : budget validé
+
+
+def relief_cf(o, ident):
+    """Passe 2 « géométrie » (niveau des archers Tripo) : sangles de cuir en relief avec boucle de fer, bords épais (ourlet replié),
+    mèches de fourrure en volume. Repère Blender (B() depuis les coordonnées Godot)."""
+    corps = RF.corps_proche(RS.corps())
+    avant = L.nb_tris(o)
+    if ident == "armure_cuir":
+        # baudrier en travers : épaule gauche -> hanche droite, devant (boucle de fer) et dans le dos
+        devant = [B(0.13, 1.47, 0.04), B(0.10, 1.40, 0.11), B(0.02, 1.27, 0.13), B(-0.08, 1.12, 0.13), B(-0.15, 1.00, 0.10)]
+        dos = [B(0.13, 1.47, 0.04), B(0.12, 1.42, -0.09), B(0.03, 1.27, -0.12), B(-0.07, 1.12, -0.12), B(-0.15, 1.00, -0.09)]
+        RF.laniere(o, devant, 0.034, 0.0045, 1, decal=0.0045, cle_boucle=9, boucles=(0.42,), centre_fn=corps)
+        RF.laniere(o, dos, 0.034, 0.0045, 1, decal=0.0045, centre_fn=corps)
+        # sangles d'épaulière (bras) : une sangle autour du haut de chaque bras, boucle dehors
+        for sx in (1, -1):
+            cx, cy = sx * 0.315, 1.405
+            tour = [B(cx, cy + 0.075 * math.cos(a), 0.075 * math.sin(a)) for a in [math.radians(d) for d in range(-90, 271, 30)]]
+            RF.laniere(o, tour, 0.022, 0.004, 1, decal=0.004, cle_boucle=9, boucles=(0.25,), centre_fn=corps)
+        RF.ourler(o, {0, 1, 3, 10}, epaisseur=0.004, retour=0.003, filtre=lambda p: G(p).y < 0.80 or abs(G(p).x) > 0.33)
+    elif ident == "armure_fourrure":
+        RF.meches(o, {4}, lambda p: G(p).y > 1.30, longueur=0.040, largeur=0.016, pas=0.030, cle_meche=11, tombe=0.6, graine=5,
+                  centre_fn=corps, dehors_min=0.2)
+        RF.ourler(o, {0, 1, 13}, epaisseur=0.004, retour=0.003, filtre=lambda p: G(p).y < 0.80 or abs(G(p).x) > 0.33)
+    elif ident == "capuche_cuir":
+        # encoche sombre de la nuque : dernières faces retournées (pli du drapé) -> toutes vers l'extérieur de l'axe tête/cou.
+        # Les quads du pli ne sont pas plans : triangulés d'abord (comme à l'export), sinon un des deux triangles reste retourné
+        me = o.data
+        bm_ = bmesh.new(); bm_.from_mesh(me)
+        bmesh.ops.triangulate(bm_, faces=bm_.faces[:])
+        bm_.to_mesh(me); bm_.free()
+        n_inv = 0
+        for p in me.polygons:
+            c = G(o.matrix_world @ p.center)
+            if not (1.30 < c.y < 1.64):
+                continue
+            ax = Vector((0.0, c.y, COU.z if c.y < COU.y + 0.05 else TETE.z))
+            d = Vector((c.x - ax.x, 0.0, c.z - ax.z))
+            if d.length > 0.02 and G(p.normal).dot(d.normalized()) < -0.1:
+                p.flip()
+                n_inv += 1
+        me.update()
+        print("CAPUCHE faces du pli retournées", n_inv)
+    elif ident == "casque_fourrure":
+        RF.meches(o, {4, 5, 11}, lambda p: G(p).y < TETE.y + 0.02, longueur=0.028, largeur=0.013, pas=0.026, cle_meche=11, tombe=0.7,
+                  graine=7, centre_fn=corps, dehors_min=0.1)
+    elif ident in ("bottes_cuir", "bottes_fourrure"):
+        RF.ourler(o, {0}, epaisseur=0.0035, retour=0.0025, filtre=lambda p: G(p).y > 0.30)     # haut de tige épais
+    print("RELIEF", ident, avant, "->", L.nb_tris(o), "tris")
+
+
 def finir(o, matiere, ident, tris_max, sol, mats=("cuir",), slot=None, tris_min=0):
     """slot(partie) -> indice dans mats (0 par défaut) : surface 0 = matière principale (ourlets / hauts de bottes lus dessus)."""
+    if "--sans-resserrer" not in sys.argv:
+        resserrer_piece(o, ident, mats, slot)
+    if "--sans-relief" not in sys.argv:
+        relief_cf(o, ident)
+        tris_max = max(tris_max, TRIS_P2.get(ident.split("_")[0], tris_max))
     L.lisser_normales(o)
     nb = L.nb_tris(o)
     print("PIECE %s : %d triangles (cible %d-%d)" % (ident, nb, tris_min, tris_max))
@@ -743,6 +849,20 @@ def cuir():
     # tranche rabattue autour du visage seulement : sous la nuque, le rabat frôlait la peau du cou (traversées tête penchée)
     # (pas sur les joues : la barbe passait sous la tranche quand la tête tourne)
     epaissir(bm, 0.007, lambda a, b: min(a.y, b.y) > 1.645)
+    # passe 2 : ENCOCHE SOMBRE à la nuque = faces RETOURNÉES par le drapé de la nuque (61 faces vers l'axe du cou : on voyait
+    # l'intérieur, noir). Toute face sous le rabat du visage regarde à l'opposé de l'axe tête/cou.
+    bm.normal_update()
+    n_inv = 0
+    for f in bm.faces:
+        c = G(f.calc_center_median())
+        if c.y > 1.64:
+            continue
+        ax = Vector((0.0, c.y, COU.z if c.y < COU.y + 0.05 else TETE.z))
+        d = Vector((c.x - ax.x, 0.0, c.z - ax.z))
+        if d.length > 0.02 and G(f.normal).dot(d.normalized()) < -0.15:
+            f.normal_flip()
+            n_inv += 1
+    print("CAPUCHE faces retournées corrigées", n_inv)
     o = X.en_objet(bm, "capuche_cuir")
     pw_p = L.poids_proches(o, bpy.data.objects["peau"], 4, lambda p: p.y > 1.40 and abs(p.x) < 0.2)
     pw_t = L.poids_proches(o, bpy.data.objects["tunique"], 4, lambda p: p.y > 1.30 and abs(p.x) < 0.3)

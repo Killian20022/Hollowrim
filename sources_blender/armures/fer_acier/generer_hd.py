@@ -11,7 +11,7 @@ import hd as H
 import pieces_hd as PH
 sys.path.insert(0, os.path.join(ICI, ".."))
 import retreindre as RT
-import relief as RL
+import relief_lourdes as RL
 import articulees as AR
 importlib.reload(C); importlib.reload(H); importlib.reload(PH); importlib.reload(RT); importlib.reload(RL); importlib.reload(AR)
 RETREINT = dict(m=0.015, k=0.55, D1=0.11)

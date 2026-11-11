@@ -1,3 +1,4 @@
+# (Intégration n°3 : ex-relief.py de la branche armures_affinage/lourdes, renommé à côté de relief_precieuses.py.)
 # RELIEF géométrique des armures (passe 2 « géométrie », 2026-11-11) : ce qui était seulement peint devient du volume.
 #  - border(ob) : chaque bord libre d'une plaque de métal reçoit une BORDURE ROULÉE (bourrelet vers l'extérieur puis tranche qui
 #    rentre vers le corps) : la tôle a une épaisseur visible, l'arête accroche la lumière comme sur les armures Tripo ;

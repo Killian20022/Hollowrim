@@ -23,6 +23,8 @@ from mathutils.bvhtree import BVHTree
 ICI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(ICI, ".."))
 sys.path.insert(0, os.path.join(ICI, "..", "legeres"))
+import resserrer as RS
+import relief_precieuses as RF
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 QUOI = next((a for a in ARGS if "=" not in a), "tout")
 APERCU = next((a.split("=", 1)[1] for a in ARGS if a.startswith("apercu=")), "")
@@ -41,6 +43,11 @@ CHAUSSES = os.path.join(L.ROOT, "assets", "modeles", "armures", "chausses")
 
 # parties (couche de faces « partie ») -> matière
 P_COQUE, P_CUIR2, P_OS, P_OS2, P_OS3, P_FER, P_RUNES, P_VERRE, P_ARGENT, P_OR, P_TISSU = 0, 1, 6, 7, 8, 9, 10, 11, 12, 13, 14
+CADRE_VERRE = 0.0095
+SAILLIE_CADRE = 0.0028
+RIVETS_VERRE = True
+RIVETS_EN_ATTENTE = []
+P_CADRE = 15      # passe 2 (relief_precieuses.py) : cadres de métal sombre en volume autour des plaques de verre
 
 # ------------------------------------------------------------------------------------------------------------- palettes
 OS = L.hexa("#16110b", "#231a11", "#33281a", "#453723", "#58472d", "#6b5836", "#7e6a42", "#917c50", "#a28e60", "#b3a074", "#c4b28a")
@@ -361,18 +368,70 @@ BUDGET = {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200}
 
 def finir(o, matiere, mats, ident, empl, sol):
     """mats : [(nom_matériau, {parties})], le premier = surface 0 (coque)."""
+    if ident.endswith("_verre") and not ident.startswith("gantelets") and "--sans-resserrer" not in sys.argv:
+        # affinage 2026-11-11 (« certaines armures sont trop épaisses ») : resserrage DOUX, le verre v5 reste la référence
+        tete, bottes = ident.startswith("casque"), ident.startswith("bottes")
+        RS.resserrer(o, lambda p, m: (0.012, 0.85) if tete else ((0.006, 0.8) if bottes else (0.008, 0.7)))
+    if ident.endswith("_verre") and "--sans-relief" not in sys.argv:
+        matiere, mats = relief_verre(o, ident, matiere, mats)
     L.lisser_normales(o)
     # cristal : facettes à plat (ombrage net de pierre taillée, éclats du reflet par facette)
     attr = o.data.attributes.get("partie")
     if attr is not None:
         for p in o.data.polygons:
-            if attr.data[p.index].value == P_VERRE:
+            if attr.data[p.index].value in (P_VERRE, P_CADRE):
                 p.use_smooth = False
     nb = L.nb_tris(o)
     print("PIECE %s : %d triangles (budget %d)" % (ident, nb, BUDGET[empl]))
     if nb > BUDGET[empl]:
         print("  !!! HORS BUDGET", ident)
     FAM.append({"o": o, "matiere": matiere, "mats": mats, "ident": ident, "empl": empl, "sol": sol})
+
+
+# ------------------------------------------------------------------------------------------------- passe 2 : relief du verre
+GUNMETAL = L.hexa("#07090a", "#0d1012", "#14181b", "#1c2125", "#252b30", "#30373d", "#3d454c", "#4c555d", "#5f6971", "#77818a", "#959ea6", "#bcc3c9")
+RELIEF_VERRE = {   # largeur du cadre, saillie du cadre, hauteur de la pyramide de cristal, rivets (rayon, hauteur)
+    "cuirasse": dict(largeur=0.011, saillie=0.0030, bombe=0.007, rivet=(0.0032, 0.0028)),
+    "casque": dict(largeur=0.010, saillie=0.0025, bombe=0.004, rivet=(0.0028, 0.0024)),
+    "gantelets": dict(largeur=0.007, saillie=0.0020, bombe=0.004, rivet=None),
+    "bottes": dict(largeur=0.009, saillie=0.0025, bombe=0.006, rivet=(0.0028, 0.0024)),
+}
+
+
+def m_cadre(P, N, bd, g=0):
+    """Cadre de métal sombre (fer bruni façon armure de verre Tripo) : corps gris acier sombre brossé, arêtes claires (faces
+    tournées vers la lumière), creux noircis par l'occlusion de la cuisson."""
+    v = 0.52 + (L.fbm(P, 26.0, g) - 0.5) * 0.16 + (L.bruit(P * np.array([1.0, 10.0, 1.0]), 110.0, g + 2) - 0.5) * 0.06
+    v += np.clip(N[:, 1], -1, 1) * 0.12
+    v += np.clip((N * np.array([0.35, 0.75, 0.55])).sum(1), 0, 1) ** 3 * 0.30         # arêtes vives vers la lumière
+    ec = L.bruit(P, 260.0, g + 5) > 0.93
+    v = np.where(ec, v + 0.18, v)                                                     # rayures claires
+    return rgba(L.rampe(GUNMETAL, np.clip(v, 0, 0.999)), 0.85)
+
+
+def relief_verre(o, ident, matiere, mats):
+    kind = ident.split("_")[0]
+    pr = RELIEF_VERRE.get(kind)
+    if pr is None:
+        return matiere, mats
+    if kind == "casque":      # heaume : coque de cristal d'un seul tenant -> cadre de métal au bord (visage, nuque) + facettes
+        RF.sertir(o, {P_VERRE}, P_CADRE, largeur=pr["largeur"], saillie=pr["saillie"], bombe=pr["bombe"],
+                  centre_fn=RF.corps_proche(RS.corps()), dehors_min=0.0, aire_min=0.012, anneaux=1)
+    riv = pr.get("rivet")
+    pts = list(RIVETS_EN_ATTENTE)
+    RIVETS_EN_ATTENTE.clear()
+    if riv and pts:
+        n_r = RF.rivets_sur(o, pts, riv[0], riv[1], P_CADRE)
+        print("RELIEF rivets", ident, n_r)
+    print("PIECE %s : %d triangles après relief" % (ident, L.nb_tris(o)))
+
+    def mat2(P, N, pa, bd):
+        out = matiere(P, N, pa, bd)
+        m = pa == P_CADRE
+        if m.any():
+            out[m] = m_cadre(P[m], N[m], bd[m], 401)
+        return out
+    return mat2, list(mats) + [("acier.cadre", {P_CADRE})]
 
 
 def finir_ensemble(nom):
@@ -801,7 +860,7 @@ def entrelacs_vertical(x, y, larg, g=0):
     return (b1 | b2 | fil).astype(float)
 
 
-def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=None, bombe=0.004, biseau=0.55, rmax=0.40, lisse=2, arete=None):
+def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=None, bombe=0.004, biseau=0.55, rmax=0.40, lisse=2, arete=None, cadre=None):
     """Plaque de cristal ÉPAISSE qui suit le corps, de forme libre : sections aux abscisses `ys` le long de `axe` depuis `c`, arc
     (t0, t1) ; dy(u) décale la section en hauteur selon u = position dans l'arc (-1..1) -> pointe en V, biais ; taper(v) (v = 0..1 le
     long de la plaque) rétrécit l'arc -> éclat effilé. Rangées : dessous haut, dessus (biseaux aux bouts), dessous bas ; côtés fermés."""
@@ -811,9 +870,32 @@ def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=
     ref2 = axe.cross(ref)
     c = Vector(c)
     part = L.couche_partie(bm)
-    k = len(ys)
     a0, a1 = arc
     mid, demi = (a0 + a1) / 2, (a1 - a0) / 2
+    # passe 2 (relief) : CADRE de métal en volume autour de la plaque de verre : une colonne et un rang de plus de chaque côté
+    # (largeur `cadre` m), faces du pourtour du dessus -> P_CADRE, surélevées ; le cristal facetté reste dedans
+    if cadre is None and partie == P_VERRE:
+        cadre = CADRE_VERRE
+    us = [-1 + 2 * j / n for j in range(n + 1)]
+    fr_col = set()
+    fr_row = set()
+    if cadre and partie == P_VERRE and len(ys) >= 2:
+        hit0 = cible.ray_cast(B(c + axe * ((ys[0] + ys[-1]) / 2) + (ref * math.cos(mid) + axe.cross(ref) * math.sin(mid)) * rmax),
+                              B(-(ref * math.cos(mid) + axe.cross(ref) * math.sin(mid))), rmax)
+        rm = (hit0[0] - B(c + axe * ((ys[0] + ys[-1]) / 2))).length if hit0[0] is not None else 0.12
+        demi_larg = max(rm * demi, 0.01)
+        eu = min(cadre / demi_larg, 0.20)
+        long_ = abs(ys[-1] - ys[0])
+        ev = min(cadre, 0.22 * long_)
+        if demi_larg >= 0.034 and long_ >= 0.05 and ev > 0.003:
+            ni = max(2, n - 1)       # le cadre apporte deux colonnes : une colonne intérieure de moins (budget)
+            us = [-1.0, -1.0 + eu] + [-1 + eu + (2 - 2 * eu) * j / ni for j in range(1, ni)] + [1.0 - eu, 1.0]
+            fr_col = {0, len(us) - 1}
+            sg = 1.0 if ys[-1] > ys[0] else -1.0
+            ys = [ys[0], ys[0] + sg * ev] + list(ys[1:-1]) + [ys[-1] - sg * ev, ys[-1]]
+            fr_row = {0, len(ys) - 1}
+    n = len(us) - 1
+    k = len(ys)
 
     # rayons mesurés sur une grille (sections x colonnes), puis LISSÉS : surface de plaque nette, sans bosses du corps dessous
     grille = []
@@ -822,7 +904,7 @@ def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=
         tp = taper(v) if taper else 1.0
         rang_ = []
         for j in range(n + 1):
-            u = -1 + 2 * j / n
+            u = us[j]
             th = mid + u * demi * tp
             yy = ys[i] + (dy(u) if dy else 0.0)
             d = ref * math.cos(th) + ref2 * math.sin(th)
@@ -853,24 +935,40 @@ def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=
                 ar = arete if arete is not None else (partie == P_VERRE)
                 prof = max(0.0, 1 - abs(u)) if ar else max(0.0, 1 - u * u)      # cristal : arête vive au milieu, pans plats
                 dr = j_ + e + bombe * prof * ((0.25 + 0.75 * min(1.0, 2.5 * min(v, 1 - v) + 0.2)) if ar else (0.4 + 0.6 * w))
+                if fr_col or fr_row:
+                    bord_ = (j in fr_col) or (i in fr_row)
+                    inner = (j in (1, n - 1)) or (i in (1, k - 2))
+                    if bord_:
+                        dr = j_ + e                                   # arête extérieure du cadre
+                    elif inner:
+                        dr = j_ + ep + SAILLIE_CADRE                    # crête du cadre (plat surélevé)
+                    else:
+                        dr += SAILLIE_CADRE * 0.35                      # cristal : part sous la crête du cadre
             else:
                 dr = j_ + dr0
             ligne.append(bm.verts.new(B(cc + d * (R[i, j] + dr))))
         lignes.append(ligne)
     faces = []
+    encadre = bool(fr_col or fr_row)
     for r in range(len(lignes) - 1):
         A, Bv = lignes[r], lignes[r + 1]
         for j in range(n):
             f = bm.faces.new((A[j], A[j + 1], Bv[j + 1], Bv[j]))
-            f[part] = partie
+            # lignes : 0 = dessous haut, 1..k = dessus (rangs de grille 0..k-1), k+1 = dessous bas ; face r entre lignes r et r+1
+            dessus = 1 <= r <= k - 1
+            gi = r - 1                                       # face entre rangs gi et gi+1 de la grille
+            cad = encadre and (not dessus or j == 0 or j == n - 1 or gi == 0 or gi == k - 2)
+            f[part] = P_CADRE if cad else partie
             faces.append(f)
     for j in (0, n):
         try:
             f = bm.faces.new([l[j] for l in lignes])
-            f[part] = partie
+            f[part] = P_CADRE if encadre else partie
             faces.append(f)
         except ValueError:
             pass
+    if encadre and RIVETS_VERRE and abs(ys[-1] - ys[0]) > 0.14 and demi_larg > 0.05:
+        RIVETS_EN_ATTENTE.extend([lignes[1 + ii][jj].co.copy() for ii in (1, k - 2) for jj in (1, n - 1)])
     bmesh.ops.remove_doubles(bm, verts=list({v for f in faces for v in f.verts}), dist=0.0004)
     faces = [f for f in faces if f.is_valid]
     X.orienter(bm, faces, c + axe * ys[0], c + axe * ys[-1])
@@ -1072,6 +1170,10 @@ def verre():
             hit = cb.ray_cast(B(top), B(Vector((0, -1, 0))), 0.5)
             ytop = G(hit[0]).y if hit[0] is not None else a.y + 0.08
             eclat(bm, Vector((s * x, ytop + 0.030, a.z - 0.005)), (s * d[0], d[1], d[2]), lg, la, P_VERRE)
+        # passe 2 : canon de bras (cristal serti) sur le haut du bras, sous la dernière lame d'épaulière (Tripo : bras couverts)
+        if "--sans-relief" not in sys.argv:
+            plaque2(bm, a, axb, (0, 1, 0), cible, ys_entre(0.115, 0.235, 0.04), (-1.35, 1.35), 4, 0.006, 0.004, P_VERRE,
+                    taper=lambda v: 1.0 - 0.15 * v, bombe=0.005, lisse=4)
         o_e = X.en_objet(bm, "epv_" + cote)
         X.poids_de(o_e, "tunique", lambda p, s=s: abs(p.x) > 0.12 and (p.x > 0) == (s > 0), 1)
         eps.append(o_e)

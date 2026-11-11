@@ -20,7 +20,7 @@ import hd
 import peintres as PE
 sys.path.insert(0, os.path.join(ICI, ".."))
 import retreindre as RT
-import relief as RL
+import relief_lourdes as RL
 import articulees as AR
 for m in (C, PC, hd, PE, RT, RL, AR):
     importlib.reload(m)
