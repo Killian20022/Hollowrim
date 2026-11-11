@@ -77,7 +77,7 @@
     {"id": "ronde_est", "role": "epee", "pieces": {"pieds": "bottes_fourrure", "mains": "gants_fourrure"}, "type": "ronde", "tripo": "tripo_garde_epee", "livree": 2, "boucle": false, "poil": 5, "peau": 0, "taille": 1.04, "largeur": 1.06,
      "route": [[59.2, 15.8], [62.8, 17.8], [64.8, 19.2], [67.8, 23.2], [69.8, 27.2], [69.8, 34.8], [70.2, 35.2]],
      "lignes": ["Je longe la palissade de l’est. Les loups la reniflent, parfois.", "Ils n’entrent pas. Ils savent que je suis là. Enfin, j’aime le croire."]},
-    {"id": "ronde_ouest", "role": "epee", "sans_casque": true, "type": "ronde", "tripo": "tripo_garde_epee", "livree": 1, "boucle": false, "poil": 1, "peau": 1, "rase": true, "taille": 0.95, "largeur": 0.96,
+    {"id": "ronde_ouest", "role": "epee", "sans_casque": true, "pieces": {"pieds": "bottes_fourrure"}, "type": "ronde", "tripo": "tripo_garde_epee", "livree": 1, "boucle": false, "poil": 1, "peau": 1, "rase": true, "taille": 0.95, "largeur": 0.96,
      "route": [[30.8, 31.2], [23.8, 32.8], [21.8, 38.2], [19.2, 46.2], [19.8, 56.8]],
      "lignes": ["Côté lac, la palissade est basse. Je passe souvent.", "Si tu tombes à l’eau, ne compte pas sur moi. Je ne sais pas nager."]},
     {"id": "ronde_place", "role": "epee", "sans_casque": true, "type": "ronde", "boucle": true, "poil": 3, "peau": 3, "taille": 1.02, "largeur": 1.0,
