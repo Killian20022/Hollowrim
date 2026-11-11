@@ -734,6 +734,13 @@ func _feu_de_camp() -> void:
 		ft.shape = bt
 		ft.transform = Transform3D(Basis(Vector3.UP, 0.0), sol + Vector3(0.5, 1.05, -5.4))
 		corps.add_child(ft)
+		if PropsQuaternius.pq:      # props/maximum : réserves du bivouac (MobilierVillage.BIVOUAC_PQ) : une boîte pour tonneaux et caisse
+			var fr := CollisionShape3D.new()
+			var br := BoxShape3D.new()
+			br.size = Vector3(0.8, 0.95, 2.6)
+			fr.shape = br
+			fr.transform = Transform3D(Basis(), sol + Vector3(-2.4, 0.47, -5.4))
+			corps.add_child(fr)
 
 	# grand feu en gros pixels (scripts/feu_fixe.gd) : cinq langues, lit de braises, braises qui montent, fumée, halo de chaleur, lumière à paliers
 	feu_pixels = FeuFixe.camp(self, sol)

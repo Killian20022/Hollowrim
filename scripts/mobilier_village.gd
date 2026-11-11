@@ -155,6 +155,10 @@ const SUBST_FIT := {
 	"forge_billot": ["q_billot_enclume", Vector3(0.6, 0.65, 0.55)], "forge_meule": ["q_pierre_aiguiser", Vector3(0.9, 1.0, 0.65)],
 	"tronc_banc": ["q_tronc", Vector3(0.46, 0.45, 2.4)],
 }
+## props/maximum (2026-11-11) : réserves du bivouac du feu de camp (repère du feu ; la tente couvre x -0,95..1,95, z -7,9..-2,9).
+const BIVOUAC_PQ := [["pq_tonneau", Vector3(-2.3, 0, -4.5), 0.0], ["pq_tonneau", Vector3(-2.4, 0, -5.35), 1.1],
+	["pq_caisse", Vector3(-2.45, 0, -6.3), 0.2], ["pq_cageot_vide", Vector3(-2.45, 0.7, -6.3), -0.3], ["pq_sac", Vector3(-1.65, 0, -6.6), 0.6],
+	["pq_seau_bois", Vector3(-1.75, 0, -3.95), 0.0], ["pq_corde_2", Vector3(-3.15, 0, -5.0), 0.4]]
 ## Parties des anciens modules gardées avec leur remplaçant (braises émissives des foyers : aucun équivalent Quaternius lumineux).
 const SUBST_GARDE := {"forge_foyer": ["braises"], "feu_camp": ["braises"]}
 
@@ -251,6 +255,9 @@ static func substitut(mod: String) -> Array:
 				r.append(["q_rondin", Transform3D(Basis(Vector3.UP, 0.35), Vector3(1.4, 0.3, 1.15)), {}])
 				r.append(["q_hache_camp", Transform3D(Basis(Vector3.UP, 0.9) * Basis(Vector3.RIGHT, -PI * 0.5), Vector3(1.2, 0.68, 1.3)), {"laine": "cuir"}])
 				r.append(["q_tente", Transform3D(Basis(Vector3.UP, 0.0), Vector3(0.5, 0, -5.4)), {"jute": "lin"}])      # tente de toile, entrée vers le feu
+				if PropsQuaternius.pq:      # props/maximum : réserves du bivouac contre le flanc ouest de la tente (collision : monde._feu_de_camp)
+					for pr: Array in BIVOUAC_PQ:
+						r.append([pr[0], Transform3D(Basis(Vector3.UP, float(pr[2])), pr[1]), {}])
 			else:
 				r.append(["q_bucher", _fit("q_bucher", Vector3.ZERO, 0.6, Vector3(0.9, 0.55, 0.9)), {}])
 		"forge_foyer":      # KITBASH : muret de briques Quaternius (deux rangs), braises de l'ancien module gardées
