@@ -37,12 +37,17 @@ const TEXTES := {
 }
 
 ## Premier combat guidé : chaque bulle suit un geste du joueur. Clés sauvegardées avec les autres (une seule fois par partie).
+## Textes courts : ces bulles s'affichent en haut de l'écran (sous la boussole), cadre compact, pour laisser voir le draugr et l'arme.
+## « {aide} : passer » est écrit à part, sur la ligne du titre (passer_de).
 const GUIDE := {
-	"guide_garde": ["Un draugr s'éveille : bloquer", "Il marche sur toi. Maintiens le clic droit : ta garde se lève et encaisse ses coups. Levée juste quand son arme arrive, c'est une parade : il vacille.\n({aide} : passer)"],
-	"guide_frappe": ["Frapper", "Clic gauche : coup rapide. Frappe quand il vacille, deux ou trois coups, puis remets ta garde. Chaque coup coûte de l'endurance.\n({aide} : passer)"],
-	"guide_puissant": ["Coup puissant", "Maintiens le clic gauche, puis relâche : coup puissant. Plus lent et plus coûteux, il brise sa garde et l'envoie au sol.\n({aide} : passer)"],
-	"guide_soin": ["Se soigner", "Ta vie baisse : recule et soigne-toi. Bois une potion de soin depuis le sac ({inventaire}, Potions), ou prends le sort de soin (touche 9) et maintiens le clic pour le lancer.\n({aide} : passer)"],
+	"guide_garde": ["Bloquer", "Il marche sur toi. Maintiens le clic droit : ta garde se lève. Levée quand son arme arrive : parade, il vacille."],
+	"guide_frappe": ["Frapper", "Clic gauche : coup rapide. Frappe quand il vacille, puis remets ta garde. Chaque coup coûte de l'endurance."],
+	"guide_puissant": ["Coup puissant", "Maintiens le clic gauche, puis relâche. Lent et coûteux, mais il brise sa garde et le renverse."],
+	"guide_soin": ["Se soigner", "Recule et soigne-toi : potion de soin dans le sac ({inventaire}, Potions), ou sort de soin (touche 9), clic maintenu."],
 }
+const LARGEUR_GUIDE := 192.0   # px logiques : la bulle du guide tient entre la torche et la lame
+const TITRE_GUIDE := MenuStyle.TITRE_GRAND   # le gothique à 16 se lit mal (« Coup puissant »)
+const DECALAGE_GUIDE := -10.0  # px logiques : un peu à gauche du centre, la lame tenue à droite ne touche pas le cadre
 const ORDRE_GUIDE := ["guide_garde", "guide_frappe", "guide_puissant", "guide_soin"]
 const DIST_GUIDE := 12.0    # m : le draugr est « sur » le joueur
 const DELAI_ETAPE := 10.0   # s : sans le geste demandé, l'étape suivante vient quand même
@@ -312,6 +317,9 @@ static func texte_de(cle: String) -> String:
 		t = t.replace("{" + String(a["id"]) + "}", Touches.libelles(String(a["id"])))
 	return t
 
+static func passer_de() -> String:
+	return "%s : passer" % Touches.libelles("aide")
+
 static func titre_de(cle: String) -> String:
 	return String((TEXTES[cle] if TEXTES.has(cle) else GUIDE[cle])[0])
 
@@ -337,6 +345,9 @@ func _draw() -> void:
 		return
 	var titre := titre_de(_cle)
 	var texte := texte_de(_cle)
+	if GUIDE.has(_cle):
+		_dessiner_guide(titre, texte, a)
+		return
 	var taille_texte := _police.get_multiline_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, LARGEUR, Palette.TAILLE_POLICE)
 	var t := Vector2(LARGEUR + 28.0, ceilf(taille_texte.y) + 52.0)
 	var o := Vector2(floorf((size.x - t.x) * 0.5), floorf(size.y - t.y - 62.0))
@@ -347,3 +358,19 @@ func _draw() -> void:
 	var pos := o + Vector2(14, 41)
 	draw_multiline_string(_police, pos + Vector2(1, 1), texte, HORIZONTAL_ALIGNMENT_LEFT, LARGEUR, Palette.TAILLE_POLICE, -1, Color(FOND, a))
 	draw_multiline_string(_police, pos, texte, HORIZONTAL_ALIGNMENT_LEFT, LARGEUR, Palette.TAILLE_POLICE, -1, Color(PARCHEMIN, a))
+
+## Bulle du premier combat guidé : en haut, centrée sous la boussole, compacte (le draugr et l'arme restent visibles).
+func _dessiner_guide(titre: String, texte: String, a: float) -> void:
+	var taille_texte := _police.get_multiline_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, LARGEUR_GUIDE, Palette.TAILLE_POLICE)
+	var t := Vector2(LARGEUR_GUIDE + 20.0, ceilf(taille_texte.y) + 42.0)
+	var o := Vector2(floorf((size.x - t.x) * 0.5 + DECALAGE_GUIDE), 20.0)
+	_cadre.modulate_color = Color(1, 1, 1, a)
+	draw_style_box(_cadre, Rect2(o, t))
+	_cadre.modulate_color = Color.WHITE
+	MenuStyle.texte_detoure(self, _gothique, o + Vector2(10, 26), titre, TITRE_GUIDE, OR, a)
+	var passer := "(%s)" % passer_de()
+	var lp := _police.get_string_size(passer, HORIZONTAL_ALIGNMENT_LEFT, -1, Palette.TAILLE_POLICE).x
+	draw_string(_police, o + Vector2(t.x - 10.0 - lp, 24), passer, HORIZONTAL_ALIGNMENT_LEFT, -1, Palette.TAILLE_POLICE, Color(PARCHEMIN, a * 0.7))
+	var pos := o + Vector2(10, 38)
+	draw_multiline_string(_police, pos + Vector2(1, 1), texte, HORIZONTAL_ALIGNMENT_LEFT, LARGEUR_GUIDE, Palette.TAILLE_POLICE, -1, Color(FOND, a))
+	draw_multiline_string(_police, pos, texte, HORIZONTAL_ALIGNMENT_LEFT, LARGEUR_GUIDE, Palette.TAILLE_POLICE, -1, Color(PARCHEMIN, a))

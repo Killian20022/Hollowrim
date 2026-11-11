@@ -47,7 +47,13 @@ func _go() -> void:
 	a._cle = ""
 	d.etat = d.TRAQUE
 	a._sonder()
-	await create_timer(1.0).timeout
+	# le draugr figé face au joueur (il ne vient pas se coller sous la caméra) : on juge si la bulle le laisse voir
+	await create_timer(0.4).timeout
+	d.process_mode = Node.PROCESS_MODE_DISABLED
+	j.global_position = d.global_position + Vector3(-2.5, 0.3, 4.5)
+	var v2 := d.global_position - j.global_position
+	j.rotation.y = atan2(-v2.x, -v2.z)
+	await create_timer(0.6).timeout
 	await _capturer("01_bloquer")
 	for cle in ["guide_frappe", "guide_puissant"]:
 		a._montrer(cle)
@@ -58,6 +64,7 @@ func _go() -> void:
 	a._g_vie = j.vie   # sinon le guide croit qu'il s'est déjà soigné et retire la bulle
 	await create_timer(0.8).timeout
 	await _capturer("04_se_soigner")
+	d.process_mode = Node.PROCESS_MODE_INHERIT
 	a._cle = ""
 	a.vues = {}
 	a.proposer("vol")

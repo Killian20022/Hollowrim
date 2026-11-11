@@ -48,7 +48,9 @@ func _tester() -> void:
 	Touches.liaisons["inventaire"] = [KEY_X, KEY_NONE]
 	_verif(a.texte_de("guide_soin").contains("X"), "touche du sac remappée sur X : la bulle suit")
 	Touches.liaisons["inventaire"] = avant
-	_verif(a.texte_de("guide_garde").contains(Touches.libelles("aide")), "« passer » affiche la touche d'aide (%s)" % Touches.libelles("aide"))
+	_verif(a.passer_de().contains(Touches.libelles("aide")), "« passer » affiche la touche d'aide (%s)" % Touches.libelles("aide"))
+	for cle in a.GUIDE:
+		_verif(a.texte_de(cle).length() <= 125, "bulle du guide « %s » compacte (%d caractères)" % [cle, a.texte_de(cle).length()])
 	var t_att := a.texte_de("sommeil")
 	_verif(t_att.contains(Touches.libelle("attendre")), "le sommeil affiche la touche d'attente (%s)" % Touches.libelle("attendre"))
 
