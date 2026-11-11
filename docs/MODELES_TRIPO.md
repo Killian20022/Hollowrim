@@ -1,5 +1,12 @@
 # Modèles Tripo par défaut, anciens modèles pour les factions
 
+**2026-11-11 (branche `pnj/gardes_armures_maison`) : ARMURES TRIPO DES GARDES ABANDONNÉES** (trous impossibles à boucher). Par défaut, les 14 gardes et
+Haldor sont le corps Quaternius du Gardien (`GardienNordique`) habillé par `ArmureVisible` avec nos armures maison : `GardeMaison`
+(`scripts/garde_maison.gd`), tout dans `data/gardes.json` (`ensembles` = ids d'armures par emplacement, `roles` = ensemble + arme, et par garde
+`role`, `ensemble`, `pieces`, `sans_casque`). Lanciers = fer, gardes à l'épée et Haldor = acier nordique, archers = cuir / fourrure, élite `n_e` =
+verre, garde du chef `halle_e` = or. Les corps Tripo ci-dessous restent chargeables : `--gardes-armures-tripo` (ou `--modeles-anciens=gardes` pour
+le Gardien d'origine). Le jarl Gunnar (Tripo sans armure) ne change pas.
+
 Lot tripo/gardiens (2026-11-10) : les dix autres gardes du village et Haldor passent aussi sur les corps `GardeTripo` (mêmes glb), avec des livrées en variantes de texture.
 
 Lot 2 (2026-11-09, branche `integration/lot2`) : armure dorée (garde `halle_e`), mage, puits et auberge h2 Tripo ajoutés, par défaut eux aussi.
