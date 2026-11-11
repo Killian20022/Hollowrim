@@ -210,6 +210,17 @@ func _go() -> void:
 			j.tete.rotation.x = deg_to_rad(-14.0)
 			for k in 30:
 				await process_frame
+		"ferme":      # PropsMax v3 : intérieur d'un bâtiment ouvert (--bat=ferme_a par défaut), vue sur ses coins de métier
+			var tf2 := Time.get_ticks_msec()
+			while m.village.get("prets") != true and Time.get_ticks_msec() - tf2 < 90000:
+				await process_frame
+			var ib: Interieur = m.village.interieur(_arg("bat", "ferme_a"))
+			j.global_position = ib.to_global(Vector3(0.0, ib.sol_y + 0.05, 0.6))
+			j.velocity = Vector3.ZERO
+			j.rotation.y = ib.global_rotation.y
+			j.tete.rotation.x = deg_to_rad(-12.0)
+			for k in 30:
+				await process_frame
 		"crypte", "combat":
 			var tt := Time.get_ticks_msec()
 			while not m.tertre._donjon_pret() and Time.get_ticks_msec() - tt < 90000:
