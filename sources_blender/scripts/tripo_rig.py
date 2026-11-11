@@ -445,7 +445,7 @@ arm.name = "Armature"
 
 # 5b. îlots du poignet raccordés à leur surface (raccord_ilots.py : posés sur le voisin à <= 4 mm et mêmes poids, rien n'est supprimé) ;
 # lancier et archer seulement (le garde à l'épée sort comme avant). --sans-raccord=1 : sans.
-if MODELE in ("garde_lance",) and not arg("sans-raccord"):
+if MODELE in ("garde_lance", "archer") and not arg("sans-raccord"):
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import raccord_ilots
     raccord_ilots.raccorder(garde, arm)
