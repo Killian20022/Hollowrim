@@ -25,7 +25,7 @@ const TRIS_HD_ID := {"cuirasse_or": 3000, "cuirasse_or_enchante": 3000, "bottes_
 		"cuirasse_or_serment": 3000, "bottes_or_fafnir": 3200}
 ## Passe 2 « géométrie » des armures précieuses (2026-11-11, budget validé : ~6-8 k triangles par ensemble porté) : cadres de
 ## cristal en volume, rivets, lanières, mèches. Pièces des familles ci-dessous (et leurs variantes enchantées).
-const TRIS_P2 := {"torse": 4000, "tete": 1500, "mains": 1350, "pieds": 1400, "jambes": 1200}
+const TRIS_P2 := {"torse": 4100, "tete": 1500, "mains": 1400, "pieds": 1700, "jambes": 1200}
 const FAMILLES_P2 := ["verre", "rubis", "saphir", "cuir", "fourrure", "gardiens", "braise", "thaumaturge", "jarl", "rodeur", "hrafn"]
 const TEX_MAX := 1024
 const PiecesEssai := preload("res://outils/pieces_essai.gd")

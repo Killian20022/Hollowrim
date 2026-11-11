@@ -416,7 +416,7 @@ def relief_verre(o, ident, matiere, mats):
         return matiere, mats
     if kind == "casque":      # heaume : coque de cristal d'un seul tenant -> cadre de métal au bord (visage, nuque) + facettes
         RF.sertir(o, {P_VERRE}, P_CADRE, largeur=pr["largeur"], saillie=pr["saillie"], bombe=pr["bombe"],
-                  centre_fn=RF.corps_proche(RS.corps()), dehors_min=0.0, aire_min=0.004)
+                  centre_fn=RF.corps_proche(RS.corps()), dehors_min=0.0, aire_min=0.012, anneaux=1)
     riv = pr.get("rivet")
     pts = list(RIVETS_EN_ATTENTE)
     RIVETS_EN_ATTENTE.clear()
@@ -887,8 +887,9 @@ def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=
         eu = min(cadre / demi_larg, 0.20)
         long_ = abs(ys[-1] - ys[0])
         ev = min(cadre, 0.22 * long_)
-        if demi_larg >= 0.028 and long_ >= 0.045 and ev > 0.003:
-            us = [-1.0, -1.0 + eu] + [-1 + eu + (2 - 2 * eu) * j / n for j in range(1, n)] + [1.0 - eu, 1.0]
+        if demi_larg >= 0.034 and long_ >= 0.05 and ev > 0.003:
+            ni = max(2, n - 1)       # le cadre apporte deux colonnes : une colonne intérieure de moins (budget)
+            us = [-1.0, -1.0 + eu] + [-1 + eu + (2 - 2 * eu) * j / ni for j in range(1, ni)] + [1.0 - eu, 1.0]
             fr_col = {0, len(us) - 1}
             sg = 1.0 if ys[-1] > ys[0] else -1.0
             ys = [ys[0], ys[0] + sg * ev] + list(ys[1:-1]) + [ys[-1] - sg * ev, ys[-1]]
@@ -966,7 +967,7 @@ def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=
             faces.append(f)
         except ValueError:
             pass
-    if encadre and RIVETS_VERRE and abs(ys[-1] - ys[0]) > 0.09 and demi_larg > 0.045:
+    if encadre and RIVETS_VERRE and abs(ys[-1] - ys[0]) > 0.14 and demi_larg > 0.05:
         RIVETS_EN_ATTENTE.extend([lignes[1 + ii][jj].co.copy() for ii in (1, k - 2) for jj in (1, n - 1)])
     bmesh.ops.remove_doubles(bm, verts=list({v for f in faces for v in f.verts}), dist=0.0004)
     faces = [f for f in faces if f.is_valid]

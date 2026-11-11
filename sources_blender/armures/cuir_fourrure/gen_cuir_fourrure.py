@@ -617,7 +617,7 @@ def resserrer_piece(o, ident, mats, slot):
     me.materials.clear()
 
 
-TRIS_P2 = {"armure": 4000, "capuche": 1500, "casque": 1500, "gants": 1350, "bottes": 1400}   # passe 2 (relief) : budget validé
+TRIS_P2 = {"armure": 4100, "capuche": 1500, "casque": 1500, "gants": 1400, "bottes": 1700}   # passe 2 (relief) : budget validé
 
 
 def relief_cf(o, ident):
@@ -632,16 +632,35 @@ def relief_cf(o, ident):
         RF.laniere(o, devant, 0.034, 0.0045, 1, decal=0.0045, cle_boucle=9, boucles=(0.42,), centre_fn=corps)
         RF.laniere(o, dos, 0.034, 0.0045, 1, decal=0.0045, centre_fn=corps)
         # sangles d'épaulière (bras) : une sangle autour du haut de chaque bras, boucle dehors
-        RF.ourler(o, {0, 1, 3, 10}, epaisseur=0.004, retour=0.003)
+        for sx in (1, -1):
+            cx, cy = sx * 0.315, 1.405
+            tour = [B(cx, cy + 0.075 * math.cos(a), 0.075 * math.sin(a)) for a in [math.radians(d) for d in range(-90, 271, 30)]]
+            RF.laniere(o, tour, 0.022, 0.004, 1, decal=0.004, cle_boucle=9, boucles=(0.25,), centre_fn=corps)
+        RF.ourler(o, {0, 1, 3, 10}, epaisseur=0.004, retour=0.003, filtre=lambda p: G(p).y < 0.80 or abs(G(p).x) > 0.33)
     elif ident == "armure_fourrure":
         RF.meches(o, {4}, lambda p: G(p).y > 1.30, longueur=0.040, largeur=0.016, pas=0.030, cle_meche=11, tombe=0.6, graine=5,
                   centre_fn=corps, dehors_min=0.2)
-        RF.ourler(o, {0, 1, 13}, epaisseur=0.004, retour=0.003)
+        RF.ourler(o, {0, 1, 13}, epaisseur=0.004, retour=0.003, filtre=lambda p: G(p).y < 0.80 or abs(G(p).x) > 0.33)
+    elif ident == "capuche_cuir":
+        # encoche sombre de la nuque : dernières faces retournées (pli du drapé) -> toutes vers l'extérieur de l'axe tête/cou
+        me = o.data
+        n_inv = 0
+        for p in me.polygons:
+            c = G(o.matrix_world @ p.center)
+            if not (1.30 < c.y < 1.64):
+                continue
+            ax = Vector((0.0, c.y, COU.z if c.y < COU.y + 0.05 else TETE.z))
+            d = Vector((c.x - ax.x, 0.0, c.z - ax.z))
+            if d.length > 0.02 and G(p.normal).dot(d.normalized()) < -0.1:
+                p.flip()
+                n_inv += 1
+        me.update()
+        print("CAPUCHE faces du pli retournées", n_inv)
     elif ident == "casque_fourrure":
         RF.meches(o, {4, 5, 11}, lambda p: G(p).y < TETE.y + 0.02, longueur=0.028, largeur=0.013, pas=0.026, cle_meche=11, tombe=0.7,
                   graine=7, centre_fn=corps, dehors_min=0.1)
-    elif ident in ("bottes_cuir", "bottes_fourrure", "gants_cuir", "gants_fourrure"):
-        RF.ourler(o, {0}, epaisseur=0.0035, retour=0.0025)
+    elif ident in ("bottes_cuir", "bottes_fourrure"):
+        RF.ourler(o, {0}, epaisseur=0.0035, retour=0.0025, filtre=lambda p: G(p).y > 0.30)     # haut de tige épais
     print("RELIEF", ident, avant, "->", L.nb_tris(o), "tris")
 
 

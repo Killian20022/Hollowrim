@@ -1139,7 +1139,7 @@ RELIEF_RS = {   # passe 2 : largeur du cadre (= liseré peint, bd < 13 mm), sail
     "cuirasse": dict(largeur=0.012, saillie=0.0030, bombe=0.008, rivet=(0.0030, 0.0028)),
     "casque": dict(largeur=0.010, saillie=0.0026, bombe=0.006, rivet=(0.0026, 0.0024)),
     "gantelets": dict(largeur=0.008, saillie=0.0022, bombe=0.005, rivet=None, aire_min=0.0025),
-    "bottes": dict(largeur=0.010, saillie=0.0026, bombe=0.007, rivet=(0.0026, 0.0024), aire_min=0.0045),
+    "bottes": dict(largeur=0.010, saillie=0.0026, bombe=0.0, rivet=None, aire_min=0.006, facettes=False),
 }
 
 

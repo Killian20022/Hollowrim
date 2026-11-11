@@ -533,7 +533,7 @@ def relief_uniques(ob, pid):
     elif pid == "cuirasse_gardiens":
         k = _mat(ob, "acier.givre")
         if k is not None:
-            RF.nervurer(ob, {k}, lambda p: abs(p.x) < 0.016 and p.y < -0.02 and 1.06 < p.z < 1.42, saillie=0.004, largeur=0.006,
+            RF.nervurer(ob, {k}, lambda p: abs(p.x) < 0.035 and p.y < -0.02 and 1.06 < p.z < 1.42, saillie=0.004, largeur=0.008,
                         centre_fn=corps, dehors_min=0.3)
             RF.ourler(ob, {k}, epaisseur=0.004, retour=0.002)
     elif pid == "capuche_thaumaturge":

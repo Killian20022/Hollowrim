@@ -483,6 +483,13 @@ def laniere(ob, points, largeur, epaisseur, cle, decal=0.004, pas=0.025, cle_bou
         loc, nrm, _, _ = arbre.find_nearest(p, 0.3)
         if loc is None:
             continue
+        if centre_fn is not None:            # surface la plus EXTÉRIEURE (par-dessus les plaques) : rayon du dehors vers le corps
+            o = centre_fn(p)
+            if o is not None and (p - o).length > 1e-4:
+                dr = (p - o).normalized()
+                h = arbre.ray_cast(o + dr * 0.30, -dr, 0.30)
+                if h[0] is not None:
+                    loc, nrm = h[0], h[1]
         if centre_fn is not None:
             o = centre_fn(loc)
             if o is not None and nrm.dot(loc - o) < 0:
