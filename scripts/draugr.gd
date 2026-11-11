@@ -1518,13 +1518,13 @@ var _butin: Node3D      # bourse laissée sur le corps (le cadavre reste tant qu
 ## Ce qu'il faut pour refaire le modèle du corps (sauvegarde du butin, dépouille statique) : type, arme, teinte, boss, échelle, lacet.
 func spec_depouille() -> Dictionary:
 	return {"type": type, "archer": archer, "boss": boss, "zombie": zombie, "variante": variante, "teinte_os": teinte_os, "ident": ident, "modele_ancien": modele_ancien,
-		"echelle": echelle, "lacet": snappedf(global_rotation.y, 0.01)}
+		"echelle": echelle, "lacet": snappedf(global_rotation.y, 0.01), "bandit": apparence.has("tenue") and not bool(apparence.get("draugr", true))}
 
 ## Modèle seul d'un corps (voir spec_depouille) en pose Death01 allongée : mêmes fabriques que _ready, aucune physique ni IA.
 static func modele_depouille(spec: Dictionary) -> Node3D:
 	var t := String(spec.get("type", "guerrier"))
 	var arch := bool(spec.get("archer", false)) or t == "squelette_archer"
-	var app := EnnemisNordiques.apparence_defaut(t, {})
+	var app := EnnemisNordiques.apparence_defaut(t, {"draugr": false} if bool(spec.get("bandit", false)) else {})   # bandit : son corps de bandit, pas un draugr
 	var m: Node3D
 	if t.begins_with("squelette"):
 		m = EnnemisNordiques.squelette({"type": t, "archer": arch, "ident": String(spec.get("ident", "")), "variante": String(spec.get("variante", "")), "teinte": String(spec.get("teinte_os", "")), "modele_ancien": bool(spec.get("modele_ancien", false))})
