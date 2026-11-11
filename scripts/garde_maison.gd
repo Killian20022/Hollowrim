@@ -191,7 +191,29 @@ static func _base(arme: String, bouclier: String) -> Node3D:
 	var acc := sq.get_node_or_null("accessoires") as MeshInstance3D
 	if acc != null:
 		_separer_armes(sq, acc)
+	if bouclier == "dos":
+		_reculer_bouclier_dos(sq)
 	return b
+
+## Bouclier porté dans le dos (rondes) : posé pour le Gardien en cotte (centre à z = -0,21), il entrait dans la dossière des cuirasses
+## (z ≈ -0,26) et le pan arrière du tabard : reculé de RECUL_DOS (attaches de spine_03 du maillage « armes_garde », repère de repos).
+const RECUL_DOS := 0.085
+static func _reculer_bouclier_dos(sq: Skeleton3D) -> void:
+	var mi := sq.get_node_or_null("armes_garde") as MeshInstance3D
+	var os_ := sq.find_bone("spine_03")
+	if mi == null or mi.skin == null or os_ < 0:
+		return
+	var sk := mi.skin.duplicate() as Skin
+	for i in sk.get_bind_count():
+		var nom := String(sk.get_bind_name(i))
+		if (sq.find_bone(nom) if nom != "" else sk.get_bind_bone(i)) == os_:
+			sk.set_bind_pose(i, sk.get_bind_pose(i) * Transform3D(Basis(), Vector3(0, 0, -RECUL_DOS)))
+	mi.skin = sk
+	var bo: Array = sq.get_meta("bouclier", [])
+	if bo.size() >= 2:
+		bo = bo.duplicate()
+		bo[1] = Transform3D((bo[1] as Transform3D).basis, (bo[1] as Transform3D).origin - Vector3(0, 0, RECUL_DOS))
+		sq.set_meta("bouclier", bo)
 
 ## Triangles de la lance (rigides sur hand_r, le long de la hampe) et du bouclier (rigides sur son os, dans son disque) -> « armes_garde ».
 static func _separer_armes(sq: Skeleton3D, acc: MeshInstance3D) -> void:

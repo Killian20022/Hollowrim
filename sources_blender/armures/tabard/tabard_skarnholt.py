@@ -35,7 +35,8 @@ APERCUS = ARGS[0] if ARGS else os.path.join(L.ROOT, "sources_blender", "armures"
 # ----------------------------------------------------------------------------------------------------------- réglages
 NX = 14                 # colonnes d'un pan
 Y_HAUT = 1.47           # haut des pans (glissé sous le col de fourrure)
-Y_OURLET = 0.585        # ourlet (sous la jupe des cuirasses, qui finit à 0,64 ; genou à 0,54)
+Y_OURLET = 0.605        # ourlet (sous la jupe des cuirasses, qui finit à 0,64 ; genou à 0,54)
+Y_OURLET_DOS = 0.685    # pan arrière plus court : le talon relevé à la course (Jog_Fwd) le traversait sous 0,68
 PAS_Y = 0.024
 JEU = 0.016             # au-dessus des plaques
 JEU_BAS = 0.022         # sous la ceinture (pans de jupe mobiles)
@@ -43,13 +44,16 @@ EPAIS = 0.005
 Y_CEINT = 0.995         # milieu de la ceinture
 H_CEINT = 0.052
 TEX = 512
+SUIVI_CUISSE = 0.55     # part de la cuisse du côté dans le bas des pans
+Y_FENTE = 0.84          # fente du pan arrière (sous la ceinture)
+SUIVI_MOLLET = 0.30    # bas du pan arrière : part du mollet du côté (le talon relevé à la course soulève le pan)
 
 
 def demi_largeur(y, dos=False):
     """Demi-largeur du pan à la hauteur y (épaules étroites sous les épaulières, évasé vers l'ourlet)."""
-    pts = [(1.47, 0.125), (1.38, 0.160), (1.25, 0.170), (1.05, 0.160), (0.90, 0.172), (0.585, 0.200)]
+    pts = [(1.47, 0.125), (1.38, 0.160), (1.25, 0.170), (1.05, 0.160), (0.90, 0.172), (0.605, 0.200)]
     if dos:
-        pts = [(1.47, 0.135), (1.38, 0.168), (1.25, 0.175), (1.05, 0.162), (0.90, 0.175), (0.585, 0.205)]
+        pts = [(1.47, 0.135), (1.38, 0.168), (1.25, 0.175), (1.05, 0.162), (0.90, 0.175), (0.605, 0.205)]
     for (y0, w0), (y1, w1) in zip(pts, pts[1:]):
         if y1 <= y <= y0:
             t = (y0 - y) / (y0 - y1)
@@ -121,13 +125,13 @@ for dos in (False, True):
 
 
 # ----------------------------------------------------------------------------------------------------------- pans
-def rangees():
+def rangees(fin=Y_OURLET):
     ys = []
     y = Y_HAUT
-    while y > Y_OURLET + 1e-6:
+    while y > fin + 0.008:
         ys.append(y)
         y -= PAS_Y
-    ys.append(Y_OURLET)
+    ys.append(fin)
     return ys
 
 
@@ -140,7 +144,7 @@ def pli(x, y):
 
 
 def construire_pan(dos):
-    ys = rangees()
+    ys = rangees(Y_OURLET_DOS if dos else Y_OURLET)
     ny = len(ys)
     s = -1.0 if dos else 1.0
     Z = np.full((ny, NX + 1), np.nan)
@@ -199,11 +203,21 @@ def construire_pan(dos):
             if j == ny - 1:
                 # ourlet en dents (effiloché), légèrement irrégulier
                 yy = y + (0.0 if i % 2 == 0 else 0.013) + 0.004 * math.sin(i * 2.3 + (1.7 if dos else 0.0))
-            ligne.append((bm.verts.new(B(x, yy, z * s)), i / NX, (Y_HAUT - yy) / (Y_HAUT - Y_OURLET + 0.02)))
+            vv = (Y_HAUT - yy) / (Y_HAUT - Y_OURLET + 0.02)
+            if dos and i == NX // 2 and y < Y_FENTE:
+                # FENTE du pan arrière (comme la jupe des cuirasses) : deux sommets écartés, chaque moitié suit sa jambe
+                ligne.append(((bm.verts.new(B(x - 0.004, yy, z * s)), i / NX, vv), (bm.verts.new(B(x + 0.004, yy, z * s)), i / NX, vv)))
+            else:
+                ligne.append((bm.verts.new(B(x, yy, z * s)), i / NX, vv))
         V.append(ligne)
+
+    def sommet(j, i, cote):
+        a = V[j][i]
+        return a[cote] if isinstance(a[0], tuple) else a
+
     for j in range(ny - 1):
         for i in range(NX):
-            q = [V[j][i], V[j][i + 1], V[j + 1][i + 1], V[j + 1][i]]
+            q = [sommet(j, i, 1), sommet(j, i + 1, 0), sommet(j + 1, i + 1, 0), sommet(j + 1, i, 1)]
             f = bm.faces.new([a[0] for a in q])
             f[part] = 1 if dos else 0
             for lp, a in zip(f.loops, q):
@@ -359,8 +373,42 @@ for p in TAB.data.polygons:
 # ----------------------------------------------------------------------------------------------------------- poids
 src = CUIRASSES[0]
 pw = L.poids_proches(TAB, src, k=6, filtre=lambda p: p.y > 0.60)
+# le haut des pans ne suit pas les bras (épaulières) : poids des bras rendus aux clavicules
+def sans_bras(d):
+    r = {}
+    for k_, w in d.items():
+        k2 = k_.replace("upperarm", "clavicle") if k_.startswith("upperarm") else k_
+        r[k2] = r.get(k2, 0.0) + w
+    return r
+
+
+pw = [sans_bras(d) for d in pw]
 pw = L.normaliser(pw)
 pw = L.lisser_poids(TAB, pw, iterations=3, force=0.5)
+pw = L.normaliser(pw)
+
+
+def cote_cuisse(d, p):
+    """Bas des pans : chaque moitié suit davantage la cuisse de son côté (le genou levé pousse le drap au lieu de le traverser)."""
+    if p.y > 0.92 or abs(p.z) < 0.08:
+        return d
+    t = min(1.0, (0.92 - p.y) / 0.26)
+    k = SUIVI_CUISSE * t * min(1.0, abs(p.x) / 0.09)
+    if k <= 0.0:
+        return d
+    os_c = "thigh_l" if p.x > 0 else "thigh_r"
+    r = {n_: w * (1 - k) for n_, w in d.items()}
+    r[os_c] = r.get(os_c, 0.0) + k
+    if p.z < 0 and p.y < Y_FENTE:
+        km = SUIVI_MOLLET * min(1.0, (Y_FENTE - p.y) / 0.22) * min(1.0, abs(p.x) / 0.05)
+        os_m = "calf_l" if p.x > 0 else "calf_r"
+        r = {n_: w * (1 - km) for n_, w in r.items()}
+        r[os_m] = r.get(os_m, 0.0) + km
+    return r
+
+
+pw = [cote_cuisse(d, G(TAB.matrix_world @ v.co)) for d, v in zip(pw, TAB.data.vertices)]
+pw = L.lisser_poids(TAB, pw, iterations=1, force=0.4)
 pw = L.normaliser(pw)
 L.ecrire_poids(TAB, pw)
 os_utilises = {}
@@ -398,7 +446,15 @@ def segs_arbre():
               ((sg * 0.060, 0.094), (sg * 0.050, 0.112), 0.0040),
               ((0, -0.064), (sg * 0.040, -0.086), 0.0060),
               ((sg * 0.040, -0.086), (sg * 0.066, -0.090), 0.0045),
-              ((0, -0.066), (sg * 0.018, -0.096), 0.0050)]
+              ((0, -0.066), (sg * 0.018, -0.096), 0.0050),
+              ((sg * 0.078, 0.060), (sg * 0.094, 0.074), 0.0032),
+              ((sg * 0.090, 0.040), (sg * 0.102, 0.050), 0.0030),
+              ((sg * 0.066, 0.034), (sg * 0.080, 0.022), 0.0030),
+              ((sg * 0.060, 0.094), (sg * 0.074, 0.104), 0.0030),
+              ((sg * 0.030, 0.090), (sg * 0.040, 0.104), 0.0030),
+              ((sg * 0.020, 0.110), (sg * 0.010, 0.124), 0.0028),
+              ((sg * 0.050, 0.112), (sg * 0.044, 0.124), 0.0028),
+              ((sg * 0.066, -0.090), (sg * 0.080, -0.098), 0.0030)]
     s.append(((0, 0.030), (0, 0.118), 0.0060))
     return s
 
@@ -422,11 +478,11 @@ def srgb(h):
     return c          # octets de l'image = valeurs sRGB (comme armures_lib.hexa)
 
 
-ROUGE = srgb("6e1a22")
-ROUGE_S = srgb("4a1018")
-GALON = srgb("c4bba8")
-FIL = srgb("ddd5c2")
-FIL_S = srgb("8e8574")
+ROUGE = srgb("4c0f17")
+ROUGE_S = srgb("2a070c")
+GALON = srgb("a9a79f")
+FIL = srgb("c8c2b2")
+FIL_S = srgb("6e675a")
 CUIR = srgb("2e2119")
 FER = srgb("6a6c70")
 
@@ -457,7 +513,8 @@ def peindre_pan(dos):
     c *= (1.0 - 0.35 * np.clip((y - (Y_HAUT - 0.05)) / 0.05, 0, 1))[:, None]
     c *= (1.0 - 0.28 * np.exp(-((y - Y_CEINT) / 0.04) ** 2))[:, None]
     # galon : liseré sombre au bord, filet clair double à l'intérieur
-    db = np.minimum(w - np.abs(x), np.minimum(Y_HAUT - y, (y - Y_OURLET) + 0.02))
+    oy = Y_OURLET_DOS if dos else Y_OURLET
+    db = np.minimum(w - np.abs(x), np.minimum(Y_HAUT - y, (y - oy) + 0.02))
     dl = w - np.abs(x)                  # côtés seulement pour le filet intérieur bas
     bord = db < 0.005
     c[bord] = ROUGE_S * 0.8
@@ -468,15 +525,15 @@ def peindre_pan(dos):
     c[f2] = gal[f2] * 0.92
     # emblème : arbre brodé (fil clair, contour sombre, point lancé en diagonale)
     ye = 1.225 if not dos else 1.215
-    sc = 1.18 if not dos else 1.25
-    d = dist_segs(x / sc, (y - ye) / sc, [(a_, b_, e_ * 1.4) for (a_, b_, e_) in segs_arbre()])
+    sc = 1.10 if not dos else 1.18
+    d = dist_segs(x / sc, (y - ye) / sc, [(a_, b_, e_ * 0.95) for (a_, b_, e_) in segs_arbre()])
     pt = 0.82 + 0.18 * (np.sin((x + y) * 2 * math.pi / 0.004) > 0)
     cont = (d > 0) & (d < 0.0032)
     c[cont] = c[cont] * 0.45 + FIL_S * 0.15
     dedans = d <= 0
     c[dedans] = FIL[None, :] * pt[dedans, None] * (0.88 + 0.12 * lent[dedans, None])
     # ourlet effiloché : fils clairs/sombres qui pendent, bas usé et sali
-    hb = (y - Y_OURLET)
+    hb = (y - oy)
     fils = bruit2(x * 3.0, np.zeros_like(x), 260.0, 7)
     zone = hb < 0.035
     k = np.clip(1 - hb / 0.035, 0, 1)
@@ -485,7 +542,7 @@ def peindre_pan(dos):
     sale = np.clip((0.80 - y) / 0.22, 0, 1) * (0.5 + 0.5 * lent)
     c = c * (1 - 0.25 * sale[:, None]) + srgb("3a2e26")[None, :] * (0.25 * sale[:, None])
     RGBA[m, :3] = np.clip(c, 0, 1)
-    RGBA[m, 3] = 0.06 + 0.10 * dedans + 0.05 * f1
+    RGBA[m, 3] = 0.05 + 0.06 * dedans + 0.04 * f1
 
 
 peindre_pan(False)

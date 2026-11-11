@@ -126,11 +126,11 @@ func _tester() -> void:
 				if w[k] > 0.02:
 					os_pondres[String(lv2.skin.get_bind_name(bo[k]))] = true
 		for nom: String in os_pondres:
-			if nom.contains("hand") or nom.contains("foot") or nom.contains("lowerarm") or nom.contains("calf"):
+			if nom.contains("hand") or nom.contains("foot") or nom.contains("lowerarm") or nom.contains("upperarm"):
 				os_ok = false
 		print("    os pondérés du tabard : ", os_pondres.keys())
 		_verif(ouvertes == 0 and tris > 3000 and tris < 8000, "tabard : maillage fermé (%d arêtes ouvertes), %d triangles" % [ouvertes, tris])
-		_verif(os_ok, "tabard : attaché au torse / bassin / cuisses (ni mains, ni avant-bras, ni pieds)")
+		_verif(os_ok, "tabard : attaché au torse / bassin / jambes (ni bras, ni mains, ni pieds ; mollets : bas du pan arrière fendu)")
 		_verif(mats.size() == 3 and str(mats).contains("tissu") and str(mats).contains("cuir"), "tabard : matières %s" % [mats])
 	mt2.free()
 	# démembrement : bras droit tranché d'un garde à l'épée -> le morceau emporte gantelet et cuirasse (maillages d'armure copiés)
@@ -166,7 +166,7 @@ func _tester() -> void:
 		var sur_cuisse := false
 		var sq3 := gm.find_child("Skeleton3D", true, false) as Skeleton3D
 		for i in lv3.skin.get_bind_count():
-			if String(lv3.skin.get_bind_name(i)) == "thigh_l":
+			if String(lv3.skin.get_bind_name(i)) in ["thigh_l", "calf_l"]:
 				sur_cuisse = true
 		_verif(not copie and not sur_cuisse and lv3.get_parent() == sq3 and lv3.visible, "démembrement : le tabard reste au corps (pas dans le morceau, attaches de la cuisse coupée passées au bassin)")
 	else:
