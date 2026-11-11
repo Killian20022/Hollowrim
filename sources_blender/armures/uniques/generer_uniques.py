@@ -499,7 +499,7 @@ def parametres_resserrer(pid):
         if pid in ("heaume_jarl",):
             return (0.012, 0.8)
         if pid == "capuche_thaumaturge":
-            return (0.010, 0.55) if y < 1.55 else (0.012, 0.75)
+            return (0.012, 0.4) if y < 1.55 else (0.025, 0.3)   # côtés de la capuche : 10-11 cm du crâne -> ~6 cm (place des cheveux)
         if "bottes" in pid:
             return (0.012, 0.9) if fur else (0.006, 0.7)
         if fur and y > 1.36:
@@ -523,7 +523,9 @@ def main():
         r = C.charger_reference()
         ob = PIECES[pid](r)
         if "--sans-resserrer" not in sys.argv:
-            RS.resserrer(ob, parametres_resserrer(pid))
+            # capuche du thaumaturge : le camail des épaules est fait de petits pans séparés (îles < 20 cm) qui suivaient la
+            # capuche d'un bloc et restaient à 10 cm des épaules : îles traitées sommet par sommet, compression plus forte
+            RS.resserrer(ob, parametres_resserrer(pid), **({"diag_ile": 0.05, "dmax": 0.14} if pid == "capuche_thaumaturge" else {}))
         print("PIECE", pid, C.compter_tris(ob), "tris", "groupes", len(ob.vertex_groups),
               "texture", next(n for n in ob.data.materials[0].node_tree.nodes if n.type == "TEX_IMAGE").image.size[:])
         if exporter:
