@@ -309,7 +309,7 @@ barrières, bâti) ou une autre composition. Une composition par image (l'écran
 | portail des champs B et C | récolte rentrée | tonneau de pommes, sacs, cageots de carottes et de pommes, seau |
 | fermes A et B, lisière du feu de camp | 3 bûchers | rondins en trois rangs, billot (souche) + hache plantée, bûches |
 | lisière sud (7, −19) | campement de chasseur | tente, foyer éteint + marmite, rondin-banc, séchoir (viande, poisson), 2 pièges à ours, sac, corde, seau, hachette |
-| cercle runique, tumulus | offrandes | vases, urne brisée, calice, bougies éteintes, pain, pommes, pièces |
+| cercle runique, tumulus | offrandes | dalle basse : crâne, calice, bougies, pain, pomme, pièces dessus ; vases, urne, pomme au pied |
 | fourches (cercle, tumulus, grotte) | 3 poteaux indicateurs | poteau, deux planches en flèche, lanterne murale éteinte |
 | devant la grotte (86,5, −21,5) | réserve des bandits | caisses empilées, caisse ferrée, tonneau, sac, bûches |
 
@@ -339,3 +339,16 @@ caisse + corde + hachette, bûches, sac. Paysans et fermes : sacs, cageot de car
 tonneaux, cageots, bûches. Moulins : sacs de farine, caisses + sac, tonneaux. Grenier : caisses, tonneau de pommes, cageots, sacs. Grange :
 établi, outils, sacs, bûches, seau. Étable : seaux, sac. Tour du guet : caisse + bouclier, tonneau. Bûches empilées bouts sciés vers la
 pièce (lisibles). `test_interieurs` : OK (1 087 s, machine chargée).
+
+### Mesures v3 (`outils/audit_mesure_lieu.gd`, 21 h, 12 s, médiane GPU en ms, passes alternées v2 = `--sans-props-v3` / v3, machine chargée)
+
+| Lieu | v2 | v3 | Appels / primitives |
+|---|---|---|---|
+| témoin (4 passes alternées) | 10,70 / 10,82 / 10,20 / 9,54 (moy. 10,32) | 9,18 / 10,84 / 9,22 / 10,79 (moy. 10,01) | 503-507 → 507-511 ; 520 k → 531-534 k (+2,6 %) |
+| champs (86, 50), 4 passes | 14,11 / 14,56 / 12,39 / 11,45 | 13,21 / 13,32 / 12,51 / 11,82 | 1 138 → 1 136 ; 1,210 M → 1,218 M |
+| grotte | 3,49 | 3,53 | 377 → 381 |
+| crypte | 3,04 | 3,08 | — |
+| ferme A (intérieur), 4 passes | 7,58 / 8,62 / 7,07 / 8,14 | 7,86 / 6,56 / 7,94 / 8,03 | ~438 → 442 ; 527 k → 540 k |
+
+CPU médian témoin 1,80 → 1,70 ms (stable). Écart dans le bruit partout, sous le budget +0,5 ms. Chargement des abords ≈ 0,4 s, étalé sur
+une image par composition. Planches avant/après : `Desktop/Skyrim captures/a_voir_2026-11-11/props/v3_*.png` (gauche avant, droite après).
