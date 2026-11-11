@@ -393,11 +393,18 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
   `data/armes/claymore_longue.tres` (habillage « claymore », écart des mains 11 cm). L'ancienne n°05 reste (`claymore.tres`).
 - Matériaux réalistes À PART : `scripts/objets/claymore_materiaux.gd` (ClaymoreMateriaux : rubis profond translucide via
   EpeesLongues.shader_verre, fer usé, cuir à couture) ; `scripts/objets/epees_longues.gd` NON modifié.
-- Tenues : lame penchée à droite (repos ~35°, garde ~55°). Coups : arcs de cercle denses (une clé par 1/60 s, axe fixe, temps
+- Tenues (v2-v3, redressées en v4, voir plus bas) : lame penchée à droite (repos ~35°, garde ~55°). Coups : arcs de cercle denses (une clé par 1/60 s, axe fixe, temps
   en une seule courbe douce), poing sur un petit cercle à droite-bas du centre pour que la lame balaie le réticule ; lame
   demandée ramenée vers le plan de l'écran (sinon vue en bout) ; torsion continue ; butées « large » élargies pour ces clips.
 - Épaule gauche : avancée jusqu'à 40 cm. Limite : poing gauche à ~8 cm de la fusée au milieu de l'arc de la diagonale et
   de la puissante (≤ 3,3 cm ailleurs).
+- **Claymore v4 (branche combat/claymore_v4, 2026-11-11 : « trop penchée, coups au ralenti, plus détaillée »)** :
+  modèle `sources_blender/epees_hybrides/claymore_v4.py` → `deux_mains/claymore_v4.glb` (3 060 tris contre 1 033 : lame rubis à
+  18 pans et gouttière, runes, ricasso à crochets, quillons inclinés à quatrefeuilles, fusée filetée, pommeau en roue), tenu par
+  `claymore.tres` (même id, mêmes stats ; habillage « claymore », prise de la claymore longue) ; l'ancien `claymore.glb` reste.
+  Tenue redressée : repos ~6° de la verticale à l'écran (était 37°), garde 17° (31°) ; 3e personne `CorpsMainsTps.RedresseDeuxMains`
+  ~19° (39°). Coups plus vifs (temps des clips Mixamo resserrés dans `gestes_2mains.py`) : coup léger 1,53 s (2,45 s ; épée à
+  une main 0,63 s), frappe 0,21 s (0,36), combo 1-2-3 2,4 s (3,8 s). Mesures et planches : `outils/captures_claymore_v4.gd`.
 
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
