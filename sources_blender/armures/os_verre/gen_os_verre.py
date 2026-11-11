@@ -23,6 +23,7 @@ from mathutils.bvhtree import BVHTree
 ICI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(ICI, ".."))
 sys.path.insert(0, os.path.join(ICI, "..", "legeres"))
+import resserrer as RS
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 QUOI = next((a for a in ARGS if "=" not in a), "tout")
 APERCU = next((a.split("=", 1)[1] for a in ARGS if a.startswith("apercu=")), "")
@@ -361,6 +362,10 @@ BUDGET = {"torse": 2500, "tete": 1400, "mains": 1200, "pieds": 1200}
 
 def finir(o, matiere, mats, ident, empl, sol):
     """mats : [(nom_matériau, {parties})], le premier = surface 0 (coque)."""
+    if ident.endswith("_verre") and not ident.startswith("gantelets") and "--sans-resserrer" not in sys.argv:
+        # affinage 2026-11-11 (« certaines armures sont trop épaisses ») : resserrage DOUX, le verre v5 reste la référence
+        tete, bottes = ident.startswith("casque"), ident.startswith("bottes")
+        RS.resserrer(o, lambda p, m: (0.012, 0.85) if tete else ((0.006, 0.8) if bottes else (0.008, 0.7)))
     L.lisser_normales(o)
     # cristal : facettes à plat (ombrage net de pierre taillée, éclats du reflet par facette)
     attr = o.data.attributes.get("partie")

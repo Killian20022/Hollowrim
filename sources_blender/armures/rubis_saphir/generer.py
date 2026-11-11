@@ -23,7 +23,8 @@ import importlib
 import commun as C
 import pieces as PC
 import armures_lib as L
-importlib.reload(C); importlib.reload(PC); importlib.reload(L)
+import resserrer as RS
+importlib.reload(C); importlib.reload(PC); importlib.reload(L); importlib.reload(RS)
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
 
@@ -239,10 +240,12 @@ def deco_casque(ens):
     def dec(P, t, r, centre, Pts, R_NAS, R_CORNE):
         z = Pts[0][0].z + 0.042
         poser_gemme(P, (0, -0.5, z), (0, 1, 0), Vector((0, 0, 1)), 0.0105, ens, rayons=0, k=8)
-        poser_pointe(P, centre + Vector((0, -0.03, 0.5)), (0, 0, -1), (0, 0.08, 1), 0.30, 0.024, ens, k=5, graine=1)
-        poser_pointe(P, centre + Vector((0, 0.045, 0.5)), (0, 0, -1), (0, 0.40, 1), 0.21, 0.019, ens, k=4, graine=2)
+        # v5 (affinage) : crête mesurée, une flèche nette + un contrefort derrière, éclats de tempes courts collés au heaume
+        sobre = 0.8 if ens == "saphir" else 1.0
+        poser_pointe(P, centre + Vector((0, -0.03, 0.5)), (0, 0, -1), (0, 0.18, 1), 0.165 * sobre, 0.022, ens, k=6, graine=1)
+        poser_pointe(P, centre + Vector((0, 0.05, 0.5)), (0, 0, -1), (0, 0.75, 0.75), 0.095 * sobre, 0.017, ens, k=5, graine=2)
         for s in (1.0, -1.0):
-            poser_pointe(P, centre + Vector((0.5 * s, 0.0, 0.07)), (-s, 0, 0), (0.45 * s, 0.1, 1.0), 0.15, 0.015, ens, k=4, serti=False, graine=3)
+            poser_pointe(P, centre + Vector((0.5 * s, 0.0, 0.07)), (-s, 0, 0), (0.30 * s, 0.35, 1.0), 0.075 * sobre, 0.013, ens, k=4, serti=False, graine=3)
     return dec
 
 
@@ -348,15 +351,18 @@ def deco_torse(ens):
             noyau(P, p + n * 0.002, n, Vector((0, 0, 1)), 0.082, 0.05, 0.04, ens)
         for s in (1.0, -1.0):
             # gerbe d'épaule : 5 éclats en éventail, vers le haut et le dehors (le plus grand ~0,3 m)
-            gerbe = [((0.215, 0.0), (0.34, 0.0, 1.0), 0.34, 0.028), ((0.285, 0.0), (0.75, 0.0, 0.7), 0.25, 0.022),
-                     ((0.17, 0.0), (0.08, 0.0, 1.0), 0.22, 0.019)]
+            # v5 (affinage) : la gerbe « hérisson » (3 éclats jusqu'à 34 cm, un à l'horizontale) devient une couronne d'épaule
+            # mesurée : un éclat serti vers le haut et l'arrière + un plus court vers le dehors (saphir : le seul premier, plus court)
+            gerbe = [((0.215, 0.01), (0.30, 0.30, 1.0), 0.15, 0.026), ((0.28, 0.02), (0.65, 0.25, 0.75), 0.095, 0.019)]
+            if ens == "saphir":
+                gerbe = [((0.215, 0.01), (0.30, 0.30, 1.0), 0.11, 0.024)]
             for k, ((x, y), ax, lg, ry) in enumerate(gerbe):
-                poser_pointe(P, (x * s, y, 1.9), (0, 0, -1), (ax[0] * s, ax[1], ax[2]), lg, ry, ens, k=6 if k < 1 else 4, serti=k < 1, graine=10 + k)
+                poser_pointe(P, (x * s, y, 1.9), (0, 0, -1), (ax[0] * s, ax[1], ax[2]), lg, ry, ens, k=6 if k < 1 else 5, serti=True, graine=10 + k)
             # petite gemme sertie sur le dessus de l'épaule (devant la gerbe)
             poser_gemme(P, (0.24 * s, -0.075, 1.9), (0, 0, -1), Vector((s, 0, 0)), 0.013, ens, k=8, rayons=0, griffes=4)
             # coude : deux éclats vers l'arrière et le dehors, sertis au bout de la manche
             la = r.os["lowerarm_" + ("l" if s > 0 else "r")]
-            poser_pointe(P, ((X_MANCHE - 0.035) * s, 0.5, la.z + 0.005), (0, -1, 0), (0.35 * s, 1.0, 0.1), 0.15, 0.021, ens, k=5, graine=13)
+            poser_pointe(P, ((X_MANCHE - 0.035) * s, 0.5, la.z + 0.005), (0, -1, 0), (0.35 * s, 1.0, 0.1), 0.085 if ens == "rubis" else 0.065, 0.019, ens, k=5, graine=13)
             # haut du bras : deux brassards de cristal en couches sous l'épaulière (couverture complète)
             ua = r.os["upperarm_" + ("l" if s > 0 else "r")]
             bras = C.bvh(r, ["tunique", "brassards", "peau"], {"upperarm_" + ("l" if s > 0 else "r")}, 0.5)
@@ -415,7 +421,7 @@ def tassettes(P, r, st, ens):
         GEMMES.append((rows[1][1], Vector((math.sin(a0), -math.cos(a0), 0)), 0.09))
         if abs(a_deg) == 68:    # éclat de hanche : vers le dehors et un peu vers le bas
             d0 = Vector((math.sin(a0), -math.cos(a0), 0))
-            poser_pointe(P, Vector((0, 0, zt - 0.03)) + d0 * 0.6, -d0, d0 * 1.0 + Vector((0, 0, 0.25)), 0.15, 0.022, ens, k=4, serti=False, graine=40 + a_deg)
+            poser_pointe(P, Vector((0, 0, zt - 0.03)) + d0 * 0.6, -d0, d0 * 1.0 + Vector((0, 0, 0.25)), 0.08 if ens == "rubis" else 0.06, 0.02, ens, k=4, serti=False, graine=40 + a_deg)
 
 
 # ------------------------------------------------------------------------------------------------ styles
@@ -487,8 +493,9 @@ def deco_gant(ens):
             q = la.lerp(ha, 0.5)
             avb = C.bvh(r, ["tunique", "brassards", "peau"], {"lowerarm_" + cote}, 0.5)
             _plaques_membre(P, st, avb, la, ha, [(0.06, 0.26), (0.22, 0.42)], [math.radians(x) for x in range(0, 361, 36)], 0.022, 0.0, st["mat"])
-            poser_pointe(P, q + Vector((0, 0.3, 0.05)), (0, -1, -0.15), (-0.55 * s, 0.75, 0.35), 0.13, 0.018, ens, k=5, graine=20)
-            poser_pointe(P, q + Vector((0, 0.0, 0.3)), (0, 0, -1), (0.2 * s, -0.25, 1.0), 0.11, 0.016, ens, k=4, serti=False, graine=21)
+            poser_pointe(P, q + Vector((0, 0.3, 0.05)), (0, -1, -0.15), (-0.45 * s, 0.85, 0.25), 0.075 if ens == "rubis" else 0.06, 0.016, ens, k=5, graine=20)
+            if ens == "rubis":
+                poser_pointe(P, q + Vector((0, 0.0, 0.3)), (0, 0, -1), (0.2 * s, -0.25, 1.0), 0.055, 0.014, ens, k=4, serti=False, graine=21)
     return dec
 
 
@@ -519,8 +526,9 @@ def deco_genou(ens):
         arc_t = [math.radians(x) for x in range(-180, 181, 30)]     # tour complet : mollet couvert par derrière
         z0 = lambda z: (z - A.z) / (B.z - A.z)
         _plaques_membre(P, st, jambe, A, B, [(z0(0.21), z0(0.31)), (z0(0.29), z0(0.40)), (z0(0.37), z0(0.48))], arc_t, 0.026, 0.004, st["mat"])
-        poser_pointe(P, (ca.x, -0.5, ca.z + 0.015), (0, 1, 0), (0.15 * s, -0.8, 0.6), 0.16, 0.024, ens, k=5, graine=30 + int(s))
-        poser_pointe(P, (ca.x, -0.5, ca.z - 0.12), (0, 1, 0), (0.1 * s, -0.7, 0.7), 0.10, 0.017, ens, k=4, serti=False, graine=33 + int(s))
+        poser_pointe(P, (ca.x, -0.5, ca.z + 0.015), (0, 1, 0), (0.15 * s, -0.8, 0.6), 0.10 if ens == "rubis" else 0.08, 0.022, ens, k=5, graine=30 + int(s))
+        if ens == "rubis":
+            poser_pointe(P, (ca.x, -0.5, ca.z - 0.12), (0, 1, 0), (0.1 * s, -0.7, 0.7), 0.06, 0.015, ens, k=4, serti=False, graine=33 + int(s))
     return dec
 
 
@@ -720,54 +728,61 @@ def peindre_cristal(P, N, bd, ens, ench):
 
 
 def peindre_plaque(P, N, bd, U, ens, ench):
-    """Plaques v3 : base de métal brun-noir (ou acier nuit) DOMINANTE, brossée ; incrustations de grenat (ou de saphir nuit) à facettes,
-    arêtes claires fines, cadre de métal avec filet clair autour de chaque incrustation ; bord de plaque : biseau, rainure, filet de bronze, rivets."""
+    """Plaques v5 (affinage, niveau de l'armure de verre Tripo) : chaque plaque = UN panneau de cristal taillé lisible (grandes
+    facettes en plan incliné, veines claires, reflets internes « sous » la surface = faux translucide, sans alpha réel) serti dans
+    un CADRE de métal clair biseauté (arête polie, corps brossé, rivets, gorge sombre), puis arête claire du cristal et filet gravé
+    intérieur qui redessine la forme de la plaque. Remplace les incrustations Voronoï v3/v4 (lecture « camouflage »)."""
     pal = GRENAT if ens == "rubis" else NUIT
     metal = ACIER_RUBIS if ens == "rubis" else ACIER_SAPHIR
-    bronze = BRONZE_SOMBRE if ens == "rubis" else ARGENT
+    clair = BRONZE_SOMBRE if ens == "rubis" else ARGENT
     n = len(P)
-    # structure de métal
-    brosse = L.bruit(P * np.array([1.0, 9.0, 1.0]), 42.0, 229)
-    mv = 0.21 + (L.fbm(P, 9.0, 227, 3) - 0.5) * 0.18 + (brosse - 0.5) * 0.08 + (L.bruit(P, 95.0, 231) - 0.5) * 0.05
-    rgb = L.rampe(metal, np.clip(mv, 0, 1))
-    al = np.full(n, 0.28)
-    # incrustations facettées
-    d1, d2, idv = _voronoi(P, 0.095, 301)
-    marge = d2 - d1
-    inc = (idv < (0.92 if ens == "rubis" else 0.80)) & (marge > (0.11 if ens == "rubis" else 0.14))
-    e1, e2, ev = _voronoi(P, 0.047, 401)
+    # --- cristal : facettes larges, chacune un plan incliné (clair d'un côté, sombre de l'autre)
+    c = 0.12
+    d1, d2, idv = _voronoi(P, c, 301)
+    q = P / c
+    base_c = np.floor(q)
+    ang = idv * TAU
+    dirc = np.stack([np.cos(ang), np.sin(ang) * 0.8, np.sin(ang * 1.7)], 1)
     t = np.clip(0.5 + 0.60 * (N * _LUM).sum(1), 0, 1)
-    niv = np.floor(t * 4.0) / 3.0
-    v = (0.42 if ens == "rubis" else 0.30) + 0.22 * niv + 0.17 * (ev - 0.5) + 0.07 * (idv - 0.5)
-    arete = np.clip(1.0 - (e2 - e1) / 0.09, 0, 1)
-    v += arete ** 2 * 0.26
-    v += (L.fbm(P, 16.0, 237, 2) - 0.5) * 0.03
+    v = (0.40 if ens == "rubis" else 0.30) + 0.16 * np.floor(t * 4.0) / 3.0 + 0.16 * (idv - 0.5)
+    v += np.clip(((q - base_c - 0.5) * dirc).sum(1), -0.6, 0.6) * 0.20
+    vein = d2 - d1
+    v -= np.clip(vein / 0.30, 0, 1) * 0.08                       # cœur des facettes plus profond
+    v = np.where(vein < 0.022, v + 0.15, v)                       # arête claire de taille (fine)
+    v = np.where((vein >= 0.022) & (vein < 0.05), v - 0.06, v)   # creux le long de l'arête
+    g1, g2, _ = _voronoi(P + np.array([0.013, -0.021, 0.008]), c * 0.6, 331)
+    v += np.clip(1.0 - (g2 - g1) / 0.05, 0, 1) * 0.04             # second réseau sous la surface (profondeur)
+    v += (L.fbm(P, 7.0, 237, 2) - 0.5) * 0.06
     gem = L.rampe(pal, np.clip(v * (1.12 if ench else 1.0) + (0.04 if ench else 0.0), 0, 1))
-    rgb = np.where(inc[:, None], gem, rgb)
-    al = np.where(inc, 0.64 + 0.30 * arete, al)     # alpha >= 0,6 = « pierre » (shader_pierre), < 0,5 = métal
-    # filet clair du cadre autour de l'incrustation
-    fil = (marge > 0.14) & (marge < 0.175) & (idv < 0.80)
-    rgb = np.where(fil[:, None], L.rampe(metal, np.full(n, 0.50) + (idv[:, None][:, 0] - 0.5) * 0.1), rgb)
-    al = np.where(fil, 0.45, al)
-    # creux sombre autour des cellules de métal
-    creux = (~inc) & (marge < 0.06)
-    rgb = np.where(creux[:, None], rgb * 0.55, rgb)
-    # bord de plaque : biseau clair, rainure, filet de bronze sombre à rivets, cadre de métal large
-    larg = 0.0125
-    bis = bd < 0.0030
-    rgb[bis] = L.rampe(metal, np.clip(0.62 + 0.1 * (mv[bis] - 0.21), 0, 1)); al[bis] = 0.45
-    gorge = (bd >= 0.0030) & (bd < 0.0042)
-    rgb[gorge] = rgb[gorge] * 0.30; al[gorge] = 0.1
-    corps = (bd >= 0.0042) & (bd < larg)
-    rgb[corps] = L.rampe(metal, np.clip(mv[corps] * 0.9, 0, 1)); al[corps] = 0.3
-    lis = (bd >= 0.0050) & (bd < 0.0072)
-    vo = 0.34 + (L.fbm(P, 30.0, 17, 2)[lis] - 0.5) * 0.25
-    rgb[lis] = L.rampe(bronze, np.clip(vo, 0, 1)) * (0.6 if ens == "rubis" else 0.85); al[lis] = 0.40
+    ec = L.bruit(P, 330.0, 241) > 0.94                            # inclusions qui accrochent la lumière
+    gem[ec] = gem[ec] * 0.45 + L.rampe(pal, np.full(ec.sum(), 0.92)) * 0.55
+    rgb = gem
+    al = np.clip(0.70 + 0.25 * np.clip(1.0 - vein / 0.022, 0, 1), 0, 1)   # alpha >= 0,6 = « pierre » (shader_pierre)
+    # --- filet gravé intérieur (redessine la plaque, comme les panneaux du verre Tripo)
+    fil = (bd > 0.030) & (bd < 0.0335)
+    rgb[fil] = L.rampe(clair, np.full(fil.sum(), 0.55 if ens == "rubis" else 0.62)) * 0.9
+    al[fil] = 0.45
+    ombre = (bd >= 0.0335) & (bd < 0.037)
+    rgb[ombre] *= 0.55
+    # --- arête claire du cristal contre le cadre, puis cadre de métal
+    lame = (bd >= 0.0150) & (bd < 0.0195)
+    rgb[lame] = rgb[lame] * 0.40 + L.rampe(pal, np.full(lame.sum(), 0.90)) * 0.60
+    gorge = (bd >= 0.0132) & (bd < 0.0150)
+    rgb[gorge] = L.rampe(metal, np.full(gorge.sum(), 0.08)); al[gorge] = 0.1
+    mv = 0.60 + (L.fbm(P, 24.0, 227, 2) - 0.5) * 0.16 + (L.bruit(P * np.array([1.0, 9.0, 1.0]), 90.0, 229) - 0.5) * 0.07
+    cadre = bd < 0.0132
+    pal_cadre = clair if ens == "saphir" else metal
+    rgb[cadre] = L.rampe(pal_cadre, np.clip(mv[cadre] * (1.0 if ens == "saphir" else 1.05), 0, 1)) * (0.85 if ens == "saphir" else 1.0)
+    al[cadre] = 0.42
+    bis = bd < 0.0026
+    rgb[bis] = L.rampe(pal_cadre, np.clip(mv[bis] + 0.28, 0, 1)); al[bis] = 0.45
+    filet = (bd >= 0.0026) & (bd < 0.0038)
+    rgb[filet] *= 0.45
     per = 0.034
     fu = np.mod(U / per, 1.0) - 0.5
-    riv = np.hypot(fu * per, bd - 0.0094) < 0.0016
-    dome = np.clip(1.0 - np.hypot(fu * per + 0.0005, bd - 0.0098) / 0.0016, 0, 1)
-    rgb[riv] = L.rampe(bronze, np.clip(0.30 + 0.45 * dome[riv], 0, 1)); al[riv] = 0.45
+    riv = np.hypot(fu * per, bd - 0.0082) < 0.0019
+    dome = np.clip(1.0 - np.hypot(fu * per + 0.0005, bd - 0.0088) / 0.0019, 0, 1)
+    rgb[riv] = L.rampe(clair, np.clip(0.35 + 0.55 * dome[riv], 0, 1)); al[riv] = 0.45
     return _rgba(rgb, al)
 
 
@@ -1114,6 +1129,22 @@ def construire(pid, rapide=False):
     return r, ob, mats
 
 
+def parametres_resserrer(pid):
+    """Affinage v5 : jeu (m) et compression par zone ; les gantelets (mains) ne bougent pas."""
+    if "gantelets" in pid:
+        return lambda p, m: None
+    def fn(p, m):
+        x, y = abs(p.x), p.y
+        if "casque" in pid:
+            return (0.012, 0.75)
+        if "bottes" in pid:
+            return (0.006, 0.7)
+        if y > 1.25 and x > 0.17:          # épaules et bras
+            return (0.008, 0.55)
+        return (0.008, 0.55)               # torse, jupe, cuissards
+    return fn
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     dossier = None
@@ -1133,6 +1164,8 @@ def main():
             ids.append(a)
     for pid in ids:
         r, ob, mats = construire(pid, rapide)
+        if "--sans-resserrer" not in sys.argv:
+            RS.resserrer(ob, parametres_resserrer(pid))
         print("PIECE", pid, C.compter_tris(ob), "tris", "groupes", len(ob.vertex_groups), "matériaux", [m.name for m in mats[False]])
         poser_materiaux(ob, mats[False])
         C.exporter([ob], r, os.path.join(C.PORTE, pid + ".glb"))

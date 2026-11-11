@@ -11,6 +11,9 @@ import commun as C
 import hd as H
 import pieces_hd as PH
 import decor_uniques as DU
+sys.path.insert(0, os.path.join(ICI, ".."))
+import resserrer as RS
+importlib.reload(RS)
 importlib.reload(C); importlib.reload(H); importlib.reload(PH); importlib.reload(DU)
 from mathutils import Vector, Matrix
 from decor_uniques import ligne_runes, rune, cercle, trait, poly
@@ -474,6 +477,28 @@ def version_sol(r, ob, pid):
     bpy.data.objects.remove(c, do_unlink=True)
 
 
+def parametres_resserrer(pid):
+    """Affinage 2026-11-11 (« trop épaisses ») : jeu et compression par zone et par matière ; la fourrure (col des gardiens, bottes du
+    rôdeur) garde son volume ; les gantelets (mains) ne bougent pas."""
+    if "gant" in pid:
+        return lambda p, m: None
+    def fn(p, m):
+        x, y = abs(p.x), p.y
+        fur = "fourrure" in m
+        if pid in ("heaume_jarl",):
+            return (0.012, 0.8)
+        if pid == "capuche_thaumaturge":
+            return (0.010, 0.55) if y < 1.55 else (0.012, 0.75)
+        if "bottes" in pid:
+            return (0.012, 0.9) if fur else (0.006, 0.7)
+        if fur and y > 1.36:
+            return (0.020, 0.92)
+        if "cuir" in m:
+            return (0.006, 0.5)
+        return (0.008, 0.55)
+    return fn
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     dossier = None
@@ -486,6 +511,8 @@ def main():
     for pid in ids:
         r = C.charger_reference()
         ob = PIECES[pid](r)
+        if "--sans-resserrer" not in sys.argv:
+            RS.resserrer(ob, parametres_resserrer(pid))
         print("PIECE", pid, C.compter_tris(ob), "tris", "groupes", len(ob.vertex_groups),
               "texture", next(n for n in ob.data.materials[0].node_tree.nodes if n.type == "TEX_IMAGE").image.size[:])
         if exporter:

@@ -27,6 +27,7 @@ APERCU = next((a.split("=", 1)[1] for a in ARGS if a.startswith("apercu=")), "")
 _argv = sys.argv
 sys.argv = [_argv[0], "--", "aucune"]          # gen_legeres ne génère rien à l'import : on ne garde que ses outils
 import armures_lib as L
+import resserrer as RS
 import gen_legeres as X
 sys.argv = _argv
 from armures_lib import B, G
@@ -567,8 +568,41 @@ ZONES = [(0, 0, 1024, 576), (0, 576, 384, 448), (384, 576, 288, 448), (672, 576,
 JSON_PIECES = []
 
 
+def resserrer_piece(o, ident, mats, slot):
+    """Affinage 2026-11-11 (« bonhomme gonflé ») : cuir et tissu au plus près du corps ; la fourrure ne garde son volume qu'au col et
+    aux épaules ; les gants (mains) ne bougent pas. Matières par face via la partie (même règle que slot)."""
+    if ident.startswith("gants"):
+        return
+    me = o.data
+    me.materials.clear()
+    for nm in mats:
+        me.materials.append(bpy.data.materials.get("_rs_" + nm) or bpy.data.materials.new("_rs_" + nm))
+    attr = me.attributes.get("partie")
+    if slot is not None:
+        for p in me.polygons:
+            p.material_index = slot(attr.data[p.index].value if attr else 0)
+    tete = ident.startswith(("capuche", "casque"))
+    bottes = ident.startswith("bottes")
+    def fn(p, m):
+        x, y = abs(p.x), p.y
+        fur = "fourrure" in m
+        if tete:
+            return (0.014, 0.85) if fur else (0.010, 0.65)
+        if bottes:
+            return (0.010, 0.85) if fur else (0.004, 0.6)
+        if fur:
+            if y > 1.36 and x < 0.30:          # col et épaules : la fourrure garde son volume
+                return (0.020, 0.92)
+            return (0.008, 0.6)
+        return (0.005, 0.45)
+    RS.resserrer(o, fn)
+    me.materials.clear()
+
+
 def finir(o, matiere, ident, tris_max, sol, mats=("cuir",), slot=None, tris_min=0):
     """slot(partie) -> indice dans mats (0 par défaut) : surface 0 = matière principale (ourlets / hauts de bottes lus dessus)."""
+    if "--sans-resserrer" not in sys.argv:
+        resserrer_piece(o, ident, mats, slot)
     L.lisser_normales(o)
     nb = L.nb_tris(o)
     print("PIECE %s : %d triangles (cible %d-%d)" % (ident, nb, tris_min, tris_max))
