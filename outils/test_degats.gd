@@ -48,6 +48,11 @@ func _draugr(type: String, x: float, ident: String) -> CharacterBody3D:
 	var d: CharacterBody3D = sc.creer_draugr(type, Vector3(x, 0.05, 0.5), {"ident": ident})
 	d.mort.connect(func(id: String) -> void: morts.append(id))
 	await _frames(5)
+	# furtivité (scripts/furtivite.gd) : repérage PROGRESSIF ; sans cela il serait encore en GARDE et un coup de dos compterait comme furtif
+	for i in 120:
+		if d.etat == d.TRAQUE:
+			break
+		await _frames(1)
 	d.set_physics_process(false)   # immobile : réactions pilotées par le test
 	return d
 
