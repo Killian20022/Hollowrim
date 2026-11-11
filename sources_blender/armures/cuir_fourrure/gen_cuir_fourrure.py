@@ -642,8 +642,12 @@ def relief_cf(o, ident):
                   centre_fn=corps, dehors_min=0.2)
         RF.ourler(o, {0, 1, 13}, epaisseur=0.004, retour=0.003, filtre=lambda p: G(p).y < 0.80 or abs(G(p).x) > 0.33)
     elif ident == "capuche_cuir":
-        # encoche sombre de la nuque : dernières faces retournées (pli du drapé) -> toutes vers l'extérieur de l'axe tête/cou
+        # encoche sombre de la nuque : dernières faces retournées (pli du drapé) -> toutes vers l'extérieur de l'axe tête/cou.
+        # Les quads du pli ne sont pas plans : triangulés d'abord (comme à l'export), sinon un des deux triangles reste retourné
         me = o.data
+        bm_ = bmesh.new(); bm_.from_mesh(me)
+        bmesh.ops.triangulate(bm_, faces=bm_.faces[:])
+        bm_.to_mesh(me); bm_.free()
         n_inv = 0
         for p in me.polygons:
             c = G(o.matrix_world @ p.center)
