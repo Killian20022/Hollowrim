@@ -17,11 +17,22 @@ extends CanvasLayer
 ## Acheter / Vendre, page gauche = l'étal ou le sac (registre, marge des CATÉGORIES du registre Inventaire.CATEGORIES : C / X manette /
 ## clic pour filtrer), page droite = fiche de l'objet choisi, prix, bourse, réassort ; objets de quête : Inventaire.est_quete ;
 ## clé d'effet « prix » (docs/RPG.md §3) : fraction en faveur du joueur (achat moins cher, rachat plus cher), 0 par défaut.
+## ÉCONOMIE (gameplay/economie, docs/ECONOMIE.md) :
+##   - OBJETS VOLÉS (Conteneur.voles du sac et Crime.voles : nombre d'objets volés par id, marqués à la prise) : les marchands honnêtes ne rachètent
+##     que la part non volée d'une pile (la part volée reste listée en bas, grisée « volé ») ; le RECELEUR (fiche « receleur »: true,
+##     Bersi sur le quai) rachète tout, à prix réduit, et ce qu'il rachète perd sa marque de vol (il écoule d'abord les objets volés) ;
+##   - MARGE MINIMALE : le rachat ne dépasse jamais MARGE_MIN du prix d'achat chez le même marchand, quelle que soit la faveur
+##     (bijoux « prix » + disposition + remise de faction allaient jusqu'à 0,6 : achat 0,44 x valeur, rachat 0,64 x valeur = argent infini) ;
+##   - un objet acheté n'est jamais volé (la marque est bornée au nombre déjà dans le sac avant l'achat) ;
+##   - leçons des maîtres (Formation, scripts/rpg/formation.gd) : leur compte par période est sauvegardé ici (clé « formations »).
 
 const GROUPE := "marchand"
 const FICHIER := "res://data/marchands.json"
 const ONGLETS := ["Acheter", "Vendre"]
 const DUREE_AVIS := 2.2
+## Rachat au plus 75 % du prix d'achat du même objet chez le même marchand (anti-arbitrage achat / revente).
+const MARGE_MIN := 0.75
+const REFUS_VOLE := "Objet volé : il n'en veut pas."
 ## Noms des catégories du registre (marge de la boutique).
 const NOMS_CATEGORIES := {"": "Tout", "arme": "Armes", "armure": "Armures", "bijou": "Bijoux", "consommable": "Potions", "ingredient": "Ingrédients", "quete": "Quête", "divers": "Divers"}
 
@@ -134,7 +145,48 @@ static func prix_achat(id: String, oid: String) -> int:
 	return maxi(1, ceili(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("achat", 1.1)) * (1.0 - faveur(id)) - 0.0001))
 
 static func prix_vente(id: String, oid: String) -> int:
-	return maxi(1, floori(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("vente", 0.4)) * (1.0 + faveur(id)) + 0.0001))
+	var p := floori(float(Inventaire.objet(oid).get("valeur", 0)) * float(fiche(id).get("vente", 0.4)) * (1.0 + faveur(id)) + 0.0001)
+	return maxi(1, mini(p, floori(float(prix_achat(id, oid)) * MARGE_MIN + 0.0001)))
+
+## Receleur (fiche « receleur »: true) : rachète les objets volés.
+static func est_receleur(id: String) -> bool:
+	return bool(fiche(id).get("receleur", false))
+
+## Nœud Crime de la partie (groupe « crime »), null hors du monde.
+static func _crime() -> Node:
+	var t := Engine.get_main_loop() as SceneTree
+	return t.get_first_node_in_group("crime") if t != null else null
+
+## Objets `oid` du sac marqués volés : la plus forte des deux marques (Conteneur.voles du sac, posée par ObjetsVivants ; Crime.voles,
+## posée par Crime.signaler_vol : coffres fouillés, étals), bornée au nombre dans le sac ; 0 sans marque.
+static func voles_de(inv: Inventaire, oid: String) -> int:
+	if inv == null:
+		return 0
+	var n := int(inv.voles.get(oid, 0))
+	var c := _crime()
+	if c != null and c.get("voles") is Dictionary:
+		n = maxi(n, int((c.get("voles") as Dictionary).get(oid, 0)))
+	return clampi(n, 0, inv.nombre(oid))
+
+## Retire `k` marques de vol de `oid` (vendu au receleur) dans les deux registres, puis borne chaque marque à `plafond` objets
+## (-1 = pas de borne).
+static func _oter_voles(oid: String, k: int, plafond := -1, inv: Inventaire = null) -> void:
+	var registres: Array = []
+	var c := _crime()
+	if c != null and c.get("voles") is Dictionary:
+		registres.append(c.get("voles"))
+	if inv != null:
+		registres.append(inv.voles)
+	for v: Dictionary in registres:
+		var n := int(v.get(oid, 0)) - maxi(0, k)
+		if plafond >= 0:
+			n = mini(n, plafond)
+		if n > 0:
+			v[oid] = n
+		else:
+			v.erase(oid)
+	if inv != null:
+		inv.set_meta("vole", not inv.voles.is_empty())
 
 ## Objet de quête (jamais vendable) : Inventaire.est_quete (drapeau du registre), valeur 0, liste `invendables`, objet demandé
 ## par une quête en cours.
@@ -156,12 +208,19 @@ static func rachete(id: String, oid: String) -> bool:
 	return a.is_empty() or oid in a or Forge.base_de(oid) in a or Inventaire.categorie_de(oid) in a   # objet forgé : comme sa base
 
 ## Raison pour laquelle le marchand ne rachète pas cet objet ("" = possible).
-static func refus_vente(id: String, oid: String, quetes: Node = null) -> String:
+## Avec le sac `inv` : un marchand honnête refuse quand tout ce qui reste de la pile est volé.
+static func refus_vente(id: String, oid: String, quetes: Node = null, inv: Inventaire = null) -> String:
 	if de_quete(oid, quetes):
 		return "Objet de quête : invendable."
 	if not rachete(id, oid):
 		return "Ça ne l'intéresse pas."
+	if inv != null and not est_receleur(id) and inv.nombre(oid) > 0 and voles_de(inv, oid) >= inv.nombre(oid):
+		return String(fiche(id).get("refus_vole", REFUS_VOLE))
 	return ""
+
+## Combien de `oid` ce marchand peut racheter dans le sac : tout chez le receleur, la part non volée ailleurs.
+static func vendables(id: String, inv: Inventaire, oid: String) -> int:
+	return inv.nombre(oid) if est_receleur(id) else inv.nombre(oid) - voles_de(inv, oid)
 
 ## Achète `n` objets (ou moins si le stock ou l'or manque : au moins un, sinon refus). Renvoie la raison du refus ("" = fait).
 static func acheter(id: String, inv: Inventaire, oid: String, n := 1) -> String:
@@ -179,6 +238,7 @@ static func acheter(id: String, inv: Inventaire, oid: String, n := 1) -> String:
 		return "Trop lourd : sac %d / %d." % [roundi(inv.poids()), roundi(inv.capacite())]
 	k = mini(k, place)
 	inv.pieces -= k * prix
+	_oter_voles(oid, 0, inv.nombre(oid), inv)   # l'objet acheté n'est pas volé : la marque ne couvre que ce que le sac avait déjà
 	inv.ajouter(oid, k)
 	s[oid] = dispo - k
 	if int(s[oid]) <= 0:
@@ -188,18 +248,23 @@ static func acheter(id: String, inv: Inventaire, oid: String, n := 1) -> String:
 
 ## Vend `n` objets du sac (ou moins si la bourse du marchand manque). Ce qui est vendu rejoint son stock jusqu'au réassort.
 static func vendre(id: String, inv: Inventaire, oid: String, n := 1, quetes: Node = null) -> String:
-	var r := refus_vente(id, oid, quetes)
+	var r := refus_vente(id, oid, quetes, inv)
 	if r != "":
 		return r
-	var a := inv.nombre(oid)
-	if a <= 0:
+	if inv.nombre(oid) <= 0:
 		return "Plus dans le sac."
+	var a := vendables(id, inv, oid)
 	var e := etat(id)
 	var prix := prix_vente(id, oid)
 	var k := mini(mini(n, a), int(e["or"]) / prix)
 	if k <= 0:
 		return "Sa bourse est vide (%d pièces)." % int(e["or"])
+	var marques := voles_de(inv, oid)
 	inv.retirer(oid, k)
+	if est_receleur(id):
+		_oter_voles(oid, k, -1, inv)         # le receleur écoule d'abord les objets volés : leur marque disparaît
+	else:
+		_oter_voles(oid, 0, mini(marques, inv.nombre(oid)), inv)
 	inv.ajouter("pieces", k * prix)
 	e["or"] = int(e["or"]) - k * prix
 	var s: Dictionary = e["stock"]
@@ -216,7 +281,7 @@ static func exporter() -> Dictionary:
 	for id: String in etats:
 		var d: Dictionary = etats[id]
 		e[id] = {"periode": int(d.get("periode", 0)), "or": int(d.get("or", 0)), "stock": (d.get("stock", {}) as Dictionary).duplicate()}
-	return {"heures": heures, "etats": e}
+	return {"heures": heures, "etats": e, "formations": Formation.exporter()}
 
 static func importer(d: Dictionary) -> void:
 	reinitialiser()
@@ -232,10 +297,12 @@ static func importer(d: Dictionary) -> void:
 				if Inventaire.connu(oid) and int(st[oid]) > 0:
 					s[oid] = int(st[oid])
 		etats[id] = {"periode": int(e[id].get("periode", 0)), "or": int(e[id].get("or", 0)), "stock": s}
+	Formation.importer(d.get("formations", {}) if d.get("formations") is Dictionary else {})
 
 static func reinitialiser() -> void:
 	heures = 0.0
 	etats = {}
+	Formation.reinitialiser()
 
 ## Erreurs des données (test) : objets inconnus, marchand sans villageois, objet vendable que personne ne rachète.
 static func verifier() -> Array[String]:
@@ -367,7 +434,15 @@ func _remplir() -> void:
 			if int(inv.objets[oid]) <= 0 or (categorie != "" and Inventaire.categorie_de(oid) != categorie):
 				continue
 			var r := refus_vente(id_marchand, oid, _quetes())
-			var l := {"id": oid, "n": int(inv.objets[oid]), "prix": prix_vente(id_marchand, oid), "refus": r}
+			var nv := voles_de(inv, oid)
+			var nb := int(inv.objets[oid])
+			if r == "" and nv > 0 and not est_receleur(id_marchand):
+				# marchand honnête : la part volée de la pile à part, grisée, en bas
+				bas.append({"id": oid, "n": nv, "prix": prix_vente(id_marchand, oid), "refus": String(fiche(id_marchand).get("refus_vole", REFUS_VOLE)), "vole": true})
+				nb -= nv
+				if nb <= 0:
+					continue
+			var l := {"id": oid, "n": nb, "prix": prix_vente(id_marchand, oid), "refus": r, "vole": r == "" and nv > 0 and est_receleur(id_marchand)}
 			if r == "":
 				lignes.append(l)
 			else:
@@ -606,7 +681,7 @@ func _dessiner(L: LivreParchemin) -> void:
 		L.icone(id, Vector2(X + 1, yl + 1), 16.0, 0.6 if refus != "" else 1.0)
 		L.pastille(Vector2(X + 19, yl + 7), ButinTables.rarete_de(id))
 		var c_nom := LivreParchemin.PALE if refus != "" else LivreParchemin.ENCRE
-		L.texte(X + 25, yl + 4, L.couper(inv.nom(id), LG - 25 - 76), c_nom)
+		L.texte(X + 25, yl + 4, L.couper(inv.nom(id) + (" (volé)" if bool(l.get("vole", false)) else ""), LG - 25 - 76), c_nom)
 		if int(l["n"]) > 1:
 			L.texte_d(X + LG - 40, yl + 4, "x%d" % int(l["n"]), LivreParchemin.PALE)
 		if refus == "":
@@ -625,7 +700,8 @@ func _dessiner(L: LivreParchemin) -> void:
 	if onglet == 0:
 		L.texte(19, H - 42, "Stock limité, réassort dans %s." % duree_texte(heures_avant_reassort(id_marchand)), LivreParchemin.PALE)
 	else:
-		L.texte(19, H - 42, "Rachat à %d %% de la valeur." % roundi(float(fiche(id_marchand).get("vente", 0.4)) * (1.0 + faveur(id_marchand)) * 100.0), LivreParchemin.PALE)
+		var part := roundi(float(fiche(id_marchand).get("vente", 0.4)) * (1.0 + faveur(id_marchand)) * 100.0)
+		L.texte(19, H - 42, ("Rachète tout à %d %%, sans questions." if est_receleur(id_marchand) else "Rachat à %d %% de la valeur.") % part, LivreParchemin.PALE)
 	# --- page droite : fiche de l'objet choisi, bourse du marchand
 	var X2 := m + 12.0
 	var LD := W - 17.0 - X2
@@ -648,6 +724,9 @@ func _dessiner(L: LivreParchemin) -> void:
 		var lignes_fiche: Array = [["Poids", "%s kg" % LivreParchemin.kg(float(f.get("poids", 0.0)))], ["Valeur", str(int(f.get("valeur", 0)))]]
 		if Forge.niveau_de(id) > 0:
 			lignes_fiche.append(["Forge", "+%d (Brodd)" % Forge.niveau_de(id)])
+		var nv := voles_de(inv, id)
+		if nv > 0 and onglet == 1:
+			lignes_fiche.append(["Volé", "%d sur %d" % [nv, inv.nombre(id)]])
 		if joueur.get("equipement_corps") != null and joueur.equipement_corps.est_equipe(id):
 			lignes_fiche.append(["Porté", "sera retiré si vendu"])
 		for lf: Array in lignes_fiche:

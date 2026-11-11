@@ -43,6 +43,9 @@ static var HABITANTS := {
 	"hab_chasseur_b": {"base": "chasseresse_h", "arc": true, "bande": {"dh": -0.48, "sm": 1.4, "smin": 0.03, "vm": 0.90}, "cheveux": Color(0.40, 0.30, 0.24)},
 	"hab_chasseresse_a": {"base": "chasseresse_f", "arc": true, "bande": {"dh": -0.12, "sm": 1.8, "smin": 0.03, "vm": 0.95}, "cheveux": Color(0.55, 0.38, 0.30), "tresses": Color.from_hsv(0.06, 0.50, 0.8)},
 	"hab_chasseresse_b": {"base": "chasseresse_f", "arc": true, "bande": {"dh": -0.42, "sm": 2.2, "smin": 0.03, "vm": 0.95}, "cheveux": Color(1.15, 0.62, 0.42), "tresses": Color.from_hsv(0.045, 0.62, 1.0)},
+	## Bersi Main-Grise, le receleur du quai (gameplay/economie) : guerrier sans casque ni arme, avec sa cape, étoffes ternies
+	## presque noires, poil et barbe gris.
+	"hab_receleur": {"base": "guerrier", "bande": {"dh": -0.55, "sm": 0.15, "smin": 0.02, "vm": 0.55}, "cheveux": Color(1.15, 1.13, 1.1), "barbe": true},
 }
 
 const IDS := ["garde", "garde_lance", "forgeron", "chasseuse", "volva", "ancienne", "chef", "eirik"]
