@@ -52,7 +52,6 @@ const RESERVE_BANDITS := [["pq_caisse", 0.0, 0.0, 8.0, 0.0, true], ["pq_caisse_f
 
 ## Lieux : [nom, composition, ancres [x, z, lacet°]].
 const LIEUX := [
-	["charrette_champ_a", CHARRETTE, [[92.4, 34.8, 0.0], [92.0, 38.4, 15.0], [91.8, 31.5, -10.0], [86.0, 52.0, 90.0], [86.2, 29.6, 20.0], [87.5, 28.5, 35.0]]],
 	["charrette_champ_c", CHARRETTE, [[72.0, -6.5, 180.0], [71.8, -9.5, 170.0], [63.0, -13.0, 90.0], [63.0, -0.8, 90.0]]],
 	["epouvantail_a", EPOUVANTAIL, [[83.5, 35.2, 20.0], [82.0, 34.0, 20.0]]],
 	["epouvantail_b", EPOUVANTAIL, [[81.0, 45.8, -15.0], [79.5, 45.0, -15.0]]],
@@ -102,7 +101,63 @@ static func creer(monde: Node3D) -> void:
 				break
 		if not fait:
 			push_warning("PropsMax : abords, composition refusée partout : " + String(l[0]))
-	print("PropsMax : abords, %d compositions en %d ms" % [nb, Time.get_ticks_msec() - t0])
+		await tree.process_frame      # une composition par image : l'écran de chargement reste animé
+	print("PropsMax : abords, %d compositions en %d ms (une par image)" % [nb, Time.get_ticks_msec() - t0])
+	var f := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--abords-vues="):
+			f = a.substr(14)
+	if f != "":
+		await tree.physics_frame
+		_ecrire_vues(monde, racine, f)
+
+## Outil de captures (`-- --abords-vues=<fichier>`) : pour chaque composition posée, deux points de vue DÉGAGÉS (pas d'arbre, rayon
+## libre jusqu'à elle, terrain compris) parmi 16 directions à 5,5 puis 7,5 m ; écrit au format --captures (type monde, y des pieds).
+static func _ecrire_vues(monde: Node3D, racine: Node3D, chemin: String) -> void:
+	var espace: PhysicsDirectSpaceState3D = monde.get_world_3d().direct_space_state
+	var lignes := PackedStringArray(["# PropsMax v3 abords : vues dégagées choisies par AbordsProps._ecrire_vues"])
+	for mi: Node in racine.get_children():
+		if not mi is MeshInstance3D:
+			continue
+		var ab := (mi as MeshInstance3D).get_aabb()
+		var c := (mi as MeshInstance3D).global_transform * ab.get_center()
+		var cible := Vector3(c.x, float(monde.hauteur(c.x, c.z)) + 0.5, c.z)
+		var n := 0
+		for d: float in [5.5, 7.5]:
+			for k in 16:
+				if n >= 2:
+					break
+				var t := TAU * float(k) / 16.0
+				var cam := Vector3(c.x + cos(t) * d, 0, c.z + sin(t) * d)
+				var pied: float = float(monde.hauteur(cam.x, cam.z)) + 1.2
+				cam.y = pied + 1.62
+				if monde.arbres_autour(cam, 2.0) > 0:
+					continue
+				var libre := true
+				for u: float in [0.25, 0.5, 0.75]:      # le relief ne coupe pas la vue
+					var q := cam.lerp(cible, u)
+					if float(monde.hauteur(q.x, q.z)) > q.y - 0.2:
+						libre = false
+				var rq := PhysicsRayQueryParameters3D.create(cam, cible)
+				var hit := espace.intersect_ray(rq)
+				if not hit.is_empty() and (hit["position"] as Vector3).distance_to(cible) > 1.8:
+					libre = false
+				var dedans := PhysicsPointQueryParameters3D.new()      # pas dans un bâtiment
+				dedans.position = cam
+				if not espace.intersect_point(dedans, 1).is_empty():
+					libre = false
+				if not libre:
+					continue
+				var dv := cible - cam
+				var lacet := rad_to_deg(atan2(-dv.x, -dv.z))
+				var tang := rad_to_deg(atan2(dv.y, Vector2(dv.x, dv.z).length()))
+				lignes.append("v3a_%s_%d monde %.2f,%.2f,%.1f,%.1f y=%.2f heure=12" % [mi.name, n, cam.x, cam.z, lacet, tang, pied])
+				n += 1
+		if n == 0:
+			push_warning("PropsMax : abords, aucune vue dégagée pour " + String(mi.name))
+	var fa := FileAccess.open(chemin, FileAccess.WRITE)
+	fa.store_string("\n".join(lignes) + "\n")
+	print("PropsMax : abords, %d vues écrites dans %s" % [lignes.size() - 1, chemin])
 
 ## Dernier recours (terrain en pente autour des ancres choisies) : couronnes de 3, 5 et 7 m autour de la première ancre, même lacet.
 ## Les glissements de ±1/±2 m s'y appliquent aussi : chaque essai est bon marché (quelques requêtes), l'ordre reste déterministe.
