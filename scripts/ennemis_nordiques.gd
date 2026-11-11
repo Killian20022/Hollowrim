@@ -310,11 +310,22 @@ static func _gabarit(cle: String, fab: Callable) -> Node3D:
 	_mx.unlock()
 	if g == null:
 		g = fab.call()
+		_resoudre_accroches(g)
 		_mx.lock()
 		_modeles[cle] = g
 		_mx.unlock()
 	_bm.unlock()
 	return g
+
+## Gabarit bâti hors de l'arbre : un BoneAttachment3D dont `bone_name` a été posé avant d'être mis sous le Skeleton3D garde bone_idx = -1 ;
+## duplicate() recopie ce -1 et Godot avertit « Bone index -1 out of range » à chaque copie (_corps). On résout l'index une fois ici.
+static func _resoudre_accroches(g: Node) -> void:
+	for ba: BoneAttachment3D in g.find_children("*", "BoneAttachment3D", true, false):
+		var sk := ba.get_parent() as Skeleton3D
+		if sk != null and ba.bone_idx < 0 and ba.bone_name != "":
+			var i := sk.find_bone(ba.bone_name)
+			if i >= 0:
+				ba.bone_idx = i
 
 ## Copie du corps de la variante `ch` (neuve, hors de l'arbre).
 static func _corps(ch: Dictionary) -> Node3D:
