@@ -28,6 +28,17 @@ static var INCL := -35.0
 const GRIP := {"draugr": 0.04, "archer": 0.04, "squelette": 0.115, "gobelin": 0.04}
 const FIST_MIN := 0.5
 const FIST_MAX := 0.9
+## Arc tenu par la VRAIE main osseuse (squelette Tripo) : l'arc du jeu des archers (ChasseresseNordique.equiper_arc : porté le long du corps,
+## bandé corde tirée et flèche encochée, relâché ; PoseArcher sur les clips Pistol_*), la prise MESURÉE sur le maillage des mains
+## (outils/mesure_main_squelette_tripo.gd, repère de l'os) : poignée au creux de la paume gauche, corde dans les doigts de la main droite ; chaque main
+## tournée autour de son os pour que la ligne des jointures (grand axe de la coupe de la paume) suive l'arc / la corde ; bras d'arc tendu (bras plus
+## long que celui de la chasseresse : l'allonge fixe pliait le coude à 124°).
+## La main gauche du modèle est décalée de l'os (~6 cm vers -z) : l'arc posé sur l'os seul flottait à côté des doigts.
+## L'archer draugr Tripo (« archer ») : même chaîne, sa main gauche est elle aussi décalée de l'os (~5,5 cm vers -z), jointures à ~40-49° de +x.
+const PRISE_ARC := {
+	"squelette": {"paume_l": Vector3(0.034, 0.095, -0.06), "paume_r": Vector3(-0.045, 0.16, -0.012), "rot_l": -48.0, "rot_r": 53.0, "tendu": 0.985},
+	"archer": {"paume_l": Vector3(0.05, 0.08, -0.053), "paume_r": Vector3(-0.025, 0.15, 0.005), "rot_l": -44.0, "rot_r": 55.0, "tendu": 0.985},
+}
 
 static var _shader: Shader
 static var _mats := {}
@@ -103,7 +114,9 @@ static func creer(id: String, arme := "") -> Node3D:
 		rd.set("voute_k", 4.0)         # démarche voûtée : le dos du modèle l'est déjà, la voûte s'ajoute aux clips
 		rd.set("amortir", false)
 	sq.add_child(rd)
-	if arme == "arc":
+	if arme == "arc" and PRISE_ARC.has(id):
+		ChasseresseNordique.equiper_arc(racine, sq, PRISE_ARC[id])
+	elif arme == "arc":
 		EnnemisNordiques._arc(sq)
 	elif arme != "":
 		_armer(sq, corps, id, arme)

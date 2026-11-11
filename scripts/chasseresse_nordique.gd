@@ -151,16 +151,26 @@ static func _creer(options := {}) -> Node3D:
 
 ## Équipe un corps déjà bâti (65 os Humain, « Skeleton3D » + « Animations ») de l'arc long et de la posture d'archer : trois arcs (porté / bandé avec corde
 ## tirée et flèche encochée / relâché) commutés par PoseArcher selon les clips Pistol_Aim_Neutral et Pistol_Shoot. Appelée par _creer, et par GardeTripo (archer Tripo).
-static func equiper_arc(racine: Node3D, sq: Skeleton3D) -> void:
+## `prise` (facultatif) : prise MESURÉE sur la vraie main d'un autre corps (EnnemiTripo.PRISE_ARC, squelette Tripo), repère des os hand_l / hand_r :
+##   "paume_l" / "paume_r" (Vector3) : point du maillage où passe la poignée de l'arc (gauche) / où les doigts tiennent la corde (droite) ;
+##   "rot_l" / "rot_r" (degrés, autour de l'os de la main) : tourne la main pour que la ligne des jointures suive l'arc / la corde ;
+##   "tendu" (0-1) : bras d'arc tendu à cette fraction de sa longueur (au lieu de l'allonge fixe de la chasseresse).
+## Sans elle : la paume de la chasseresse (PAUME le long de l'os, jointures sur l'axe z), comportement d'origine.
+static func equiper_arc(racine: Node3D, sq: Skeleton3D, prise := {}) -> void:
 	var rest_skin := sq.create_skin_from_rest_transforms()
 	var posture := Posture.new(sq)
+	posture.paume_l = prise.get("paume_l", posture.paume_l)
+	posture.paume_r = prise.get("paume_r", posture.paume_r)
+	posture.rot_l = Basis(Vector3.UP, deg_to_rad(float(prise.get("rot_l", 0.0))))
+	posture.rot_r = Basis(Vector3.UP, deg_to_rad(float(prise.get("rot_r", 0.0))))
+	posture.tendu = float(prise.get("tendu", 0.0))
 	var pose := posture.calculer()
 	var hl := sq.find_bone("hand_l")
 	var hr := sq.find_bone("hand_r")
 	var Ml: Transform3D = sq.get_bone_global_rest(hl) * posture.glob(hl).affine_inverse()      # pose de visée -> repos (main G)
 	var Mr: Transform3D = sq.get_bone_global_rest(hr) * posture.glob(hr).affine_inverse()      # pose de visée -> repos (main D)
 	var porte := Acc.new(sq)
-	var tr_porte := porte.repere_porte()
+	var tr_porte := porte.repere_porte(prise.get("paume_l"))
 	var tr_vise: Transform3D = Ml * posture.repere_arc
 	sq.set_meta("arc_porte", [hl, tr_porte])     # contrôle des traversées (outils/test_chasseresse.gd)
 	sq.set_meta("arc_vise", [hl, tr_vise])
@@ -182,7 +192,7 @@ static func equiper_arc(racine: Node3D, sq: Skeleton3D) -> void:
 	var mod := PoseArcher.new()
 	mod.name = "PoseArcher"
 	mod.ap = racine.get_node("Animations") as AnimationPlayer
-	mod.regler(sq, pose)
+	mod.regler(sq, pose, posture)
 	mod.mi_porte = mi_porte
 	mod.mi_vise = mi_vise
 	mod.mi_relache = mi_relache
@@ -264,6 +274,11 @@ class Posture:
 	const TORSION := [-13.0, -14.0, -15.0]
 	const PAUME := 0.075                 # du poignet au creux de la main
 	const ALLONGE := 0.548               # épaule -> poignée (bras presque tendu)
+	var paume_l := Vector3(0, PAUME, 0)  # où passe la poignée, dans le repère de hand_l (chasseresse : PAUME le long de l'os)
+	var paume_r := Vector3(0, PAUME, 0)  # où les doigts tiennent la corde, dans le repère de hand_r
+	var rot_l := Basis()                 # main gauche tournée autour de son os (jointures le long de l'arc)
+	var rot_r := Basis()                 # main droite tournée autour de son os (jointures le long de la corde)
+	var tendu := 0.0                     # > 0 : bras d'arc tendu à cette fraction de sa longueur (allonge calculée) ; 0 = ALLONGE fixe
 
 	func _init(s: Skeleton3D) -> void:
 		sq = s
@@ -333,14 +348,23 @@ class Posture:
 		var S := glob(sq.find_bone("upperarm_l")).origin
 		var w := encoche - S
 		var bq := 2.0 * w.dot(dir)
-		var tirage := (-bq + sqrt(maxf(bq * bq - 4.0 * (w.length_squared() - ALLONGE * ALLONGE), 0.0))) * 0.5
-		prise = encoche + dir * tirage
 		var cant := Basis(dir, deg_to_rad(-9.0))          # arc un peu penché (haut vers l'extérieur droit de l'archère)
 		var haut := cant * Vector3.UP
-		_bras("l", prise - dir * PAUME + haut * 0.0, Vector3(0.7, -0.6, -0.2), _main(dir, haut))
+		var ml := _main(dir, haut) * rot_l
+		# bras d'arc : ALLONGE (chasseresse) ; avec `tendu` > 0, allonge recalculée pour que le poignet soit à tendu x (bras + avant-bras)
+		# de l'épaule, la paume mesurée tombant sur la poignée (bras plus long qu'elle, prise décalée de l'os)
+		var al := ALLONGE
+		var lg_bras: float = (loc[sq.find_bone("lowerarm_l")] as Transform3D).origin.length() + (loc[sq.find_bone("hand_l")] as Transform3D).origin.length()
+		for _it in (6 if tendu > 0.0 else 1):
+			var tirage := (-bq + sqrt(maxf(bq * bq - 4.0 * (w.length_squared() - al * al), 0.0))) * 0.5
+			prise = encoche + dir * tirage
+			if tendu > 0.0:
+				al += tendu * lg_bras - (prise - ml * paume_l - S).length()
+		_bras("l", prise - ml * paume_l, Vector3(0.7, -0.6, -0.2), ml)
 		var recul := (-dir * 0.075 + Vector3(-0.045, 0.012, 0.0)) * lache
 		var doigts := encoche + recul
-		_bras("r", doigts - dir * PAUME + Vector3(0.0, 0.0, 0.0), Vector3(-1.0, 0.25, -0.55), _main(dir, Vector3.UP))
+		var mr := _main(dir, Vector3.UP) * rot_r
+		_bras("r", doigts - mr * paume_r, Vector3(-1.0, 0.25, -0.55), mr)
 		repere_arc = Transform3D(Basis(haut.cross(dir), haut, dir), prise + Vector3(-0.004, 0, 0))
 		var res := {}
 		for nom: String in ChasseresseNordique.OS_POSE:
@@ -359,8 +383,15 @@ class PoseArcher extends SkeletonModifier3D:
 	var mi_vise: MeshInstance3D
 	var mi_relache: MeshInstance3D
 
-	func regler(sq: Skeleton3D, pose: Dictionary) -> void:
+	## `prise` : la posture de la pose bandée (sa prise mesurée est reprise pour la pose relâchée) ; null = prise de la chasseresse.
+	func regler(sq: Skeleton3D, pose: Dictionary, prise: ChasseresseNordique.Posture = null) -> void:
 		var p2 := ChasseresseNordique.Posture.new(sq)
+		if prise != null:
+			p2.paume_l = prise.paume_l
+			p2.paume_r = prise.paume_r
+			p2.rot_l = prise.rot_l
+			p2.rot_r = prise.rot_r
+			p2.tendu = prise.tendu
 		var pr := p2.calculer(1.0)
 		for i: int in pose:
 			os_.append(i)
@@ -825,10 +856,13 @@ class Acc extends GuerrierNordique.Accessoires:
 	## vertical (un peu penché vers l'avant et l'extérieur, la branche haute dégage le bras) ; dans la marche il balance avec le bras.
 	const POSE_IDLE_MAIN_G := Transform3D(Basis(Vector3(-0.889131, -0.235068, -0.392669), Vector3(0.028026, -0.884364, 0.465956), Vector3(-0.456794, 0.403291, 0.792903)), Vector3(0.263458, 0.885619, 0.038581))
 
-	func repere_porte() -> Transform3D:
+	## `paume` (facultatif) : point de prise mesuré sur la vraie main d'un autre corps, repère de hand_l (voir equiper_arc).
+	func repere_porte(paume: Variant = null) -> Transform3D:
 		var P := POSE_IDLE_MAIN_G.orthonormalized()
 		var R := sq.get_bone_global_rest(sq.find_bone("hand_l"))
 		var prise := P.origin + P.basis.y * 0.085 + P.basis.z * -0.01
+		if paume is Vector3:
+			prise = P * (paume as Vector3)
 		var axe := Vector3(0.16, 1.0, 0.20).normalized()
 		var dos := Vector3(0.35, 0.0, 1.0)
 		dos = (dos - axe * dos.dot(axe)).normalized()
