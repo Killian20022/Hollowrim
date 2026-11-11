@@ -493,3 +493,51 @@ static func maillage_brut(nom: String, mat: String) -> ArrayMesh:
 	_brut_mesh[cle] = m
 	_verrou.unlock()
 	return m
+
+# ------------------------------------------------------------------ props/maximum : lot autonome de props texturés
+## Un groupe de pq_* (ou q_* servis en pq_*) posé d'un bloc sous `parent` : UN MeshInstance3D (une surface par atlas, matériaux
+## partagés de `contexte`) et UN StaticBody3D (boîtes des items marqués solides). Poses : [[id, Transform3D (repère de parent), solide]].
+## Aucun nœud par prop. Renvoie le MeshInstance3D (null sans props texturés).
+static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exterieur") -> MeshInstance3D:
+	if not pq:
+		return null
+	var sts := {}
+	var corps: StaticBody3D = null
+	for p: Array in poses:
+		var id: String = p[0]
+		var xf: Transform3D = p[1]
+		if pq_de(id) == "":
+			continue
+		for m: Array in morceaux(id):
+			if not sts.has(m[0]):
+				var st := SurfaceTool.new()
+				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+				sts[m[0]] = st
+			var mesh := ArrayMesh.new()
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, m[1])
+			(sts[m[0]] as SurfaceTool).append_from(mesh, 0, xf)
+		if p.size() > 2 and bool(p[2]):
+			if corps == null:
+				corps = StaticBody3D.new()
+				corps.name = nom + "_corps"
+				parent.add_child(corps)
+			var bb := boite(id)
+			var cs := CollisionShape3D.new()
+			var bs := BoxShape3D.new()
+			bs.size = bb.size * xf.basis.get_scale()
+			cs.shape = bs
+			cs.transform = Transform3D(xf.basis.orthonormalized(), xf * bb.get_center())
+			corps.add_child(cs)
+	if sts.is_empty():
+		return null
+	var am := ArrayMesh.new()
+	for a: String in sts:
+		var st: SurfaceTool = sts[a]
+		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, st.commit_to_arrays())
+		am.surface_set_material(am.get_surface_count() - 1, PropsQuat.materiau(a, contexte))
+	var mi := MeshInstance3D.new()
+	mi.name = nom
+	mi.mesh = am
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	return mi
