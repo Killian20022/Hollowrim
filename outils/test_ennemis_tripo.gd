@@ -64,6 +64,7 @@ func _lancer() -> void:
 	var sqn := EnnemisNordiques.squelette({"type": "squelette", "ident": "sq1"})
 	ok(sqn.has_meta("tripo_ennemi"), "EnnemisNordiques.squelette -> corps Tripo (%s)" % sqn.get_meta("variante", ""))
 	sqn.free()
+	await _archer_squelette()
 	# anciens corps toujours chargeables (factions) : option « modele_ancien », zombie, et --modeles-anciens[=groupes] (ModelesTripo)
 	var app_d := {"corps": "homme", "draugr": true, "tenue": {}}
 	var anc := EnnemisNordiques.creer({"type": "guerrier", "ident": "g_anc", "apparence": app_d, "modele_ancien": true})
@@ -139,3 +140,80 @@ func _lancer() -> void:
 		mva.free()
 	print("RESULTAT : %d échec(s)" % echecs)
 	quit(1 if echecs > 0 else 0)
+
+## Sommets (repos) d'un maillage dont le poids sur `os_nom` est >= 0,5, dans le repère de repos de l'os.
+func _pts_os(sq: Skeleton3D, mi: MeshInstance3D, os_nom: String) -> Array[Vector3]:
+	var r: Array[Vector3] = []
+	var inv := sq.get_bone_global_rest(sq.find_bone(os_nom)).affine_inverse()
+	for s in mi.mesh.get_surface_count():
+		var a := mi.mesh.surface_get_arrays(s)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var b: PackedInt32Array = a[Mesh.ARRAY_BONES]
+		var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+		var k := b.size() / maxi(v.size(), 1)
+		for i in v.size():
+			var p := 0.0
+			for q in k:
+				var nom: String = mi.skin.get_bind_name(b[i * k + q]) if mi.skin.get_bind_name(b[i * k + q]) != "" else sq.get_bone_name(mi.skin.get_bind_bone(b[i * k + q]))
+				if nom == os_nom:
+					p += w[i * k + q]
+			if p >= 0.5:
+				r.append(inv * (mi.transform * v[i]))
+	return r
+
+func _plus_pres(p: Vector3, pts: Array[Vector3]) -> float:
+	var d := INF
+	for q in pts:
+		d = minf(d, p.distance_to(q))
+	return d
+
+## Archer squelette : corps Tripo, arc du jeu des archers (porté / bandé / relâché, PoseArcher) tenu par la VRAIE main, prise mesurée ;
+## dépouille (sauvegarde du butin) refaite avec le même corps.
+func _archer_squelette() -> void:
+	var n := EnnemisNordiques.squelette({"type": "squelette_archer", "ident": "sq_arch"})
+	ok(n.has_meta("tripo_ennemi") and String(n.get_meta("variante", "")) == "squelette_arc" and not bool(n.get_meta("squelette_poings", true)), "squelette_archer : corps Tripo, variante squelette_arc, pas à mains nues")
+	await _archer_tripo(n, "squelette", "squelette_archer", 9500)
+	await _archer_tripo(EnnemiTripo.creer("archer", "arc"), "archer", "draugr_archer", 8000)
+	var DR: GDScript = load("res://scripts/draugr.gd")
+	for spec: Dictionary in [{"type": "squelette_archer", "archer": true, "ident": "sq_arch"}, {"type": "sbire", "archer": true, "ident": "dr_arch"}]:
+		var dep: Node3D = DR.call("modele_depouille", spec)
+		var sqd := dep.find_child("Skeleton3D", true, false) as Skeleton3D
+		ok(dep.has_meta("tripo_ennemi") and sqd.get_node_or_null("arc_porte") != null and sqd.get_node_or_null("arc") == null, "%s : dépouille / sauvegarde (spec_depouille) : même corps Tripo, même arc" % spec["type"])
+		dep.free()
+
+## Arc du jeu (ChasseresseNordique.equiper_arc) tenu par la vraie main Tripo `id` (prise EnnemiTripo.PRISE_ARC mesurée sur le maillage).
+func _archer_tripo(n: Node3D, id: String, nom: String, max_tris: int) -> void:
+	root.add_child(n)
+	var sq := n.find_child("Skeleton3D", true, false) as Skeleton3D
+	var porte := sq.get_node_or_null("arc_porte") as MeshInstance3D
+	var vise := sq.get_node_or_null("arc_vise") as MeshInstance3D
+	var relache := sq.get_node_or_null("arc_relache") as MeshInstance3D
+	ok(porte != null and vise != null and relache != null and sq.get_node_or_null("PoseArcher") != null, "%s : arc porté / bandé / relâché + PoseArcher" % nom)
+	ok(sq.get_node_or_null("arc") == null, "%s : plus l'ancien arc skinné (EnnemisNordiques._arc, horizontal en visée)" % nom)
+	var t := _tris(n)
+	ok(t < max_tris, "%s : %d triangles (corps + arc porté)" % [nom, t])
+	if porte != null and vise != null:
+		var tb: Variant = (porte.get_surface_override_material(0) as ShaderMaterial).get_shader_parameter("tex_base")
+		var tv: Variant = (vise.get_surface_override_material(0) as ShaderMaterial).get_shader_parameter("tex_base")
+		ok(tb != ChasseresseTextures.tex("accessoires") and tb == tv, "%s : bois de l'arc teinté pour l'ennemi (pas celui de la chasseresse)" % nom)
+		var corps: MeshInstance3D = null
+		for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
+			if mi.skin != null and not String(mi.name).begins_with("arc"):
+				corps = mi
+		var main := _pts_os(sq, corps, "hand_l")
+		var paume: Vector3 = EnnemiTripo.PRISE_ARC[id]["paume_l"]
+		ok(_plus_pres(paume, main) < 0.02, "%s : prise mesurée DANS la main gauche (%.1f cm du maillage)" % [nom, _plus_pres(paume, main) * 100])
+		for mi: MeshInstance3D in [porte, vise]:
+			var arc := _pts_os(sq, mi, "hand_l")
+			var d := INF
+			for q in arc:
+				d = minf(d, _plus_pres(q, main))
+			ok(arc.size() > 20 and d < 0.015, "%s %s : la poignée touche la main gauche (%.1f cm)" % [nom, mi.name, d * 100])
+		var ap := n.get_node("Animations") as AnimationPlayer
+		for c: Array in [["Idle", true, false], ["Pistol_Aim_Neutral", false, true]]:
+			ap.play(String(c[0]))
+			ap.advance(0.3)
+			for k in 3:
+				await process_frame
+			ok(porte.visible == c[1] and vise.visible == c[2], "%s %s : bon arc visible (porté %s, bandé %s)" % [nom, c[0], porte.visible, vise.visible])
+	n.free()
