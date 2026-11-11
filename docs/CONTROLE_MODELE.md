@@ -67,10 +67,22 @@ coude -> poignet -> base du majeur. Le coude (pli) et le bout des doigts (capuch
 | `soudure` | 0,0005 m | – | – |
 | `arme_paume_max` | 0,10 m | 3,3 cm (garde épée) ; 5,2 cm (verre) | – |
 | `arme_angle_max` | 85° | garde épée 12° ; verre 6° à 78° (poignet fléchi de 75° hors clips d'épée) | – |
+| `arme_skinnee` | 0 (désactivé) | exception, voir plus bas | – |
 
 Réglages à connaître : `trous_max` est volontairement haut (le verre v2 validé en a 188) : il ne repère qu'un maillage nettement troué ;
 `arme_angle_max` est lâche (il ne détecte qu'une lame perpendiculaire au bras) ; la cible 0,75-0,80 n'est qu'un avertissement car aucun
 des modèles validés ne la respecte partout (la règle « armure = 1,1 à 1,25 x main nue » n'est pas automatisée).
+
+
+### Exception `--seuil.arme_skinnee=1` (arme skinnée sur la main)
+
+Désactivée par défaut. Pour un modèle dont l'arme est FONDUE dans le maillage du corps et skinnée sur l'os de la main (lance des gardes
+lanciers Tripo : 100 % `hand_r`, même îlot que la main), la hampe est comptée comme de la main et le rapport main / avant-bras explose
+(4,53 sur `tripo_garde_lance_rig.glb` : faux ÉCHEC). Avec l'option, par côté : les sommets de main à plus de `arme_skinnee_dist`
+(0,20 m) du segment poignet -> bout des doigts sont la hampe ; une droite y est ajustée (axe principal) et les sommets de main à moins de
+« médiane de leur distance à la droite + 4 mm » (plafond `arme_skinnee_rayon`, 0,035 m) en font partie. Ces sommets sont exclus de la
+SEULE largeur de main ; éclats, continuité, étirement et budget restent mesurés sur tout le maillage. Le nombre exclu est un
+avertissement. Lancier : 1 105 sommets, rayon 2,9 cm, rapport 0,79 -> OK ; sans l'option : ÉCHEC 4,53 (seul échec restant).
 
 ## Résultats de validation
 
@@ -81,6 +93,7 @@ des modèles validés ne la respecte partout (la règle « armure = 1,1 à 1,25 
 | garde Tripo à l'épée (`garde:tripo_garde_epee` et GLB du jeu) | OK | poing mesuré à l'extrémité de l'avant-bras (avertissement), arme à 3,3 cm de la paume |
 | armure de verre v2 (`garde:tripo_garde_verre` et GLB) | OK | arme à 5,2 cm de la paume, lame 6°-78° |
 | armure dorée v10 (`dore`) | OK | rapport main / avant-bras 0,71 (avertissement) |
+| lancier Tripo `tripo_garde_lance_rig.glb` (tripo/corrections_persos) avec `--seuil.arme_skinnee=1` | OK | lance skinnée exclue de la largeur de main (1 105 sommets) ; sans l'option : ÉCHEC 4,53 |
 
 ## Limites
 
