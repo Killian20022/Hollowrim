@@ -607,10 +607,21 @@ def cuirasse(r, st):
     # ---------------------------------------------------------------- haut de cotte (mailles sous les plaques) et col montant
     zp0, zp1 = st.get("z_plaques", (1.04, 1.42))
     z_haut = [zp1 - 0.03, 1.47, 1.52, 1.545, 1.565]
+    if st.get("gorgerin"):
+        z_haut = [zp1 - 0.03, 1.45, 1.475]     # le gorgerin couvre le cou : la cotte s'arrête sous sa lame basse
 
     def dec_maille(j, i, a):
         return 0.012 if j < 3 else 0.009 + 0.014 * max(0.0, -math.cos(a)) ** 1.5
     Ph, Rh, _ = C.tube(arbre, axeA, axeB, [tz(z) for z in z_haut], n, dec_maille, r_loin=0.6, dilate=1, lisse=2)
+    if st.get("gorgerin"):
+        # sous le gorgerin : la cotte reste serrée (ni sur les épaules, ni à travers la lame basse)
+        for j in range(1, len(Ph)):
+            for i, a in enumerate(angs):
+                p = Ph[j][i]
+                hz = Vector((p.x, p.y - 0.012, 0.0))
+                rmax = 0.135 + 0.035 * abs(math.sin(a))
+                if hz.length > rmax:
+                    Ph[j][i] = Vector((p.x * rmax / hz.length, 0.012 + (p.y - 0.012) * rmax / hz.length, p.z))
     Ph[-1] = [p - Vector((0, 0, 0.03 * max(0.0, -math.cos(a)) ** 1.5)) for p, a in zip(Ph[-1], angs)]
     Ph[-2] = [p - Vector((0, 0, 0.02 * max(0.0, -math.cos(a)) ** 1.5)) for p, a in zip(Ph[-2], angs)]
     P.grille_v(Ph, MM, R_HAUT, inverser=True)
@@ -909,6 +920,53 @@ def cuirasse(r, st):
                     va, vm, vt = v0 + (v1 - v0) * 0.85, v0 + (v1 - v0) * 0.5, v0 + (v1 - v0) * 0.1
                     P.face([ia, ib, imb, ima], "fourrure", [(uu - uw, va), (uu + uw, va), (uu + uw * 0.7, vm), (uu - uw * 0.7, vm)])
                     P.face([ima, imb, it], "fourrure", [(uu - uw * 0.7, vm), (uu + uw * 0.7, vm), (uu, vt)])
+    # ---------------------------------------------------------------- GORGERIN d'acier (2026-11-11, remplace le col de fourrure jugé
+    # illisible : « une touffe au niveau de la tête ») : lames articulées autour du cou, sous le menton, visage dégagé ; chaque lame
+    # du dessus recouvre celle du dessous (comme le plastron), la plus haute à bord roulé ; la plus basse repose sur le haut du
+    # plastron et des épaules, SOUS les épaulières. Posé par rayons lancés vers un pivot au-dessus de la base du cou (comme le col
+    # de fourrure), contre les mailles, les lames du plastron et le corps (sans les bras ni les épaulières).
+    if st.get("gorgerin"):
+        G = st["gorgerin"]
+        yc = G.get("y", 0.012)
+        ng = G.get("n", 24)
+        arc_g = [math.pi + TAU * i / ng for i in range(ng)]
+        corps_g = C.bvh(r, ["tunique", "peau"], {"spine_02", "spine_03", "neck_01", "clavicle_l", "clavicle_r"}, 0.4)
+        # lames de BAS en HAUT ; chaque rang (z au dos, rayon) ; la lame du dessus recouvre le haut de celle du dessous
+        lames_g = G.get("lames")
+        dip = G.get("devant", 0.035)        # devant : le gorgerin descend sous le menton (barbe, visage dégagé)
+        larg = G.get("cote", 0.18)          # plus large sur les côtés (trapèzes), en fraction du rayon
+        ec = G.get("ecart", 0.006)
+        nu = len(lames_g)
+        hy = (R_FOUR[3] - R_FOUR[1]) / nu
+        for k, rangs in enumerate(lames_g):
+            support = BVHTree.FromPolygons(P.v, [idx for (idx, m, uvs) in P.f if P.mats[m] in (st["mat"], MM, "gorgerin")], epsilon=0.0)
+            pts = []
+            prev = None
+            for j, (z0, r0) in enumerate(rangs):
+                row = []
+                for i, a_ in enumerate(arc_g):
+                    w = max(0.0, math.cos(a_)) ** 1.5
+                    z = z0 - dip * w
+                    d = _dir(a_)
+                    rp = r0 * (1.0 + larg * abs(math.sin(a_)) * min(1.0, max(0.0, (1.56 - z) / 0.08)))
+                    c = Vector((0.0, yc, z))
+                    best = None
+                    for arb in (support, corps_g):
+                        hit = arb.ray_cast(c + d * 0.26, -d, 0.26)
+                        if hit[0] is not None:
+                            dd = 0.26 - hit[3]
+                            best = dd if best is None else max(best, dd)
+                    rr = max(rp, (best + ec) if best is not None else 0.0)
+                    rmax = G.get("r_max", 0.175) + G.get("r_max_cote", 0.02) * abs(math.sin(a_))
+                    rr = min(rr, rmax)
+                    row.append(rr)
+                pts.append(row)
+            R = C.lisser_grille(pts, 1, circulaire=True, k=0.5)
+            rows = [[Vector((0.0, yc, z0 - dip * max(0.0, math.cos(a_)) ** 1.5)) + _dir(a_) * R[j][i] for i, a_ in enumerate(arc_g)]
+                    for j, (z0, r0) in enumerate(rangs)]
+            rect = (R_FOUR[0], R_FOUR[1] + hy * k, R_FOUR[2], R_FOUR[1] + hy * (k + 1))
+            nr = len(rangs)
+            P.grille_v(rows, "gorgerin", rect, vs=[j / (nr - 1) for j in range(nr)], inverser=True)
     # ================================================================ peinture
     pm = st.get("pal_maille", H.FER)
     pc = st.get("pal_cuir", H.CUIR)
@@ -981,6 +1039,12 @@ def cuirasse(r, st):
     for x in (2, 42, 82):
         T.couture((x, 112.5), (x, 127.5), pas=0.9)
     T.couture((0, 126.6), (84, 126.6), pas=0.9)
+    if st.get("gorgerin"):
+        nu = len(st["gorgerin"].get("lames", ((0, 0),) * 3))
+        hy = (R_FOUR[3] - R_FOUR[1]) / nu
+        for k in range(nu):
+            rt = (R_FOUR[0], R_FOUR[1] + hy * k, R_FOUR[2], R_FOUR[1] + hy * (k + 1))
+            peindre_plaque(T, rt, st, g + 120 + k, bas=True, haut=(k == nu - 1), larg_bis=1.0, filet_cotes="hb" if k == nu - 1 else "b")
     if st.get("fourrure"):
         T.zone(R_FOUR, H.fourrure(st.get("pal_fourrure", H.FOURRURE_BEIGE), g + 5, base=st.get("base_fourrure", 0.55), longueur=st.get("long_meches", 2.4), degrade=st.get("degrade_fourrure", 0.0)),
                sale=0.25, relief=0.8)
@@ -988,7 +1052,8 @@ def cuirasse(r, st):
         p(T, st, g)
     T.finir(g=g)
     img = T.image()
-    ob = P.objet_oriente(_centre_corps, {"fourrure": lambda c: Vector((0.0, 0.0, c.z - 0.12))})
+    ob = P.objet_oriente(_centre_corps, {"fourrure": lambda c: Vector((0.0, 0.0, c.z - 0.12)),
+                                         "gorgerin": lambda c: Vector((0.0, 0.012, c.z))})
     aretes_vives(ob, 60)
     occlusion_sommets(ob, portee=0.06)
     C.appliquer_materiaux(ob, P, img)
@@ -1030,6 +1095,29 @@ def cuirasse(r, st):
                 if k not in ob.vertex_groups:
                     ob.vertex_groups.new(name=k)
                 ob.vertex_groups[k].add([vi], w / tot, "REPLACE")
+    if "gorgerin" in P.mats:
+        # gorgerin : rigide sur le haut du dos et le cou (spine_03 -> neck_01 selon la hauteur), jamais la tête ni les bras ; puis
+        # sa matière provisoire « gorgerin » est fondue dans l'acier (même preset de jeu que les plaques)
+        mi = [i for i, m in enumerate(ob.data.materials) if m.name.split(".")[0] == "gorgerin"]
+        vg = {vi for p in ob.data.polygons if p.material_index in mi for vi in p.vertices}
+        for nom in ("spine_03", "neck_01"):
+            if nom not in ob.vertex_groups:
+                ob.vertex_groups.new(name=nom)
+        for vi in vg:
+            v = ob.data.vertices[vi]
+            for gg in list(v.groups):
+                ob.vertex_groups[gg.group].remove([vi])
+            z = (ob.matrix_world @ v.co).z
+            t = min(1.0, max(0.0, (z - 1.47) / 0.10)) * 0.55
+            ob.vertex_groups["spine_03"].add([vi], 1.0 - t, "REPLACE")
+            if t > 0:
+                ob.vertex_groups["neck_01"].add([vi], t, "REPLACE")
+        ia = next(i for i, m in enumerate(ob.data.materials) if m.name == st["mat"] or m.name.split(".")[0] == st["mat"].split(".")[0] and "maille" not in m.name and "gorgerin" not in m.name)
+        for p in ob.data.polygons:
+            if p.material_index in mi:
+                p.material_index = ia
+        assert mi == [len(ob.data.materials) - 1], mi
+        ob.data.materials.pop(index=mi[0])
     C.lier(ob, r)
     return ob
 

@@ -39,6 +39,13 @@ def _s(b0, **kw):
     return d
 
 
+# gorgerin d'acier (retour utilisateur 2026-11-11 : le col de fourrure ne se lisait pas) ; voir pieces_hd.cuirasse
+GORGERIN = dict(devant=0.035, ecart=0.006, cote=0.18, r_max=0.175, r_max_cote=0.02, lames=(
+    # (z au dos, rayon) de bas en haut, rebord rentré compris
+    ((1.441, 0.160), (1.444, 0.168), (1.462, 0.152), (1.480, 0.134), (1.512, 0.104)),
+    ((1.499, 0.104), (1.502, 0.110), (1.525, 0.095), (1.546, 0.081)),
+    ((1.533, 0.080), (1.536, 0.086), (1.556, 0.080), (1.575, 0.078), (1.579, 0.084), (1.583, 0.087))))
+
 PIECES = {
     # --- fer : casque à nasal (spangenhelm riveté) et camail ; cuirasse à deux lames, baudrier, col de fourrure brune
     "casque_fer": lambda r: PH.casque(r, _s(FER, id="casque_fer", bombe=0.012, rivets_rebord=16, larg_bande=0.014,
@@ -46,7 +53,7 @@ PIECES = {
     "cuirasse_fer": lambda r: PH.cuirasse(r, _s(FER, id="cuirasse_fer", z_lames=[1.06, 1.17, 1.42], bombe=0.012, tablier=20,
                                                fentes=(-95, 95, 180), dechire=0.03, rivets_lame=12, sangles=[((36, 1.42), (-30, 1.04)),],
                                                lames_epaule=3, rivets_epaule=6, epaule_ecart=0.024, bord_roule=True,
-                                               fourrure=dict(gonfle=0.8, arc=(0, 360), ferme=True, devant=0.4, pas=22.5, meches=0.045, cote=0.15, r_max=0.16, r_max_cote=0.07, z_pivot=1.565, phis=(-18, -12, -2, 8, 18, 28), phis_cote=(-10, -4, 4, 12, 20, 28), phis_devant=(-22, -18, -12, -6, 0, 6)),
+                                               gorgerin=GORGERIN,
                                                pal_fourrure=H.FOURRURE_BRUNE_CLAIRE, base_fourrure=0.5)),
     "gantelets_fer": lambda r: PH.gantelets(r, _s(FER, id="gantelets_fer", main_cuir=True, lames_main=1, rivets_manchette=7, rivets_lames=4,
                                                   evasement=0.022, jointures=False, debut_manchette=0.08)),
@@ -61,7 +68,7 @@ PIECES = {
                                                            tablier=22, fentes=(-100, 100, 180), rivets_lame=16, rivets_milieu=True,
                                                            tassettes=(58, 100), sangles=[((40, 1.43), (-30, 1.04)), ((-40, 1.43), (30, 1.04))],
                                                            disque=(-33, 1.365), sacoche=-38, lames_epaule=3, rivets_epaule=7, bord_roule=True,
-                                                           fourrure=dict(gonfle=0.95, arc=(0, 360), ferme=True, devant=0.4, pas=22.5, densite=(2, 1, 1, 1, 1), meches=0.06, cote=0.25, r_max=0.165, r_max_cote=0.085, z_pivot=1.565, phis=(-16, -10, 0, 10, 20, 30), phis_cote=(-8, -2, 6, 14, 22, 30), phis_devant=(-22, -18, -12, -6, 0, 6)),
+                                                           gorgerin=GORGERIN,
                                                            pal_fourrure=H.FOURRURE_GRISE, base_fourrure=0.74, degrade_fourrure=0.5)),
     "gantelets_acier_nordique": lambda r: PH.gantelets(r, _s(ACIER, id="gantelets_acier_nordique", main_cuir=True, lames_main=2, rivets_manchette=9,
                                                              rivets_lames=5, evasement=0.03, jointures=True, debut_manchette=0.08)),
@@ -183,8 +190,16 @@ def main():
     argv = [a for a in argv if not a.startswith("--")]
     ids = argv or list(PIECES)
     for pid in ids:
-        r = C.charger_reference()
-        ob = PIECES[pid](r)
+        r, ob = construire(pid)
+        _suite(r, ob, pid, dossier, sol, exporter)
+
+
+def construire(pid):
+    """Pièce basse déf du jeu (passe 2 : retreinte, plaques articulées, crête, bordures/rivets en relief), sans export.
+    Réutilisé par la cuisson (sources_blender/armures/cuisson/cuire.py)."""
+    r = C.charger_reference()
+    ob = PIECES[pid](r)
+    if True:
         if "--epais" not in sys.argv:
             # affinage 2026-11-11 : pièces rapprochées du corps (retour « trop épaisses »), même loi pour toutes les pièces
             RT.retreindre(ob, r, **RETREINT)
@@ -198,6 +213,11 @@ def main():
         if "--sans-relief" not in sys.argv:
             # passe 2 « géométrie » : bordures roulées + rivets en relief
             RL.relief(ob, **RELIEF.get(_famille(pid), {}))
+    return r, ob
+
+
+def _suite(r, ob, pid, dossier, sol, exporter):
+    if True:
         print("PIECE", pid, C.compter_tris(ob), "tris", "groupes", len(ob.vertex_groups),
               "texture", next(n for n in ob.data.materials[0].node_tree.nodes if n.type == "TEX_IMAGE").image.size[:])
         _rep = {}
@@ -226,4 +246,5 @@ def main():
             AP.rendre(os.path.join(dossier, pid + "_seul"), cible=cible, ortho=ortho, dist=3.0, vues=("face", "34", "dos"), taille=(480, 640))
 
 
-main()
+if __name__ == "__main__":
+    main()
