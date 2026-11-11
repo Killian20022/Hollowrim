@@ -225,10 +225,14 @@ func _plus_proche() -> Node3D:
 
 ## Icône dessinée « E » de l'invite : seulement si la touche d'interaction est E ; sinon l'invite s'écrit « [touche] ».
 func _icone_touche() -> Texture2D:
-	return _tex["touche"] if Touches.libelle("interagir") == "E" else null
+	return _tex["touche"] if Touches.libelle("interagir") == "E" and not Manette.actif() else null
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventJoypadButton and e.pressed:
+		if not _ouvert and e.is_action_pressed("interagir", false) and _plus_proche() != null and not joueur.mort:
+			_ouvrir(_plus_proche())   # bouton d'interaction de la manette (A par défaut, réglable : scripts/manette.gd)
+			get_viewport().set_input_as_handled()
+			return
 		_manette((e as InputEventJoypadButton).button_index)
 		return
 	if not (e is InputEventKey) or not e.pressed or e.echo:
@@ -251,14 +255,12 @@ func _unhandled_input(e: InputEvent) -> void:
 		_choisir(_choix + (-1 if touche in [KEY_UP, KEY_W, KEY_LEFT] else 1))
 		get_viewport().set_input_as_handled()
 
-## Manette (lot L8) : A = parler / suite / valider, B = fermer, X = commercer, croix = choisir.
+## Manette (lot L8) : A = suite / valider, B = fermer, X = commercer, croix = choisir ; parler : bouton « interagir » (A par défaut).
 func _manette(b: JoyButton) -> void:
 	match b:
 		JOY_BUTTON_A:
 			if _ouvert:
 				_suite()
-			elif _plus_proche() != null and not joueur.mort:
-				_ouvrir(_plus_proche())
 			else:
 				return
 		JOY_BUTTON_B:
@@ -369,7 +371,7 @@ func _ouvrir(pnj: Node3D) -> void:
 	_carte_cmd.visible = _marchand != ""
 	if _marchand != "":
 		var lc := _carte_cmd.get_node("Texte") as Label
-		lc.text = "[T] Commercer"
+		lc.text = Manette.ou("[T] Commercer", "[X] Commercer")
 		_carte_cmd.size.x = ceilf(_police.get_string_size(lc.text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x) + 12.0
 		lc.size = Vector2(_carte_cmd.size.x, 14)
 		_placer()
@@ -442,9 +444,10 @@ func _process(dt: float) -> void:
 		_invite_texte.add_theme_color_override("font_color", p.couleur_invite() if p.has_method("couleur_invite") else PARCHEMIN)
 		var l := ceilf(_police.get_string_size(_invite_texte.text, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x)
 		var icone: Texture2D = _icone_touche()
-		var larg_icone := 11.0 if icone != null else _police.get_string_size("[%s] " % Touches.libelle("interagir"), HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
+		var touche := Manette.libelle_courant("interagir")   # « E » au clavier, « A » à la manette (dernière entrée)
+		var larg_icone := 11.0 if icone != null else _police.get_string_size("[%s] " % touche, HORIZONTAL_ALIGNMENT_LEFT, -1, TAILLE_POLICE).x
 		if icone == null:
-			_invite_texte.text = "[%s] " % Touches.libelle("interagir") + _invite_texte.text
+			_invite_texte.text = "[%s] " % touche + _invite_texte.text
 		var total := l + larg_icone + (4.0 if icone != null else 0.0)
 		_invite_larg = total
 		var nom_obj: String = String(p.nom_affiche()) if p.has_method("nom_affiche") else ""

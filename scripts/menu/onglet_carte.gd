@@ -79,6 +79,8 @@ func titre() -> String:
 	return "Carte"
 
 func aide() -> Array:
+	if Manette.actif():   # boutons : entree() ; sticks, croix, gâchettes : _process
+		return [["Stick G", "Déplacer"], ["Stick D", "Zoom"], ["Y", "Moi"], ["X", "Quête"], ["A", "Légende"]]
 	return [[Touches.libelle_deplacement(), "Déplacer"], ["Molette", "Zoom"], ["Espace", "Moi"], ["F", "Quête"]]
 
 func _init() -> void:

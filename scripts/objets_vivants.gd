@@ -515,7 +515,8 @@ func _input(e: InputEvent) -> void:
 				if _visee != null:
 					prendre(_visee)
 				get_viewport().set_input_as_handled()
-	elif _tenu != null and e is InputEventMouseButton and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT and e.is_pressed():
+	elif _tenu != null and ((e is InputEventMouseButton and (e as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT and e.is_pressed()) \
+			or (Manette.est_manette(e) and e.is_action_pressed("main_droite"))):   # manette : RT
 		lancer()
 		get_viewport().set_input_as_handled()
 

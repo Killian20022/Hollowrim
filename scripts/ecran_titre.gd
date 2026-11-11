@@ -12,7 +12,7 @@ extends Control
 ## native (content_scale DISABLED) et l'écran de chargement rétablit l'échelle du jeu (640x360 agrandi) avant de montrer le monde.
 ## Le monde (Jeu.SCENE_JEU) n'est chargé qu'une fois par processus : revenir au titre ou recommencer passe par Jeu.relancer().
 ## Mode outil (tests, captures, arguments d'agents : Jeu.mode_outil) : on passe tout droit au monde, sans rien afficher.
-## Test des menus : --test-titre=nouvelle|continuer|restaurer|relance|clavier|captures:<dossier>|options:<dossier> (outils/test_menus.sh).
+## Test des menus : --test-titre=nouvelle|continuer|restaurer|relance|clavier|manette|captures:<dossier>|options:<dossier> (outils/test_menus.sh).
 
 const OPTIONS := preload("res://scripts/menu_options.gd")
 const CHARGEMENT := preload("res://scripts/ecran_chargement.gd")
@@ -869,6 +869,9 @@ func _test(etape: String) -> void:
 	elif etape == "clavier":
 		var ok := await verifier_clavier()
 		get_tree().quit(0 if ok else 1)
+	elif etape == "manette":
+		var ok := await verifier_manette()
+		get_tree().quit(0 if ok else 1)
 	elif etape == "continuer":
 		if _b_continuer.disabled:
 			print("TEST MENUS : ÉCHEC (Continuer grisé alors qu'une sauvegarde est attendue)")
@@ -952,6 +955,70 @@ func verifier_clavier() -> bool:
 	if echecs.is_empty():
 		print("TEST MENUS : clavier OK (Continuer grisé sans sauvegarde, focus initial, parcours, Échap, Entrée)")
 	return echecs.is_empty()
+
+## Parcours à la MANETTE (événements InputEventJoypad simulés, scripts/manette.gd) : croix bas, UNE poussée du stick gauche = un pas
+## (même avec plusieurs mouvements d'axe), B → Quitter, A sur Options → panneau, croix dans le panneau, B → retour au menu.
+## « TEST MENUS : manette OK ».
+func verifier_manette() -> bool:
+	_menu_principal()
+	await _images(3)
+	var echecs := PackedStringArray()
+	_b_nouvelle.grab_focus()
+	await _images(1)
+	var depart := _focus_texte()
+	await _pad(JOY_BUTTON_DPAD_DOWN)
+	var apres_croix := _focus_texte()
+	if apres_croix == depart:
+		echecs.append("croix bas : focus resté sur %s" % depart)
+	if not Manette.actif():
+		echecs.append("dernière entrée pas notée manette")
+	_b_nouvelle.grab_focus()
+	await _images(1)
+	for v in [0.6, 0.8, 1.0, 0.9]:
+		_pad_axe(JOY_AXIS_LEFT_Y, v)
+		await _images(1)
+	_pad_axe(JOY_AXIS_LEFT_Y, 0.0)
+	await _images(2)
+	var apres_stick := _focus_texte()
+	if apres_stick != apres_croix:
+		echecs.append("une poussée du stick : %s (attendu %s, un seul pas)" % [apres_stick, apres_croix])
+	_b_nouvelle.grab_focus()
+	await _pad(JOY_BUTTON_B)
+	if _focus_texte() != "Quitter":
+		echecs.append("B → %s (attendu Quitter)" % _focus_texte())
+	_b_options.grab_focus()
+	await _pad(JOY_BUTTON_A)
+	await get_tree().create_timer(0.7).timeout
+	if not _options.visible:
+		echecs.append("A sur Options : panneau fermé")
+	else:
+		var f0 := get_viewport().gui_get_focus_owner()
+		await _pad(JOY_BUTTON_DPAD_DOWN)
+		if get_viewport().gui_get_focus_owner() == f0 or f0 == null:
+			echecs.append("croix bas dans Options : focus immobile")
+	await _pad(JOY_BUTTON_B)
+	await _images(3)
+	if _options.visible or not _menu_ouvert:
+		echecs.append("B dans Options : pas de retour au menu")
+	for e in echecs:
+		print("TEST MENUS : ÉCHEC manette : ", e)
+	if echecs.is_empty():
+		print("TEST MENUS : manette OK (croix, stick un pas par poussée, B, A, Options)")
+	return echecs.is_empty()
+
+func _pad(b: JoyButton) -> void:
+	for p in [true, false]:
+		var e := InputEventJoypadButton.new()
+		e.button_index = b
+		e.pressed = p
+		Input.parse_input_event(e)
+		await _images(2)
+
+func _pad_axe(a: JoyAxis, v: float) -> void:
+	var e := InputEventJoypadMotion.new()
+	e.axis = a
+	e.axis_value = v
+	Input.parse_input_event(e)
 
 func _focus_texte() -> String:
 	var f := get_viewport().gui_get_focus_owner()

@@ -57,6 +57,7 @@ const OPTIONS_DEFAUT := {
 	"commandes": {"sensibilite": 1.0, "inverser_y": false},
 	"sauvegarde": {"dossier_secours": "", "emplacement": 1},   # "" = copie de secours désactivée ; emplacement : dernier emplacement manuel (1 à 3) utilisé par F5 et « Sauvegarder »
 	"jeu": {"aides": true},   # bulles d'aide contextuelles, une fois chacune (scripts/aides.gd) ; le cartouche des touches (F1) reste
+	"manette": {},   # rempli par Manette.options_defaut() (charger_options) : "<action>" = bouton (scripts/manette.gd), sensibilite, inverser_y, zone_morte, courbe
 	"touches": {},   # rempli par Touches.options_defaut() (charger_options) : "<action>" et "<action>_2" = touches physiques
 	"combat": {"gore": 2, "arret_image": 1, "chiffres_degats": false},   # sang et gore : 2 complet (défaut), 1 réduit, 0 désactivé (scripts/combat/sang.gd) ; arrêt sur image des coups : 0 désactivé, 1 bref (défaut), 2 appuyé (scripts/effets.gd) ; chiffres de dégâts flottants : désactivés par défaut (scripts/combat/chiffres_degats.gd)
 }
@@ -71,6 +72,7 @@ static var champ_vision := 72.0
 static func charger_options() -> void:
 	options = OPTIONS_DEFAUT.duplicate(true)
 	options["touches"] = Touches.options_defaut()
+	options["manette"] = Manette.options_defaut()
 	var cfg := ConfigFile.new()
 	if cfg.load(FICHIER_OPTIONS) == OK:
 		for section: String in options:

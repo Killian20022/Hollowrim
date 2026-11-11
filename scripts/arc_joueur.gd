@@ -521,7 +521,8 @@ func relacher() -> void:
 func _tenu() -> bool:
 	if joueur.mort or joueur.en_dialogue:
 		return false
-	return tenu_force or (souris_reelle and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT))
+	return tenu_force or (souris_reelle and ((Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)) \
+		or Manette.tenue("main_droite")))   # manette : RT (ou le bouton de la main droite) maintenu
 
 ## Facteur de vitesse de marche du joueur (joueur.gd) : ralenti pendant le bandage.
 func facteur_vitesse() -> float:

@@ -23,6 +23,31 @@ const TEXTES := {
 	"menu": ["Menu et carte", "Tab : sac, magie, compétences, journal des quêtes et carte du royaume. F1 : rappel des touches."],
 }
 
+## Mêmes bulles à la manette (dernière entrée : Manette.actif()) : %s = boutons réels, remappage compris (texte_de()).
+const TEXTES_MANETTE := {
+	"ennemi": "%s : frapper (maintiens %s : coup puissant). Maintiens %s : garde. %s : esquive. Recule quand ta vie baisse : mieux vaut fuir que mourir.",
+	"sort": "Un sort est en main. Maintiens %s (main droite) ou %s (main gauche) pour le charger, relâche pour le lancer. Le mana revient tout seul. La croix change de sorts.",
+	"coffre": "%s : ouvrir, puis choisis ce que tu emportes. Le sac a une limite de poids : trop chargé, tu ralentis.",
+	"menu": "%s : sac, magie, compétences, journal des quêtes et carte du royaume (LB / RB : page suivante). Start : pause.",
+}
+
+## Texte d'une bulle pour l'appareil de la dernière entrée.
+static func texte_de(cle: String) -> String:
+	if not Manette.actif() or not TEXTES_MANETTE.has(cle):
+		return String(TEXTES[cle][1])
+	var d := Manette.libelle("main_droite")
+	var g := Manette.libelle("main_gauche")
+	match cle:
+		"ennemi":
+			return TEXTES_MANETTE[cle] % [d, d, g, Manette.libelle("esquive")]
+		"sort":
+			return TEXTES_MANETTE[cle] % [d, g]
+		"coffre":
+			return TEXTES_MANETTE[cle] % Manette.libelle("interagir")
+		"menu":
+			return TEXTES_MANETTE[cle] % Manette.libelle("menu")
+	return String(TEXTES[cle][1])
+
 var hud: Control
 var joueur: CharacterBody3D
 var dialogue: Control      # invite d'action (E) : détecte le premier coffre
@@ -139,7 +164,7 @@ func _draw() -> void:
 	if a <= 0.01 or not _libre():
 		return
 	var titre: String = TEXTES[_cle][0]
-	var texte: String = TEXTES[_cle][1]
+	var texte: String = texte_de(_cle)
 	var taille_texte := _police.get_multiline_string_size(texte, HORIZONTAL_ALIGNMENT_LEFT, LARGEUR, Palette.TAILLE_POLICE)
 	var t := Vector2(LARGEUR + 28.0, ceilf(taille_texte.y) + 52.0)
 	var o := Vector2(floorf((size.x - t.x) * 0.5), floorf(size.y - t.y - 62.0))

@@ -209,6 +209,7 @@ func onglets(liste: Array, actif: int) -> void:
 ## Touches de fer de Parchemin centrées sur le cuir du bas (comme le bandeau du menu) ; `liste` = [[touche, libellé, zone]] ;
 ## zones cliquables.
 func touches(liste: Array) -> void:
+	liste = Manette.traduire(liste)   # dernière entrée à la manette : boutons (« A Prendre », « B Fermer »)
 	_debut_cadre()
 	var tot := 0.0
 	for t: Array in liste:

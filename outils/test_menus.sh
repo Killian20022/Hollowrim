@@ -36,6 +36,7 @@ lancer nouvelle
 lancer continuer
 lancer restaurer
 lancer clavier
+lancer manette   # même parcours à la manette (événements InputEventJoypad simulés : croix, stick, A, B)
 # « Retour au titre » : le processus se relance lui-même (détaché) ; le nouveau écrit test_relance.ok dans le dossier des données
 OK_RELANCE="/mnt/c/Users/$USER/AppData/Roaming/Hollowrim/test_relance.ok"; rm -f "$OK_RELANCE"
 lancer relance
@@ -53,6 +54,7 @@ grep -q "TEST MENUS : sauvegarde écrite" "$JOURNAL" || ko=1
 grep -q "TEST MENUS : copie de secours OK" "$JOURNAL" || ko=1
 grep -q "TEST MENUS : restaurer OK" "$JOURNAL" || ko=1
 grep -q "TEST MENUS : clavier OK" "$JOURNAL" || ko=1
+grep -q "TEST MENUS : manette OK" "$JOURNAL" || ko=1
 grep -q "TEST MENUS : relance OK (retour" "$JOURNAL" || ko=1
 grep -q "ÉCHEC" "$JOURNAL" && ko=1
 [[ $ko = 0 ]] && echo "TEST MENUS : OK" || echo "TEST MENUS : ÉCHEC (journal : $JOURNAL)"

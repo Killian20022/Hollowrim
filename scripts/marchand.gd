@@ -458,11 +458,12 @@ func _input(e: InputEvent) -> void:
 				_choisir(choix - 1)
 			KEY_DOWN, KEY_S:
 				_choisir(choix + 1)
-	elif e is InputEventJoypadButton:
+	elif e is InputEventJoypadButton or e is InputEventJoypadMotion:   # stick gauche = croix (Manette.bouton_ou_croix)
 		vp.set_input_as_handled()
-		if not e.pressed:
+		var bouton := Manette.bouton_ou_croix(e)
+		if bouton < 0:
 			return
-		match (e as InputEventJoypadButton).button_index:
+		match bouton:
 			JOY_BUTTON_A:
 				traiter()
 			JOY_BUTTON_Y:

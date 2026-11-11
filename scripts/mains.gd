@@ -730,7 +730,7 @@ func _peut_agir() -> bool:
 	return joueur != null and not joueur.mort and not joueur.en_dialogue and not (joueur.get("arc") != null and joueur.arc.actif)   # arc équipé : plus d'épée
 
 func _unhandled_input(e: InputEvent) -> void:
-	if not _peut_agir() or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	if not _peut_agir() or (Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not Manette.est_manette(e)):   # manette : sans curseur capturé aussi
 		return
 	if magie != null and magie.intercepter(e):
 		return
@@ -1058,7 +1058,7 @@ func avancer(dt: float) -> void:
 		reinitialiser_combo()
 	# un clic pendant un coup reste en tampon tant que le coup dure (il ne vieillit qu'ensuite)
 	entrees.gele = combat.etat in [EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CONTRE, EtatCombat.FINISHER, EtatCombat.RECUPERATION]
-	entrees.garde_tenue = (magie.garde_tenue() if magie != null else Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)) and _peut_agir()
+	entrees.garde_tenue = (magie.garde_tenue() if magie != null else (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or Manette.tenue("main_gauche"))) and _peut_agir()
 	if not _peut_agir():
 		entrees.attaque_tenue = false
 		entrees.tampon = -1.0

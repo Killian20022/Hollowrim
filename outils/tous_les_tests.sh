@@ -131,6 +131,7 @@ TESTS=(
 	"test_sauvegarde|ecrire;verifier"   # deux processus à la suite
 	"test_autosave|--nouvelle"   # emplacements (3 manuels + 1 auto), écriture atomique, autosauvegarde (quête, maison, donjon, 10 min, hors combat)
 	"test_remappage|--nouvelle"   # touches = actions de l'InputMap, remappage et échange, aide du HUD, options graphiques (ombres)
+	"test_manette|--nouvelle"   # manette (événements InputEventJoypad simulés) : InputMap, zone morte, dernière entrée et aides en boutons, déplacement, caméra, saut, esquive, épée RT / LT, menu, dialogue, remappage, Options
 	"test_coffre_l1|ecrire;verifier"   # lot L1 : coffres en deux pièces, ouverture animée (S + rebond, 0,5 s), lueur brève, ouvert après rechargement, ouvert après la mort (crypte + grotte)
 	"test_butin_l2|--nouvelle"   # lot L2 : pièces qui jaillissent (au sol, versées une fois à 1,5 m, aspirées, sans double), pièces du coffre versées à l'ouverture, or_tas v3
 	"test_butin_corps|--nouvelle"   # butin des corps sauvegardé (ButinTables.corps / restes, Butin.restaurer, ancienne sauvegarde)
