@@ -56,6 +56,17 @@ def hook_gardiens(T, st, g):
     T.zone((92, 92, 128, 100), DU.fourrure_touffe(DU.BLANCHE, g + 301, 92, 100), sale=0.15)
     DU.givre(T, [(0, v_l[0], 128, v_l[-1]), PH.R_TASS, PH.R_EPAUL], g + 200, force=0.30)
     DU.givre(T, [PH.R_JUPE, PH.R_HAUT], g + 210, force=0.18)
+    # affinage 2026-11-11 (niveau Tripo) : bords de lames élimés (acier poli là où ça frotte), ceinture et sangles de cuir noir
+    # cousues double piqûre, rivets d'acier sur les sangles
+    for k in range(len(v_l) - 1):
+        usure_bords(T, (0, v_l[k], 128, v_l[k + 1]), g + 400 + k, cotes="bh", larg=1.0, force=0.55)
+    usure_bords(T, PH.R_EPAUL, g + 420, larg=1.2, force=0.6)
+    for rect in (PH.R_CEINT, PH.R_SANGLE):
+        x0, y0, x1, y1 = rect
+        if y1 - y0 > 3.0:
+            T.couture((x0 + 0.6, y0 + 0.9), (x1 - 0.6, y0 + 0.9), pas=0.9)
+            T.couture((x0 + 0.6, y1 - 0.9), (x1 - 0.6, y1 - 0.9), pas=0.9)
+        usure_bords(T, rect, g + 430, cotes="bh", larg=0.7, force=0.5)
 
 
 # ---------------------------------------------------------------------------------------------- gantelets de Hrafn

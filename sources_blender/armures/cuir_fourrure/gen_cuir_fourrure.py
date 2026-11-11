@@ -412,16 +412,24 @@ def rgba(rgb, a):
 
 def peau(P, N, pal, base, g, brillance=0.35, fort=1.0):
     v = base + grain(P, g, fort) + np.clip(N[:, 1], -1, 1) * 0.05
+    # affinage 2026-11-11 (niveau des cuirs Tripo) : cuir USÉ — zones claires élimées par plaques lentes, taches d'huile sombres,
+    # griffures claires fines ; plus de contraste de valeur qu'un aplat brun
+    use = np.clip((L.fbm(P, 3.2, g + 40) - 0.52) * 3.0, 0, 1)
+    v = v + use * 0.12
+    tache = np.clip((L.fbm(P, 5.5, g + 41) - 0.60) * 4.0, 0, 1)
+    v = v - tache * 0.10
+    gr = np.abs(np.sin((P[:, 0] * 1.7 - P[:, 1] * 0.6 + P[:, 2] * 1.1) * 140.0 + L.fbm(P, 7.0, g + 42) * 9.0)) < 0.05
+    v = np.where(gr & (L.bruit(P, 9.0, g + 43) > 0.70), v + 0.10, v)
     return v, rgba(L.rampe(pal, np.clip(v, 0, 0.999)), 0.10 + v * brillance)
 
 
 def finition_bords(out, de, ds, dv, dr, dvr, m, couture=True, rivets=True):
     """Sur les texels m : biseau usé clair au bord visible (de), rainure, points de couture (ds : distance au point le plus
     proche), rivets bombés (dr, dvr)."""
-    k = m & (de < 0.0022)
-    out[k, :3] = out[k, :3] * 1.22 + 0.025
-    k = m & (de >= 0.0022) & (de < 0.0042)
-    out[k, :3] *= 0.70
+    k = m & (de < 0.0030)
+    out[k, :3] = out[k, :3] * 1.38 + 0.035          # biseau élimé, bien lisible (cuir usé au bord)
+    k = m & (de >= 0.0030) & (de < 0.0050)
+    out[k, :3] *= 0.62
     if couture:
         t = m & (ds < 0.0016)
         out[t, :3] = out[t, :3] * 0.15 + FIL * (0.80 + 0.35 * (dv[t, 1] / 0.0016)[:, None] * 0.3)
@@ -479,6 +487,12 @@ def fourrure_tex(P, N, bd, pal, base, g, sens=(0.0, 1.0, 0.0), meche=False):
         + (L.fbm(P, 4.0, g + 3) - 0.5) * 0.10 + np.clip(N[:, 1], -1, 1) * 0.06
     jarre = L.bruit(Q, 520.0, g + 4) > 0.86                     # poils de jarre clairs, rares
     v = np.where(jarre, v + 0.08, v)
+    # affinage : poils groupés en MÈCHES (touffes allongées dans le sens du poil, racines sombres entre les touffes, pointes claires)
+    tou = L.bruit(Q * np.array([1.0, 1.0, 1.0]), 48.0, g + 5)
+    v = v + (tou - 0.5) * 0.22
+    v = np.where(tou < 0.22, v - 0.12, v)
+    pointe = np.mod(P @ s / 0.035 + L.fbm(Q, 20.0, g + 6) * 2.0, 1.0)
+    v = v + (pointe - 0.5) * 0.10
     if meche:
         v = np.where(bd < 0.0016, v - 0.16, np.where(bd < 0.006, v + 0.03, v))   # chaque mèche se détache (bord sombre, coeur clair)
     rgb = L.rampe(pal, np.clip(v, 0, 0.999))
