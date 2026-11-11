@@ -1538,12 +1538,30 @@ static func modele_depouille(spec: Dictionary) -> Node3D:
 		if m == null:
 			m = Humain.creer(app)
 	m.scale = Vector3.ONE * float(spec.get("echelle", 1.0))
-	var ap := m.get_node_or_null("Animations") as AnimationPlayer
-	if ap != null and ap.has_animation("Death01"):
-		ap.play("Death01")
-		ap.seek(ap.get_animation("Death01").length - 0.05, true)
-		ap.pause()
+	figer_pose_allongee(m)
 	return m
+
+## Fige un modèle (contrat Humain.creer : AnimationPlayer « Animations ») sur la dernière image de `clip` (Death01 : allongé au sol).
+## Bâti HORS de l'arbre (dépouilles statiques, corps de décor), la pose posée par seek() reste dans les os locaux mais le Skeleton3D
+## ne recalcule pas ses poses globales tant que rien ne le marque « sale » : sur les corps Tripo à l'épée (aucun modificateur qui
+## réécrit des os à chaque image, contrairement au PoseArcher de l'archer) le maillage restait DEBOUT en pose de repos (bug
+## « cadavres de draugr debout » : plafond de cadavres par zone, partie rechargée). On rejoue donc la pose une fois dans l'arbre.
+static func figer_pose_allongee(m: Node, clip := "Death01") -> void:
+	var ap := m.get_node_or_null("Animations") as AnimationPlayer
+	if ap == null or not ap.has_animation(clip):
+		return
+	var poser := func() -> void:
+		if not is_instance_valid(ap):
+			return
+		ap.play(clip)
+		ap.seek(ap.get_animation(clip).length - 0.05, true)
+		ap.pause()
+		var sq := m.find_child("Skeleton3D", true, false) as Skeleton3D
+		if sq != null and sq.is_inside_tree():
+			sq.force_update_all_bone_transforms()
+	poser.call()
+	if not m.is_inside_tree():
+		m.tree_entered.connect(poser, CONNECT_ONE_SHOT | CONNECT_DEFERRED)
 
 func _laisser_butin() -> void:
 	var b := Node3D.new()
