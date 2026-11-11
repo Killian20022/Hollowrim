@@ -7,7 +7,8 @@ extends Node
 ##     de la maison des Frostmark (Stockage.MAISON, accessibles après l'achat) ; le râtelier montre les armes rangées dans le
 ##     coffre de la maison (4 au plus, modèles 3D des armes) ;
 ##   - options de dialogue (Dialogue : liste de choix sur la dernière réplique) : Brodd « Forge », Gunnar « Acheter la maison »,
-##     Sigrún « Réinitialiser l'arbre » (Progression.reinitialiser_perks, lot B ; Progression.PRIX_REINITIALISATION pièces).
+##     Sigrún « Réinitialiser l'arbre » (Progression.reinitialiser_perks, lot B ; Progression.PRIX_REINITIALISATION pièces) ;
+##     les maîtres « Leçon : <compétence> » (Formation, gameplay/economie).
 
 const GROUPE := "services_pnj"
 ## Coffre de Grima : InterieursMaisons._grima pose `b.coffre(Vector3(L/2 - 0.14 - 0.35, F, 0.6))` (L = 7) ; point d'action dessus.
@@ -66,6 +67,7 @@ func options(id_pnj: String) -> Array:
 				r.append({"texte": "Acheter la maison (%s pièces)" % LivreParchemin.nombre(Stockage.PRIX_MAISON), "action": acheter_maison})
 		"volva":
 			r.append({"texte": "Oublier mes talents (%d pièces)" % Progression.PRIX_REINITIALISATION, "action": reinitialiser_arbre})
+	r.append_array(Formation.options(id_pnj, joueur, _avis))   # gameplay/economie : leçon payante du maître (scripts/rpg/formation.gd)
 	var rg: Node = monde.get("rangs") if monde != null else null
 	if rg is Rangs:
 		r.append_array((rg as Rangs).options(id_pnj))   # chefs de faction : rejoindre / demander une promotion (scripts/rangs.gd)

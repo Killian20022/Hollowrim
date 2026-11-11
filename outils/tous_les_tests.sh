@@ -140,6 +140,7 @@ TESTS=(
 	"test_mode_butin|--nouvelle --test-butin"   # mode --test-butin (exe de test) : sac plein (armures + tomes lus dans data/), 5000 pièces, sorts appris, pas de doublon au rechargement
 	"test_fenetre_butin|--nouvelle"   # lot L3 : fenêtre de butin (tri par rareté, E / R / Échap / Tab, pause, unique → pièces, objets laissés sauvegardés, corps « Fouiller », coffre « Fouiller le coffre »)
 	"test_marchands|--nouvelle"   # lot L8 : marchands (achat, vente, objets de quête, stock vide, réassort 2 jours, sauvegarde, boutique en pause, dialogue « Commercer »)
+	"test_economie|--nouvelle"   # gameplay/economie : receleur Bersi (objets volés), marchands honnêtes qui refusent le volé, marge minimale anti-arbitrage, leçons des maîtres (docs/ECONOMIE.md)
 	"test_objets_uniques|ecrire;verifier"   # lot L9 : objets uniques posés (hache de Kolbeinn sur le trône, épées sur râteliers / chevalet), prise sauvegardée, jamais deux fois, marchand, reflet de lame, « tout disponible » préparé
 	"test_potions|--nouvelle"   # potions à effet progressif (durée, délai par famille, HUD) et poids du sac limité (surcharge, butin, marchands, anciennes sauvegardes)
 	"test_lacher|--nouvelle"   # Lâcher dans l inventaire (L, Maj+L, boutons) : sac au sol sauvegardé, uniques et quête refusés

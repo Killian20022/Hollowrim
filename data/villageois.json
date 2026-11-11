@@ -130,6 +130,33 @@
         "Ma petite-fille Solveig est descendue dans la vieille mine il y a trois semaines. Pas un mot depuis.",
         "Va, étranger. Mes vieux os attendront ton retour."
       ]
+    },
+    {
+      "id": "receleur",
+      "nom": "Bersi Main-Grise",
+      "role": "Colporteur",
+      "pnj": "hab_receleur",
+      "pos": [31.0, 56.5],
+      "cap": 60,
+      "sedentaire": true,
+      "activite": "Idle",
+      "interpellations": [
+        "Pas si fort. Les murs ont des oreilles.",
+        "Tu cherches quelque chose ? Moi non plus.",
+        "Avance, ou fais affaire."
+      ],
+      "lignes": [
+        "Bersi. Colporteur, pour ceux qui demandent. Et personne ne demande.",
+        "Ce qui tombe d’une charrette finit toujours par trouver preneur. Ici, sous l’auvent.",
+        "Brodd et la vieille Grima ont des scrupules. Moi, j’ai une bourse.",
+        "Je ne pose pas de questions sur l’origine. Je paie moins, voilà tout.",
+        "Ce que tu me vends, la garde ne le retrouvera jamais sur toi."
+      ],
+      "apres": [
+        "Tu n’as rien vu, je n’ai rien dit.",
+        "Reviens quand tes poches seront lourdes. Et discrètes.",
+        "La garde passe sur le quai à la tombée du jour. Moi, je ne bouge pas."
+      ]
     }
   ]
 }

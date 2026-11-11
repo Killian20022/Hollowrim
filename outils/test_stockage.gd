@@ -117,7 +117,9 @@ func _tester() -> void:
 		_pnj(id).set_process(false)
 	j.global_position = _pnj("forgeron").global_position + Vector3(0, 0, 1.5)
 	d._ouvrir(_pnj("forgeron"))
-	_verif(_textes(d) == ["Commercer", "Forge", "Au revoir"], "Brodd : %s" % str(_textes(d)))
+	var tb := _textes(d)   # gameplay/economie : Brodd donne aussi une leçon d'Une main (Formation) ; elle n'a rien à voir ici
+	tb = tb.filter(func(t: String) -> bool: return not t.begins_with("Leçon : "))
+	_verif(tb == ["Commercer", "Forge", "Au revoir"], "Brodd : %s" % str(_textes(d)))
 	d._fermer()
 	j.global_position = _pnj("ancienne").global_position + Vector3(0, 0, 1.5)
 	d._ouvrir(_pnj("ancienne"))

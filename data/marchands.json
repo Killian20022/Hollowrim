@@ -1,9 +1,10 @@
 {
-	"_doc": "Lot L8 « marchands » (scripts/marchand.gd, docs/BUTIN.md §9). Clé = id du villageois (data/villageois.json). Champs : titre (en-tête de la boutique), or (bourse du marchand au début de chaque période), renouvellement_jours (jours de jeu entre deux réassorts : stock tiré à nouveau, bourse remise à `or`, ce que le joueur a vendu disparaît), achat (prix d'achat = valeur x achat, arrondi au-dessus), vente (prix de rachat au joueur = valeur x vente, arrondi au-dessous, 1 au moins), achete (ce que le marchand rachète : catégories du registre Inventaire.CATEGORIES ou ids  ; lot E : bijoux chez Grima ; un objet forgé « id+n » est racheté comme son id), stock (tirage à graine fixe « marchand:<id>:<période> » : n = nombre ou [min, max], chance = % d'être en rayon, 100 par défaut). Jamais vendables : valeur 0 (objets de quête), `invendables`, et les objets demandés par une étape « objet:<id>>=n » d'une quête en cours.",
+	"_doc": "Lot L8 « marchands » (scripts/marchand.gd, docs/BUTIN.md §9). Clé = id du villageois (data/villageois.json). Champs : titre (en-tête de la boutique), or (bourse du marchand au début de chaque période), renouvellement_jours (jours de jeu entre deux réassorts : stock tiré à nouveau, bourse remise à `or`, ce que le joueur a vendu disparaît), achat (prix d'achat = valeur x achat, arrondi au-dessus), vente (prix de rachat au joueur = valeur x vente, arrondi au-dessous, 1 au moins), achete (ce que le marchand rachète : catégories du registre Inventaire.CATEGORIES ou ids  ; lot E : bijoux chez Grima ; un objet forgé « id+n » est racheté comme son id), stock (tirage à graine fixe « marchand:<id>:<période> » : n = nombre ou [min, max], chance = % d'être en rayon, 100 par défaut). Jamais vendables : valeur 0 (objets de quête), `invendables`, et les objets demandés par une étape « objet:<id>>=n » d'une quête en cours. ÉCONOMIE (docs/ECONOMIE.md) : `receleur` (true) = rachète aussi les objets volés (Crime.voles) et leur ôte la marque ; les autres refusent la part volée d'une pile (`refus_vole` : texte du refus) ; rachat borné à 75 % du prix d'achat (Marchand.MARGE_MIN). Section `formations` : leçons payantes des maîtres (scripts/rpg/formation.gd) : une leçon = +1 niveau de `competence` jusqu'à `max`, prix = prix_fixe + prix_niveau x niveau, au plus lecons_par_periode par maître tous les renouvellement_jours jours ; `reussite` = répliques après la leçon, `refus_max` / `refus_fatigue` = refus.",
 	"invendables": [],
 	"marchands": {
 		"forgeron": {
 			"titre": "Forge de Brodd",
+			"refus_vole": "Objet volé : Brodd refuse.",
 			"or": 600,
 			"renouvellement_jours": 2,
 			"achat": 1.1,
@@ -64,6 +65,7 @@
 		},
 		"ancienne": {
 			"titre": "Remèdes de Grima",
+			"refus_vole": "Objet volé : Grima refuse.",
 			"or": 300,
 			"renouvellement_jours": 2,
 			"achat": 1.15,
@@ -87,6 +89,42 @@
 				{"id": "tome_souffle_givre", "n": 1, "chance": 80},
 				{"id": "tome_rayon_neant", "n": 1, "chance": 25}
 			]
+		},
+		"receleur": {
+			"titre": "Ballots de Bersi",
+			"receleur": true,
+			"or": 350,
+			"renouvellement_jours": 3,
+			"achat": 1.3,
+			"vente": 0.25,
+			"achete": [],
+			"stock": [
+				{"id": "crochet", "n": [4, 8]},
+				{"id": "potion_soin", "n": [1, 2], "chance": 70},
+				{"id": "potion_endurance", "n": 1, "chance": 50},
+				{"id": "viande_sechee", "n": [1, 3]},
+				{"id": "anneau_cuivre", "n": 1, "chance": 60},
+				{"id": "coupe_argent", "n": 1, "chance": 40},
+				{"id": "pendentif_mineur", "n": 1, "chance": 25},
+				{"id": "dague_acier", "n": 1, "chance": 40},
+				{"id": "fleche", "n": [6, 14], "chance": 60},
+				{"id": "capuche_cuir", "n": 1, "chance": 35},
+				{"id": "gants_cuir", "n": 1, "chance": 35}
+			]
+		}
+	},
+	"formations": {
+		"_doc": "Leçons des maîtres (scripts/rpg/formation.gd, docs/ECONOMIE.md) : clé = id du villageois.",
+		"lecons_par_periode": 3,
+		"renouvellement_jours": 2,
+		"prix_fixe": 40,
+		"prix_niveau": 6,
+		"maitres": {
+			"forgeron": {"competence": "epee", "max": 50, "refus_max": "Au-delà, c’est le combat qui t’apprendra. Pas moi.", "refus_fatigue": "Mon bras a assez donné aujourd’hui. Reviens dans deux jours.", "reussite": ["Pas comme ça. Le poignet ferme, l’épaule souple. Voilà.", "Mieux. Une lame prolonge le bras, ce n’est pas un balai.", "Tu frappes moins comme un bûcheron. C’est un début."]},
+			"garde": {"competence": "parade", "max": 50, "refus_max": "Je n’ai plus rien à t’apprendre. Les draugrs feront le reste.", "refus_fatigue": "Je suis de garde, moi. Reviens dans deux jours.", "reussite": ["Garde haute. Je frappe, tu encaisses. Voilà.", "Ne recule pas : pivote. Le bouclier fait le reste.", "Pas mal. Tu tiendrais la porte une nuit, peut-être."]},
+			"chasseuse": {"competence": "athletisme", "max": 50, "refus_max": "Tu cours aussi bien que moi. Va courir après les loups.", "refus_fatigue": "Assez couru pour aujourd’hui. Reviens dans deux jours.", "reussite": ["Respire par le nez, cours avec les hanches. Encore un tour de palissade.", "Tu souffles moins. Les loups, eux, ne s’arrêtent jamais.", "Bien. Tu tiendras le pas d’une harde, maintenant."]},
+			"volva": {"competence": "restauration", "max": 50, "refus_max": "Les runes ne m’en disent pas plus. Le reste, Eir te l’enseignera.", "refus_fatigue": "Les runes se fatiguent, elles aussi. Reviens dans deux jours.", "reussite": ["Pose tes mains ainsi. Sens la chaleur monter. Voilà.", "Eir guérit ceux qui écoutent. Tu écoutes mieux.", "Le souffle d’abord, la lumière ensuite. Tu apprends."]},
+			"receleur": {"competence": "furtivite", "max": 50, "refus_max": "Tu marches déjà plus doucement que moi. Disparais.", "refus_fatigue": "Trop de leçons, trop de regards. Reviens dans deux jours.", "reussite": ["Le talon d’abord, puis la plante. Et ne regarde jamais celui que tu suis.", "Reste dans l’ombre des auvents. La garde regarde la rue, pas les toits.", "Mieux. Tu fais moins de bruit qu’une chèvre, maintenant."]}
 		}
 	}
 }
