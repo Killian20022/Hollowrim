@@ -1,20 +1,31 @@
 extends SceneTree
 ## Test sans fenêtre de la sauvegarde, en deux processus (comme F9, qui relance le jeu) :
 ##   -s res://outils/test_sauvegarde.gd -- ecrire   puis   -- verifier
+## « verifier » seul (sans « ecrire » juste avant, dans le MÊME worktree : le fichier de test est propre au dossier) ne trouve
+## aucune sauvegarde : le test le dit (au lieu d'afficher des échecs « butin » / « marchands » trompeurs sur une partie neuve).
 const SCENE := preload("res://scenes/foret_test.tscn")
 ## Fichier de TEST (le jeu l'utilise dès qu'il y a des arguments) : jamais la vraie partie.
 var FICHIER: String = load("res://scripts/monde.gd").fichier_test()
 
 func _init() -> void:
-	_tester.call_deferred(OS.get_cmdline_user_args()[0])
+	var args := OS.get_cmdline_user_args()
+	_tester.call_deferred(String(args[0]) if args.size() > 0 else "")
 
 func _tester(etape: String) -> void:
 	if FICHIER == "user://sauvegarde.json" or load("res://scripts/monde.gd").fichier_sauvegarde() != FICHIER:
 		print("TEST SAUVEGARDE : ÉCHEC (le jeu viserait la vraie sauvegarde, test annulé)")
 		quit(1)
 		return
+	if etape != "ecrire" and etape != "verifier":
+		print("TEST SAUVEGARDE : ÉCHEC (étape « %s » inconnue : lancer -- ecrire puis -- verifier)" % etape)
+		quit(1)
+		return
 	if etape == "ecrire":
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(FICHIER))
+	elif not FileAccess.file_exists(FICHIER):
+		print("TEST SAUVEGARDE : ÉCHEC (aucune sauvegarde de test %s : lancer d'abord -- ecrire, dans ce même dossier)" % FICHIER)
+		quit(1)
+		return
 	var m: Node = SCENE.instantiate()
 	root.add_child(m)
 	for i in 10:
@@ -34,10 +45,12 @@ func _tester(etape: String) -> void:
 		print("ÉCRIT : épée=", m.joueur.competences.niveaux["epee"])
 	else:
 		var j = m.joueur
-		var ok: bool = j.inventaire.pieces == 7 and j.inventaire.objets.get("os_draugr", 0) == 2
-		ok = ok and j.competences.niveaux["epee"] > 15 and not m.draugrs.has("sbire_4")
-		ok = ok and j.position.distance_to(Vector3(10, m.hauteur(10, 10), 10)) < 1.0
-		ok = ok and absf(m.cycle.heure - 3.5) < 0.1
+		var ok_joueur: bool = j.inventaire.pieces == 7 and j.inventaire.objets.get("os_draugr", 0) == 2 and j.competences.niveaux["epee"] > 15
+		ok_joueur = ok_joueur and j.position.distance_to(Vector3(10, m.hauteur(10, 10), 10)) < 1.0
+		print("joueur : pièces=", j.inventaire.pieces, " os=", j.inventaire.objets.get("os_draugr", 0), " épée=", j.competences.niveaux["epee"], " -> ", "OK" if ok_joueur else "ÉCHEC")
+		var ok_monde: bool = not m.draugrs.has("sbire_4") and absf(m.cycle.heure - 3.5) < 0.1
+		print("monde : sbire_4 mort=", not m.draugrs.has("sbire_4"), " heure=", m.cycle.texte_heure(), " -> ", "OK" if ok_monde else "ÉCHEC")
+		var ok: bool = ok_joueur and ok_monde
 		var ok_butin: bool = j.inventaire.objets.get("potion_soin", 0) == 3 and ButinTables.est_pille("test:urne_sauvegarde") and not ButinTables.est_pille("test:autre")
 		print("butin : potions=", j.inventaire.objets.get("potion_soin", 0), " pillés=", ButinTables.pilles.keys(), " -> ", "OK" if ok_butin else "ÉCHEC")
 		ok = ok and ok_butin
@@ -49,4 +62,6 @@ func _tester(etape: String) -> void:
 		print("épée=", j.competences.niveaux["epee"], " pièces=", j.inventaire.pieces, " draugrs=", m.draugrs.keys(), " heure=", m.cycle.texte_heure())
 		print("TEST SAUVEGARDE : ", "OK" if ok else "ÉCHEC")
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(FICHIER))
+		quit(0 if ok else 1)
+		return
 	quit()
