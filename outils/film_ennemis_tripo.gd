@@ -1,7 +1,7 @@
 extends SceneTree
 ## Film d'un ennemi Tripo EN SITUATION dans la vraie crypte (foret_test) : il est posé devant la caméra du joueur (invulnérable, caché), reste immobile
 ## (Idle), marche vers lui, l'attaque, puis est abattu (mort). IA et animations du jeu, rien de truqué.
-##   godot --path . --write-movie <f.avi> --fixed-fps 30 --resolution 960x540 --script res://outils/film_ennemis_tripo.gd -- --ennemis-tripo --nouvelle --cible=draugr|archer|squelette|gobelin [--sortie=<dossier>]
+##   godot --path . --write-movie <f.avi> --fixed-fps 30 --resolution 960x540 --script res://outils/film_ennemis_tripo.gd -- --ennemis-tripo --nouvelle --cible=draugr|archer|squelette|gobelin|jarl [--ancien=1] [--sortie=<dossier>]
 ## Affiche « PLAN nom image » pour chaque étape ; photo fixe <sortie>/<cible>_milieu.png au milieu de l'attaque.
 const SCENE := preload("res://scenes/foret_test.tscn")
 var m: Node3D
@@ -76,6 +76,10 @@ func _go() -> void:
 			opts["archer"] = true
 		"gobelin":
 			type = "gobelin"
+		"jarl":      # boss Jarl Kolbeinn le Gelé (draugr Tripo couronné, docs/ARMURES_TRIPO.md) ; --ancien : son ancien corps
+			opts["boss"] = "jarl"
+			if _arg("ancien") == "1":
+				opts["modele_ancien"] = true
 	var lacet := c.global_rotation.y
 	var dx := float(_arg("dx", "0"))
 	var spot := c.to_global(Vector3(dx, 0.05, -27.0))
