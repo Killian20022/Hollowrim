@@ -759,6 +759,40 @@ def broche_sigrun():
     return m
 
 
+def baton_taille():
+    """Bâton de taille de Gunnar (quête « Le grenier qui maigrit ») : bâton de frêne couché, un cran par sac d'orge, des
+    encoches pour les semaines, la rune de Gunnar brûlée près du bout."""
+    m = M("baton_taille")
+    r, L = 0.0115, 0.40
+    pts = [(-L / 2 + L * k / 8, 0.0, r + 0.0006 * math.sin(k * 1.7)) for k in range(9)]
+    tube(m, pts, [r * (0.92 + 0.08 * h1(k, 5)) for k in range(9)], 7, "bois", haut=(0, 0, 1))
+    for k in range(9):                                                            # crans (sacs d'orge), sur le dessus
+        x = -0.11 + 0.024 * k
+        pave(m, (x, 0.0, 2 * r - 0.0012), (0.0022, 0.016, 0.0028), "peau")
+    for k in range(4):                                                            # encoches longues (semaines), sur le flanc
+        x = 0.05 + 0.03 * k
+        pave(m, (x, -r + 0.0012, r), (0.0026, 0.0028, 0.018), "peau")
+    pave(m, (-0.165, 0.0, 2 * r - 0.0008), (0.018, 0.0028, 0.0018), "cendre")    # rune brûlée (trait + branches)
+    pave(m, (-0.165, 0.0035, 2 * r - 0.0008), (0.0028, 0.009, 0.0018), "cendre", rz=0.6)
+    return m
+
+
+def ecorce_sigrun():
+    """Écorce au fil rouge (quête « L'écorce au fil rouge ») : lanière d'écorce de bouleau roulée serré, couchée, nouée d'un fil
+    de laine rouge (deux tours et un bout qui pend)."""
+    m = M("ecorce_sigrun")
+    r, L = 0.016, 0.15
+    pts = [(-L / 2 + L * k / 6, 0.0, r) for k in range(7)]
+    tube(m, pts, [r * (0.95 + 0.07 * h1(k, 11)) for k in range(7)], 9, "pied_champi", haut=(0, 0, 1))
+    tube(m, [(-L / 2 - 0.001, 0.0, r), (L / 2 + 0.001, 0.0, r)], r * 0.55, 7, "peau", haut=(0, 0, 1))     # cœur roulé (bouts sombres)
+    for i in range(3):                                                            # rabat de l'écorce, léger soulèvement
+        pave(m, (-0.04 + 0.04 * i, r * 0.72, 2 * r - 0.004 + 0.0012 * i), (0.038, 0.0012, 0.006), "pied_champi")
+    for x in (-0.006, 0.006):                                                     # fil rouge : deux tours
+        tore(m, (x, 0.0, r), r + 0.0014, 0.0013, "cire", n=12, cotes=4, plan="yz")
+    tube(m, [(0.0, 0.0, 2 * r + 0.0014), (0.012, 0.006, 2 * r + 0.001), (0.03, 0.012, 0.0013)], 0.0011, 4, "cire")   # bout du nœud
+    return m
+
+
 # ------------------------------------------------------------------ registre
 FABRIQUES = {
     "potion_soin": potion_soin, "potion_soin_forte": potion_soin_forte, "potion_mana": potion_mana, "potion_endurance": potion_endurance,
@@ -773,6 +807,7 @@ FABRIQUES = {
     "fragment_sceau_givre": lambda: fragment_sceau("fragment_sceau_givre", TAU / 3, "sceau_givre", "cristal_givre"),
     "fragment_sceau_eau": lambda: fragment_sceau("fragment_sceau_eau", 2 * TAU / 3, "sceau_eau", "saphir"),
     "cle_archives": cle_archives, "registre_hrafn": registre_hrafn, "journal_sigrun": journal_sigrun, "broche_sigrun": broche_sigrun,
+    "baton_taille": baton_taille, "ecorce_sigrun": ecorce_sigrun,
 }
 for _t in TOMES:
     FABRIQUES[_t] = (lambda n: (lambda: tome(n)))(_t)
