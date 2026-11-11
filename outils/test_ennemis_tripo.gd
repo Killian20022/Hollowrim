@@ -193,6 +193,9 @@ func _archer_tripo(n: Node3D, id: String, nom: String, max_tris: int) -> void:
 	var t := _tris(n)
 	ok(t < max_tris, "%s : %d triangles (corps + arc porté)" % [nom, t])
 	if porte != null and vise != null:
+		var tb: Variant = (porte.get_surface_override_material(0) as ShaderMaterial).get_shader_parameter("tex_base")
+		var tv: Variant = (vise.get_surface_override_material(0) as ShaderMaterial).get_shader_parameter("tex_base")
+		ok(tb != ChasseresseTextures.tex("accessoires") and tb == tv, "%s : bois de l'arc teinté pour l'ennemi (pas celui de la chasseresse)" % nom)
 		var corps: MeshInstance3D = null
 		for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
 			if mi.skin != null and not String(mi.name).begins_with("arc"):

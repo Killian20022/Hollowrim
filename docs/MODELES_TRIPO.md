@@ -55,3 +55,11 @@ Les options d'essai `--gardes-tripo`, `--jarl-tripo`, `--ennemis-tripo`, `--gobe
 Ne pas confondre avec `--pnj-anciens` / `--persos-anciens` : corps Humain Quaternius, plus anciens encore.
 
 Test : `outils/test_ennemis_tripo.gd` (corps Tripo, `modele_ancien`, zombie, analyse de `--modeles-anciens=…`).
+
+**Archers Tripo (squelette, draugr) et contrôle automatique** (`outils/controle_modele.gd`, branche outils/controle_modele) :
+- bois de l'arc teinté pour les ennemis (`EnnemiTripo.BOIS_ARC`) : vieux bois sombre et grisé (draugr), bois blanchi couleur d'os
+  (squelette) ; poignée de cuir et corde gardées ; garde, chasseresse et bandits gardent l'arc d'origine ;
+- exception connue : l'« éclat flottant » de 6 faces de la pièce `arc_porte` (~13 cm de hand_l, boîte 1,07 x 0,62 x 0,67 m) est la
+  CORDE de l'arc porté (prisme à 3 pans = 6 triangles, maillage à part du bois, diagonale 1,40 m = longueur de la corde) : à ignorer ;
+- les autres éclats signalés près des bras sont dans les modèles source eux-mêmes (même contrôle sans arc : 3 sur `tripo:squelette`,
+  1 de 8 faces près de hand_l sur `tripo:archer`), pas introduits par l'arc.
