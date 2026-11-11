@@ -143,12 +143,12 @@ def obsidienne(D, g=31, enchante=False):
     b = 0.35 + 0.25 * cid
     # rares éclats conchoïdaux (petites arêtes claires) et rayures fines
     eclat = ((f2 - f1) < 0.0008) & (cid > 0.55) & (bord > 0.008)
-    t = np.where(eclat, t + 0.16, t)
+    t = np.where(eclat, t + 0.08, t)
     raye = (bruit(P, np.array([420.0, 35.0, 420.0]), g + 4) > 0.9) & (bruit(P, 12.0, g + 5) > 0.6)
     t = np.where(raye, t + 0.1, t)
     # fil taillé des bords (gris clair) et biseau sombre juste derrière
-    t = np.where(bord < 0.0035, t + 0.30 * (1.0 - bord / 0.0035) + 0.08, t)
-    b = np.where(bord < 0.0035, 1.0, b)
+    t = np.where(bord < 0.0035, t + 0.22 * (1.0 - bord / 0.0035) + 0.05, t)
+    b = np.where(bord < 0.0035, 0.62, b)          # affinage : fil moins brillant (points blancs scintillants en plein jour)
     t = np.where((bord >= 0.0035) & (bord < 0.0065), t - 0.07, t)
     c = rampe(OBSIDIENNE, t)
     # magma localisé
@@ -157,13 +157,14 @@ def obsidienne(D, g=31, enchante=False):
         dd = np.sqrt((P[:, 0] - cx) ** 2 + (P[:, 1] - cy) ** 2 + (P[:, 2] - cz) ** 2)
         w = np.maximum(w, np.clip(1.0 - dd / rr, 0, 1) ** 1.1)
     # réseau CONTINU de veines (arêtes de Voronoï 3D, deux échelles) : cœur jaune-orangé émissif, bord rouge sombre, halo de chaleur
-    w = np.clip(0.30 + 0.8 * w, 0, 1)
+    # affinage 2026-11-11 : plus de fond de veines partout (lu en jeu comme des points orange épars) : magma SEULEMENT autour des foyers
+    w = np.clip(0.95 * w, 0, 1)
     F1, F2, CID, _ = voronoi(P, 0.062, g + 9)
     ar2 = F2 - F1
     G1, G2, GID, _ = voronoi(P, 0.026, g + 19)
     ar3 = G2 - G1
-    cover = np.clip(w * 1.1, 0, 1) * (fbm(P, 7.0, g + 11) > 0.42)
-    demi = 0.0011 + 0.0026 * w                       # demi-largeur des veines (m)
+    cover = np.clip((w - 0.10) * 1.5, 0, 1) * (fbm(P, 7.0, g + 11) > 0.40)
+    demi = 0.0013 + 0.0030 * w                       # demi-largeur des veines (m)
     d = np.minimum(ar2, np.where(cover > 0.8, ar3 * 2.4, 9.0))
     k = np.clip(1.0 - d / demi, 0, 1) ** 0.55 * cover
     halo = np.clip(1.0 - d / (demi * 2.6), 0, 1) * cover * 0.16

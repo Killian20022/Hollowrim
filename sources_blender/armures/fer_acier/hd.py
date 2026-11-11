@@ -158,6 +158,24 @@ class Toile:
             t.poli[sl] = np.maximum(t.poli[sl], poli * arete)
         self.appliquer(rect, fn)
 
+    def filet(self, rect, cotes="bh", retrait=0.9, larg=0.45, haut=0.30, creux=0.22, poli=1.0, sombre=0.30):
+        """Affinage 2026-11-11 (niveau Tripo) : bord ROULÉ en relief le long des côtés choisis — un jonc bombé à `retrait` du bord,
+        poli au sommet, puis un sillon sombre juste à l'intérieur. Dessine nettement le contour de chaque plaque à distance."""
+        def fn(t, sl, X, Y, U, V):
+            x0, y0, x1, y1 = rect
+            d = np.full(X.shape, 99.0)
+            if "b" in cotes: d = np.minimum(d, Y - y0)
+            if "h" in cotes: d = np.minimum(d, y1 - Y)
+            if "g" in cotes: d = np.minimum(d, X - x0)
+            if "d" in cotes: d = np.minimum(d, x1 - X)
+            jonc = np.exp(-((d - retrait) / larg) ** 2)
+            sillon = np.exp(-((d - (retrait + larg * 1.9)) / (larg * 0.45)) ** 2)
+            t.h[sl] += haut * jonc - creux * sillon
+            t.poli[sl] = np.maximum(t.poli[sl], poli * jonc ** 1.5)
+            t.rgb[sl] *= (1 - sombre * sillon)[..., None]
+            t.bri[sl] = np.maximum(t.bri[sl] * (1 - 0.6 * sillon), 0.6 * poli * jonc ** 2)
+        self.appliquer(rect, fn)
+
     def rainure(self, p0, p1, larg=0.35, prof=0.25, clair=0.0):
         """Rainure (gravure / jointure) le long du segment p0 -> p1 (unités), profil arrondi."""
         (ax, ay), (bx, by) = p0, p1

@@ -18,7 +18,11 @@ import commun as C
 import pieces as PC
 import hd
 import peintres as PE
-for m in (C, PC, hd, PE):
+sys.path.insert(0, os.path.join(ICI, ".."))
+import retreindre as RT
+import relief as RL
+import articulees as AR
+for m in (C, PC, hd, PE, RT, RL, AR):
     importlib.reload(m)
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
@@ -123,7 +127,7 @@ def chaine(P, arbres, proj, pts, ecart=0.012, pas=0.019, mat="fer.chaine"):
             P.face([ids[i] for i in q], mat, [(0.5, 0.5), (0.52, 0.5), (0.52, 0.52), (0.5, 0.52)])
 
 
-def corne(P, racine, d0, courbe, longueur, rayon, mat="obsidienne", seg=6, cotes=6):
+def corne(P, racine, d0, courbe, longueur, rayon, mat="obsidienne", seg=6, cotes=6, bague=None):
     """Corne : tube à `cotes` pans le long d'un chemin courbé (d <- d + courbe à chaque pas), effilé, pointe."""
     axe = [Vector(racine)]
     d = Vector(d0).normalized()
@@ -142,6 +146,17 @@ def corne(P, racine, d0, courbe, longueur, rayon, mat="obsidienne", seg=6, cotes
         P.face([ids[-1][i], ids[-1][(i + 1) % cotes], pt], mat, [(0.6, 0.75), (0.65, 0.75), (0.62, 0.76)])
     for i in ids[0]:
         P.ao[i] = 0.55
+    if bague:
+        # passe 2 : BAGUE de fer noir à la racine (la corne sort d'une douille rivetée, au lieu d'être plantée dans la coque)
+        tg = (axe[1] - axe[0]).normalized()
+        u, w = C.repere(tg)
+        bs = []
+        for (dz, k) in ((-0.010, 1.55), (0.006, 1.62), (0.020, 1.50), (0.024, 1.08)):
+            c = axe[0] + tg * dz
+            bs.append([c + (u * math.cos(TAU * (i + 0.5) / 8) + w * math.sin(TAU * (i + 0.5) / 8)) * rayon * k for i in range(8)])
+        bi = P.grille(bs, bague, (0.0, 92.5 / 128, 0.06, 93.5 / 128))
+        for i in bi[0]:
+            P.ao[i] = 0.5
 
 
 RELIEF = 1.0
@@ -268,7 +283,7 @@ def cornes_obsidienne(P, t, r, centre, Pts, R_NAS, R_CORNE):
         hit, n = hd.poser_sur(arbre, centre + d * 0.5, -d)
         if hit is None:
             continue
-        corne(P, hit - d * 0.012, (0.92 * s, 0.12, 0.34), (-0.26 * s, 0.02, 0.42), 0.155, 0.031)
+        corne(P, hit - d * 0.012, (0.84 * s, 0.26, 0.42), (-0.24 * s, 0.05, 0.40), 0.145, 0.030, seg=7, cotes=7, bague="fer.noir")
 
 
 def quille(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="obsidienne", h=0.012, dents=False):
@@ -348,9 +363,9 @@ def obs_torse(P, t, r, st):
     for (zh, zb, g) in ((1.165, 1.055, 3), (1.255, 1.135, 5)):
         c = [(-60, zh), (0, zh + 0.006), (60, zh)] + arete((66, zh - 0.03), (60, zb + 0.01), 0) + \
             arete((60, zb + 0.01), (0, zb - 0.02), 3, 0.022, g=g) + arete((0, zb - 0.02), (-60, zb + 0.01), 3, 0.022, g=g + 1) + [(-66, zh - 0.03)]
-        hd.plaque(P, A(), PROJ_T, c, 0.011, 0.008, M, UV_D, bombe=0.006, anneaux=2)
+        hd.plaque(P, A(), PROJ_T, c, 0.007, 0.008, M, UV_D, bombe=0.006, anneaux=2)
     # dos : dossière haute et basse
-    for (zh, zb, g, dec) in ((1.17, 1.045, 7, 0.010), (1.47, 1.14, 9, 0.012)):
+    for (zh, zb, g, dec) in ((1.17, 1.045, 7, 0.006), (1.47, 1.14, 9, 0.007)):
         c = [(128, zh), (180, zh + 0.01), (232, zh)] + arete((238, (zh + zb) / 2), (232, zb), 0) + \
             arete((232, zb), (128, zb), 4, 0.03, g=g) + [(122, (zh + zb) / 2)]
         hd.plaque(P, A(), PROJ_T, c, dec, 0.008, M, UV_D, bombe=0.008, anneaux=2)
@@ -359,9 +374,9 @@ def obs_torse(P, t, r, st):
         c = [(5, 1.468), (32, 1.478), (56, 1.452), (69, 1.385), (67, 1.30)] + arete((63, 1.27), (9, 1.215), 3, 0.032, g=11 + s) + [(5, 1.30)]
         if s < 0:
             c = miroir(c)
-        hd.plaque(P, A(), PROJ_T, c, 0.012, 0.009, M, UV_D, bombe=0.012, anneaux=2)
+        hd.plaque(P, A(), PROJ_T, c, 0.007, 0.009, M, UV_D, bombe=0.010, anneaux=2)
     # arête du sternum (par-dessus)
-    hd.plaque(P, A(), PROJ_T, [(-7, 1.472), (7, 1.472), (10, 1.32), (0, 1.17), (-10, 1.32)], 0.012, 0.009, M, UV_D, bombe=0.009, anneaux=2)
+    hd.plaque(P, A(), PROJ_T, [(-7, 1.472), (7, 1.472), (10, 1.32), (0, 1.17), (-10, 1.32)], 0.008, 0.009, M, UV_D, bombe=0.009, anneaux=2)
     # boucle de ceinture
     hd.plaque(P, A(), PROJ_T, [(0, 1.06), (12, 1.0), (0, 0.94), (-12, 1.0)], 0.012, 0.007, M, UV_D, bombe=0.008, anneaux=2)
     gorgerin(P, A(), M, dents=3)
@@ -371,7 +386,7 @@ def obs_torse(P, t, r, st):
     hd.plaque(P, A(), PROJ_T, c, 0.007, 0.003, "tissu.rouge", UV_D, bombe=0.0, anneaux=3, biseau=0.3)
     # tassettes : dos, côtés, devant
     for s in (1, -1):
-        for (a0, a1, zb, dec, g) in ((112, 168, 0.76, 0.010, 31), (56, 106, 0.74, 0.012, 33), (15, 54, 0.72, 0.014, 35)):
+        for (a0, a1, zb, dec, g) in ((112, 168, 0.76, 0.006, 31), (56, 106, 0.74, 0.008, 33), (15, 54, 0.72, 0.010, 35)):
             c = [(a0, 0.985), (a1, 0.985)] + arete((a1 + 3, 0.86), (a1, zb), 0) + arete((a1, zb), (a0, zb + 0.02), 2, 0.05, g=g) + [(a0 - 2, 0.86)]
             if s < 0:
                 c = miroir(c)
@@ -393,7 +408,7 @@ def obs_torse(P, t, r, st):
         Aep = Vector((0.10 * s, 0.0, 1.47)); Bep = Vector((0.385 * s, 0.02, 1.44))
         pj = hd.proj_axe(Aep, Bep)
         bras = C.bvh(r, ["tunique", "peau"], {"upperarm_l" if s > 0 else "upperarm_r", "clavicle_l" if s > 0 else "clavicle_r", "spine_03"}, 0.3)
-        for (t0, t1, a, dec, bom, g) in ((0.90, 1.16, 92, 0.011, 0.004, 47), (0.66, 0.96, 100, 0.014, 0.005, 41), (0.40, 0.74, 106, 0.019, 0.007, 43), (0.02, 0.50, 114, 0.025, 0.014, 45)):
+        for (t0, t1, a, dec, bom, g) in ((0.90, 1.16, 92, 0.007, 0.004, 47), (0.66, 0.96, 100, 0.009, 0.005, 41), (0.40, 0.74, 106, 0.012, 0.007, 43), (0.02, 0.50, 114, 0.016, 0.012, 45)):
             c = [(-a, t0), (0, t0 - 0.02), (a, t0)] + arete((a + 4, (t0 + t1) / 2), (a, t1), 0) + arete((a, t1), (-a, t1), 4, 0.06, axe=1, signe=1, g=g) + \
                 [(-a - 4, (t0 + t1) / 2)]
             hd.plaque(P, [hd.bvh_piece(P), bras], pj, c, dec, 0.009, M, UV_D, bombe=bom, anneaux=2)
@@ -416,7 +431,7 @@ def _hit_y(B, x, z, depuis_devant=True):
     return None if h[0] is None else h[0].y
 
 
-def drap(P, B, mat, devant, hw0, hw1, z0, z1, nc, nr, ecart0, ecart1, pointe=0.0, courbe=0.0):
+def drap(P, B, mat, devant, hw0, hw1, z0, z1, nc, nr, ecart0, ecart1, pointe=0.0, courbe=0.0, plis=(0, 0.0)):
     """Drap (tabard devant, cape derriere) : grille nc x nr, largeur hw0 -> hw1 de z0 a z1, a `ecart` du corps (mesure par lancer),
     bas en V (pointe), bords releves (courbe). Retourne les indices de sommets."""
     zs = [z0 + (z1 - z0) * j / (nr - 1) for j in range(nr)]
@@ -435,6 +450,9 @@ def drap(P, B, mat, devant, hw0, hw1, z0, z1, nc, nr, ecart0, ecart1, pointe=0.0
             u = 2.0 * i / (nc - 1) - 1.0
             zz = z - pointe * f * (1.0 - abs(u))           # bas en V : le centre descend plus bas
             y = yb + (courbe * u * u * (1 if devant else -1)) * (0.5 + f)
+            if plis[0]:
+                # plis sculptés : ondulation verticale qui s'ouvre vers le bas (tissu lourd tombant des épaules)
+                y += plis[1] * (0.25 + 0.75 * f) * math.sin(u * math.pi * plis[0]) * (1 if devant else -1)
             row.append(P.sommet(Vector((hw * u, y, zz)), 0.85 + 0.15 * (1 - f)))
         ids.append(row)
     for j in range(nr - 1):
@@ -445,7 +463,8 @@ def drap(P, B, mat, devant, hw0, hw1, z0, z1, nc, nr, ecart0, ecart1, pointe=0.0
 
 
 def peau_cape(ob, r):
-    """Cape statique : poids rigides sur la colonne (spine_03 en haut -> spine_01 en bas), aucun poids sur les jambes."""
+    """Cape SEGMENTÉE (passe 2) : haut sur spine_03 + clavicules (suit les épaules), milieu sur spine_02 -> spine_01, bas fondu vers
+    le bassin et la cuisse de son côté (la cape accompagne la jambe qui recule : plus de traversée à la marche, plus de planche)."""
     import bmesh
     kd = [i for i, m in enumerate(ob.data.materials) if m and m.name == "tissu.doublure"]
     if kd:
@@ -461,11 +480,33 @@ def peau_cape(ob, r):
             vs.update(p.vertices)
     for g in ob.vertex_groups:
         g.remove(list(vs))
+    def g(nom):
+        return ob.vertex_groups.get(nom) or ob.vertex_groups.new(name=nom)
     for i in vs:
-        z = ob.data.vertices[i].co.z
-        f = max(0.0, min(1.0, (z - 0.95) / (1.30 - 0.95)))
-        ob.vertex_groups["spine_03"].add([i], f, "REPLACE") if f > 0 else None
-        ob.vertex_groups["spine_01"].add([i], 1.0 - f, "REPLACE") if f < 1 else None
+        co = ob.data.vertices[i].co
+        z, x = co.z, co.x
+        W = {}
+        if z >= 1.30:
+            k = min(1.0, (z - 1.30) / 0.18)
+            c = min(1.0, abs(x) / 0.22) * k
+            W["spine_03"] = 1.0 - 0.45 * c
+            W["clavicle_l" if x > 0 else "clavicle_r"] = 0.45 * c
+        elif z >= 0.95:
+            f = (z - 0.95) / 0.35
+            W["spine_03"] = max(0.0, f - 0.5) * 2 * 0.6
+            W["spine_02"] = 0.4 + 0.2 * (1 - abs(f - 0.5) * 2)
+            W["spine_01"] = max(0.0, 0.5 - f) * 2 * 0.6
+        else:
+            f = max(0.0, min(1.0, (0.95 - z) / 0.50))           # 0 à la taille -> 1 en bas de la cape
+            cote = min(1.0, abs(x) / 0.16)
+            jambe = 0.55 * f * (0.35 + 0.65 * cote)
+            W["spine_01"] = (1.0 - f) * 0.6
+            W["pelvis"] = 1.0 - (1.0 - f) * 0.6 - jambe
+            W["thigh_l" if x > 0 else "thigh_r"] = jambe
+        tot = sum(W.values())
+        for nom, w in W.items():
+            if w > 1e-4:
+                g(nom).add([i], w / tot, "REPLACE")
 
 
 def or_torse(P, t, r, st):
@@ -485,8 +526,9 @@ def or_torse(P, t, r, st):
     hd.plaque(P, A(), PROJ_T, c, 0.010, 0.009, M, UV_D, bombe=0.016, anneaux=2)
     # tabard bleu nuit LARGE (devant : largeur des hanches, jusqu'aux mollets, pointe en bas) + cape bleue statique derrière
     drap(P, B, "tissu.tabard", True, 0.165, 0.150, 0.985, 0.42, 7, 6, 0.036, 0.05, pointe=0.10, courbe=0.012)
-    drap(P, B, "tissu.cape", False, 0.27, 0.47, 1.50, 0.40, 7, 5, 0.085, 0.130, pointe=0.0, courbe=0.045)
-    drap(P, B, "tissu.doublure", False, 0.27, 0.47, 1.50, 0.40, 7, 5, 0.078, 0.123, pointe=0.0, courbe=0.045)   # face intérieure (retournée après coup)
+    # passe 2 : cape en 11 x 8 (plis sculptés, segments skinnés dos / épaules / cuisses, voir peau_cape)
+    drap(P, B, "tissu.cape", False, 0.23, 0.36, 1.50, 0.44, 11, 8, 0.072, 0.100, pointe=0.0, courbe=0.030, plis=(3.5, 0.026))
+    drap(P, B, "tissu.doublure", False, 0.23, 0.36, 1.50, 0.44, 11, 8, 0.066, 0.094, pointe=0.0, courbe=0.030, plis=(3.5, 0.026))   # face intérieure (retournée après coup)
     # tassettes : rang bas puis rang haut, dos, côtés, devant
     for s in (1, -1):
         for (a0, a1, zh, zb, dec) in ((114, 166, 0.90, 0.75, 0.010), (58, 108, 0.90, 0.735, 0.011), (16, 54, 0.90, 0.72, 0.012),
@@ -533,10 +575,10 @@ def or_torse(P, t, r, st):
             wv = dl.cross(-ax).normalized(); hv = wv.cross(dl).normalized()
             def pl(s_, t_, wv=wv, hv=hv, dl=dl, hit=hit):
                 return hit + dl * 0.4 + wv * s_ + hv * t_, -dl
-            rond = [(0.132 * math.cos(TAU * k / 16), 0.132 * math.sin(TAU * k / 16)) for k in range(16)]
+            rond = [(0.088 * math.cos(TAU * k / 16), 0.088 * math.sin(TAU * k / 16)) for k in range(16)]   # affinage : 0,132 -> 0,088 (médaillon crédible)
             hd.plaque(P, arb, pl, rond, 0.006, 0.011, "or.lion", (0.80, 0.9, 0.85, 0.91), bombe=0.012, anneaux=1, centre=(0.0, 0.0), biseau=1.0)
             hit2, n2 = hd.lancer([hd.bvh_piece(P)], cible + dl * 0.5, -dl)
-            tete_lion(P, hit2 if hit2 is not None else hit, dl, -ax, 0.108)
+            tete_lion(P, hit2 if hit2 is not None else hit, dl, -ax, 0.072)
         o, d = pj(-78, 0.20)
         hit, n = hd.lancer(arb, o, d)
         if hit is not None:
@@ -769,6 +811,15 @@ PIECES = {
     "bottes_or": lambda r: PC.bottes(r, _s(OR, id="bottes_or", mat_botte="cuir", niveaux=NIV_BOTTES, greve=False,
                                            decor=[jambes_or, lambda *a: cuissots(*a, mat="or.patine", dents=0, rangs=3)])),
 }
+RETREINT = {"obsidienne": dict(m=0.013, k=0.4, D1=0.12),
+            "or": dict(m=0.015, k=0.55, D1=0.12)}
+ARTIC = {
+    "cuirasse_obsidienne": lambda cx: AR.couters(cx, mats=("obsidienne",)) + AR.tassettes(cx, lames=2, mats=("obsidienne",)),
+    "cuirasse_or": lambda cx: AR.couters(cx, mats=("or",)),
+}
+RELIEF_P2 = {"casque": dict(max_rivets=12, ep=0.003), "cuirasse": dict(max_rivets=40, min_tris_bord=16), "gantelets": dict(max_rivets=12, ep=0.0035, min_tris_bord=30), "bottes": dict(max_rivets=20, min_tris_bord=16), "bottes_or": dict(max_rivets=20, bords_on=False), "casque_or": dict(max_rivets=0, bords_on=False)}
+# casque d'obsidienne : déjà ajusté (recul moyen 8 mm) ; rétreint, le cou traversait le bavolet de 12,5 mm (sort de zone)
+SANS_RETREINT = {"casque_obsidienne"}
 ENSEMBLE = {pid: ("obsidienne" if pid.endswith("obsidienne") else "or") for pid in PIECES}
 VARIANTE = {"obsidienne": {"obsidienne": "obsidienne.enchante"}, "or": {"tissu.bleu": "tissu.enchante", "tissu.cape": "tissu.enchante", "tissu.tabard": "tissu.enchante", "tissu.doublure": "tissu.enchante", "gemme": "gemme.enchante"}}
 
@@ -960,12 +1011,21 @@ def bavolet_sur_cou(ob, r):
 def construire(pid, dossier=None, enchante=True):
     r = C.charger_reference()
     ob = PIECES[pid](r)
+    if "--epais" not in sys.argv and pid not in SANS_RETREINT:
+        # affinage 2026-11-11 : pièces rapprochées du corps (retour « trop épaisses ») ; l'obsidienne, la plus massive, plus serrée
+        RT.retreindre(ob, r, **RETREINT[ENSEMBLE[pid]])
     if pid == "casque_or":
         bavolet_sur_cou(ob, r)
     if pid == "bottes_or":
         or_en_premier(ob)
     if pid == "cuirasse_or":
         peau_cape(ob, r)
+    if "--sans-relief" not in sys.argv:
+        # passe 2 « géométrie » : plaques articulées superposées puis bordures roulées + rivets (avant la cuisson des textures)
+        if pid in ARTIC:
+            cx = AR.Contexte(ob, r, RT.arbre_corps(r))
+            print("ARTIC", pid, ARTIC[pid](cx), "tris ajoutés")
+        RL.relief(ob, **RELIEF_P2.get(pid, RELIEF_P2.get(_piece(pid), {})))
     tris = C.compter_tris(ob)
     print("PIECE", pid, tris, "tris", "matériaux", [m.name for m in ob.data.materials])
     hd.uv_uniques(ob)
@@ -977,11 +1037,13 @@ def construire(pid, dossier=None, enchante=True):
     hd.retirer_uv_sem(ob)
     hd.poser_image(ob, img)
     hd.couleur_blanche(ob)
-    C.exporter([ob], r, os.path.join(C.PORTE, pid + ".glb"))
-    version_sol(r, ob, pid)
+    EXP = "--pas-export" not in sys.argv
+    if EXP:
+        C.exporter([ob], r, os.path.join(C.PORTE, pid + ".glb"))
+        version_sol(r, ob, pid)
     if dossier:
         apercu(r, ob, dossier, pid)
-    if tab_e is not None:
+    if tab_e is not None and EXP:
         img_e = hd.image(pid + "_enchante", tab_e, TEXTURES)
         hd.poser_image(ob, img_e)
         for m in ob.data.materials:

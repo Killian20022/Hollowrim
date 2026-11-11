@@ -160,7 +160,7 @@ def occlusion_sommets(ob, rayons=24, portee=0.06, force=0.55):
 
 
 # ======================================================================================================== peinture commune
-def peindre_plaque(T, rect, st, g, bas=True, haut=True, rivets=0, rivet_y=None, graver=None, larg_bis=1.0, pal=None):
+def peindre_plaque(T, rect, st, g, bas=True, haut=True, rivets=0, rivet_y=None, graver=None, larg_bis=1.0, pal=None, filet_cotes=None):
     """Plaque métal : matière du style, biseau (arêtes polies), rivets (fer) ou bande gravée (acier)."""
     pal = pal or st["pal"]
     T.zone(rect, H.metal(pal, g, base=st["base"], contraste=st.get("contraste", 0.28), martele=st.get("martele", 0.0),
@@ -171,6 +171,10 @@ def peindre_plaque(T, rect, st, g, bas=True, haut=True, rivets=0, rivet_y=None, 
     if cotes:
         T.biseau(rect, larg=larg_bis, haut=0.4, cotes=cotes, poli=st.get("poli_arete", 0.9))
     x0, y0, x1, y1 = rect
+    fil = st.get("filet")          # affinage 2026-11-11 : bord roulé + sillon (lecture des plaques à distance)
+    if fil and (cotes or filet_cotes):
+        T.filet(rect, cotes=filet_cotes or cotes, retrait=fil.get("retrait", 0.9) * max(0.6, larg_bis), larg=fil.get("larg", 0.42),
+                haut=fil.get("haut", 0.3), creux=fil.get("creux", 0.22), poli=fil.get("poli", 1.0), sombre=fil.get("sombre", 0.3))
     if rivets:
         ry = rivet_y if rivet_y is not None else (y1 - larg_bis * 2.2)
         pas = (x1 - x0) / rivets
@@ -800,9 +804,15 @@ def cuirasse(r, st):
         phis_dos = F.get("phis", (-50, -42, -20, 10, 34, 50))
         phis_cote = F.get("phis_cote", (-20, -14, 0, 18, 36, 50))
 
+        phis_dev = F.get("phis_devant")
+
         def phi(k, a_):
             w = max(0.0, -math.cos(a_)) ** 1.2
-            return math.radians(phis_cote[k] + (phis_dos[k] - phis_cote[k]) * w)
+            v = phis_cote[k] + (phis_dos[k] - phis_cote[k]) * w
+            if phis_dev:          # affinage 2026-11-11 : col plus bas sous le menton (ne cache plus le visage)
+                wd = max(0.0, math.cos(a_)) ** 1.5
+                v += (phis_dev[k] - phis_cote[k]) * wd
+            return math.radians(v)
         phis = phis_dos
         ep = [e * F.get("gonfle", 1.0) for e in F.get("ep", (0.006, 0.030, 0.060, 0.064, 0.040, 0.012))]
         R = []
@@ -916,7 +926,11 @@ def cuirasse(r, st):
         hl = v_l[k + 1] - v_l[k]
         haut_libre = (k == lames - 1)
         nr = st.get("rivets_lame", 0)
-        peindre_plaque(T, rect, st, g + 10 + k, bas=True, haut=haut_libre, rivets=nr, rivet_y=v_l[k] + max(1.6, hl * 0.12), larg_bis=min(1.4, hl * 0.12))
+        gv = None
+        if haut_libre and st.get("graver_plastron"):
+            gv = (0, v_l[k + 1] - hl * 0.30, 128, v_l[k + 1] - hl * 0.12)
+        peindre_plaque(T, rect, st, g + 10 + k, bas=True, haut=haut_libre, rivets=nr, rivet_y=v_l[k] + max(1.6, hl * 0.12), larg_bis=min(1.4, hl * 0.12),
+                       graver=gv)
         if haut_libre and nr:
             T.rivets([(128 / nr * (q + 0.5), v_l[k + 1] - max(1.6, hl * 0.08)) for q in range(nr)], r=st.get("r_rivet", 0.7), pal=pal, k=0.64,
                      rouille=st.get("rouille", 0.0) * 0.5)
@@ -957,7 +971,11 @@ def cuirasse(r, st):
     for k in range(nl):
         wl = (R_EPAUL[2] - R_EPAUL[0]) / nl
         re = (R_EPAUL[0] + wl * k, R_EPAUL[1], R_EPAUL[0] + wl * (k + 1), R_EPAUL[3])
-        peindre_plaque(T, re, st, g + 40 + k, bas=False, haut=True, rivets=st.get("rivets_epaule", 0), rivet_y=re[3] - 2.4, larg_bis=1.4)
+        gv = None
+        if st.get("graver_epaule") and k == nl - 1:
+            gv = (re[0] + 1.6, re[3] - 7.4, re[2] - 1.6, re[3] - 4.0)
+        peindre_plaque(T, re, st, g + 40 + k, bas=False, haut=True, rivets=st.get("rivets_epaule", 0), rivet_y=re[3] - 2.4, larg_bis=1.4,
+                       filet_cotes="hgd", graver=gv)
         T.biseau(re, larg=1.0, haut=0.25, cotes="gd", poli=0.6)
     T.zone(R_MANCHE, H.cuir(pc, g + 9, base=st.get("base_cuir", 0.42) - 0.04, use=0.6), sale=0.6)
     for x in (2, 42, 82):

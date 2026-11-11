@@ -51,6 +51,8 @@ const MATIERES := {
 	"acier": {"teinte": Color(1.04, 1.04, 1.06), "metal": 0.75, "poli": 0.7, "reflet": Color(0.94, 0.98, 1.05)},
 	"or": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.72, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62)},
 	# --- armures HD (branche armures_hd/os_verre) : clés « preset.variante » (nom complet du matériau Blender), sinon le preset seul
+	# acier patiné des armures lourdes HD (affinage 2026-11-11) : moins de reflet de ciel que « acier » (lu blanc/plastique en plein jour)
+	"acier.patine": {"teinte": Color(0.80, 0.80, 0.82), "metal": 0.5, "poli": 0.40, "reflet": Color(0.76, 0.78, 0.82)},   # passe 2 : moins clair en plein jour
 	"fer.rouille": {"teinte": Color(1.0, 0.98, 0.96), "metal": 0.28, "poli": 0.22, "reflet": Color(0.95, 0.92, 0.88)},
 	# verre : OPAQUE à faux translucide (facettes en dégradé, veines internes et filets peints dans l'atlas + reflet vitreux rasant
 	# « bord ») ; aucun tri alpha (Godot et navigateur)

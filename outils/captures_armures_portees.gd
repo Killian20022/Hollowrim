@@ -11,6 +11,9 @@ const PIECES := {
 	"os": ["casque_os", "cuirasse_os", "gants_os", "bottes_os"],
 	"fer": ["casque_fer", "cuirasse_fer", "gantelets_fer", "bottes_fer"],
 	"acier": ["casque_acier_nordique", "cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
+	# sans casque : contrôle du col de fourrure sous le menton (affinage des lourdes, 2026-11-11)
+	"fer_sans_casque": ["cuirasse_fer", "gantelets_fer", "bottes_fer"],
+	"acier_sans_casque": ["cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
 	"uniques": ["heaume_jarl", "cuirasse_gardiens", "gantelets_hrafn", "bottes_rodeur"],
 	"uniques2": ["capuche_thaumaturge", "brigandine_braise", "gants_cuir", "bottes_cuir"],
 	"verre": ["casque_verre", "cuirasse_verre", "gantelets_verre", "bottes_verre"],
@@ -31,7 +34,7 @@ const PiecesEssai := preload("res://outils/pieces_essai.gd")
 const AVANT := "res://assets/modeles/armures/_avant_os/"
 var avant := false
 const NOMS := {"sans_armure": "Heros sans armure (reference)", "cuir": "CUIR", "fourrure": "FOURRURE", "os": "OS DE DRAUGR",
-	"verre": "VERRE", "verre_enchante": "VERRE RUNIQUE (enchante)", "fer": "FER", "acier": "ACIER NORDIQUE", "obsidienne": "OBSIDIENNE", "or": "OR",
+	"verre": "VERRE", "verre_enchante": "VERRE RUNIQUE (enchante)", "fer": "FER", "acier": "ACIER NORDIQUE", "fer_sans_casque": "FER (sans casque)", "acier_sans_casque": "ACIER NORDIQUE (sans casque)", "obsidienne": "OBSIDIENNE", "or": "OR",
 	"obsidienne_enchante": "OBSIDIENNE RUNIQUE", "or_enchante": "OR CONSACRE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir",
 	"rubis": "RUBIS", "saphir": "SAPHIR", "rubis_enchante": "RUBIS ENCHANTE", "saphir_enchante": "SAPHIR ENCHANTE"}
 var s: Node
@@ -315,6 +318,12 @@ func _planches() -> void:
 			_placer_cam({"buste": 30.0, "buste_dos": 150.0}[v], 1.5, 1.35, 1.55)
 			await _attendre(0.15)
 			await _capture("%s_%s" % [f, v], Rect2i(240, 0, 480, 540), "buste " + ("3/4 face" if v == "buste" else "3/4 dos"))
+		if OS.get_cmdline_user_args().has("--details"):
+			# gros plans des articulations (passe 2 « géométrie » des armures lourdes) : épaule, coude, genou
+			for g in [["epaule", 70.0, 0.95, 1.42, 1.55], ["coude", 95.0, 0.95, 1.08, 1.15], ["genou", 25.0, 0.95, 0.55, 0.75], ["epaule_dos", 140.0, 0.95, 1.42, 1.55]]:
+				_placer_cam(g[1], g[2], g[3], g[4])
+				await _attendre(0.15)
+				await _capture("%s_%s" % [f, g[0]], Rect2i(240, 0, 480, 540), "gros plan " + g[0])
 		if f == "sans_armure":
 			continue
 		# pièces posées au sol, devant le héros (vue plongeante)
