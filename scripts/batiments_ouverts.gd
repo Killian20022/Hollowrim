@@ -15,6 +15,7 @@ class_name BatimentsOuverts
 ## (y_sol - 0,4) pour que son plancher soit à `Interieurs.F` (0,42) comme partout ; le grand axe du toit est X ou Z.
 
 const DONNEES := "res://data/batiments.json"
+const METIERS := preload("res://scripts/interieurs_metiers.gd")   # PropsMax v3 : coins de métier (mode pq seulement)
 ## `-- --batiments-clos` : le bâti d'avant (bâtiments pleins, sans intérieur) pour les comparaisons et les mesures.
 static var actif := not OS.get_cmdline_user_args().has("--batiments-clos")
 const EP_DOUBLURE := 0.08          # épaisseur de la doublure des murs
@@ -281,6 +282,9 @@ static func amenager(b: Interieurs, pl: Dictionary) -> void:
 			_moulin_vent(b, pl, murs)
 		_:
 			_maison(b, pl, murs, false)
+	METIERS.habiller(b, pl, murs)
+	if OS.get_cmdline_user_args().has("--interieurs-debug"):
+		print("INTDBG %s fonction=%s ax=%.2f az=%.2f xd=%.2f libres=%s hauts=%s occ=%d" % [pl["id"], pl["fonction"], pl["ax"], pl["az"], pl["xd"], str(murs.libres), str(murs.libres_hauts), murs.occupes.size()])
 
 # --- répartiteur le long des murs ------------------------------------------------------------------------------------
 
