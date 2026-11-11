@@ -60,7 +60,7 @@ static func coins(pl: Dictionary) -> Array:
 	return []
 
 static func habiller(b: Interieurs, pl: Dictionary, murs) -> void:
-	if not PropsQuaternius.pq:
+	if not PropsQuaternius.pq or OS.get_cmdline_user_args().has("--sans-props-v3"):      # A/B des mesures : la pièce de la v2
 		return
 	var F := Interieurs.F
 	var poses := 0
