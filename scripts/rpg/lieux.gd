@@ -16,7 +16,8 @@ class_name Lieux
 ## sans autre changement. Un lieu « decouvrable » doit aussi être déclaré au HUD (hud.lieu_nomme(pos, rayon, nom)) avec le
 ## MÊME nom : la boussole (branche hud/barre_objets) peut appeler Lieux.declarer_au_hud(hud, monde) au lieu des lignes
 ## de monde._interface (fait la même chose, sans doublon).
-## Une étape de quête dont le déclencheur n'est pas dans CIBLES peut porter "carte": "<id de lieu>" dans data/quetes.json.
+## Une étape de quête dont le déclencheur n'est pas dans CIBLES peut porter "carte": "<id de lieu>" dans data/quetes.json, et, pour
+## un repère plus juste, "pnj": "<id>" (le PNJ lui-même) ou "cible": [x, z] (un point du monde : la serrure d'un grenier).
 
 ## Types : libellé de légende (le dessin des icônes est dans OngletCarte).
 const TYPES := {
@@ -142,7 +143,16 @@ static func cibles_quetes(quetes: Node, monde: Node) -> Array:
 		var suivante: Dictionary = etapes[n]
 		var pos := Vector3.INF
 		var id_lieu := String(suivante.get("carte", ""))
-		if id_lieu == "":
+		# étape qui vise un PNJ (« pnj ») ou un point précis (« cible » : [x, z]) sans déclencheur parlant (data/quetes.json)
+		if suivante.has("pnj") and monde != null:
+			var qui := _pnj(monde, String(suivante["pnj"]))
+			if qui != null:
+				pos = qui.global_position
+		elif suivante.get("cible") is Array and (suivante["cible"] as Array).size() == 2:
+			var cx := float(suivante["cible"][0])
+			var cz := float(suivante["cible"][1])
+			pos = Vector3(cx, monde.hauteur(cx, cz) if monde != null and monde.has_method("hauteur") else 0.0, cz)
+		if id_lieu == "" and pos == Vector3.INF:
 			for evt: String in String(suivante["declencheur"]).split("|"):
 				if evt.begins_with("parle:") and monde != null:
 					var pnj := _pnj(monde, evt.substr(6))

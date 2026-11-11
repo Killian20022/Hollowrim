@@ -414,6 +414,331 @@
           "chasseurs": 14
         }
       }
+    },
+    {
+      "id": "grenier_maigre",
+      "titre": "Le grenier qui maigrit",
+      "donneur": "ancienne",
+      "remis": {
+        "baton_taille": 1
+      },
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "recit:grenier_maigre:debut",
+          "carte": "skarnholt",
+          "objectif": "Examiner la serrure du grenier commun, sur ses pierres levées",
+          "journal": "Grima compte les sacs du grenier commun depuis quarante hivers. Il en manque deux par semaine, toujours deux. Au puits, on a déjà prononcé le nom de la lavandière ; demain, ce sera peut-être le mien. Elle veut savoir avant les autres, et que je le lui dise à elle."
+        },
+        {
+          "id": "serrure",
+          "declencheur": "indice:grenier_serrure",
+          "carte": "skarnholt",
+          "cible": [
+            58.9,
+            22.9
+          ],
+          "objectif": "Suivre les balles d’orge vers les fermes de l’est",
+          "journal": "La serrure du grenier est intacte, et graissée de frais. Sur les marches gelées, quelques balles d’orge filent vers l’est, vers les fermes. Deux hommes seulement ont une clé : Gunnar, et Haldor à la porte."
+        },
+        {
+          "id": "etable",
+          "declencheur": "ramasse:baton_taille",
+          "carte": "fermes",
+          "cible": [
+            86.9,
+            25.5
+          ],
+          "objectif": "Montrer le bâton de taille à Gunnar",
+          "journal": "Dans la grange de l’est, sous la paille, une trappe aux gonds huilés. Dessous, onze sacs d’orge marqués de la rune du hameau, rangés au sec comme dans un cellier, et un bâton de taille : un cran par sac, des encoches jusqu’au dégel. La rune de Gunnar est brûlée dans le bois."
+        },
+        {
+          "id": "gunnar",
+          "declencheur": "parle:chef",
+          "objectif": "Rendre compte à Grima, au puits",
+          "journal": "Gunnar n’a rien nié. Depuis que les convois ne passent plus, il met de côté un sac sur trois pour le mois noir, quand on mangerait la semence. Si le puits apprend qu’il y a onze sacs sous une grange, ils seront vides avant la nouvelle lune. Il ne me demande pas de mentir, seulement de me taire."
+        },
+        {
+          "id": "fin",
+          "declencheur": "issue:grenier_maigre:verite|issue:grenier_maigre:silence",
+          "carte": "skarnholt",
+          "pnj": "ancienne",
+          "objectif": "",
+          "journal": "J’ai rendu compte à Grima.",
+          "issues": {
+            "issue:grenier_maigre:verite": {
+              "journal": "J’ai tout dit à Grima. Elle l’a répété au puits, sans hausser la voix : personne n’a volé personne. Ce soir, on ne parle plus de la lavandière, on parle de la réserve du chef, et chacun la compte déjà dans sa soupe. Gunnar ne me regarde plus en face.",
+              "recompense": {
+                "objets": {
+                  "pain_seigle": 2
+                }
+              }
+            },
+            "issue:grenier_maigre:silence": {
+              "journal": "J’ai parlé de rats à Grima. Elle ne m’a pas cru et n’a pas insisté. La réserve dort sous la paille, et Gunnar m’a fait porter une bourse le soir même, sans un mot. Au puits, on continue de compter les assiettes des voisins.",
+              "recompense": {
+                "pieces": 60
+              }
+            }
+          }
+        }
+      ],
+      "choix": [
+        {
+          "id": "verite",
+          "pnj": "ancienne",
+          "index": 4,
+          "texte": "Dire la vérité : la réserve de Gunnar",
+          "effets": [
+            {
+              "disposition_pnj": {
+                "pnj": "chef",
+                "evt": "trahi"
+              }
+            }
+          ],
+          "repond": [
+            "Gunnar. Bien sûr, Gunnar. Il comptait déjà les cuillères quand il n’était pas plus haut que mon seau.",
+            "Il a raison, tu sais. Et il a tort. Un hameau qui se tait pour durer finit par ne plus se parler du tout.",
+            "Je le dirai au puits, doucement. Ils sauront qu’aucun d’eux n’a volé l’autre. Pour le grain… que les dieux nous gardent jusqu’au dégel.",
+            "Prends ces deux miches. C’est la dernière fournée de mon seigle à moi. La prochaine sortira des sacs de Gunnar."
+          ]
+        },
+        {
+          "id": "silence",
+          "pnj": "ancienne",
+          "index": 4,
+          "texte": "Mentir : « Des rats, et un toit qui fuit »",
+          "effets": [
+            {
+              "disposition_pnj": {
+                "pnj": "ancienne",
+                "evt": "mensonge"
+              }
+            },
+            {
+              "disposition_pnj": {
+                "pnj": "chef",
+                "evt": "aide"
+              }
+            }
+          ],
+          "repond": [
+            "Des rats. Et ils graissent les serrures, tes rats ?",
+            "Tu mens mal, petit. Mais tu mens pour quelqu’un, ça se voit. C’est déjà une sorte d’honnêteté.",
+            "Je ne te demanderai pas qui. Le puits, lui, continuera de chercher. Et il finit toujours par trouver quelqu’un."
+          ]
+        }
+      ],
+      "recompense": {
+        "xp": 120,
+        "pieces": 0,
+        "objets": {}
+      }
+    },
+    {
+      "id": "fil_rouge",
+      "titre": "L’écorce au fil rouge",
+      "donneur": "volva",
+      "etapes": [
+        {
+          "id": "debut",
+          "declencheur": "recit:fil_rouge:debut",
+          "carte": "skarnholt",
+          "objectif": "Remettre l’écorce à Ylva, le soir, au feu de la place",
+          "journal": "Sigrún m’a confié une lanière d’écorce de bouleau, nouée d’un fil rouge. Elle y a gravé ce qu’elle a vu au cercle, la nuit où Eirik est parti : il n’était pas seul. Elle veut qu’Ylva le sache, et ne peut pas le lui dire en face. « Le soir, quand elle rentre au feu. Le jour, elle ne s’arrête pour personne. »"
+        },
+        {
+          "id": "soir",
+          "declencheur": "recit:fil_rouge:soir",
+          "carte": "skarnholt",
+          "pnj": "chasseuse",
+          "objectif": "Décider de l’écorce : la donner à Ylva, la jeter au feu de Brodd, ou la rendre à Sigrún",
+          "journal": "J’ai trouvé Ylva au feu de la place, à la nuit tombée, du sang de lièvre sur les mains. Elle a reconnu le fil rouge avant de voir l’écorce. Elle n’a pas tendu la main. Elle a attendu."
+        },
+        {
+          "id": "choix",
+          "declencheur": "issue:fil_rouge:donnee|issue:fil_rouge:brulee|issue:fil_rouge:rendue",
+          "carte": "skarnholt",
+          "objectif": "Retourner voir Sigrún",
+          "journal": "J’ai décidé du sort de l’écorce.",
+          "issues": {
+            "issue:fil_rouge:donnee": {
+              "journal": "J’ai tendu l’écorce à Ylva. Elle l’a lue deux fois, du bout du pouce, puis l’a jetée au feu. Elle n’en a retenu qu’une chose à voix haute : une femme au capuchon de renard, venue du sud, et une bourse qui changeait de main.",
+              "recompense": {
+                "objets": {
+                  "talisman_os": 1
+                },
+                "reputation": {
+                  "chasseurs": 10
+                }
+              }
+            },
+            "issue:fil_rouge:brulee": {
+              "journal": "J’ai jeté l’écorce dans le foyer de Brodd sans la lire. Ylva ne saura pas. Brodd a regardé le bouleau se tordre, puis il a parlé d’un fer qu’il aurait dû fondre, et m’a donné un anneau de cuivre forgé la nuit du départ d’Eirik."
+            },
+            "issue:fil_rouge:rendue": {
+              "journal": "J’ai rendu l’écorce à Sigrún : c’est à elle de parler, avec sa propre voix. Elle a gardé l’écorce un long moment dans ses mains, comme un oiseau mort.",
+              "recompense": {
+                "objets": {
+                  "potion_mana": 2
+                },
+                "reputation": {
+                  "cercle_sigrun": 10
+                }
+              }
+            }
+          }
+        },
+        {
+          "id": "fin",
+          "declencheur": "recit:fil_rouge:fin",
+          "carte": "skarnholt",
+          "pnj": "volva",
+          "objectif": "",
+          "journal": "Sigrún sait ce que j’ai fait de son écorce.",
+          "issues": {
+            "issue:fil_rouge:donnee": {
+              "journal": "Sigrún savait déjà : le fil rouge est revenu noué à sa porte, coupé net. Elle m’a remercié. Ce n’est pas un mot qui lui vient souvent."
+            },
+            "issue:fil_rouge:brulee": {
+              "journal": "Sigrún a senti la fumée du bouleau depuis sa hutte. Elle ne m’en veut pas, je crois. Nous sommes deux, maintenant, à porter ce silence."
+            },
+            "issue:fil_rouge:rendue": {
+              "journal": "Sigrún a glissé l’écorce dans sa manche et noué son châle. « Ce soir, au feu. » Ce qu’elles se diront ne me regarde plus."
+            }
+          }
+        }
+      ],
+      "choix": [
+        {
+          "id": "donnee",
+          "pnj": "chasseuse",
+          "index": 2,
+          "texte": "Lui tendre l’écorce",
+          "si": {
+            "heure": [
+              18.5,
+              21.5
+            ],
+            "journal": {
+              "quete": "frere_ylva",
+              "fini": true
+            }
+          },
+          "effets": [
+            {
+              "retirer": {
+                "objet": "ecorce_sigrun"
+              }
+            },
+            {
+              "disposition": "aide"
+            }
+          ],
+          "repond": [
+            "…Une femme. Au cercle. Une bourse qui change de main, et la vieille qui regarde.",
+            "Elle l’a vu partir vers sa mort, et elle a laissé faire, parce que les runes le voulaient.",
+            "Ne me regarde pas comme ça. Je ne vais pas pleurer. Je vais retenir. Une femme au capuchon de renard, venue du sud.",
+            "Dis à Sigrún que j’ai lu. Rien d’autre."
+          ]
+        },
+        {
+          "id": "donnee",
+          "pnj": "chasseuse",
+          "index": 2,
+          "texte": "Lui tendre l’écorce",
+          "si": {
+            "heure": [
+              18.5,
+              21.5
+            ],
+            "journal": {
+              "quete": "frere_ylva",
+              "fini": false
+            }
+          },
+          "effets": [
+            {
+              "retirer": {
+                "objet": "ecorce_sigrun"
+              }
+            },
+            {
+              "disposition": "aide"
+            }
+          ],
+          "repond": [
+            "Une femme du sud, au cercle, avec Eirik. Une bourse. Et la vieille qui regarde sans rien dire.",
+            "Alors il n’est pas parti seul, ni pour rien. Quelqu’un l’a payé pour y aller.",
+            "Dis à Sigrún que j’ai lu. Et que je n’ai plus besoin de ses os pour savoir où chercher."
+          ]
+        },
+        {
+          "id": "brulee",
+          "pnj": "forgeron",
+          "index": 2,
+          "texte": "Jeter l’écorce dans le foyer",
+          "effets": [
+            {
+              "retirer": {
+                "objet": "ecorce_sigrun"
+              }
+            },
+            {
+              "donner": {
+                "objet": "anneau_cuivre",
+                "n": 1
+              }
+            },
+            {
+              "avis": "+ Anneau de cuivre"
+            },
+            {
+              "disposition": "aide"
+            },
+            {
+              "disposition_pnj": {
+                "pnj": "volva",
+                "evt": "avertissement"
+              }
+            }
+          ],
+          "repond": [
+            "Dans mon feu ? Comme tu veux. Le feu ne pose pas de questions, c’est ce que je lui préfère.",
+            "Ça brûle vite, le bouleau. Plus vite que ce qu’on grave dessus.",
+            "Moi aussi, j’ai tenu une chose qu’il aurait fallu jeter là-dedans. Je ne l’ai pas fait. Certains soirs, je l’entends encore.",
+            "Tiens. Je l’ai forgé la nuit où Eirik est parti, sans savoir pour qui. Prends-le, avant que je le fonde aussi."
+          ]
+        },
+        {
+          "id": "rendue",
+          "pnj": "volva",
+          "index": 2,
+          "texte": "Lui rendre l’écorce : « Dis-le-lui toi-même »",
+          "effets": [
+            {
+              "retirer": {
+                "objet": "ecorce_sigrun"
+              }
+            }
+          ],
+          "puis": [
+            "recit:fil_rouge:fin"
+          ],
+          "repond": [
+            "Tu me la rends. Tu as raison, et je t’en veux un peu d’avoir raison.",
+            "J’irai au feu ce soir. Je m’assiérai à côté d’elle, et je dirai ce que j’ai vu, avec ma bouche, pas avec un couteau sur une écorce.",
+            "Elle ne me pardonnera pas. Ce n’est pas pour être pardonnée que j’y vais.",
+            "Prends ces fioles. Ce n’est pas un paiement. C’est pour que tu reviennes me dire si j’ai eu tort."
+          ]
+        }
+      ],
+      "recompense": {
+        "xp": 100,
+        "pieces": 0,
+        "objets": {}
+      }
     }
   ],
   "textes": {

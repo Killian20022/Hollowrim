@@ -1,6 +1,8 @@
 {
 	"_doc": "Objets de quête : quete = true, valeur 0, invendables, impossibles à lâcher. Format commun : docs/RPG.md §2. Nouvel objet = nouvel identifiant, jamais de renommage (sinon Inventaire.ALIAS).",
 	"objets": {
+		"baton_taille": {"modele_quat": "pq_bois", "echelle_quat": 0.35, "teinte_quat": "#6b4a2e", "nom": "Bâton de taille de Gunnar", "poids": 0.2, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "description": "Un bâton de frêne entaillé : un cran par sac d’orge, des encoches pour les semaines jusqu’au dégel. La rune de Gunnar est brûlée dans le bois."},
+		"ecorce_sigrun": {"modele_quat": "pq_parchemin", "echelle_quat": 0.6, "teinte_quat": "#d8cbb0", "nom": "Écorce au fil rouge", "poids": 0.1, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "description": "Une lanière d’écorce de bouleau roulée serré, nouée d’un fil de laine rouge. Sigrún y a gravé quelque chose pour Ylva."},
 		"anneau_givre": {"nom": "Anneau de givre", "poids": 0.1, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/anneau_givre.glb"},
 		"amulette_eirik": {"nom": "Amulette d’Eirik", "poids": 0.2, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/amulette_eirik.glb"},
 		"fragment_sceau_os": {"nom": "Fragment du sceau des Os", "poids": 0.6, "valeur": 0, "categorie": "quete", "rarete": "commun", "quete": true, "modele": "res://assets/modeles/objets/fragment_sceau_os.glb"},

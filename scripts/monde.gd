@@ -796,6 +796,7 @@ func _villageois() -> void:
 		ip.porte_actionnee.connect(func(_ouverte: bool) -> void: demander_autosauvegarde("maison", 1.5))
 	quetes.quete_terminee.connect(func(_id: String) -> void: demander_autosauvegarde("quête", 1.0))
 	services.poser(village, dialogue)              # lot E RPG : coffre loué chez Grima, coffre et râtelier de la maison
+	RecitsVillage.poser(self)                      # quêtes sans combat : serrure du grenier, trappe de la grange de l'est (scripts/recits_village.gd)
 	objets_vivants = ObjetsVivants.creer(self)     # petits objets de décor vivants : viser, prendre / voler, saisir, lancer
 	_uniques_village()
 	EtalMarchand.poser_village(village, self, not _arguments().has("capture"))   # pièces exposées après le chargement (EtalMarchand : exposition différée) ; objets monde : étals de Brodd et de Grima (stock du moment en 3D)
