@@ -9,9 +9,13 @@
     "verre": {"tete": "casque_verre", "torse": "cuirasse_verre", "mains": "gantelets_verre", "pieds": "bottes_verre"},
     "or": {"tete": "casque_or", "torse": "cuirasse_or", "mains": "gantelets_or", "pieds": "bottes_or"}
   },
+  "livrees": {
+    "note": "Livrées portées PAR-DESSUS l'armure (GardeMaison) : id -> glb skinné (sources_blender/armures/tabard/). Pas une pièce d'équipement : jamais dans le butin. Par rôle « tabard » (id ou \"\") ; par garde « tabard » (id ou \"\" pour l'ôter) ; --sans-tabard en ligne de commande les ôte tous.",
+    "tabard_skarnholt": "res://assets/modeles/armures/livrees/tabard_skarnholt.glb"
+  },
   "roles": {
-    "lancier": {"ensemble": "fer", "arme": "lance"},
-    "epee": {"ensemble": "acier", "arme": "epee"},
+    "lancier": {"ensemble": "fer", "arme": "lance", "tabard": "tabard_skarnholt"},
+    "epee": {"ensemble": "acier", "arme": "epee", "tabard": "tabard_skarnholt"},
     "archer": {"ensemble": "cuir", "arme": "arc"},
     "elite": {"ensemble": "verre", "arme": "epee", "bouclier": ""},
     "chef": {"ensemble": "or", "arme": "epee", "bouclier": ""}

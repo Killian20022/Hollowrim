@@ -241,6 +241,10 @@ static func trancher(modele: Node3D, membre: String, impulsion: Vector3, couleur
 		rb = _morceau(modele, sq, d, membre, dans, t_racine, inv_racine, coupe_local, bout, axe, k_rayon)
 		sk = rb.get_node("Skeleton3D") as Skeleton3D
 		_capuchon(sk, t_bout_morceau, chairs, r_coupe)
+	# livrées « suit_torse » (tabard) : les attaches du membre coupé passent sur l'os parent (pose de liaison de ce parent) -> le pan
+	# reste entier, porté par le bassin, au lieu de se replier avec la jambe ; coupe en deux : rien (il se replie avec le bassin)
+	if garde < 0:
+		_rattacher_livrees(sq, dans, sq.get_bone_parent(racine))
 	# corps : le membre se replie (dernier modificateur, après le ragdoll)
 	var mt := sq.get_node_or_null("MembreTranche") as MembreTranche
 	if mt == null:
@@ -330,6 +334,32 @@ static func trancher(modele: Node3D, membre: String, impulsion: Vector3, couleur
 	coupes += 1
 	return rb
 
+## Livrées (méta « suit_torse ») : peau dupliquée où chaque attache d'un os du membre coupé suit l'os `parent` avec la pose de liaison
+## de ce parent (celle de la peau si elle l'attache, sinon l'inverse de sa pose de repos globale).
+static func _rattacher_livrees(sq: Skeleton3D, dans: Dictionary, parent: int) -> void:
+	if parent < 0:
+		return
+	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
+		if not mi.has_meta("suit_torse") or mi.skin == null:
+			continue
+		var s := mi.skin.duplicate() as Skin
+		var lien := sq.get_bone_global_rest(parent).affine_inverse()
+		for i in s.get_bind_count():
+			var nom := String(s.get_bind_name(i))
+			if (sq.find_bone(nom) if nom != "" else s.get_bind_bone(i)) == parent:
+				lien = s.get_bind_pose(i)
+				break
+		for i in s.get_bind_count():
+			var nom := String(s.get_bind_name(i))
+			var os := sq.find_bone(nom) if nom != "" else s.get_bind_bone(i)
+			if os >= 0 and dans.has(os):
+				if nom != "":
+					s.set_bind_name(i, sq.get_bone_name(parent))
+				else:
+					s.set_bind_bone(i, parent)
+				s.set_bind_pose(i, lien)
+		mi.skin = s
+
 ## Morceau tranché : emplacement du pool, forme, copies des maillages (peau refaite), pièces accrochées au membre.
 static func _morceau(modele: Node3D, sq: Skeleton3D, d: Dictionary, membre: String, dans: Dictionary, t_racine: Transform3D,
 		inv_racine: Transform3D, coupe_local: Vector3, bout: Vector3, axe: Vector3, k_rayon: float) -> RigidBody3D:
@@ -364,8 +394,8 @@ static func _morceau(modele: Node3D, sq: Skeleton3D, d: Dictionary, membre: Stri
 	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
 		if n >= MAILLAGES_MAX:
 			break
-		if not mi.visible or mi.mesh == null or mi.skin == null:
-			continue
+		if not mi.visible or mi.mesh == null or mi.skin == null or mi.has_meta("suit_torse"):
+			continue   # livrée (tabard des gardes) : elle reste au corps, jamais un lambeau qui part avec le membre
 		var copie: MeshInstance3D = mis[n]
 		n += 1
 		copie.mesh = mi.mesh

@@ -15,6 +15,10 @@ class_name GardeMaison
 ## arc du jeu (ChasseresseNordique.equiper_arc, clips Pistol_*). Lance et bouclier du Gardien sont SORTIS du maillage des accessoires
 ## (maillage « armes_garde ») avant l'habillage : le masquage d'ArmureVisible (zones des mains, du dos) ne les ronge pas.
 ## Butin : pieces_portees(modele) = les ids portés (PnjCombat les laisse sur le corps d'un garde tué).
+## LIVRÉE (2026-11-11) : tabard rouge de Skarnholt à l'arbre brodé, PAR-DESSUS la cuirasse (glb skinné, « livrees » de data/gardes.json ;
+## rôle « tabard » : lanciers et gardes à l'épée, donc Haldor ; par garde « tabard » : autre id ou "" pour l'ôter ; --sans-tabard : aucun).
+## Ce n'est pas une pièce d'équipement : jamais dans pieces_portees (pas de butin). Méta « suit_torse » : au démembrement il reste au
+## corps (Demembrement ne le copie pas dans le morceau et rattache au parent ses attaches du membre coupé).
 ##   GardeMaison.creer(g: Dictionary) -> Node3D      (contrat d'Humain.creer : Skeleton3D, « Animations », ragdoll)
 ## Retour arrière : --gardes-armures-tripo (corps GardeTripo d'avant), --modeles-anciens=gardes (Gardien d'origine), « "modele_ancien": true ».
 
@@ -78,6 +82,40 @@ static func pieces_de(g: Dictionary) -> Dictionary:
 			p.erase(e)
 	return p
 
+## Livrée portée par-dessus l'armure : id (« tabard » du garde, sinon de son rôle), "" si aucune ou avec --sans-tabard.
+static func tabard_de(g: Dictionary) -> String:
+	if OS.get_cmdline_user_args().has("--sans-tabard"):
+		return ""
+	return String(g.get("tabard", (roles().get(role_de(g), {}) as Dictionary).get("tabard", "")))
+
+static func chemin_livree(id: String) -> String:
+	return String((GardesVillage.donnees().get("livrees", {}) as Dictionary).get(id, ""))
+
+## Tabard (ou autre livrée) posé sur le squelette : maillage skinné du glb, matières des armures portées (preset « tissu », « cuir »,
+## « fer » d'après les matériaux Blender). Méta armure_id : ArmureVisible ne le masque pas comme un vêtement du corps.
+static func poser_livree(sq: Skeleton3D, id: String) -> MeshInstance3D:
+	var chemin := chemin_livree(id)
+	if chemin == "" or not ResourceLoader.exists(chemin):
+		return null
+	var mi := ArmureVisible.charger_chemin(chemin)
+	if mi == null:
+		return null
+	mi.name = "livree_" + id
+	mi.set_meta("armure_id", id)
+	mi.set_meta("livree", id)
+	mi.set_meta("suit_torse", true)
+	sq.add_child(mi)
+	mi.skeleton = NodePath("..")
+	return mi
+
+## Livrée posée sur un modèle de garde (null sinon).
+static func livree(modele: Node) -> MeshInstance3D:
+	if modele == null:
+		return null
+	for mi: MeshInstance3D in modele.find_children("livree_*", "MeshInstance3D", true, false):
+		return mi
+	return null
+
 static func arme_de(g: Dictionary) -> String:
 	return String(g.get("arme", (roles().get(role_de(g), {}) as Dictionary).get("arme", "epee")))
 
@@ -137,6 +175,9 @@ static func creer(g: Dictionary) -> Node3D:
 		if String(eq.emplacements[e]) != "":
 			portees[e] = String(eq.emplacements[e])
 	n.set_meta(META, portees)
+	var tab := tabard_de(g)
+	if tab != "" and poser_livree(sq, tab) != null:
+		n.set_meta("livree_garde", tab)
 	n.set_meta("garde_maison", role_de(g))
 	var h := clampf(float(g.get("taille", 1.0)), 0.9, 1.1)
 	var l := clampf(float(g.get("largeur", 1.0)), 0.92, 1.08)

@@ -6,6 +6,9 @@ extends SceneTree
 ##   - variété : sans_casque, pieces ; carrure ;
 ##   - démembrement : le morceau tranché emporte les pièces d'armure ; ragdoll ;
 ##   - butin : un garde tué (PnjCombat) laisse les pièces qu'il portait.
+##   - livrée : tabard de Skarnholt (data/gardes.json « tabard ») sur lanciers, gardes à l'épée et Haldor, pas sur l'élite, l'archer ni le
+##     garde d'or ; ôtable par garde ; jamais dans le butin ; maillage fermé, poids sur le torse/bassin/cuisses ; au démembrement il reste
+##     au corps (ni copié dans le morceau, ni replié avec la jambe).
 ##   godot --headless --path . --script res://outils/test_gardes_maison.gd -- --nouvelle
 var _echecs := 0
 
@@ -71,6 +74,65 @@ func _tester() -> void:
 					dessous += 1
 			_verif(dessous == 0, "%s : cotte du Gardien masquée sous la cuirasse (%d triangles restants au milieu du torse)" % [id, dessous])
 		mod.queue_free()
+	# livrée : tabard par rôle
+	var attendus := {"so": true, "e_s": true, "ronde_rue": true, "halle_o": true, "ronde_place": true, "vigie": false, "ronde_nord": false, "n_e": false, "halle_e": false}
+	for id: String in attendus:
+		var mt := GardeMaison.creer(_garde(id))
+		var lv := GardeMaison.livree(mt)
+		_verif((lv != null) == bool(attendus[id]) and (lv == null or (lv.visible and lv.skin != null and String(mt.get_meta("livree_garde", "")) == "tabard_skarnholt")), "%s : tabard %s" % [id, "porté" if lv != null else "absent"])
+		_verif(not GardeMaison.pieces_portees(mt).has("tabard_skarnholt"), "%s : tabard hors des pièces portées (pas de butin)" % id)
+		mt.free()
+	var hal := GardeMaison.creer({"role": "epee", "pieces": {"tete": "casque_acier_nordique"}})
+	_verif(GardeMaison.livree(hal) != null, "Haldor (rôle épée) : tabard porté")
+	hal.free()
+	var sans := _garde("so").duplicate()
+	sans["tabard"] = ""
+	var ms := GardeMaison.creer(sans)
+	_verif(GardeMaison.livree(ms) == null, "« tabard »: \"\" sur un garde : tabard ôté")
+	ms.free()
+	# géométrie : maillage fermé (chaque arête partagée par 2 triangles), os du haut du corps, matières tissu/cuir/fer
+	var mt2 := GardeMaison.creer(_garde("so"))
+	var lv2 := GardeMaison.livree(mt2)
+	if lv2 != null:
+		var aretes := {}
+		var tris := 0
+		var os_ok := true
+		var nb_s := lv2.mesh.get_surface_count()
+		var mats := []
+		for si in nb_s:
+			var a := lv2.mesh.surface_get_arrays(si)
+			var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+			tris += idx.size() / 3
+			var cle := func(i: int) -> Vector3i: return Vector3i((v[i] * 2000.0).round())
+			for t in range(0, idx.size() - 2, 3):
+				for k in 3:
+					var p0: Vector3i = cle.call(idx[t + k])
+					var p1: Vector3i = cle.call(idx[t + (k + 1) % 3])
+					var e := [p0, p1] if str(p0) < str(p1) else [p1, p0]
+					aretes[str(e)] = int(aretes.get(str(e), 0)) + 1
+			var m := lv2.get_surface_override_material(si)
+			mats.append(m.resource_name if m else "?")
+		var ouvertes := 0
+		for e: String in aretes:
+			if int(aretes[e]) != 2:
+				ouvertes += 1
+		var os_pondres := {}
+		for si in nb_s:
+			var a := lv2.mesh.surface_get_arrays(si)
+			var bo: PackedInt32Array = a[Mesh.ARRAY_BONES]
+			var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+			for k in bo.size():
+				if w[k] > 0.02:
+					os_pondres[String(lv2.skin.get_bind_name(bo[k]))] = true
+		for nom: String in os_pondres:
+			if nom.contains("hand") or nom.contains("foot") or nom.contains("lowerarm") or nom.contains("calf"):
+				os_ok = false
+		print("    os pondérés du tabard : ", os_pondres.keys())
+		_verif(ouvertes == 0 and tris > 3000 and tris < 8000, "tabard : maillage fermé (%d arêtes ouvertes), %d triangles" % [ouvertes, tris])
+		_verif(os_ok, "tabard : attaché au torse / bassin / cuisses (ni mains, ni avant-bras, ni pieds)")
+		_verif(mats.size() == 3 and str(mats).contains("tissu") and str(mats).contains("cuir"), "tabard : matières %s" % [mats])
+	mt2.free()
 	# démembrement : bras droit tranché d'un garde à l'épée -> le morceau emporte gantelet et cuirasse (maillages d'armure copiés)
 	var gm := GardeMaison.creer(_garde("ronde_rue"))
 	monde.add_child(gm)
@@ -93,6 +155,22 @@ func _tester() -> void:
 			if av2.maillage("mains") != null and m == av2.maillage("mains").mesh:
 				avec_gant = true
 		_verif(avec_gant, "démembrement : le morceau emporte le gantelet porté")
+	# jambe gauche tranchée : le tabard ne part pas avec le morceau et ne s'attache plus à la cuisse coupée
+	var lv3 := GardeMaison.livree(gm)
+	var rb2 := Demembrement.trancher(gm, "jambe_l", Vector3(-2, 0.5, 0), Color(0.5, 0, 0))
+	if rb2 != null and lv3 != null:
+		var copie := false
+		for mi: MeshInstance3D in rb2.find_children("*", "MeshInstance3D", true, false):
+			if mi.visible and mi.mesh == lv3.mesh:
+				copie = true
+		var sur_cuisse := false
+		var sq3 := gm.find_child("Skeleton3D", true, false) as Skeleton3D
+		for i in lv3.skin.get_bind_count():
+			if String(lv3.skin.get_bind_name(i)) == "thigh_l":
+				sur_cuisse = true
+		_verif(not copie and not sur_cuisse and lv3.get_parent() == sq3 and lv3.visible, "démembrement : le tabard reste au corps (pas dans le morceau, attaches de la cuisse coupée passées au bassin)")
+	else:
+		_verif(false, "démembrement de la jambe d'un garde à tabard")
 	var rg := Ragdoll.equiper(gm)
 	_verif(rg != null, "ragdoll équipé sur le garde en armure")
 	# butin : un garde tué laisse ses pièces
