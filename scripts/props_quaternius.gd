@@ -43,6 +43,12 @@ const MATS_NEUTRES := {"fer": ["fer", "fer_mat", "etain", "fer_noir", "noir", "o
 ## Jamais remplacés : les tas de pièces texturés n'ont que quelques gros disques ; agrandis aux tas d'or de la crypte (bornes des anciens
 ## modules) ils sortaient en meules de fromage (captures avant/après, trésor). Les q_* (nombreuses petites pièces) restent.
 const PQ_EXCLUS := ["q_pieces", "q_tas_pieces", "q_tas_pieces_2"]
+## props/maximum (2026-11-11) : q_* du Modular Dungeon / Medieval Village SANS pq_* propre, servis par le pq_* texturé du même objet
+## (tonneau, caisse ferrée, sac, vase) à l'encombrement de CE pq_* (celui de son propre q_*) : un tonneau 2 de 1,34 m devient un tonneau
+## ordinaire de 0,95 m ; les poses ajustées à une taille cible (SUBST de la crypte, SUBST_FIT du village) ne changent pas.
+const ALIAS_PQ := {"q_tonneau_2": "pq_tonneau", "q_caisse_2": "pq_caisse_fer", "q_sac_debout": "pq_sac", "q_vase_5": "pq_vase_4",
+	"q_coffre_2": "pq_coffre_ferme", "q_seau_2": "pq_seau_bois", "q_chaise_2": "pq_chaise",
+	"q_bouteille_1": "pq_bouteille", "q_bouteille_2": "pq_bouteille"}
 static var _pq_de := {}       # nom q_* (ou pq_* posé directement) -> id pq_*
 static var _pq_mods := {}     # id pq_* -> [[atlas, arrays indexés (UV, normales, couleurs)], …], déjà à l'encombrement du q_*
 static var _pq_boites := {}   # id pq_* -> AABB
@@ -170,6 +176,9 @@ static func _charger_pq() -> void:
 		_pq_de[id] = id
 		if anc != "":
 			_pq_de[anc] = id
+	for al: String in ALIAS_PQ:
+		if _pq_mods.has(ALIAS_PQ[al]) and not _pq_de.has(al):
+			_pq_de[al] = ALIAS_PQ[al]
 
 ## Id du pq_* posé à la place de `nom` pour cette pose ("" = le q_* reste) : interrupteur global, prop sans équivalent, kitbash reteint.
 static func pq_de(nom: String, mats := {}) -> String:

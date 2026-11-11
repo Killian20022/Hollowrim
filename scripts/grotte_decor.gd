@@ -1594,7 +1594,7 @@ func q4(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, solide_b := false, ab
 	if not PropsQuaternius.lot4 or muet:
 		return Vector3.INF
 	PropsQuaternius.preparer_crypte()
-	if not _modeles_de.has(nom):
+	if not _modeles_de.has(nom) and not (nom.begins_with("pq_") and PropsQuaternius.pq and _modeles_de.has("pq:" + nom)):
 		return Vector3.INF
 	var bb := PropsQuaternius.boite(nom)
 	var hx := bb.size.x * 0.5 * e
