@@ -45,7 +45,7 @@ func entrees(id := "") -> Array:
 			continue
 		for i in int(etat.get(q["id"], 0)):
 			var d: Array = dates.get("%s:%d" % [q["id"], i], [0, 0.0])
-			res.append({"quete": q["id"], "titre": q["titre"], "i": i, "etape": q["etapes"][i]["id"], "texte": q["etapes"][i]["journal"],
+			res.append({"quete": q["id"], "titre": q["titre"], "i": i, "etape": q["etapes"][i]["id"], "texte": String(_issue(q, i).get("journal", q["etapes"][i]["journal"])),
 				"jour": int(d[0]), "heure": float(d[1])})
 	# chronologique ; les entrées non datées (anciennes parties) d'abord, dans l'ordre des quêtes puis des étapes
 	for k in res.size():
@@ -189,10 +189,10 @@ func _completer(q: Dictionary, i: int) -> void:
 	if i + 1 >= etapes.size():
 		if not q.get("discrete", false):
 			hud.avis("Quête terminée : " + q["titre"])
-		var remis: Dictionary = REMIS.get(q["id"], {})
+		var remis: Dictionary = REMIS.get(q["id"], q.get("remis", {}))
 		for id in remis:
 			joueur.inventaire.retirer(id, remis[id])
-		var r: Dictionary = q.get("recompense", {})
+		var r: Dictionary = recompense_de(String(q["id"]))
 		joueur.progression.gagner_xp(float(r.get("xp", Progression.XP_QUETE_DEFAUT)))   # RPG : XP de niveau (lot B : recompense.xp)
 		if int(r.get("pieces", 0)) > 0:
 			joueur.inventaire.ajouter("pieces", int(r["pieces"]))
@@ -257,7 +257,8 @@ func _contexte(villageois: String, pnj: Node) -> Dictionary:
 		ctx["pnj"] = villageois
 	return ctx
 
-## Effets des répliques dites : signaler un événement, avancer le journal, donner un objet, marquer la mémoire du PNJ, échouer.
+## Effets des répliques dites : signaler un événement, avancer le journal, donner ou retirer un objet, marquer la mémoire du PNJ
+## (ou d'un autre : « disposition_pnj »), échouer, afficher un avis.
 func _effets(retenues: Array, pnj: Node) -> void:
 	for r: Dictionary in retenues:
 		for e: Dictionary in r.get("effets", []):
@@ -271,6 +272,12 @@ func _effets(retenues: Array, pnj: Node) -> void:
 				Disposition.courante.noter(pnj, String(e["disposition"]))
 			if e.has("echec"):
 				echouer(String(e["echec"]))
+			if e.has("retirer"):
+				joueur.inventaire.retirer(String(e["retirer"]["objet"]), int(e["retirer"].get("n", 1)))
+			if e.has("disposition_pnj") and Disposition.courante != null and is_instance_valid(Disposition.courante):
+				Disposition.courante.noter_cle("pnj:" + String(e["disposition_pnj"]["pnj"]), String(e["disposition_pnj"]["evt"]))
+			if e.has("avis") and hud != null:
+				hud.avis(String(e["avis"]))
 
 func fini(id: String) -> bool:
 	return etat.has(id) and etat[id] >= _quete(id).get("etapes", []).size()
@@ -313,6 +320,86 @@ func choix_fait() -> String:
 
 func benediction() -> bool:
 	return vus.has(CHOIX_RESPECTER)
+
+# ------------------------------------------------------------------------------------------- issues et choix (quêtes à fins multiples)
+## Étape à plusieurs ISSUES (data/quetes.json : "issues": {"<événement>": {journal, recompense}}) : en général son déclencheur
+## propose ces événements en variantes (« issue:q:a|issue:q:b »), et une étape suivante peut reprendre les mêmes clés pour varier
+## son propre texte. L'issue retenue = la première clé déjà survenue (`vus`, donc sauvegardée) ; elle remplace le texte du journal
+## de l'étape et ajoute sa récompense (pièces et objets cumulés, réputation additionnée) à celle de la quête. Sans issue : rien ne change.
+func _issue(q: Dictionary, i: int) -> Dictionary:
+	var iss: Variant = (q["etapes"][i] as Dictionary).get("issues")
+	if not (iss is Dictionary):
+		return {}
+	for evt: String in iss:
+		if vus.has(evt):
+			return iss[evt]
+	return {}
+
+## Événement d'issue retenu pour une quête ("" si aucune) : la première issue survenue, toutes étapes confondues.
+func issue(id: String) -> String:
+	var q := _quete(id)
+	for e: Dictionary in q.get("etapes", []):
+		if e.get("issues") is Dictionary:
+			for evt: String in e["issues"]:
+				if vus.has(evt):
+					return evt
+	return ""
+
+## Récompense d'une quête, issues comprises (lue aussi par l'onglet Quêtes).
+func recompense_de(id: String) -> Dictionary:
+	var q := _quete(id)
+	var r: Dictionary = (q.get("recompense", {}) as Dictionary).duplicate(true)
+	for i in (q.get("etapes", []) as Array).size():
+		var ri: Variant = _issue(q, i).get("recompense")
+		if not (ri is Dictionary):
+			continue
+		for cle in ri:
+			var v: Variant = ri[cle]
+			if v is Dictionary:
+				var d: Dictionary = (r.get(cle, {}) as Dictionary).duplicate()
+				for k in v:
+					d[k] = d.get(k, 0) + v[k]
+				r[cle] = d
+			elif cle == "pieces":
+				r[cle] = int(r.get(cle, 0)) + int(v)
+			else:
+				r[cle] = v
+	return r
+
+## Choix proposés dans le dialogue de `id_pnj` (data/quetes.json, "choix" d'une quête : {id, pnj, index, si?, texte, repond,
+## effets?, exige?, refus?}) : [{texte, action}] pour ServicesPnj.options. Un choix n'est offert que si la quête est à l'index
+## voulu et si ses filtres `si` (ceux de RepliquesFiltrees : heure, journal, vu…) passent. Le valider signale
+## « issue:<quête>:<id> » (sauf "signaler" explicite), joue ses effets, et le PNJ répond par `repond`.
+func options(id_pnj: String, pnj: Node = null) -> Array:
+	var res: Array = []
+	var ctx := _contexte(id_pnj, pnj)
+	for q: Dictionary in donnees.get("quetes", []):
+		for c: Dictionary in q.get("choix", []):
+			if String(c.get("pnj", "")) != id_pnj or index(q["id"]) != int(c.get("index", -1)):
+				continue
+			if c.get("si") is Dictionary and not RepliquesFiltrees.valide({"filtres": c["si"]}, ctx):
+				continue
+			res.append({"texte": String(c["texte"]), "action": choisir_option.bind(String(q["id"]), String(c["id"]), pnj)})
+	return res
+
+## Joue un choix de quête (voir `options`) ; renvoie les répliques du PNJ ([] si le choix n'existe plus).
+func choisir_option(id: String, choix_id: String, pnj: Node = null) -> Array:
+	var q := _quete(id)
+	for c: Dictionary in q.get("choix", []):
+		if String(c["id"]) != choix_id or index(id) != int(c.get("index", -1)):
+			continue
+		if c.get("si") is Dictionary and not RepliquesFiltrees.valide({"filtres": c["si"]}, _contexte(String(c["pnj"]), pnj)):
+			continue   # même id, autre variante (le PNJ ne répond pas pareil selon le journal ou l'heure)
+		var exige: Dictionary = c.get("exige", {})
+		for obj in exige:
+			if joueur.inventaire.objets.get(obj, 0) < int(exige[obj]):
+				return c.get("refus", ["…"])
+		_effets([{"effets": c.get("effets", [])}], pnj)
+		signaler(String(c.get("signaler", "issue:%s:%s" % [id, choix_id])))
+		for evt in c.get("puis", []):   # événements à la suite (une issue qui clôt aussitôt la quête)
+			signaler(String(evt))
+		return (c.get("repond", []) as Array).duplicate()
+	return []
 
 func exporter() -> Dictionary:
 	return {"etat": etat.duplicate(), "vus": vus.keys(), "dates": dates.duplicate(), "echecs": echecs.keys()}

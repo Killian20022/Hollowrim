@@ -70,6 +70,16 @@
   {"id": "etranger_mefiance", "a": "*", "b": "*", "filtres": {"disposition": ["froid", "refus"]},
    "lignes": [["a", "Celui-là, je ne lui tourne pas le dos."], ["b", "Moi non plus. Compte tes poules."]]},
   {"id": "gardes_biere", "a": "garde", "b": "*", "filtres": {"heure": "nuit"},
-   "lignes": [["b", "Ta bière est tiède, Haldor."], ["a", "Comme toutes les bières de la garde. C'est une tradition."]]}
+   "lignes": [["b", "Ta bière est tiède, Haldor."], ["a", "Comme toutes les bières de la garde. C'est une tradition."]]},
+  {"id": "grenier_verite", "a": "habitant", "b": "*", "filtres": {"vu": ["issue:grenier_maigre:verite"]},
+   "lignes": [["a", "Il paraît que le chef gardait du grain sous une grange."], ["b", "Il le gardait pour nous."], ["a", "Pour nous, ou pour lui ? On ne le saura jamais, maintenant qu'on le mange."]]},
+  {"id": "grenier_verite_puits", "a": "ancienne", "b": "*", "filtres": {"vu": ["issue:grenier_maigre:verite"]},
+   "lignes": [["b", "On a ouvert un sac de la grange, ce matin."], ["a", "Un seul ?"], ["b", "Deux."], ["a", "Alors compte-les, petit. Quelqu'un doit compter."]]},
+  {"id": "grenier_silence", "a": "habitant", "b": "*", "filtres": {"vu": ["issue:grenier_maigre:silence"]},
+   "lignes": [["a", "Tu as vu les petits de la lavandière ? Ils ont les joues rondes."], ["b", "En plein hiver. Fais le compte."], ["a", "Grima dit que ce sont les rats."], ["b", "Grima dit beaucoup de choses."]]},
+  {"id": "ecorce_renard", "a": "chasseuse", "b": "*", "filtres": {"vu": ["issue:fil_rouge:donnee"]},
+   "lignes": [["a", "Si tu vois passer une femme au capuchon de renard, sur la route du sud, tu viens me chercher."], ["b", "Une colporteuse ? Il n'en passe plus, avec les bandits."], ["a", "Celle-là passera. Elle a encore quelque chose à vendre."]]},
+  {"id": "ecorce_feu", "a": "habitant", "b": "*", "filtres": {"vu": ["issue:fil_rouge:rendue"]},
+   "lignes": [["a", "La völva est venue s'asseoir au feu, l'autre soir. À côté d'Ylva."], ["b", "Et alors ?"], ["a", "Et rien. Elles ont regardé les braises jusqu'à minuit."]]}
  ]
 }

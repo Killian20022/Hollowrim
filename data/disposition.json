@@ -5,7 +5,7 @@
 	"prime_malus_max": 45.0,
 	"prime_refus": 40.0,
 	"malus_menace": 10.0,
-	"memoire": {"vol_vu": -8.0, "vol_victime": -25.0, "coup": -30.0, "avertissement": -5.0, "aide": 15.0, "min": -60.0, "max": 30.0},
+	"memoire": {"vol_vu": -8.0, "vol_victime": -25.0, "coup": -30.0, "avertissement": -5.0, "aide": 15.0, "trahi": -20.0, "mensonge": -8.0, "min": -60.0, "max": 30.0},
 	"prix": {"_doc": "±max selon le score : 50 = prix de la fiche, 100 = 15 % en faveur du joueur, 0 = 15 % contre lui.", "max": 0.15},
 	"recidive": {"_doc": "Prime d'un nouveau crime × facteur : réputation 0 → ×1,5 (récidiviste), 50 → ×1, 100 → ×0,75. Inspiré de Daggerfall Unity (MIT).", "bas": 1.5, "haut": 0.75},
 	"retour_reputation": {"_doc": "Part de la réputation perdue rendue en réglant sa dette (Daggerfall Unity, RaiseReputationForDoingSentence, MIT) ; remontée lente vers 50 par jour de jeu.", "geole": 0.5, "amende": 0.25, "par_jour": 1.0},

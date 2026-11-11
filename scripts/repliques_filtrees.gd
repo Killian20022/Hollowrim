@@ -12,7 +12,9 @@ extends RefCounted
 ##   journal ({quete, min, max, fini, fait, echouee} ou liste de ces conditions ; l'INDEX de la quête = nombre d'étapes faites,
 ##     0 = pas commencée ; fini = index à son maximum ; fait = id d'une étape déjà franchie),
 ##   heure ([debut, fin] en heures, boucle à minuit si debut > fin ; « nuit » / « jour »), lieu (id ou liste),
-##   vu (liste d'événements déjà survenus), maison (bool : maison achetée), choix (bool : choix moral fait).
+##   vu (liste d'événements déjà survenus), pas_vu (liste d'événements qui ne doivent PAS être survenus : avec l'effet
+##   {"signaler": "dit:<id>"} et pas_vu ["dit:<id>"], une réplique n'est dite qu'une fois), maison (bool : maison achetée),
+##   choix (bool : choix moral fait).
 ## Effets : {"signaler": "evt"}, {"journal": {"quete", "index"}} (avance l'index, jamais en arrière), {"donner": {"objet", "n"}},
 ## {"disposition": "aide"} (mémoire du PNJ), {"echec": "quete"}.
 ## Le contexte est un simple Dictionary (voir `contexte`) : l'outil outils/lister_repliques.gd en fabrique sans scène.
@@ -153,6 +155,10 @@ static func refus(r: Dictionary, ctx: Dictionary) -> String:
 		for e in f["vu"]:
 			if not ctx.get("vus", {}).has(e):
 				return "vu"
+	if f.has("pas_vu"):
+		for e in f["pas_vu"]:
+			if ctx.get("vus", {}).has(e):
+				return "pas_vu"
 	if f.has("maison") and bool(f["maison"]) != bool(ctx.get("maison", false)):
 		return "maison"
 	if f.has("choix") and bool(f["choix"]) != bool(ctx.get("choix", false)):

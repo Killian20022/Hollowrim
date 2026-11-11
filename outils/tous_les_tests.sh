@@ -31,6 +31,7 @@ TESTS=(
 	"test_rangs_faction|--nouvelle"   # étude Daggerfall : factions jouables, rangs, délai, exclusion, avantages
 	"test_factions_vivantes|--nouvelle"   # factions vivantes : répliques de rang, quêtes de faction, crime vu -> réputation, dette
 	"test_prologue|--nouvelle --prologue --aides"   # accueil (arrivée, premier objectif, bulles d'aide), quêtes qui se répondent, répliques « après », fin du chapitre
+	"test_quetes_sans_combat|--nouvelle"   # « Le grenier qui maigrit » et « L'écorce au fil rouge » : chaque fin par le vrai dialogue (choix), heure, indices, journal par issue, sauvegarde
 	"test_archer|--nouvelle"
 	"test_arc_joueur|--nouvelle"   # arc du joueur (armes/arc v7) : bander, tirer, balistique, 1re et 3e personne
 	"test_patrouille|--nouvelle"

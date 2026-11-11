@@ -69,7 +69,19 @@ func options(id_pnj: String) -> Array:
 	var rg: Node = monde.get("rangs") if monde != null else null
 	if rg is Rangs:
 		r.append_array((rg as Rangs).options(id_pnj))   # chefs de faction : rejoindre / demander une promotion (scripts/rangs.gd)
+	var qt: Node = monde.get("quetes") if monde != null else null
+	if qt != null and qt.has_method("options"):
+		r.append_array(qt.options(id_pnj, _pnj_de(id_pnj)))   # choix des quêtes à fins multiples (data/quetes.json, « choix »)
 	return r
+
+func _pnj_de(id_pnj: String) -> Node:
+	if not is_inside_tree():
+		return null
+	for v in get_tree().get_nodes_in_group("villageois"):
+		var d: Variant = v.get("donnees")
+		if d is Dictionary and String((d as Dictionary).get("id", "")) == id_pnj:
+			return v
+	return null
 
 ## Gunnar vend la maison des Frostmark.
 func acheter_maison() -> String:
