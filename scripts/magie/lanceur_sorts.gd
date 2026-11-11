@@ -229,6 +229,8 @@ func _projectiles(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3
 		var p := ProjectileSort.tirer_sort(parent, depart, d, s.vitesse, visuel, rappel, exclus, s.traverse, taille)
 		p.genre = {"glace": "givre", "feu": "feu", "electricite": "foudre", "tenebres": "ombre"}.get(s.ecole, "sort")
 		p.vise = vise
+		if vise == "ennemis":
+			p.add_to_group("projectiles_joueur")   # vus (parfois) par les ennemis : draugr._esquiver_projectile
 		p.cible_joueur = cible_joueur
 		tirs.append(p)
 	return {"genre": "projectile", "projectiles": tirs, "point": v["point"], "direction": dir, "taille": taille, "facteur": k}

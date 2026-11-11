@@ -117,6 +117,9 @@ var _pulsation: Tween          # lueur pulsée du corps pendant la préparation
 var _cd_lourd := 0.0           # attente avant le prochain geste annoncé (s)
 var _armure := 0.0             # hyper-armure restante après un titubement (s)
 var _cote_pause := 1.0         # sens dans lequel il tourne autour du joueur entre deux séries
+var _esq_t := 0.0               # durée restante du pas de côté pour éviter un sort (s)
+var _esq_dir := Vector3.ZERO
+var _esq_attente := 0.0
 var _lateral := Vector3.ZERO   # vitesse latérale de contournement (m/s, recalculée à chaque image)
 var _t_groupe := 0.0
 var _allie_contact: Node3D     # allié déjà au contact du joueur (il passe alors sur le flanc)
@@ -541,6 +544,7 @@ func _physics_process(dt: float) -> void:
 	_cd_souffle -= dt
 	_cd_lourd -= dt
 	_armure -= dt
+	_esq_attente -= dt
 	_lateral = Vector3.ZERO
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
@@ -650,6 +654,9 @@ func _physics_process(dt: float) -> void:
 			elif dist > (PORTEE + AMORCE if _menace else PORTEE):
 				vitesse = _course if dist > 4.0 else _marche_proche
 				loco = "Jog_Fwd" if dist > 4.0 else "Walk"
+				if dist > ReglagesCombat.CHARGE_DIST_MIN and _joueur_lanceur() and c == joueur and not zombie and boss == "":
+					vitesse = _course * ReglagesCombat.CHARGE_LANCEUR   # face à un lanceur : il charge au lieu de marcher vers lui
+					loco = "Jog_Fwd"
 				if _menace:
 					var flanc := _flanc(dist, dt)   # plusieurs ennemis : ceux qui ne sont pas au contact passent sur le flanc
 					if flanc != Vector3.ZERO:
@@ -695,7 +702,7 @@ func _physics_process(dt: float) -> void:
 				_tirer()
 				_jouer("Pistol_Shoot", 0.05, true)
 			if _t >= VISE_DUREE + 0.45:
-				_recharge = randf_range(1.6, 2.4)
+				_recharge = randf_range(1.6, 2.4) * (ReglagesCombat.ARCHER_CADENCE_LANCEUR if _joueur_lanceur() else 1.0)
 				_changer(TRAQUE)
 		APPEL:
 			regard = true
@@ -846,6 +853,14 @@ func _physics_process(dt: float) -> void:
 		if loco != "":
 			_jouer("Sword_Idle")
 	_recul = _recul.lerp(Vector3.ZERO, 1.0 - exp(-6.0 * dt))
+	if etat == TRAQUE:
+		if _esq_t <= 0.0 and _esq_attente <= 0.0 and boss == "" and not archer and not zombie:
+			_esquiver_projectile()
+		if _esq_t > 0.0:
+			_esq_t -= dt
+			_lateral += _esq_dir * ReglagesCombat.ESQ_ENNEMI_VITESSE
+	else:
+		_esq_t = 0.0
 	var fv := Statuts.facteur_vitesse(self)   # magie : gel (docs/MAGIE.md)
 	if fv < 1.0 and loco != "" and _vit > 0.01:   # la marche vient d'être réglée : jamais cumulé d'une image à l'autre
 		anim.speed_scale *= fv
@@ -858,6 +873,50 @@ func _physics_process(dt: float) -> void:
 		return
 	_immo = 0.0
 	move_and_slide()
+
+## Le joueur incante, charge ou vient de lancer un sort (MainSort.est_lanceur) : les ennemis le chargent et les archers le pressent.
+func _joueur_lanceur() -> bool:
+	if joueur == null or not is_instance_valid(joueur):
+		return false
+	var m = joueur.get("mains")
+	if m == null:
+		return false
+	var mg = m.get("magie")
+	return mg != null and mg.est_lanceur()
+
+## Un projectile de sort du joueur qui va le toucher dans [PREAVIS_MIN, PREAVIS_MAX] s : tirage UNE fois par projectile (plus le sort est
+## lent, plus il l'esquive : ReglagesCombat.ESQ_ENNEMI_*) ; en cas de succès, pas de côté (pour lui, côté opposé à la ligne de tir).
+func _esquiver_projectile() -> void:
+	var centre := global_position + Vector3(0, 1.0 * echelle, 0)
+	for n in get_tree().get_nodes_in_group("projectiles_joueur"):
+		var p := n as Projectile
+		if p == null or not is_instance_valid(p):
+			continue
+		var vit: Vector3 = p.vitesse
+		var v := vit.length()
+		if v < 1.0:
+			continue
+		var vn := vit / v
+		var rel := centre - p.global_position
+		var t := rel.dot(vn) / v
+		if t < ReglagesCombat.ESQ_ENNEMI_PREAVIS_MIN or t > ReglagesCombat.ESQ_ENNEMI_PREAVIS_MAX:
+			continue
+		var perp := rel - vn * rel.dot(vn)
+		if perp.length() > 1.2:
+			continue
+		var vus: Array = p.get_meta("vus_par", [])
+		if vus.has(get_instance_id()):
+			continue
+		vus.append(get_instance_id())
+		p.set_meta("vus_par", vus)
+		var chance := clampf((ReglagesCombat.ESQ_ENNEMI_V0 - v) / ReglagesCombat.ESQ_ENNEMI_PENTE, 0.0, ReglagesCombat.ESQ_ENNEMI_CHANCE_MAX)
+		if randf() >= chance:
+			continue
+		var lateral := Vector3(-vn.z, 0.0, vn.x)
+		_esq_dir = lateral if lateral.dot(perp) >= 0.0 else -lateral
+		_esq_t = ReglagesCombat.ESQ_ENNEMI_DUREE
+		_esq_attente = ReglagesCombat.ESQ_ENNEMI_ATTENTE
+		return
 
 ## Ligne de vue vers le joueur, rafraîchie 5 fois par seconde.
 func _voit(dt: float) -> bool:
