@@ -2149,7 +2149,15 @@ func _enclos(centre: Vector3, lacet := 0.0, sechoir := true) -> Node3D:
 		MobilierVillage.poser_dans(self, p, "meule_foin", Transform3D(Basis(Vector3.UP, pos.x * 1.3), pos))
 	if sechoir:
 		MobilierVillage.poser_dans(self, p, "sechoir_peaux", Transform3D(Basis(), Vector3(0, 0, demi.y + 2.2)))
+		if PropsQuaternius.pq:      # props/maximum : coin d'abreuvoir et de grain dans l'angle est de l'enclos (hors de la barrière d'entrée, z > 0, |x| < 2), fondu dans les lots
+			for e: Array in ENCLOS_PQ:
+				PropsQuaternius.village(self, p, String(e[0]), Transform3D(Basis(Vector3.UP, deg_to_rad(float(e[2]))), e[1]), bool(e[3]))
 	return p
+
+## props/maximum (2026-11-11) : coin d'abreuvoir de l'enclos d'Ylva (repère de l'enclos, demi 3,5 x 2,5) : [prop, position, lacet°, solide].
+const ENCLOS_PQ := [["pq_tonneau", Vector3(2.85, 0, 1.75), 0.0, true], ["pq_seau_bois", Vector3(2.2, 0, 1.95), 0.0, false],
+	["pq_seau_bois", Vector3(2.95, 0, 0.95), 40.0, false], ["pq_sac", Vector3(2.9, 0, -0.1), 70.0, false], ["pq_sac", Vector3(2.45, 0, -0.45), 15.0, false],
+	["pq_cageot_vide", Vector3(2.1, 0, 1.25), 20.0, false]]
 
 ## Tonneau cerclé (module tonneau_c de mobilier_village.py, lot L7) ; même collision qu'avant (cylindre r 0,3 x 0,8).
 func _tonneau(parent: Node3D, pos: Vector3) -> void:
