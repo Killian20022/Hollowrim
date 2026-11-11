@@ -185,3 +185,84 @@ Les `q_*` (couleurs de face, sans texture) sont remplacés par leurs `pq_*` text
   agents) : village jour 16,00 → 16,24 ms (+1,5 %, +15 à +28 draw calls, +64 k à +78 k primitives) ; marché 15,50 → 14,50 ms
   (bruit, +10 draw calls) ; halle 11,23 → 11,23 ms (+12 à +16 draw calls) ; crypte 1,37 → 1,36 ms (±1 draw call). Sous le plafond
   de +5 %.
+
+## Maximum de props texturés (props/maximum, 2026-11-11)
+
+Base : biome/zone-temoin 28409609 + fusion de props/quaternius (pq_* fondus dans les lots, jamais fusionnée jusque-là). Tout ce qui suit
+n'existe qu'avec les props texturés : `-- --props-quat-ancien` rend EXACTEMENT l'état de biome/zone-temoin (q_* d'avant, aucune
+composition), c'est le « avant » des planches et des mesures. Poses : `outils/poses_props_max.txt`.
+
+### Inventaire lieu par lieu (ce qui restait ancien, et ce qui le remplace)
+
+« auto » = le q_* a son pq_* (catalogue `ancien`) : remplacé partout où le code le pose (fusion props/quaternius). « alias » = q_* sans pq_*
+propre, servi par le pq_* du même objet (`PropsQuaternius.ALIAS_PQ`, nouveau). « gardé » = pas d'équivalent pq_* ou choix validé.
+
+| Lieu | Ancien (q_* ou maison) | Équivalent pq_* | Décision |
+|---|---|---|---|
+| village extérieur | 64 q_* du MegaKit (tonneaux, caisses, sacs, étals, bannières, bancs, cageots, seaux, cordes, bourses…) | pq_* du même nom | auto |
+| | q_tonneau_2 (1,34 m, POSES_D + tonneau_b), q_caisse_2 (caisse_b), q_sac_debout | pq_tonneau, pq_caisse_fer, pq_sac | alias |
+| | nourriture (Ultimate Food : pains, choux, poissons, viandes…), q_jarre, q_marmite_camp, q_tente, q_rondin, q_feu_bois, q_hache_camp | aucun | gardé |
+| | q_brique_*, q_buche, q_poutre_ronde, q_planches_sol, q_bordure_1, q_bucher (kitbash puits, foyers, tas de bois) | aucun | gardé (pièces de construction) |
+| | portes, volets, briques du bâti (village_bati) | aucun | gardé (architecture) |
+| | brasero, lanternes, enseignes, torches (luminaires validés), palissade, pieux bas, grilles d'eau | — | gardé (consigne) |
+| | bivouac du feu de camp : rien à l'ouest de la tente | — | AJOUT : réserves (2 tonneaux, caisse + cageot, sac, seau, corde) |
+| abords | barrières q_barriere_bois / _ext_2, chevaux de frise q_poutre_ronde, q_piege_ours | aucun pq_* (le MegaKit n'a pas de barrière) | gardé |
+| | rochers, buissons, touffes, os, cairns, bordure du tumulus | — | gardé (consigne) |
+| intérieurs | tables, bancs, tabourets, coffres, tonneaux, étagères, lits, vaisselle, bougies, livres, sacs (helpers d'Interieurs) | pq_* | auto (coffre décor fermé = pq_coffre_ferme) |
+| | q_bouteille_1 / _2 | pq_bouteille | alias |
+| | nourriture, q_couteau_f, q_cuillere_bois (pq_cuillere est en métal), kitbash reteints (KITBASH_SI_MATS : saucisson, jambon, peaux, soufflet) | — | gardé |
+| crypte | tonneaux, tables, lits, étagères, râteliers, urnes, crânes de SUBST (via q_*) | pq_* | auto ; tonneau_c (q_tonneau_2) et urne_b (q_vase_5) → alias |
+| | piles de livres des tables (q_livre_d1/d2 empilés), livres épars | pq_pile_livres / _2, pq_livre_7 / _5 | REMPLACÉ ; livre ouvert gardé (aucun pq_*) |
+| | q_sac_pieces (sac couché), q_tas_pieces, q_crane, q_tapis, q_roc_*, q_coffre_d / q_coffre_or | — | gardé (pq_sac debout serait écrasé ; tas de pièces : disques ; crâne pq absent) |
+| | coffres interactifs L1 (cuve + couvercle animé + or), sarcophages, statues, ossuaire, armes | pq_coffre_ferme d'un bloc | gardé : le couvercle pivote sur sa charnière (CoffreCouvercle) ; pq_coffre n'a pas de couvercle séparé |
+| | luminaires L8 (lustres, candélabres, braseros, appliques) | pq_lustre, pq_chandelier_pied | gardé (validés, flammes et lumières) ; pq_* ajoutés éteints dans les compositions |
+| | salles vides le long des murs | — | AJOUT : compositions (voir plus bas) |
+| grotte / mine / camp | g_caisse_a (q_caisse_2), g_caisse_b, g_sac, g_tabouret, g_couchage, g_ratelier, tonneaux | pq_caisse_fer (alias), pq_caisse, pq_sac, pq_tabouret, pq_lit, pq_rack_armes, pq_tonneau | auto / alias |
+| | camp lot 4 : tente, rondins, poêle, hachette, couteau, viande, arêtes, marmite pendue, piège à ours | aucun | gardé |
+| | chariots, rails, étais, lanternes de mine, braseros de fer | — | gardé (architecture / luminaires) |
+| | galerie, chambre de la mine et carrefour sans poste de travail | — | AJOUT : établi, réserve, halte |
+| tumulus (extérieur) | pierres levées, stèle, dalles, butte | — | gardé (consigne) |
+
+### Compositions ajoutées (scènes de vie, jamais un objet seul)
+
+Crypte : `CrypteDonjon._compo` (fin de `crypte_donjon.gd`, tables `C_*`) pose une composition d'un bloc et la REFUSE (rien de posé,
+avertissement « composition refusée … » avec la raison de chaque essai) si un item au sol sort de la salle (soubassement + panneaux),
+touche une voie de porte, une réserve de la table (ennemi, coffre, interaction, mécanisme), une ronde de gardien ou une emprise déjà
+posée ; essais décalés le long du mur. `-- --compos-debug` imprime la carte des emprises de la salle refusée. Collisions : boîtes des gros
+items (solide), tonneaux et urnes par `CrypteDecor.tonneau / urne` (cassables, butin inchangé).
+
+| Salle | Composition | Contenu |
+|---|---|---|
+| prep (préparation) | râtelier, mur nord | pq_rack_armes, pierre à aiguiser, caisse ferrée |
+| antichambre | offrandes à la Dame, mur ouest entre râtelier et statue | buffet, bougeoir triple, calice, assiette |
+| reliquaires | coin du gardien des reliques, mur nord | lutrin, bibliothèque, pile de livres, candélabre éteint |
+| g4 (trône) | deux râteliers de la garde du jarl de part et d'autre de l'entrée | rack, pierre à aiguiser, caisse ferrée (x2) |
+| lb1 (salle de garde) | garde-manger mur sud ; râtelier mur nord | support à tonneaux, tonneau cassable, caisse + cageot, sac, seau ; rack + caisse ferrée |
+| quartiers, armurerie, barricade (lb2b) | — | refusées par le contrôle : salles déjà pleines (5 lits, râteliers, coffre ; barricade, sacs, table) |
+
+Grotte : `GrotteModules.compo` (adossée à une paroi, chaque item posé par `GrotteDecor.q4` : sol réel, inclinaison bornée, empreinte ;
+refus si un point n'est pas `Grotte.libre`) : établi des mineurs (chambre de la mine : établi, bougie, parchemin, chope, pioche, seau de
+fer, caisse ferrée), réserve (galerie de la mine : caisses, sac, pioche), halte face au foyer éteint (carrefour : banc, tonneau, seau, sac).
+
+Village : réserves du bivouac du feu de camp contre le flanc ouest de la tente (`MobilierVillage.BIVOUAC_PQ` : 2 tonneaux, caisse +
+cageot, sac, seau, corde ; une boîte de collision dans `monde._feu_de_camp`).
+
+Sous terre, les atlas pq_* passent par `CrypteDecor.mat` avec `PQ_SATURATION` 0,62 et `PQ_TEINTE` (0,78 ; 0,72 ; 0,68) : le bois orangé
+et propre du pack jurait avec le bois patiné de la crypte et du camp (planches avant/après).
+
+### Perf (avant = `--props-quat-ancien`, nuit 21 h)
+
+`outils/audit_mesure_lieu.gd`, 12 s de mesure, PC sur secteur (1re série ; la 2e est tombée sur batterie, GPU x4 : écartée) :
+
+| Lieu | gpu_med avant -> après (ms) | appels | primitives | images > 33 ms |
+|---|---|---|---|---|
+| crypte (prep) | 3,03 -> 3,02 | 271 -> 273 | 88 k -> 93 k | 10 -> 11 |
+| grotte | 3,48 -> 3,59 (+0,11) | 367 -> 373 | 114 k -> 125 k | 0 -> 0 |
+| témoin (feu de camp) | 11,00 -> 9,66 | 503 -> 503 | 510 k -> 518 k | 56 -> 142 |
+| halle | 13,48 -> 10,17 | 569 -> 575 | 705 k -> 729 k | 110 -> 192 |
+
+Les images > 33 ms du témoin et de la halle suivent dt_med (19,8 -> 31,7 ms et 29,6 -> 37,3 ms) : CPU de la machine partagée
+avec d'autres agents Godot pendant la mesure, pas le GPU (qui baisse). Vues des planches (`--mesure-rendu`, 60 images par vue,
+deux séries, lancements parallèles donc bruités) : appels +0 à +10 par vue, primitives +1 à +13 % ; crypte -0,2 à +0,4 ms ;
+grotte +0,0 à +0,6 ms (halte du carrefour +0,4 / +0,9 : bruit du même ordre) ; intérieurs -2 à -6 ms dans les DEUX séries (le
+matériau ps1_interieur partagé des pq_* coûte moins que les matières reteintes des q_*).

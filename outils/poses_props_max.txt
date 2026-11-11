@@ -1,0 +1,54 @@
+# props/maximum : planches avant (-- --props-quat-ancien) / après, une vue par lieu. Lancer :
+#   godot --path . --disable-vsync -- --nouvelle --paisible --sans-particules --sans-hud --captures=res://outils/poses_props_max.txt --sortie=<dossier> [--props-quat-ancien]
+v_marche monde 46,36,-56,-9 heure=12
+v_marche_pres monde 47.2,35.2,-56,-16 heure=12
+v_etals monde 49.5,26.5,-160,-12 heure=12
+v_marche_nuit monde 46,36,-56,-9 heure=21
+v_halle_porche monde 44.5,29.5,0,-6 heure=12
+v_feu_camp monde 2.5,8.5,16,4 heure=12
+a_sentier monde 21.80,19.82,-132.3,-6 heure=12
+f_forge_ext scenario forge heure=12
+i_halle interieur 0,3.0,0,-8 bat=halle heure=12
+i_halle_table interieur 0.6,1.6,10,-22 bat=halle heure=12
+i_forge interieur -0.9,0.9,-60,-3 bat=forge heure=12
+i_sigrun interieur 0,2.0,0,-10 bat=sigrun heure=12
+i_sigrun_est interieur 3.0,1.5,115,-6 bat=sigrun heure=12
+i_chasseurs interieur 0,2.0,0,-10 bat=chasseurs heure=12
+i_grima interieur 0,2.0,0,-10 bat=grima heure=12
+c_prep crypte -1.5,-25.5,90,-10 sans-mains
+c_prep_s crypte 0,-19.5,0,-12 sans-mains
+c_quartiers crypte 16.3,-3.5,-70,-12 sans-mains
+c_quartiers_e crypte 25.5,-4,90,-12 sans-mains
+c_armurerie crypte 28.2,-4,-90,-12 ouvre=s1,s2,s3,secret,herse sans-mains
+c_ossuaire crypte -15,-16,90,-10 sans-mains
+c_tresor crypte -36.8,-44,90,-15 sans-mains
+c_reliquaires crypte -23,-43,90,-10 sans-mains
+c_antichambre crypte 0,-54.5,0,-10 sans-mains
+c_trone crypte 45,-30,-90,-8 sans-mains
+c_tombeau crypte 13,-72,-90,-10 sans-mains
+c_archives crypte -7.5,-43,90,-8,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_barricade crypte -14,-48.5,0,-10,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_chapelle crypte 6,-41.5,0,-10,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_garde crypte 25,-51,95,-10,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+g_carrefour grotte 29,0,0,-6 sans-mains
+g_mine_galerie grotte 112,0,0,-6 sans-mains
+g_mine_chambre grotte 134,0,0,-6 sans-mains
+g_mine_retour grotte 166,0,0,-6 sans-mains
+g_camp grotte 302,0,0,-8 sans-mains
+g_camp_fond grotte 314,0,180,-8 sans-mains
+g_repaire grotte 267,0,0,-6 sans-mains
+v_bivouac monde -4.5,1.5,10,-10 heure=12
+v_bivouac_nuit monde -4.5,1.5,10,-10 heure=22
+c_garde_sud crypte 23,-52,180,-12,-6 ouvre=s1,s2,s3,secret,herse
+c_garde_est crypte 21.5,-53.4,-90,-12,-6 ouvre=s1,s2,s3,secret,herse
+c_quartiers_n crypte 21,-0.5,0,-14
+c_quartiers_s crypte 21.5,-6,180,-14
+c_antichambre_o crypte 2.5,-57.5,90,-12
+c_trone_n crypte 47.5,-30,0,-10
+c_trone_s crypte 47.5,-30,180,-10
+c_barricade_s crypte -13,-53,180,-12,-6 ouvre=s1,s2,s3,secret,herse
+c_prep_n crypte 3,-24,0,-12
+c_reliquaires_n crypte -26,-44,0,-12
+g_etabli grotte 139,1.0,35,-12
+g_reserve grotte 123,0.5,-30,-10
+g_halte grotte 28,-1,-35,-10
