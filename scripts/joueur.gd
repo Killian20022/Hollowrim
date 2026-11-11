@@ -21,6 +21,11 @@ const GRAVITE := 13.0
 const SENSIBILITE := 0.0022
 const LIMITE := 108.0  # bord du terrain jouable
 const COUT_COURSE := 12.0  # vigueur par seconde
+const ACCROUPI_VITESSE := 0.5   # facteur de vitesse accroupi (marche 3,2 -> 1,6 m/s)
+const ACCROUPI_CAPSULE := 1.1   # hauteur de la capsule accroupi (1,8 debout)
+const ACCROUPI_TETE := 1.0      # hauteur des yeux accroupi (1,62 debout)
+const ACCROUPI_CORPS := 0.78    # écrasement vertical du corps visible en 3e personne
+const ACCROUPI_TRANSITION := 9.0   # vitesse (1/s) du passage debout <-> accroupi
 const CHUTE_DEHORS := 25.0   # filet anti-chute : sous le terrain de plus de 25 m (dehors)
 const CHUTE_SOUS_TERRE := -260.0   # sous terre (la grotte descend à -228,4 m)
 
@@ -88,6 +93,15 @@ var raccourcis: Array:
 			if r[i] == null:
 				r[i] = ""
 		return r
+## FURTIVITÉ (scripts/furtivite.gd, docs/COMBAT.md « Furtivité ») : accroupi (Ctrl, bascule), progression 0..1 du passage,
+## `detection` 0..1 = vigilance la plus haute parmi les ennemis et PNJ proches (œil du HUD), `est_court` = course de l'image.
+var accroupi := false
+var accroupi_k := 0.0
+var detection := 0.0
+var est_court := false
+var _det_acc := 0.0
+var _forme: CollisionShape3D
+var _capsule: CapsuleShape3D
 var mort := false
 var en_dialogue := false  # posé par la boîte de dialogue : ni marche ni combat
 var secousse := 0.0
@@ -149,6 +163,8 @@ func _ready() -> void:
 	forme.shape = capsule
 	forme.position.y = 0.9
 	add_child(forme)
+	_forme = forme
+	_capsule = capsule
 	tete = Node3D.new()
 	tete.position.y = 1.62
 	add_child(tete)
@@ -207,8 +223,50 @@ func _unhandled_input(e: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif e.is_action_pressed("vue", false):
 		basculer_vue(not troisieme)
+	elif e.is_action_pressed("accroupi", false):
+		s_accroupir(not accroupi)
 	elif e is InputEventKey and e.pressed and e.physical_keycode == KEY_ESCAPE:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+## S'accroupir (Ctrl, bascule) ou se relever. Se relever est refusé sous un plafond trop bas ; la course, un saut ou la mort relèvent.
+func s_accroupir(oui: bool) -> bool:
+	if oui == accroupi:
+		return accroupi
+	if oui and (mort or en_dialogue):
+		return false
+	if not oui and not place_debout():
+		return false
+	accroupi = oui
+	return true
+
+## Vrai si rien ne gêne la capsule debout (rayon vers le haut du dessus de la capsule accroupie à la hauteur debout).
+func place_debout() -> bool:
+	if not is_inside_tree():
+		return true
+	var q := PhysicsRayQueryParameters3D.create(global_position + Vector3.UP * (ACCROUPI_CAPSULE - 0.1), global_position + Vector3.UP * 1.85, 1, [get_rid()])
+	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+
+## Appelé par un ennemi ou un PNJ qui surveille le joueur : sa jauge de vigilance (0..1) ; l'œil du HUD montre la plus haute.
+func signaler_vigilance(v: float) -> void:
+	_det_acc = maxf(_det_acc, v)
+
+## Furtivité de l'image : transition de la capsule et des yeux, sorties forcées, jauge `detection`, pratique de la compétence.
+func _furtivite(dt: float, marche: bool) -> void:
+	if accroupi and (mort or en_dialogue or esquive_t >= 0.0):
+		accroupi = false if place_debout() else accroupi
+	var but := 1.0 if accroupi else 0.0
+	if not is_equal_approx(accroupi_k, but):
+		accroupi_k = move_toward(accroupi_k, but, ACCROUPI_TRANSITION * dt)
+		var h := lerpf(1.8, ACCROUPI_CAPSULE, accroupi_k)
+		_capsule.height = h
+		_forme.position.y = h * 0.5
+		tete.position.y = lerpf(1.62, ACCROUPI_TETE, accroupi_k)
+		corps.scale.y = lerpf(1.0, ACCROUPI_CORPS, accroupi_k)
+	var cible := _det_acc
+	detection = cible if cible > detection else move_toward(detection, cible, 1.5 * dt)
+	_det_acc = 0.0
+	if accroupi and marche and detection > 0.02 and detection < 0.98 and not mort:
+		progression.pratiquer("furtivite", Furtivite.PRATIQUE * dt)
 
 ## Paie `quantite` de mana si possible (sinon rien n'est retiré) ; la régénération reprend DELAI_MANA s après.
 func depenser_mana(quantite: float) -> bool:
@@ -413,12 +471,17 @@ func _physics_process(dt: float) -> void:
 	var dir := (transform.basis * Vector3(entree.x, 0.0, entree.y)).normalized()
 	potions.avancer(self, dt)
 	_surcharge(dt)
-	var court: bool = Input.is_action_pressed("course") and vigueur > 0.0 and entree.y < 0.0 and not mains.bloque and not surcharge
+	if accroupi and (Input.is_action_pressed("course") or Input.is_action_just_pressed("saut")) and not mort and not en_dialogue:
+		s_accroupir(false)   # courir ou sauter relève (refusé sous un plafond bas : on reste accroupi, sans course)
+	var court: bool = Input.is_action_pressed("course") and vigueur > 0.0 and entree.y < 0.0 and not mains.bloque and not surcharge and not accroupi
+	est_court = court
 	var vitesse := COURSE if court else VITESSE
 	if surcharge:
 		vitesse *= LENTEUR_SURCHARGE
 	if mains.bloque:
 		vitesse *= 0.5
+	if accroupi:
+		vitesse *= ACCROUPI_VITESSE
 	var magie_m: Variant = mains.get("magie")
 	if magie_m != null:
 		vitesse *= magie_m.facteur_vitesse()   # sort qui se charge : on avance plus lentement (ChargeSort)
@@ -462,6 +525,7 @@ func _physics_process(dt: float) -> void:
 	position.x = clampf(position.x, -LIMITE, LIMITE)
 	position.z = clampf(position.z, -LIMITE, LIMITE)
 	_filet(dt)
+	_furtivite(dt, entree != Vector2.ZERO)
 
 	# récupération
 	_repos_vigueur -= dt

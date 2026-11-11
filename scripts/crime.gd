@@ -35,8 +35,7 @@ const PRIMES := {"vol": 5.0, "intrusion": 5.0, "crochetage": 5.0, "agression": 4
 const PART_VALEUR := 0.5            # vol : prime = max(5, valeur × 0,5)
 const PERTE_REPUTATION := {"vol": 2.0, "intrusion": 1.0, "crochetage": 1.0, "agression": 8.0, "meurtre": 30.0, "menace": 2.0}
 const R_VUE := 20.0                 # m : un PNJ voit le joueur jusqu'à 20 m de jour
-const NUIT_VUE := 0.5               # de nuit, sans torche allumée : moitié
-const ACCROUPI_VUE := 0.5           # joueur accroupi (s'il le peut) : moitié
+## (nuit, torche, accroupi : Furtivite.visibilite ; bruit des pas : Furtivite.ouie)
 const R_OUIE := 2.5                 # m : en deçà, il entend (pas de cône)
 const CONE := 70.0                  # demi-angle du cône de vision (degrés)
 const R_VOIX := 24.0                # m : un garde à portée de voix de l'alerte est prévenu tout de suite
@@ -79,6 +78,8 @@ var _avert := {}                    # instance_id -> horloge du dernier coup iso
 var _agresses := {}                 # instance_id -> horloge de l'agression comptée
 var _alertes: Array = []            # [{"t": horloge, "n": garde}] : gardes à prévenir plus tard
 var _horloge := 0.0
+var _soupcon := {}                  # instance_id d'un PNJ -> jauge de soupçon 0..1 (joueur accroupi seulement)
+var _t_soupcon := 0.0
 var _heure_prec := -1.0
 var _dernier_coup := -1.0e9         # horloge du dernier coup porté par le joueur sur un PNJ
 var _derniere_resistance := -1.0e9
@@ -394,10 +395,31 @@ func _intrusion(lieu: Node3D, proprietaire: String, type: String) -> bool:
 ## PNJ éveillés du village qui VOIENT `pos` (le joueur, en général) : portée (jour / nuit / accroupi), cône de vision, ligne de vue.
 func temoins_de(pos: Vector3) -> Array:
 	var r: Array = []
+	var discret: bool = Furtivite.accroupi(joueur) and joueur.global_position.distance_to(pos) < 2.0
 	for n: Node3D in pnj_actifs():
-		if voit(n, pos):
+		# joueur accroupi : un PNJ qui vient seulement de l'apercevoir (jauge de soupçon sous SEUIL_TEMOIN) ne témoigne pas encore
+		if voit(n, pos) and (not discret or float(_soupcon.get(n.get_instance_id(), 0.0)) >= Furtivite.SEUIL_TEMOIN):
 			r.append(n)
 	return r
+
+## Furtivité : tant que le joueur est accroupi, chaque PNJ éveillé a une jauge de soupçon (0..1, scripts/furtivite.gd) qui monte
+## quand il le perçoit (vue ou bruit) et retombe sinon ; le joueur en reçoit la plus haute (œil du HUD). Debout : rien n'est suivi.
+func _surveiller(dt: float) -> void:
+	if not Furtivite.accroupi(joueur):
+		_soupcon.clear()
+		return
+	var vus := {}
+	var bruit := Furtivite.bruit(joueur)
+	for n: Node3D in pnj_actifs():
+		var id := n.get_instance_id()
+		var d := n.global_position.distance_to(joueur.global_position)
+		var v: float = float(_soupcon.get(id, 0.0))
+		if d <= portee_vue() or d <= bruit or v > 0.0:
+			v = Furtivite.progression(v, dt, d, portee_vue(), d <= portee_vue() and voit(n, joueur.global_position), false, bruit)
+		if v > 0.0:
+			vus[id] = v
+			joueur.signaler_vigilance(v)
+	_soupcon = vus
 
 ## PNJ du village qui peuvent témoigner ou réagir : villageois, habitants, gardes (hors vigie du beffroi) et combattants, éveillés.
 func pnj_actifs() -> Array:
@@ -417,12 +439,7 @@ func pnj_actifs() -> Array:
 	return r
 
 func portee_vue() -> float:
-	var p := R_VUE
-	if de_nuit() and not _eclaire():
-		p *= NUIT_VUE
-	if joueur != null and joueur.get("accroupi") == true:
-		p *= ACCROUPI_VUE
-	return p
+	return R_VUE * Furtivite.visibilite(joueur)
 
 ## `n` voit-il `pos` ? (yeux à 1,6 m ; visé : la tête du joueur à 1,5 m, sinon sa taille à 0,9 m — un établi ne le cache qu'à moitié)
 func voit(n: Node3D, pos: Vector3) -> bool:
@@ -432,7 +449,7 @@ func voit(n: Node3D, pos: Vector3) -> bool:
 	var d := v.length()
 	if d > portee_vue():
 		return false
-	var ouie := R_OUIE * (0.5 if joueur != null and joueur.get("accroupi") == true else 1.0)
+	var ouie := Furtivite.ouie(joueur, R_OUIE)   # bruit de l'allure : accroupi < marche < course, armure lourde
 	if d > ouie:
 		var avant := n.global_transform.basis.z
 		var h := Vector2(v.x, v.z)
@@ -818,6 +835,10 @@ func _process(dt: float) -> void:
 	if monde == null or joueur == null or not is_instance_valid(joueur):
 		return
 	_temps_de_jeu()
+	_t_soupcon -= dt
+	if _t_soupcon <= 0.0:
+		_t_soupcon = 0.25
+		_surveiller(0.25)
 	# gardes prévenus en retard (hors de portée de voix)
 	if not _alertes.is_empty():
 		for a: Dictionary in _alertes.duplicate():

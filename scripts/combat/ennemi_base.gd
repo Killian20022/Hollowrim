@@ -181,6 +181,20 @@ func _physics_process(dt: float) -> void:
 		return
 	_ia(dt)
 
+## FURTIVITÉ (scripts/furtivite.gd) : jauge de vigilance 0..1 d'un ennemi qui garde son poste. Elle monte tant que le joueur est perçu
+## (vue : `portee` m × visibilité du joueur, ligne de vue `voit`, réduite de dos ; ouïe : bruit de son allure) et retombe sinon ;
+## à 1 il le repère. Le joueur en reçoit la valeur (œil du HUD). `portee` = ancien rayon de détection.
+var vigilance := 0.0
+func _reperer(dt: float, dist: float, portee: float, voit: bool, mort_j: bool) -> bool:
+	if mort_j or joueur == null or not is_instance_valid(joueur):
+		vigilance = 0.0
+		return false
+	vigilance = Furtivite.observer(self, joueur, vigilance, dt, dist, portee, voit)
+	if vigilance >= 1.0:
+		vigilance = 0.0
+		return true
+	return false
+
 ## Distance et direction horizontales vers le joueur ; un étage d'écart (> 3,5 m) = hors d'atteinte (1000 m).
 func _vers_joueur() -> Dictionary:
 	return _vers(joueur)
@@ -477,7 +491,8 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, in
 	vers.y = 0.0
 	var e := _etat_coup()
 	e["de_face"] = vers.normalized().dot(global_transform.basis.z) > 0.3
-	e["surpris"] = not en_combat() and not e["de_face"]   # attaque furtive (ReglagesCombat.FURTIF)
+	# attaque furtive (ReglagesCombat.FURTIF) : dans le dos, ou de face si le joueur accroupi n'a pas encore été remarqué (vigilance)
+	e["surpris"] = not en_combat() and (not e["de_face"] or (joueur != null and joueur.get("accroupi") == true and vigilance < Furtivite.SEUIL_SURPRIS))
 	e["hauteur_visee"] = CombatEnnemi.hauteur_visee(joueur, self)
 	var r := combat.analyser(quantite, origine_coup, puissant, info, e)
 	_t_sans_coup = 0.0

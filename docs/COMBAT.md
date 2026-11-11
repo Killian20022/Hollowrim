@@ -15,6 +15,7 @@ Les phases 5 et 6 (variantes, polish) s'appuient sur la même architecture.
 | Test automatique | `bash outils/tous_les_tests.sh test_combat_epee` (≈ 6 s, sans fenêtre) |
 | Test de la défense | `bash outils/tous_les_tests.sh test_defense` (garde, garde brisée, anti-spam, parade sur vraie attaque de draugr, contre, finisher) |
 | Test de l'esquive | `bash outils/tous_les_tests.sh test_esquive` (pas de côté, invulnérabilité, coût, refus, annulation de la récupération, combo strict, caméra) |
+| Test de la furtivité | `bash outils/tous_les_tests.sh test_furtivite` (accroupi, bruit, visibilité, détection progressive, coup furtif sans cumul, compétence, œil du HUD) |
 | Banc « bot » de la menace | `bash outils/tous_les_tests.sh test_menace_bot` (bot qui spamme / garde / pare / esquive contre 1 puis 2 draugrs, SEUILS ; `-- --n=10 --trace`) |
 | Banc « bot MAGE » (magie vs mêlée) | `bash outils/tous_les_tests.sh test_mage_bot` (bot sorts seuls : feu / glace / électricité / ténèbres, simple et double, 1 puis 2 draugrs, mage qui recule et esquive puis mage naïf ; docs/MAGIE.md « Équilibrage ») |
 | Planches défense | `... --script res://outils/captures_defense.gd -- --sortie="$W\captures\combat_defense" [--poses]` |
@@ -541,6 +542,56 @@ Un ennemi courant sort **un coup de taille annoncé** : premier au bout de 1,6-2
   l'esquive, décalage latéral de 7 cm et abaissement de 10 cm au plus fort de l'esquive ; en arrière, la vue se relève de
   0,06 rad. **3e personne** : même déplacement et même roulis de caméra ; pas d'animation de corps dédiée (le corps suit la vitesse).
 - Le son est celui des vêtements (`cloth1/2`). Pas d'effet sur l'eau.
+
+## Furtivité minimale (2026-11-10, branche gameplay/furtivite)
+Règles pures dans `scripts/furtivite.gd` (`Furtivite`, toutes les constantes en tête) ; test : `outils/test_furtivite.gd`.
+
+### Accroupi
+- **Ctrl, bascule** (action `accroupi`, remappable dans Options > Touches). Courir ou sauter relève ; l'esquive, un dialogue ou la mort aussi.
+  Se relever est refusé sous un plafond trop bas (rayon vers le haut, `joueur.place_debout()`).
+- Vitesse × 0,5 (3,2 -> 1,6 m/s, `ACCROUPI_VITESSE`), pas de course. Capsule 1,8 -> 1,1 m, yeux 1,62 -> 1,0 m, passage lissé (9/s) ;
+  en 1re personne la caméra (et les mains, enfants d'elle) descendent ; en 3e personne la caméra suit la tête et le corps visible est
+  écrasé à × 0,78 (pas de clip « accroupi » : le modèle n'en a pas). Pas d'effet sur l'esquive ni sur le combat (on peut frapper accroupi).
+
+### Bruit (rayon d'ouïe, m) et visibilité
+| Allure | Bruit |
+|---|---|
+| immobile | 0 |
+| accroupi (en mouvement) | 3 |
+| marche | 8 |
+| course (le jeu n'a qu'une allure de course : elle tient lieu de sprint) | 14 |
+Armure lourde : +15 % par pièce `type_armure: lourde` portée (4 au plus, +60 %). Les PNJ du village (`crime.gd`, R_OUIE 2,5 m à la marche)
+et les dormeurs (`REVEIL_DISTANCE` 10 m × 3/8 accroupi, × 1,75 en courant) suivent la même échelle.
+
+Visibilité (facteur de la portée de vue) : accroupi × 0,5 ; nuit (19 h – 6 h 30) ou sous terre × 0,5 ; **torche allumée = visible** (annule le
+gain de la nuit, × 1,25 : on voit la flamme de loin ; la torche est sortie par défaut, H la range). Cumulables : accroupi de nuit sans torche
+= × 0,25. Remplace les anciens NUIT_VUE / ACCROUPI_VUE de `crime.gd`.
+
+### Détection progressive
+- Ennemis (draugr gardes / patrouilleurs, troll de givre, mage nordique ; chefs et dormeurs inchangés) : jauge de **vigilance** 0..1
+  (`vigilance`). Perçu si le joueur est dans la portée de vue (`DETECTION` 17 / 18 / 20 m × visibilité, ligne de vue comme avant, **× 0,5 s'il
+  est dans leur dos**, angle > 107°) OU dans le rayon de bruit. Montée `GAIN_LOIN` 0,6/s au bord -> `GAIN_PRES` 2,5/s au contact (≈ 1,7 s -> 0,4 s
+  pour repérer), descente 0,5/s. À 1 : TRAQUE (comportement d'avant). Un rival (faction hostile) est repéré sans jauge, comme avant.
+- PNJ du village (`crime.gd`) : tant que le joueur est accroupi, chaque PNJ a une jauge de **soupçon** (4 Hz, mêmes règles) ; un PNJ sous
+  `SEUIL_TEMOIN` (0,6) ne témoigne pas d'un crime (`temoins_de`). Debout : rien n'est suivi, témoins instantanés comme avant.
+- Le joueur reçoit la plus haute jauge (`signaler_vigilance` -> `joueur.detection`).
+
+### Œil du HUD (`scripts/hud_furtivite.gd`)
+Petit œil en pixels au-dessus des raccourcis, visible seulement accroupi ou repéré : fermé (trait gris) = inaperçu ; il s'ouvre par paliers
+(trait, 3, 5, 7 rangées) et son iris passe de l'or au rouge (> 0,7) à mesure que la jauge monte. Ni barre ni chiffre.
+
+### Coup furtif (existant, NON doublé)
+Le ×2,5 (`ReglagesCombat.FURTIF`, chef × 1,5 plafonné à 15 % de sa vie, × compétence Furtivité) existait (`CalculDegats`, état `surpris`) : ennemi qui ne
+combat pas, frappé dans le dos ou endormi. Ajout : **de face aussi, si le joueur est accroupi et que la vigilance de l'ennemi est sous
+`SEUIL_SURPRIS` (0,5)**. Un seul `surpris` booléen : dos + accroupi = ×2,5, jamais ×6,25 (testé).
+Compétence **Furtivité** (déjà dans l'arbre, déjà pratiquée par le coup furtif et le crochetage) : en plus, +0,4 point/s accroupi, en mouvement, avec un
+ennemi qui commence à soupçonner (0,02 < jauge < 0,98).
+
+### Limites connues
+Pas de clip d'animation accroupi (corps écrasé en 3e personne) ; pas de sprint distinct de la course ; pas de bruit des coups d'épée ni des sorts ;
+pas de lumière locale (seulement nuit / sous terre / torche portée) ; ennemis sans cône de vision (vue 360° sauf dos réduit) ; archers, dragon
+et ennemis_base hors gardes gardent leur détection d'avant ; pas de liaison manette (le jeu n'a pas encore de touches de manette : action `accroupi`
+à lier au clic du stick gauche quand elle arrivera).
 
 ## Banc « bot » (seuils de menace ; le pendant magie est outils/test_mage_bot.gd, docs/MAGIE.md)
 

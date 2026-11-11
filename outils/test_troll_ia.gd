@@ -80,7 +80,9 @@ func _tester() -> void:
 	# --- B. détection (à 12 m, en vue)
 	t.etat = t.GARDE
 	_devant(t, 12.0)
-	await _frames(20)
+	await _frames(5)
+	_verif(not t.en_combat() and t.vigilance > 0.0, "détection progressive : pas encore repéré après 5 images (jauge %.2f)" % t.vigilance)   # furtivité
+	await _frames(100)
 	_verif(t.en_combat(), "détecte le joueur à 12 m (état %d)" % t.etat)
 
 	# --- C. attaque réelle : le joueur à 2,4 m encaisse un coup dans les 6 s

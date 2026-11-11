@@ -20,6 +20,7 @@ const LETTRES := preload("res://assets/ui/lettres_boussole.svg")
 const RETICULE := preload("res://assets/ui/reticule.svg")
 const ENNEMI := preload("res://assets/ui/indicateur_degat.svg")
 const HUD_COMBAT := preload("res://scripts/hud_combat.gd")
+const HUD_FURTIVITE := preload("res://scripts/hud_furtivite.gd")
 const CUIR := preload("res://scripts/hud_cuir.gd")
 ## Boussole « cuir enluminé » (styles a, b, c de HudCuir) : demi-largeur utile (px) et hauteur du bandeau.
 const BOUSSOLE_DEMI := 84.0
@@ -71,7 +72,7 @@ var aide_lignes: Array = construire_aide()
 
 ## Lignes de l'aide : les touches RÉELLES du joueur (Touches : suivent le remappage et la disposition du clavier).
 static func construire_aide() -> Array:
-	return [[Touches.libelle_deplacement(), "marcher"], [Touches.libelle("course"), "courir"], [Touches.libelle("saut"), "sauter"],
+	return [[Touches.libelle_deplacement(), "marcher"], [Touches.libelle("course"), "courir"], [Touches.libelle("accroupi"), "accroupi"], [Touches.libelle("saut"), "sauter"],
 		["Clic gauche", "frapper"], ["Clic droit", "parer"], [Touches.libelle("interagir"), "agir"], [Touches.libelle("menu"), "menu"],
 		[Touches.libelle("inventaire"), "sac"], ["1 - 0", "raccourcis"], [Touches.libelle("torche"), "torche"],
 		[Touches.libelle("attendre"), "attendre"], [Touches.libelle("vue"), "vue"], ["Échap", "pause"]]
@@ -116,6 +117,10 @@ func _ready() -> void:
 	combat_ui.set_script(HUD_COMBAT)
 	combat_ui.joueur = joueur
 	add_child(combat_ui)
+	var furtif := Control.new()   # œil de détection (furtivité) : discret, au-dessus de la boussole des raccourcis
+	furtif.set_script(HUD_FURTIVITE)
+	furtif.joueur = joueur
+	add_child(furtif)
 	var args := OS.get_cmdline_user_args()
 	_demo = args.has("--hud-demo")
 	_demo_cible = args.has("--hud-cible")

@@ -153,7 +153,7 @@ func _ia(dt: float) -> void:
 				mv = retour.normalized()
 				vitesse = MARCHE
 				loco = "Walk"
-			if dist < DETECTION and not mort_j and (dist < 9.0 or _voit(dt)):
+			if _reperer(dt, dist, DETECTION, dist < 9.0 or _voit(dt), mort_j):
 				_changer(TRAQUE)
 				Sons.jouer_a(self, ["ambiance_rugissement1", "ambiance_rugissement2"], global_position + Vector3.UP * 2.0, -2.0, 0.1)
 		TRAQUE:
