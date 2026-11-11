@@ -17,7 +17,7 @@ class_name Demembrement
 
 const DUREE := 30.0
 const TAILLE_POOL := 6
-const MAILLAGES_MAX := 12          # maillages copiés par morceau (le corps nordique en a ~8)
+const MAILLAGES_MAX := 20          # maillages copiés par morceau (le corps nordique en a ~10 ; un garde en armure maison ~16 : pièces portées + chausses + armes)
 const CALQUE_CADAVRES := 16
 
 ## Membres : os coupé, os de mesure de la longueur (bout du morceau), masse (kg), rayon de la coupe (m), os seul (sans enfants).
