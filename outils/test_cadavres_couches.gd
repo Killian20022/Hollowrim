@@ -90,6 +90,12 @@ func _go() -> void:
 	_cam.fov = 65.0
 	if sortie != "" and m.get("hud") != null:
 		(m.hud as CanvasItem).visible = false
+	if sortie != "":
+		# captures : les sapins (MultiMesh hauts) masquaient les corps ; on les cache (le sol, l'herbe et les rochers restent)
+		for n in m.find_children("*", "MultiMeshInstance3D", true, false):
+			var mm := (n as MultiMeshInstance3D).multimesh
+			if mm != null and mm.mesh != null and mm.mesh.get_aabb().size.y > 2.5:
+				(n as Node3D).visible = false
 	var corps := []
 	var i := 0
 	for t: Array in TYPES:
