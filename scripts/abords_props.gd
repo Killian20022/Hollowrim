@@ -52,7 +52,7 @@ const RESERVE_BANDITS := [["pq_caisse", 0.0, 0.0, 8.0, 0.0, true], ["pq_caisse_f
 
 ## Lieux : [nom, composition, ancres [x, z, lacet°]].
 const LIEUX := [
-	["charrette_champ_a", CHARRETTE, [[92.4, 34.8, 0.0], [92.0, 38.4, 15.0], [91.8, 31.5, -10.0], [86.0, 52.0, 90.0]]],
+	["charrette_champ_a", CHARRETTE, [[92.4, 34.8, 0.0], [92.0, 38.4, 15.0], [91.8, 31.5, -10.0], [86.0, 52.0, 90.0], [86.2, 29.6, 20.0], [87.5, 28.5, 35.0]]],
 	["charrette_champ_c", CHARRETTE, [[72.0, -6.5, 180.0], [71.8, -9.5, 170.0], [63.0, -13.0, 90.0], [63.0, -0.8, 90.0]]],
 	["epouvantail_a", EPOUVANTAIL, [[83.5, 35.2, 20.0], [82.0, 34.0, 20.0]]],
 	["epouvantail_b", EPOUVANTAIL, [[81.0, 45.8, -15.0], [79.5, 45.0, -15.0]]],
@@ -71,7 +71,7 @@ const LIEUX := [
 ]
 
 static func creer(monde: Node3D) -> void:
-	if not PropsQuaternius.pq or monde.village == null or OS.get_cmdline_user_args().has("--sans-props-v3"):      # A/B : les abords de la v2
+	if not PropsQuaternius.v3 or monde.village == null:      # `--sans-props-v3` : les abords de la v2 (A/B)
 		return
 	var tree := monde.get_tree()
 	await tree.physics_frame      # les corps posés pendant la construction entrent dans l'espace physique

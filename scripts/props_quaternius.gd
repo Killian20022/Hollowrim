@@ -32,6 +32,8 @@ static var lot4 := remplace and not ("--sans-lot4" in OS.get_cmdline_user_args()
 ## = nom d'atlas « pq_bois », « pq_fer »… -> un matériau partagé par (atlas, contexte) (PropsQuat.materiau) : lots regroupés PAR ATLAS.
 ## `-- --props-quat-ancien` : retour aux q_* (couleurs de face), même lancement que le jeu (captures « avant », mesures A/B).
 static var pq := actif and not ("--props-quat-ancien" in OS.get_cmdline_user_args())
+## props/maximum v3 (abords, replis de la grotte et de la crypte, coins de métier) ; `-- --sans-props-v3` rend la v2 (A/B des mesures).
+static var v3 := pq and not ("--sans-props-v3" in OS.get_cmdline_user_args())
 const DAT_PQ := "res://assets/modeles/props_quat/props_quat.dat"
 const ATLAS_PQ := ["pq_bois", "pq_fer", "pq_fer_v", "pq_tissu", "pq_tissu_v", "pq_props", "pq_props_v", "pq_page"]
 ## Kitbash : ces q_* servent aussi de PIÈCES RETEINTES (carotte retournée = saucisson, bourse = jambon, toile de bannière = peau ou tapis,

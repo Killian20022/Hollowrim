@@ -700,7 +700,7 @@ static func compo(g: Grotte, id: String, s: float, cote: float, items: Array) ->
 		var lib := g.libre(id, s + float(it[1]), lat, rr)
 		var lg := maxf(bb.size.x, bb.size.z)
 		var ep := minf(bb.size.x, bb.size.z)
-		if not lib and lg > ep * 1.6 and absf(float(it[3])) < 20.0:
+		if not lib and PropsQuaternius.v3 and lg > ep * 1.6 and absf(float(it[3])) < 20.0:
 			var rl := ep * 0.5 + 0.06
 			lib = true
 			for k: float in [-1.0, 0.0, 1.0]:
@@ -753,7 +753,7 @@ static func _cands(a: float, b: float) -> Array:
 static func poser_differees(g: Grotte) -> void:
 	for c: Array in g.decor.compos_differees:
 		var fait := false
-		for jeu: Array in [c[2], c[3]]:
+		for jeu: Array in ([c[2], c[3]] if PropsQuaternius.v3 else [c[2]]):
 			if jeu.is_empty() or fait:
 				continue
 			for sc: Array in c[1]:
@@ -934,6 +934,8 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 			d.trophee(_p(g, id, s1 - 1.4, 3.0), 1.7, -0.6)
 			d.os_tas(_p(g, id, s1 - 4.5, 1.2), 4, 0.5)
 			d.applique(g.mur_en(id, s1 - 3.0, -1.0), g.droite(id, s1 - 3.0), _p(g, id, s1 - 3.0, -3.0).y + 2.0, 5.0, 1.7, true)
+			if not PropsQuaternius.v3:      # v2 (A/B) : poste de guet dans le couloir d'accès (refusé partout : trop étroit)
+				differer(g, id, [[s0 + 2.5, 1.0], [s0 + 3.5, -1.0], [s1 - 5.5, 1.0]] + _cands(s0 + 1.0, s1 - 1.0), G_GUET)
 		return
 	# --- camp : feu, marmite, couchages, caisses, table, râteliers, trophées, butin
 	var feu_s := 8.0 + r.randf_range(-0.6, 0.6)
@@ -975,9 +977,10 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 	d.ratelier(_p(g, id, 14.8, -5.65), -PI * 0.5)
 	d.ratelier(_p(g, id, 2.0, -5.65), -PI * 0.5)
 	differer(g, id, [[5.5, 1.0], [4.5, 1.0], [11.5, -1.0]] + _cands(1.5, 16.0), G_RATELIER)      # props/maximum : râtelier garni des bandits
-	differer(g, id, [[11.0, -1.0], [6.0, 1.0], [16.0, -1.0]] + _cands(1.5, 16.0), G_GARDE_MANGER)      # props/maximum : vivres du camp
+	differer(g, id, [[11.0, -1.0], [6.0, 1.0], [16.0, -1.0]] + (_cands(1.5, 16.0) if PropsQuaternius.v3 else []), G_GARDE_MANGER)      # props/maximum : vivres du camp
 	# props/maximum v3 : le poste de guet (couloir d'accès trop étroit partout, |lat| < voie + rayon) passe à l'entrée du camp
-	differer(g, id, [[1.5, 1.0], [1.5, -1.0], [3.5, 1.0], [3.5, -1.0]] + _cands(5.0, 16.0), G_GUET, G_GUET_ETROIT)
+	if PropsQuaternius.v3:
+		differer(g, id, [[1.5, 1.0], [1.5, -1.0], [3.5, 1.0], [3.5, -1.0]] + _cands(5.0, 16.0), G_GUET, G_GUET_ETROIT)
 	# butin et trophées
 	var cb := _p(g, id, 14.6, -3.6)
 	d.pieces(cb + Vector3(0.9, 0, 0.5), 18, 0.35)

@@ -325,7 +325,8 @@ func _q(nom: String, wx: float, wz: float, lacet_monde := 0.0, y := 0.0, solide 
 static var compos_posees := 0
 static var bougies_allumees := 0
 static var compos_refusees: Array = []
-func _compo(m: Dictionary, nom: String, items: Array, wx: float, wz: float, lacet: float, y := 0.0, glisse := Vector2.ZERO) -> bool:
+## `repli` : un autre emplacement sera essayé si celui-ci est refusé (pas d'avertissement, le refus ne compte pas).
+func _compo(m: Dictionary, nom: String, items: Array, wx: float, wz: float, lacet: float, y := 0.0, glisse := Vector2.ZERO, repli := false) -> bool:
 	if not PropsQuaternius.pq or d.muet:
 		return false
 	PropsQuaternius.preparer_crypte()
@@ -415,6 +416,10 @@ func _compo(m: Dictionary, nom: String, items: Array, wx: float, wz: float, lace
 		compos_posees += 1
 		print("PropsMax : composition posée %s / %s (%.1f, %.1f)" % [m["id"], nom, ax, az])
 		return true
+	if repli:
+		if OS.get_cmdline_user_args().has("--compos-debug"):
+			print("PropsMax debug : %s / %s refusée, repli suivant %s" % [m["id"], nom, raisons])
+		return false
 	compos_refusees.append(String(m["id"]) + ":" + nom)
 	push_warning("composition refusée (pas de place libre) : %s / %s %s" % [m["id"], nom, raisons])
 	if OS.get_cmdline_user_args().has("--compos-debug"):      # carte des emprises de la salle (repère de la crypte) pour choisir une ancre
@@ -973,7 +978,7 @@ func _x_garde(_m: Dictionary) -> void:
 	if PropsQuaternius.lot4:      # props/lot4 : coffre décoratif contre le mur ouest de la salle de garde
 		_q("q_coffre_d", 16.75, -48.6, PI * 0.5, y, true)
 	# props/maximum v3 : en mode pq le sac éventré passe au pied des tonneaux (mêmes tirages) : le mur est reçoit le râtelier garni
-	d.sac_dechire(_l(26.3, -51.7, y) if PropsQuaternius.pq else _l(26.0, -54.0, y), 0.8)
+	d.sac_dechire(_l(26.3, -51.7, y) if PropsQuaternius.v3 else _l(26.0, -54.0, y), 0.8)
 	if PropsQuaternius.pq:      # props texturés (ajouts) : candélabre éteint au bout de la table de jeu, chaîne lovée au pied du râtelier
 		_q("pq_chandelier_pied", 20.1, -52.0, 0.3, y)
 		_q("pq_chaine", 17.6, -55.2, 2.0, y)
@@ -1003,6 +1008,7 @@ const C_TABLE_TONNEAU := [["pq_tonneau", 0.0, 0.0, 0.0, 0.0, true], ["pq_taboure
 	["pq_chope", -0.15, 0.1, 20.0, 0.96, false], ["pq_chope", 0.18, -0.12, 80.0, 0.96, false], ["pq_tas_pieces", 0.05, 0.18, 0.0, 0.96, false],
 	["bougie", 0.12, 0.15, 0.0, 0.96, false, 1.0, "bougie"]]
 const C_CAISSES := [["pq_caisse", 0.0, 0.38, 6.0, 0.0, true], ["pq_caisse", 0.0, 0.38, 22.0, 0.71, false], ["pq_cageot_carottes", 0.05, 0.4, -15.0, 1.42, false], ["pq_sac", 0.15, 1.0, 40.0, 0.0, false]]
+const C_CAISSES_V2 := [["pq_caisse", 0.0, 0.38, 6.0, 0.0, true], ["pq_caisse_fer", 0.0, 0.38, 22.0, 0.71, false], ["pq_sac", 0.15, 1.0, 40.0, 0.0, false]]
 const C_MANNEQUIN := [["pq_mannequin", 0.0, 0.32, 0.0, 0.0, true], ["pq_bouclier_bois", 0.62, 0.12, -12.0, 0.0, false]]
 const C_BIVOUAC := [["pq_sac", 0.0, 0.32, 0.0, 0.0, false], ["pq_sac", 0.55, 0.38, 40.0, 0.0, false],
 	["pq_marmite", -0.6, 0.55, 0.0, 0.0, false], ["pq_seau_bois", -1.05, 0.32, 0.0, 0.0, false], ["pq_corde_2", 0.35, 0.95, 0.0, 0.0, false]]
@@ -1020,8 +1026,9 @@ func _compos_pq(m: Dictionary) -> void:
 		"lb1":      # salle de garde (étage −1, sa table de jeu existe) : garde-manger contre le mur sud, râtelier contre le mur nord
 			_compo(m, "garde_manger", C_GARDE_MANGER, 24.6, -46.6, PI, y, Vector2(-0.6, 0))
 			# v3 : le mur nord est pris par les réserves (accroches) et le brasero ; repli sur les murs ouest puis est
-			if not _compo(m, "ratelier", C_RATELIER_SEUL, 18.9, -59.4, 0.0, y, Vector2(0.5, 0)):
-				if not _compo(m, "ratelier_o", C_RATELIER_SEUL, 16.6, -53.0, PI * 0.5, y, Vector2(0, 0.7)):
+			var v3 := PropsQuaternius.v3
+			if not _compo(m, "ratelier", C_RATELIER_SEUL, 18.9, -59.4, 0.0, y, Vector2(0.5, 0), v3) and v3:
+				if not _compo(m, "ratelier_o", C_RATELIER_SEUL, 16.6, -53.0, PI * 0.5, y, Vector2(0, 0.7), true):
 					_compo(m, "ratelier_e", C_RATELIER_SEUL, 27.4, -55.6, -PI * 0.5, y, Vector2(0, -0.5))
 		"antichambre":      # offrandes à la Dame contre le mur ouest, entre le râtelier et la statue
 			_compo(m, "autel", C_AUTEL_COURT, -4.4, -58.8, PI * 0.5, y, Vector2(0, 0.3))
@@ -1034,7 +1041,7 @@ func _compos_pq(m: Dictionary) -> void:
 			_compo(m, "scribe", C_SCRIBE, -26.5, -50.4, 0.0, y, Vector2(0.8, 0))
 		"quartiers":      # table de jeu sur tonneau entre les lits ; caisses dans le creux des lits du mur sud
 			_compo(m, "table_tonneau", C_TABLE_TONNEAU, 19.0, -5.3, 0.0, y, Vector2(0.6, 0))
-			_compo(m, "caisses", C_CAISSES, 21.7, 0.35, PI, y, Vector2(0.3, 0))
+			_compo(m, "caisses", C_CAISSES if PropsQuaternius.v3 else C_CAISSES_V2, 21.7, 0.35, PI, y, Vector2(0.3, 0))
 		"armurerie":      # mannequin d'armurier contre le mur sud, à côté du présentoir
 			_compo(m, "mannequin", C_MANNEQUIN, 28.4, -1.65, PI, y, Vector2(0.3, 0))
 		"lb2b":      # bivouac de l'expédition retranchée, contre le mur nord
