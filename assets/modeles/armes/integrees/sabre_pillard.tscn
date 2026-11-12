@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="PackedScene" path="res://assets/modeles/armes/lames_hd/sabre_pillard.glb" id="1_glb"]
+[ext_resource type="PackedScene" path="res://assets/modeles/armes/lames_hd/v2/sabre_pillard.glb" id="1_glb"]
 
 [node name="sabre_pillard" type="Node3D"]
 

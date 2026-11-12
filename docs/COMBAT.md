@@ -417,6 +417,14 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
   locale (gouttière et fil de la texture suivent la géométrie ; sabre : u 0,5 au dos -> 1 au fil). Mêmes ids, stats, longueurs et
   repères prise / garde / pointe (dague : échelle 1,3 des anciens .tscn intégrée au modèle, pointe x 0,013 -> 0). Planches :
   `outils/captures_lames_hd.gd` (`--etiquette=avant` remonte les modèles Quaternius).
+  **v2 « fidèle » (même jour, retour : « si elles pouvaient garder leur forme originelle, notamment la dague »)** : modèles du jeu
+  = `assets/modeles/armes/lames_hd/v2/<id>.glb` (`sources_blender/lames_hd/lames_hd_v2.py`) ; la v1 reste dans `lames_hd/<id>.glb`.
+  La silhouette est MESURÉE sur l'original (`mesure_quaternius.py` : coupes de la lame à chaque hauteur de sommet + tous les 1,5 cm,
+  de la garde le long de X, de la fusée et du pommeau le long de Z) et le détail HD posé dessus (pans, fil, biseau, gouttière,
+  cuir enroulé, bagues, rivets ; fils d'or et gemmes de l'épée dorée, lacet du sabre). Silhouette de face commune à 96-99 % avec
+  l'original (outil : `_superposition_rouge_original_cyan_v2.png`). Tris : soldat 5 024, sabre 5 398, dorée 6 512, dague 3 676.
+  Repères exactement ceux d'origine (dague : garde 0,1041, pointe (0,013 ; 0,4473)). Lames un peu plus épaisses que l'original
+  (lisibilité vue de tranche en main).
 
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)

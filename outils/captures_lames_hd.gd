@@ -79,6 +79,9 @@ func _studio_vp(taille := Vector2i(480, 270)) -> Array:
 	vp.add_child(cam)
 	return [vp, cam]
 
+## Boîte (y bas, y haut) des originaux Quaternius montés : cadrage commun.
+const REF := {"epee_soldat": [-0.122, 0.928], "sabre_pillard": [-0.122, 0.928], "epee_doree": [-0.079, 0.921], "dague_acier": [-0.073, 0.447]}
+
 ## « avant » : les modèles Quaternius CC0 tels que les montaient les anciens .tscn (glb, remap des matériaux, échelle de la dague).
 const AVANT := {
 	"epee_soldat": ["01_sword", {"lame.0": "acier_q", "lame.3": "acier_fil", "fer": "fer", "cuir": "cuir"}, 1.0, 0.0, 0.175],
@@ -88,6 +91,10 @@ const AVANT := {
 }
 
 func _modele(id: String) -> Node3D:
+	if etiq == "hd1":    # lames HD v1 (silhouette libre), gardées dans assets/modeles/armes/lames_hd/<id>.glb
+		var r1: Node3D = (load("res://assets/modeles/armes/lames_hd/%s.glb" % id) as PackedScene).instantiate()
+		EpeesLongues.habiller(r1)
+		return r1
 	if etiq == "avant" and AVANT.has(id):
 		var av: Array = AVANT[id]
 		var r := Node3D.new()
@@ -152,11 +159,13 @@ func _studio(id: String) -> void:
 	var m := _modele(id)
 	vp.add_child(m)
 	var b := _boite(m)
+	print("MESURE %s %s tris=%d longueur=%.3f y[%.3f ; %.3f] largeur=%.3f garde=%.3f" % [etiq, id, _tris(m), b.size.y, b.position.y, b.end.y, b.size.x, _repere_y(m, "garde", 0.17)])
+	if REF.has(id):    # cadrage commun à toutes les versions (boîte de l'original Quaternius) : vues identiques d'une ligne à l'autre
+		b = AABB(Vector3(-0.1, REF[id][0], -0.02), Vector3(0.2, REF[id][1] - REF[id][0], 0.04))
 	var lg := b.size.y
 	var yc := b.get_center().y
 	var yg := _repere_y(m, "garde", 0.17)
 	var k := clampf(lg / 1.05, 0.5, 1.4)    # dague : caméra plus proche
-	print("MESURE %s %s tris=%d longueur=%.3f y[%.3f ; %.3f] largeur=%.3f garde=%.3f" % [etiq, id, _tris(m), lg, b.position.y, b.end.y, b.size.x, yg])
 	var yp := b.position.y
 	var ylame := yg + (b.end.y - yg) * 0.35
 	var vues := [
@@ -165,6 +174,9 @@ func _studio(id: String) -> void:
 		["garde", false, 38.0, Vector3(0.13 * k, yg + 0.03 * k, 0.30 * k), Vector3(0, yg - 0.02 * k, 0), Vector3(0, deg_to_rad(18), 0), Vector3.ZERO],
 		["pommeau", false, 36.0, Vector3(-0.08 * k, yp + 0.09 * k, 0.24 * k), Vector3(0, yp + 0.05 * k, 0), Vector3(0, deg_to_rad(-20), 0), Vector3.ZERO],
 		["lame", false, 40.0, Vector3(0.07 * k, yg + 0.15 * k, 0.17 * k), Vector3(0, yg + 0.19 * k, 0), Vector3(0, deg_to_rad(18), 0), Vector3.ZERO],
+		# silhouettes pour la superposition original / v2 : face (plat) et profil (tranche), même caméra, sans rotation 3/4
+		["sil_face", true, lg * 0.6, Vector3(0, 0, 3), Vector3.ZERO, Vector3(0, 0, -PI / 2), Vector3(-yc, 0, 0)],
+		["sil_profil", true, lg * 0.6, Vector3(0, 0, 3), Vector3.ZERO, Vector3(PI / 2, 0, -PI / 2), Vector3(-yc, 0, 0)],
 	]
 	for v in vues:
 		cam.projection = Camera3D.PROJECTION_ORTHOGONAL if v[1] else Camera3D.PROJECTION_PERSPECTIVE
@@ -287,13 +299,56 @@ func _bloc(e: String, id: String, w: int, h: int) -> Image:
 	return bloc
 
 func _assembler(id: String) -> void:
-	var w := 640
-	var h := 360
-	var av := _bloc("avant", id, w, h)
-	var ap := _bloc("apres", id, w, h)
-	var pl := Image.create(w * 3, h * 4 + 8, false, Image.FORMAT_RGBA8)
+	# 3 lignes (original Quaternius, HD v1, HD v2 fidèle) x 6 vues identiques
+	var w := 480
+	var h := 270
+	var lignes := ["avant", "hd1", "apres"]
+	var pl := Image.create(w * VUES.size(), h * 3 + 16, false, Image.FORMAT_RGBA8)
 	pl.fill(Color("#f2c200"))
-	pl.blit_rect(av, Rect2i(0, 0, w * 3, h * 2), Vector2i(0, 0))
-	pl.blit_rect(ap, Rect2i(0, 0, w * 3, h * 2), Vector2i(0, h * 2 + 8))
-	pl.save_png(dossier.path_join("%s_avant_haut_apres_bas.png" % id))
-	print("PLANCHE ", dossier.path_join("%s_avant_haut_apres_bas.png" % id))
+	for li in lignes.size():
+		for i in VUES.size():
+			var p := dossier.path_join("brut/%s_%s_%s.png" % [lignes[li], id, VUES[i]])
+			if not FileAccess.file_exists(p):
+				continue
+			var im := Image.load_from_file(p)
+			im.convert(Image.FORMAT_RGBA8)
+			im.resize(w, h, Image.INTERPOLATE_BILINEAR)
+			pl.blit_rect(im, Rect2i(0, 0, w, h), Vector2i(i * w, li * (h + 8)))
+	pl.save_png(dossier.path_join("%s_original_hd1_hd2.png" % id))
+	print("PLANCHE ", dossier.path_join("%s_original_hd1_hd2.png" % id))
+	# superposition des silhouettes : original en rouge, v2 en cyan, recouvrement en blanc
+	var fond := Color("#3a3d44")
+	var sup: Array[Image] = []
+	for v in ["sil_face", "sil_profil"]:
+		var pa := dossier.path_join("brut/avant_%s_%s.png" % [id, v])
+		var pb := dossier.path_join("brut/apres_%s_%s.png" % [id, v])
+		if not (FileAccess.file_exists(pa) and FileAccess.file_exists(pb)):
+			continue
+		var ia := Image.load_from_file(pa)
+		var ib := Image.load_from_file(pb)
+		var o := Image.create(ia.get_width(), ia.get_height(), false, Image.FORMAT_RGBA8)
+		var n_a := 0
+		var n_b := 0
+		var n_ab := 0
+		for y in ia.get_height():
+			for x in ia.get_width():
+				var ca := ia.get_pixel(x, y)
+				var cb := ib.get_pixel(x, y)
+				var ma := absf(ca.r - fond.r) + absf(ca.g - fond.g) + absf(ca.b - fond.b) > 0.03
+				var mb := absf(cb.r - fond.r) + absf(cb.g - fond.g) + absf(cb.b - fond.b) > 0.03
+				n_a += int(ma)
+				n_b += int(mb)
+				n_ab += int(ma and mb)
+				o.set_pixel(x, y, Color.WHITE if ma and mb else (Color("#e03a3a") if ma else (Color("#3ad0e0") if mb else Color("#202226"))))
+		print("SILHOUETTE %s %s : original %d px, v2 %d px, commun %d px (%.0f %% de l'original couvert, %.0f %% de la v2 dans l'original)" % [
+			id, v, n_a, n_b, n_ab, 100.0 * n_ab / maxi(1, n_a), 100.0 * n_ab / maxi(1, n_b)])
+		sup.append(o)
+	if sup.size() == 2:
+		var w2 := sup[0].get_width()
+		var h2 := sup[0].get_height()
+		var s2 := Image.create(w2, h2 * 2 + 8, false, Image.FORMAT_RGBA8)
+		s2.fill(Color("#f2c200"))
+		s2.blit_rect(sup[0], Rect2i(0, 0, w2, h2), Vector2i(0, 0))
+		s2.blit_rect(sup[1], Rect2i(0, 0, w2, h2), Vector2i(0, h2 + 8))
+		s2.save_png(dossier.path_join("%s_superposition_rouge_original_cyan_v2.png" % id))
+		print("PLANCHE ", dossier.path_join("%s_superposition_rouge_original_cyan_v2.png" % id))

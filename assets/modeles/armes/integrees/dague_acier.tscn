@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="PackedScene" path="res://assets/modeles/armes/lames_hd/dague_acier.glb" id="1_glb"]
+[ext_resource type="PackedScene" path="res://assets/modeles/armes/lames_hd/v2/dague_acier.glb" id="1_glb"]
 
 [node name="dague_acier" type="Node3D"]
 
@@ -10,7 +10,7 @@
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
 
 [node name="garde" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.104, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1041, 0)
 
 [node name="pointe" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.447, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.013, 0.4473, 0)
