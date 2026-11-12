@@ -274,12 +274,13 @@ CLIPS_MX_2M_V6 = {
     "c2_a": _v6(CLIPS_MX_2M["c2_a"], [(16, 0.0), (16, 0.09), (16.5, 0.14), (22, 0.25), (22.6, 0.31), (23, 0.40), (23, 0.47)], (0.10, 0.27), ARC_LEGER),
     # 2 : gs_slash_2, 2e coup, armé image 47, rapide 48 -> 58 (pic 50-55)
     "c2_b": _v6(CLIPS_MX_2M["c2_b"], [(47, 0.0), (47, 0.08), (50, 0.14), (56, 0.25), (57.5, 0.31), (60, 0.40), (60, 0.47)], (0.10, 0.27), ARC_LEGER),
-    # 3 : gs_slash_2, 1er coup, armé image 18 (presque immobile à 17-18), rapide 20 -> 28 (pic 22-25)
-    "c2_c": _v6(CLIPS_MX_2M["c2_c"], [(18, 0.0), (18, 0.08), (21.5, 0.14), (27.5, 0.25), (29, 0.31), (31, 0.40), (31, 0.47)], (0.10, 0.27), ARC_LEGER),
+    # 3 : gs_slash_2, 1er coup, armé image 18 (presque immobile à 17-18), rapide 20 -> 28 (pic 22-25) ; suivi arrêté à l'image
+    # 28,8 (les images 29-31 emmènent les mains sous le cadre ; idem pour la puissante)
+    "c2_c": _v6(CLIPS_MX_2M["c2_c"], [(18, 0.0), (18, 0.08), (21.5, 0.14), (27.5, 0.25), (28.3, 0.31), (28.8, 0.40), (28.8, 0.47)], (0.10, 0.27), ARC_LEGER),
     # puissante : même capture que le 3 ; charge = fondu de la tenue vers l'armé (image 21, tenue pendant la charge), coup =
     # image 22,5 -> 28 en frappe, suivi, retour en S (après le relâchement : ~0,9 s de jeu)
     "charge_2m": _v6(CLIPS_MX_2M["charge_2m"], [(10, 0.0), (19, 0.30), (21, 0.55)], (0.30, 0.55), None),
-    "lourd_2m": _v6(CLIPS_MX_2M["lourd_2m"], [(21, 0.0), (22.5, 0.03), (28, 0.15), (29.5, 0.21), (31, 0.30), (31, 0.46)], (0.0, 0.24), (0.03, 0.15, 0.85)),
+    "lourd_2m": _v6(CLIPS_MX_2M["lourd_2m"], [(21, 0.0), (22.5, 0.03), (28, 0.15), (28.8, 0.21), (29.3, 0.30), (29.3, 0.46)], (0.0, 0.24), (0.03, 0.15, 0.85)),
 }
 CLIPS_MX_2M_V6["charge_2m"]["plein"] = (0.30, 0.55)
 # 1 : roulis du bras -30 -> -10° (la v4 tournait la capture de 30° pour une diagonale ; avec le poignet verrouillé, la lame finissait
