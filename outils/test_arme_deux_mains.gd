@@ -6,14 +6,16 @@ extends SceneTree
 ##   2. prise : dans chaque pose clé (repos, garde, armés, frappes, suivis, charge), le centre du poing GAUCHE est sur la poignée,
 ##      sous le poing droit (v2 : écart ≤ 9 cm ; ≤ 3,3 cm dans 16 des 18 poses, ~8 cm au milieu de l arc de la diagonale et de la puissante, poignet gauche hors de portée de la fusée — limite connue ; poing gauche plus près du pommeau que le droit) ;
 ##   3. combo : diagonale → horizontal → vertical (clips c2_a, c2_b, c2_c) touchent le mannequin à 1,7 m (TraceLame) ; dégâts du
-##      coup léger > ceux de l'épée de métal ; un coup dure ≥ 1,4 × le coup d'épée équivalent ; puissante (lourd_2m) touche ;
+##      coup léger > ceux de l'épée de métal ; un coup dure plus que le coup d'épée (≥ 1,1 ×) sans lenteur (≤ 1,05 s : claymore v6,
+##      coup léger visé 0,9-1,0 s ; v4 : ≥ 1,4 ×, 1,53 s) ; puissante (lourd_2m) touche ;
 ##   4. blocage à deux mains : clip garde_2m, un coup de 30 venu de face est bloqué (≤ 15 % passent).
 ##   godot --headless --path . --script res://outils/test_arme_deux_mains.gd -- --nouvelle
 const SCENE := preload("res://scenes/test_combat.tscn")
 const ARMES := ["claymore_longue", "claymore", "coeur_de_braise"]
-const POSES := ["repos_2m:0.0", "garde_2m:0.0", "sprint_2m:0.0", "encaisse_2m:0.06", "c2_a:0.30", "c2_a:0.50", "c2_a:0.60",
-	"c2_a:0.80", "c2_b:0.20", "c2_b:0.42", "c2_b:0.52", "c2_b:0.70", "c2_c:0.40", "c2_c:0.60", "c2_c:0.72", "c2_c:0.88",
-	"charge_2m:0.70", "lourd_2m:0.30"]
+## Poses tenues ; celles des coups sont prises aux MARQUEURS de chaque clip (claymore v6 : clips plus courts, les instants de la
+## v4 écrits ici en dur tombaient après la fin des clips) : armé, milieu et fin de la frappe, suivi, milieu du retour.
+const POSES_TENUES := ["repos_2m:0.0", "garde_2m:0.0", "sprint_2m:0.0", "encaisse_2m:0.06"]
+var POSES: Array[String] = []
 const ORIGINE := Vector3(-12.0, 0.0, 6.0)
 const DT := 1.0 / 60.0
 
@@ -118,6 +120,12 @@ func _tester() -> void:
 			"%s : tenues remplacées (repos → %s, garde → %s)" % [id, mains.anim.reel("repos"), mains.anim.reel("garde")])
 		print("   centre du poing droit le long de la lame : %.3f m (repère du modèle)" % mains._milieu_d)
 		# 2. prise à deux mains dans chaque pose clé
+		POSES.assign(POSES_TENUES)
+		for c in ["c2_a", "c2_b", "c2_c", "lourd_2m"]:
+			var m: Dictionary = mains.anim.marqueurs(c)
+			for t in [float(m["arme"]), (float(m["frappe"]) + float(m["fin_frappe"])) * 0.5, float(m["fin_frappe"]), float(m["suivi"]), (float(m["suivi"]) + float(m["fin"])) * 0.5]:
+				POSES.append("%s:%.3f" % [c, t])
+		POSES.append("charge_2m:%.3f" % (mains.anim.longueur("charge_2m") - 0.001))
 		var pire := 0.0
 		var pire_nom := ""
 		var ordre_ok := true
@@ -151,7 +159,7 @@ func _tester() -> void:
 		await _remettre()
 		var r1 := await _coup(false)
 		_verif(r1["degats"] > ref["degats"], "%s : coup léger plus fort qu'à l'épée de métal (%.1f > %.1f)" % [id, r1["degats"], ref["degats"]])
-		_verif(r1["duree"] >= ref["duree"] * 1.4, "%s : coup plus lent, plus d'inertie (%.2f s ≥ 1,4 × %.2f s)" % [id, r1["duree"], ref["duree"]])
+		_verif(r1["duree"] >= ref["duree"] * 1.1 and r1["duree"] <= 1.05, "%s : coup plus lent que l'épée, sans lenteur (1,1 × %.2f s ≤ %.2f s ≤ 1,05 s)" % [id, ref["duree"], r1["duree"]])
 		_verif(clips == ["c2_a", "c2_b", "c2_c"], "%s : combo diagonale → horizontal → vertical (%s)" % [id, ", ".join(clips)])
 		await _remettre()
 		var rl := await _coup(true)
