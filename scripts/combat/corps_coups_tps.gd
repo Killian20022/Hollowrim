@@ -34,9 +34,9 @@ const BIBLIOTHEQUE := preload("res://assets/animations/corps_coups_tps.res")
 ##   (SUIVI_LISSAGE) et un rattrapage (SUIVI_GAIN), d'où un mouvement continu, recalé sur la frappe ;
 ## - un geste quitté (coup suivant en tampon, retour au repos) n'est plus figé puis fondu en 0,1 s : il continue à sa vitesse
 ##   naturelle jusqu'à sa fin (« retour » dans CLIPS : la garde retrouvée) pendant que le suivant s'arme, fondu en courbe douce
-##   (FONDU_COUP, fini au plus tard à l'armé du nouveau coup) ; au repos, le corps finit son retour avant de rendre la main à la
+##   (FONDU_COUP, fini au plus tard à la frappe du nouveau coup) ; au repos, le corps finit son retour avant de rendre la main à la
 ##   locomotion (FONDU_SORTIE).
-const FONDU := 0.2          # s : entrée depuis la locomotion (courbe douce ; finie au plus tard à l'armé du geste)
+const FONDU := 0.2          # s : entrée depuis la locomotion (courbe douce ; finie au plus tard à la frappe du geste)
 const FONDU_DEUX_MAINS := 0.07   # s : entrée à deux mains
 const FONDU_COUP := 0.24    # s : passage d'un geste à l'autre (le geste quitté continue pendant ce fondu)
 const FONDU_SORTIE := 0.26  # s : retour à la locomotion, une fois le geste fini
@@ -148,8 +148,9 @@ var _bassin_dernier := Vector3.ZERO
 var _poids_jambes := 1.0
 var _actif_clip := false     # un geste entrant (clip FPS) est suivi
 var _j := -1                 # entrée du journal du geste entrant
+var _t_debut := 0.0          # temps de capture où le geste entrant a commencé (il peut partir après son image de début)
 ## Journal des gestes (mesures, outils/film_coups_tps_propres.gd) : {clip, src, debut, image (la plus loin montrée à plus de 50 %
-## du poids)}, en images de capture ; 64 derniers.
+## du poids)}, en images de capture ; 256 derniers.
 var journal: Array[Dictionary] = []
 var _force := ""             # captures : --tps-clip=src:image
 var ik_gauche := true
@@ -276,6 +277,15 @@ static func _fin_geste(spec: Dictionary) -> float:
 	var im: Array = spec["im"]
 	return float(spec.get("retour", im[im.size() - 1])) / 30.0
 
+## Avancée du geste entrant de son départ vers sa FRAPPE (0 -> 1) : les fondus sont finis au plus tard quand la lame part, la
+## frappe se lit entière (finir à l'armé, souvent 3-4 images après un départ en cours de clip, donnait des embardées de 50°/image).
+## 0 pour les gestes sans frappe (tenues, défense à deux images).
+func _phase_armee(im: Array) -> float:
+	if im.size() <= 2:
+		return 0.0
+	var a := maxf(float(im[2] if im.size() > 3 else im[1]), _t_debut * 30.0 + 2.0)
+	return clampf(inverse_lerp(_t_debut * 30.0, a, _t_src * 30.0), 0.0, 1.0)
+
 func _noter(j: int, t: float, w: float) -> void:
 	if j >= 0 and j < journal.size() and w >= 0.5:
 		journal[j]["image"] = maxf(float(journal[j]["image"]), t * 30.0)
@@ -333,11 +343,12 @@ func _process(dt: float) -> void:
 			_clip = clip
 			_src = String(spec["src"])
 			_t_src = cible
+			_t_debut = cible
 			_vitesse = 0.0
 			_cible_prec = cible
 			_actif_clip = true
 			journal.append({"clip": clip, "src": _src, "debut": cible * 30.0, "image": cible * 30.0})
-			if journal.size() > 64:
+			if journal.size() > 256:
 				journal.pop_front()
 			_j = journal.size() - 1
 		else:
@@ -348,7 +359,7 @@ func _process(dt: float) -> void:
 			_t_src = minf(_t_src + taux * dt, maxf(cible, _t_src) + 1.0 / 30.0)
 			_cible_prec = cible
 		var im_e: Array = spec["im"]
-		var ph := inverse_lerp(float(im_e[0]), maxf(float(im_e[1]), float(im_e[0]) + 1.0), _t_src * 30.0) if im_e.size() > 2 else 0.0
+		var ph := _phase_armee(im_e)
 		# deux mains : entrée brève (pendant un fondu, la main gauche est entre la tenue de CorpsMainsTps et la poignée de la capture)
 		_poids_lin = minf(1.0, maxf(_poids_lin + dt / (FONDU_DEUX_MAINS if _deux_mains() else FONDU), ph))
 	else:
@@ -359,12 +370,9 @@ func _process(dt: float) -> void:
 		_sor["t"] = minf(float(_sor["t"]) + float(_sor["taux"]) * dt, float(_sor["fin"]))
 	if _actif_clip:
 		if not _sor.is_empty():
-			# fondu en courbe douce ; il est fini au plus tard à l'armé du nouveau geste (la frappe se lit entière)
+			# fondu en courbe douce ; il est fini au plus tard à la frappe du nouveau geste (la frappe se lit entière)
 			_t_b += dt
-			var im: Array = CLIPS[_clip]["im"]
-			var arme := float(im[mini(1, im.size() - 1)])
-			var phase := inverse_lerp(float(im[0]), maxf(arme, float(im[0]) + 1.0), _t_src * 30.0) if im.size() > 2 else 0.0
-			_b = _douce(maxf(_t_b / FONDU_COUP, phase))
+			_b = _douce(maxf(_t_b / FONDU_COUP, _phase_armee(CLIPS[_clip]["im"])))
 			if _b >= 0.999:
 				_b = 1.0
 				_sor = {}

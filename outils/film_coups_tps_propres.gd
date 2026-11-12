@@ -12,7 +12,7 @@ extends SceneTree
 ##         -- --nouvelle [--titre=AVANT] [--camera=cote] [--mesures=C:/.../mesures.txt] [--seulement=espace,spam,marche_espace,marche_spam,puissant]
 const DT := 1.0 / 60.0
 const OS_SUIVIS := ["upperarm_r", "lowerarm_r", "hand_r", "spine_02", "spine_03", "neck_01", "upperarm_l"]
-const SEUIL_ACOUP := 2.5     # °/image² : variation brutale de vitesse angulaire (convulsion)
+const SEUIL_ACOUP := 6.0     # °/image : à-coup = vitesse angulaire qui s'écarte de la moyenne de ses deux voisines (pic, arrêt-reprise)
 const SEUIL_SAUT := 9.0      # °/image : saut de pose (si ce n'est pas la vitesse propre du geste)
 
 var s: Node
@@ -28,6 +28,7 @@ var _seg := ""
 var _donnees := {}    # segment -> {os: [Quaternion]}, "_pointe": [Vector3], "_clips": [String], "_tsrc": [float]
 var _ordre: Array[String] = []
 var _sortie := []     # lignes du rapport
+var _journal := {}    # segment -> [début, fin] dans CorpsCoupsTps.journal (s'il existe)
 var _cam: Camera3D    # --camera=cote : caméra libre de côté qui suit le joueur
 
 func _init() -> void:
@@ -59,6 +60,12 @@ func _image() -> void:
 	(d["_clips"] as Array).append(String(ct.get("_clip")))
 	(d["_tsrc"] as Array).append(float(ct.get("_t_src")))
 	(d["_poids"] as Array).append(float(ct.call("poids_geste")))
+	# synchronisation : écart (images de capture) entre le temps visé par le clip FPS et celui montré par le corps, pendant la FRAPPE
+	var cible = ct.get("_cible_prec")
+	(d["_ecart"] as Array).append(absf(float(cible) - float(ct.get("_t_src"))) * 30.0 if cible != null and bool(ct.get("_actif_clip")) else 0.0)
+	(d["_frappe"] as Array).append(mains.etat == mains.FRAPPE)
+	var bb = ct.get("_b")
+	(d["_bb"] as Array).append(float(bb) if bb != null else 1.0)
 
 func _attendre(sec: float) -> void:
 	for i in roundi(sec / DT):
@@ -81,15 +88,15 @@ func _etiquette(parent: Node) -> void:
 	parent.add_child(calque)
 	l = Label.new()
 	l.add_theme_font_override("font", Palette.police())
-	l.add_theme_font_size_override("font_size", 18)
+	l.add_theme_font_size_override("font_size", 14)
 	l.add_theme_color_override("font_outline_color", Color.BLACK)
 	l.add_theme_constant_override("outline_size", 6)
-	l.position = Vector2(10, 500)
+	l.position = Vector2(8, parent.get_viewport().get_visible_rect().size.y - 58)
 	calque.add_child(l)
 
 func _debut(nom: String, texte: String, marche: bool) -> void:
 	_texte = texte
-	s.placer_joueur(Vector3(0.0, 0.0, 12.0) if marche else Vector3(0.0, 0.0, 4.0), 0.0, -6.0)
+	s.placer_joueur(Vector3(-10.0, 0.0, 12.0) if marche else Vector3(-10.0, 0.0, 4.0), 0.0, -6.0)
 	j.camera_tp.recaler()
 	mains.combat.forcer(EtatCombat.REPOS)
 	mains._combo = 0
@@ -101,13 +108,18 @@ func _debut(nom: String, texte: String, marche: bool) -> void:
 	await _attendre(0.6)
 	_seg = nom
 	_ordre.append(nom)
-	_donnees[nom] = {"_pointe": [], "_clips": [], "_tsrc": [], "_poids": []}
+	var jr = ct.get("journal")
+	_journal[nom] = [(jr as Array).size() if jr is Array else 0, 0]
+	_donnees[nom] = {"_pointe": [], "_clips": [], "_tsrc": [], "_poids": [], "_ecart": [], "_frappe": [], "_bb": []}
 	for n in _acc:
 		_donnees[nom][n] = []
 
 func _fin_segment(apres := 1.0) -> void:
 	await _attendre(apres)
 	Input.action_release("avant")
+	var jr = ct.get("journal")
+	if _seg != "":
+		_journal[_seg][1] = (jr as Array).size() if jr is Array else 0
 	_seg = ""
 	await _attendre(0.3)
 
@@ -131,6 +143,8 @@ func _go() -> void:
 	corps = j.corps
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	s.mannequin.position = Vector3(-16.0, 0.0, -16.0)
+	if s.get("mur") is Node3D:
+		(s.mur as Node3D).visible = false   # le mur d'essai masquait la silhouette de côté
 	_etiquette(s)
 	j.basculer_vue(true)
 	if _arg("camera", "") == "cote":
@@ -213,44 +227,44 @@ static func _vecteur(q: Quaternion) -> Vector3:
 
 func _rapport() -> void:
 	var lignes: Array[String] = []
-	lignes.append("== %s (60 i/s ; à-coup > %.1f °/image², saut > %.0f °/image) ==" % [_arg("titre", "?"), SEUIL_ACOUP, SEUIL_SAUT])
+	lignes.append("== %s (60 i/s ; os en repère du squelette ; à-coup : rugosité > %.0f °/image ; va-et-vient : la rotation repart en sens inverse d'une image à l'autre) ==" % [_arg("titre", "?"), SEUIL_ACOUP])
 	var total_acoups := 0
 	for seg in _ordre:
 		var d: Dictionary = _donnees[seg]
 		lignes.append("-- %s (%d images)" % [seg, (d["_clips"] as Array).size()])
 		if _arg("detail", "") == seg:
-			for k in range(1, (d["_clips"] as Array).size()):
-				var t := ""
-				for n in ["spine_03", "hand_r"]:
-					t += " %s %5.1f" % [n, _vecteur((d[n][k] as Quaternion) * (d[n][k - 1] as Quaternion).inverse()).length()]
-				print("DETAIL %3d %-14s t=%5.1f p=%.2f%s" % [k, d["_clips"][k], float(d["_tsrc"][k]) * 30.0, float(d["_poids"][k]), t])
+			for k in range(1, (d["_clips"] as Array).size() - 1):
+				var vh := _vecteur((d["hand_r"][k] as Quaternion) * (d["hand_r"][k - 1] as Quaternion).inverse())
+				var vh2 := _vecteur((d["hand_r"][k + 1] as Quaternion) * (d["hand_r"][k] as Quaternion).inverse())
+				var vh0 := _vecteur((d["hand_r"][k - 1] as Quaternion) * (d["hand_r"][maxi(k - 2, 0)] as Quaternion).inverse())
+				print("DETAIL %3d %-10s t=%5.1f p=%.2f b=%.2f F=%d main %5.1f rug %5.1f" % [k, d["_clips"][k], float(d["_tsrc"][k]) * 30.0, float(d["_poids"][k]), float(d["_bb"][k]), int(d["_frappe"][k]), vh.length(), (vh - (vh0 + vh2) * 0.5).length()])
 		for n in _acc:
 			var qs: Array = d[n]
-			var v_prec := Vector3.ZERO
+			var vs: Array[Vector3] = [Vector3.ZERO]
+			for k in range(1, qs.size()):
+				vs.append(_vecteur((qs[k] as Quaternion) * (qs[k - 1] as Quaternion).inverse()))
 			var w_max := 0.0
 			var a_max := 0.0
 			var acoups := 0
 			var sauts := 0
 			var allers := 0
 			var somme_a := 0.0
-			for k in range(1, qs.size()):
-				var dq: Quaternion = (qs[k] as Quaternion) * (qs[k - 1] as Quaternion).inverse()
-				var v := _vecteur(dq)
-				w_max = maxf(w_max, v.length())
-				if v.length() > SEUIL_SAUT:
+			for k in range(1, vs.size()):
+				w_max = maxf(w_max, vs[k].length())
+				if vs[k].length() > SEUIL_SAUT:
 					sauts += 1
-				if k >= 2:
-					var a := (v - v_prec).length()
+				if k >= 2 and k + 1 < vs.size():
+					# rugosité : écart de la vitesse à la moyenne de ses voisines (un mouvement fluide accélère / freine en douceur)
+					var a := (vs[k] - (vs[k - 1] + vs[k + 1]) * 0.5).length()
 					somme_a += a
 					a_max = maxf(a_max, a)
 					if a > SEUIL_ACOUP:
 						acoups += 1
-					if v.length() > 1.0 and v_prec.length() > 1.0 and v.dot(v_prec) < -0.2 * v.length() * v_prec.length():
-						allers += 1
-				v_prec = v
+				if k >= 2 and vs[k].length() > 1.0 and vs[k - 1].length() > 1.0 and vs[k].dot(vs[k - 1]) < -0.2 * vs[k].length() * vs[k - 1].length():
+					allers += 1
 			if n in ["upperarm_r", "lowerarm_r", "hand_r", "spine_03"]:
 				total_acoups += acoups
-			lignes.append("   %-11s vitesse max %5.1f °/i | à-coup max %5.1f °/i² moyen %4.2f | à-coups %3d | sauts %2d | va-et-vient %2d" % [n, w_max, a_max, somme_a / maxf(qs.size() - 2, 1), acoups, sauts, allers])
+			lignes.append("   %-11s vitesse max %5.1f °/i | rugosité max %5.1f moyenne %4.2f °/i | à-coups %3d | va-et-vient %2d" % [n, w_max, a_max, somme_a / maxf(qs.size() - 3, 1), acoups, allers])
 		# pointe de l'arme
 		var pt: Array = d["_pointe"]
 		var acc_max := 0.0
@@ -262,8 +276,13 @@ func _rapport() -> void:
 				acc_pics += 1
 		lignes.append("   pointe : accélération max %.3f m/image² | pics > 0,035 : %d" % [acc_max, acc_pics])
 		# gestes : part jouée de chaque geste avant d'être quitté
-		lignes.append("   gestes : " + _gestes(d))
-	lignes.append("TOTAL à-coups (bras droit + buste, tous segments) : %d" % total_acoups)
+		lignes.append("   gestes (image atteinte / garde) : " + _gestes(seg, d))
+		var ec_max := 0.0
+		for k in (d["_frappe"] as Array).size():
+			if d["_frappe"][k]:
+				ec_max = maxf(ec_max, float(d["_ecart"][k]))
+		lignes.append("   synchronisation pendant la frappe : écart max %.2f image de capture (corps / bras FPS)" % ec_max)
+	lignes.append("TOTAL à-coups (bras droit, main, buste ; tous segments) : %d" % total_acoups)
 	for li in lignes:
 		print(li)
 	var f := _arg("mesures", "")
@@ -272,29 +291,31 @@ func _rapport() -> void:
 		fa.store_string("\n".join(lignes) + "\n")
 		fa.close()
 
-## Part jouée de chaque geste (image de capture atteinte / plage [début, fin] de CLIPS) ; journal du corps s'il en tient un.
-func _gestes(d: Dictionary) -> String:
-	var clips: Array = d["_clips"]
-	var ts: Array = d["_tsrc"]
+## Image de capture où chaque geste retrouve la garde (planche outils/planche_captures_tps.gd), pour juger « le geste va au bout ».
+const GARDE := {"slash_1": 44, "slash_2": 60, "q_Sword_Regular_Combo": 70, "estoc": 45, "interieur": 62, "revers": 56,
+		"revers_b": 76, "vertical": 60, "ss_attack": 62, "gs_slash": 38, "gs_slash_2": 45}
+
+## Pour chaque geste : image de capture la plus loin montrée (à plus de la moitié du poids) / image de retour à la garde. AVANT : le
+## temps affiché à la dernière image du clip (le geste était alors figé puis fondu) ; APRÈS : le journal du corps.
+func _gestes(seg: String, d: Dictionary) -> String:
 	var morceaux: Array[String] = []
 	var tab: Dictionary = (ct.get_script() as GDScript).get_script_constant_map()["CLIPS"]
+	var jr = ct.get("journal")
+	if jr is Array:
+		for x: Dictionary in (jr as Array).slice(int(_journal[seg][0]), int(_journal[seg][1])):
+			if tab.has(x["clip"]) and not tab[x["clip"]].get("tenue", false):
+				morceaux.append("%s:%s %d/%d" % [String(x["clip"]).replace("coup_", ""), x["src"], roundi(float(x["image"])), int(GARDE.get(String(x["src"]), 0))])
+		return ", ".join(morceaux)
+	var clips: Array = d["_clips"]
+	var ts: Array = d["_tsrc"]
 	var k := 0
 	while k < clips.size():
 		var c: String = clips[k]
 		var e := k
 		while e + 1 < clips.size() and clips[e + 1] == c:
 			e += 1
-		if c != "" and tab.has(c):
-			var im: Array = tab[c]["im"]
-			var a := float(im[0])
-			var b := float(im[im.size() - 1])
-			var atteinte := float(ts[e]) * 30.0
-			# le corps peut finir le geste après la fin du clip FPS (couche sortante) : son journal le dit
-			var jr = ct.get("journal")
-			if jr is Array:
-				for x: Dictionary in jr:
-					if x.get("clip", "") == c and absf(float(x.get("debut_image", -1)) - float(k)) < 0.5:
-						atteinte = maxf(atteinte, float(x.get("image", atteinte)))
-			morceaux.append("%s %d%%" % [c.replace("coup_", ""), roundi(100.0 * clampf((atteinte - a) / maxf(b - a, 1.0), 0.0, 1.0))])
+		if c != "" and tab.has(c) and not tab[c].get("tenue", false):
+			var src: String = tab[c]["src"]
+			morceaux.append("%s:%s %d/%d" % [c.replace("coup_", ""), src, roundi(float(ts[e]) * 30.0), int(GARDE.get(src, 0))])
 		k = e + 1
 	return ", ".join(morceaux)
