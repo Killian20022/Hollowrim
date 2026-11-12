@@ -1,0 +1,90 @@
+{
+ "h1_garde_du_guet": {
+  "triangles": 7386,
+  "longueur": 0.996,
+  "pieces": {
+   "croisee": 1724,
+   "fusee": 1816,
+   "lame": 2794,
+   "pierres": 166,
+   "pommeau": 886
+  }
+ },
+ "h2_dent_d_or": {
+  "triangles": 7602,
+  "longueur": 0.979,
+  "pieces": {
+   "croisee": 1724,
+   "fusee": 2176,
+   "lame": 2650,
+   "pierres": 166,
+   "pommeau": 886
+  }
+ },
+ "h3_veilleuse": {
+  "triangles": 8218,
+  "longueur": 1.277,
+  "pieces": {
+   "croisee": 1724,
+   "fusee": 2264,
+   "lame": 3178,
+   "pierres": 166,
+   "pommeau": 886
+  }
+ },
+ "h4_crocs_de_cendre": {
+  "triangles": 8212,
+  "longueur": 1.242,
+  "pieces": {
+   "croisee": 1948,
+   "fusee": 1816,
+   "lame": 3310,
+   "pierres": 310,
+   "pommeau": 828
+  }
+ },
+ "h5_larme_de_givre": {
+  "triangles": 9042,
+  "longueur": 1.247,
+  "pieces": {
+   "croisee": 2236,
+   "fusee": 2208,
+   "lame": 3214,
+   "pierres": 498,
+   "pommeau": 886
+  }
+ },
+ "h6_coeur_de_braise": {
+  "triangles": 10262,
+  "longueur": 1.52,
+  "pieces": {
+   "croisee": 2460,
+   "fusee": 2264,
+   "lame": 4078,
+   "pierres": 664,
+   "pommeau": 796
+  }
+ },
+ "h7_sang_du_roi": {
+  "triangles": 9324,
+  "longueur": 1.566,
+  "pieces": {
+   "croisee": 1948,
+   "fusee": 2592,
+   "lame": 3646,
+   "pierres": 310,
+   "pommeau": 828
+  }
+ },
+ "h8_croc_de_givre": {
+  "triangles": 10168,
+  "longueur": 1.566,
+  "pieces": {
+   "croisee": 2460,
+   "fusee": 2592,
+   "lame": 3646,
+   "pierres": 642,
+   "pommeau": 828
+  }
+ }
+}

@@ -425,6 +425,22 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
   l'original (outil : `_superposition_rouge_original_cyan_v2.png`). Tris : soldat 5 024, sabre 5 398, dorée 6 512, dague 3 676.
   Repères exactement ceux d'origine (dague : garde 0,1041, pointe (0,013 ; 0,4473)). Lames un peu plus épaisses que l'original
   (lisibilité vue de tranche en main).
+- **Hybrides HD (branche armes/hybrides_hd, 2026-11-12 : « au niveau des lames HD, en gardant leur forme d'origine »)** : les huit
+  épées hybrides du catalogue (garde_du_guet … croc_de_givre) pointent sur `assets/modeles/armes/hybrides/hd/<h>.glb`
+  (`sources_blender/hybrides_hd/hybrides_hd.py`, méthode de la v2 ci-dessus) ; les glb d'origine `hybrides/<h>.glb` restent
+  (référence « avant », retour arrière en remettant le chemin dans `catalogue_armes.json` / `coeur_de_braise.tres`). Chaque pièce
+  est MESURÉE sur le glb d'origine puis refaite : lame (coupes à chaque hauteur de sommet + tous les 1,4 cm, épaisseur mesurée
+  ×1,08 ; fil, biseau secondaire, méplat, gouttière à flancs nets ; obsidienne : veine de braise au fond de la gouttière ; rune de
+  forge en filets sur l'acier et l'acier doré), garde (gabarit le long de X, 12 pans, 52 stations, rivets bombés), fusée (cuir
+  enroulé en volume, h6 tressé ; fil d'or / de fer couché dans la rainure pour h2, h5, h7, h8), bagues d'origine en viroles à
+  bourrelets, pommeau (gabarit le long de Z, 16 pans, bouton de rivure), gemmes (chaque octaèdre d'origine -> pierre taillée à
+  rondiste, couronne et pavillon dans la même boîte ; chaton + griffes là où elle sort de la garde ou du talon ; cristal de pommeau :
+  bipyramide taillée + collet). Matériaux et repères inchangés (prise 0,03, garde, pointe recopiées du glb d'origine).
+  Tris avant -> après : h1 642 -> 7 386, h2 616 -> 7 602, h3 699 -> 8 218, h4 748 -> 8 212, h5 697 -> 9 042, h6 1 073 -> 10 262,
+  h7 827 -> 9 324, h8 843 -> 10 168. Longueurs identiques à 3 mm près ; silhouette de face commune 97-99 %, de profil 94-97 %
+  (lames un peu plus épaisses, comme la v2). Planches : `outils/captures_armes_hd.gd` (générique : `AVANT[id]` = modèle
+  d'origine, après = catalogue ; vues entière, 3/4, garde, pommeau, lame, 1re personne jour et nuit ; superposition ; famille).
+  Essai rejeté : garde à section « losange adouci » (`garde_hd`, gardée dans le script) : faces trop molles, moins nettes.
 
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
