@@ -251,7 +251,7 @@ NS["LIM_MX"].update(torsion=(-85, 85), flexion=(-35, 35), inclinaison=(-22, 15))
 # Poignet verrouillé (flexion, inclinaison)° autour de la tenue repos_2m (k 37, f -18, r -44) : même logique que POIGNET_V6
 # de l'épée (tenue f -11 / r -32, verrou f -28..8, r -29..-18) : flexion à ±18° de la tenue, inclinaison ramenée de 2 à 14°
 # vers le neutre (la tenue est déjà en inclinaison cubitale) : pendant les coups, le poignet est PLUS droit qu'au repos.
-POIGNET_2M = ((-28, 0), (-40, -28))
+POIGNET_2M = ((-28, 4), (-40, -14))
 LIM_MX_2M = dict(torsion=(-85, 85), flexion=(-55, 55), inclinaison=(-45, 18))
 
 
@@ -269,8 +269,9 @@ def _v6(spec, temps, fondu, arc, poignet=POIGNET_2M, creux=0.03):
 MQ_LEGER = {"arme": 0.10, "frappe": 0.14, "fin_frappe": 0.25, "suivi": 0.31, "fin": 0.47}
 ARC_LEGER = (0.14, 0.25, 0.85)
 CLIPS_MX_2M_V6 = {
-    # 1 : gs_slash, armé image 13 (lame la plus lente), rapide 14 -> 23 (pic 18-21)
-    "c2_a": _v6(CLIPS_MX_2M["c2_a"], [(13, 0.0), (13, 0.08), (16, 0.14), (22, 0.25), (23.5, 0.31), (25, 0.40), (25, 0.47)], (0.10, 0.27), ARC_LEGER),
+    # 1 : gs_slash, armé image 16 (lame en diagonale au-dessus de l'épaule droite, comme l'armé de la v4 ; les images 12-16, lame
+    # qui monte vers la caméra, sont sautées comme l'armé derrière la tête de l'épée v6), rapide 16 -> 22 (pic 18-21)
+    "c2_a": _v6(CLIPS_MX_2M["c2_a"], [(16, 0.0), (16, 0.09), (16.5, 0.14), (22, 0.25), (22.6, 0.31), (23, 0.40), (23, 0.47)], (0.10, 0.27), ARC_LEGER),
     # 2 : gs_slash_2, 2e coup, armé image 47, rapide 48 -> 58 (pic 50-55)
     "c2_b": _v6(CLIPS_MX_2M["c2_b"], [(47, 0.0), (47, 0.08), (50, 0.14), (56, 0.25), (57.5, 0.31), (60, 0.40), (60, 0.47)], (0.10, 0.27), ARC_LEGER),
     # 3 : gs_slash_2, 1er coup, armé image 18 (presque immobile à 17-18), rapide 20 -> 28 (pic 22-25)
@@ -281,6 +282,14 @@ CLIPS_MX_2M_V6 = {
     "lourd_2m": _v6(CLIPS_MX_2M["lourd_2m"], [(21, 0.0), (22.5, 0.03), (28, 0.15), (29.5, 0.21), (31, 0.30), (31, 0.46)], (0.0, 0.24), (0.03, 0.15, 0.85)),
 }
 CLIPS_MX_2M_V6["charge_2m"]["plein"] = (0.30, 0.55)
+# 1 : roulis du bras -30 -> -10° (la v4 tournait la capture de 30° pour une diagonale ; avec le poignet verrouillé, la lame finissait
+# couchée à l'horizontale, pommeau à droite : main gauche à 11,5 cm de la fusée, mains sous le cadre ; à -10° : 8,7 cm, lame
+# qui finit en bas à gauche comme le coup 1 de l'épée v6)
+CLIPS_MX_2M_V6["c2_a"]["cadrage"] = (0, 35, -10)
+import json as _json
+_essai = NS["ARGS"].get("essai", "")   # --essai=<fichier.json> : essais de réglage des clips v6 sans modifier ce fichier
+for _n, _r in (_json.load(open(_essai, encoding="utf-8")) if _essai else {}).items():
+    CLIPS_MX_2M_V6[_n].update({k: (tuple(v) if isinstance(v, list) else v) for k, v in _r.items()})
 CLIPS_MX_2M_V6["lourd_2m"]["plein"] = (0.0, 0.32)
 MARQUEURS_MX_2M_V6 = {
     "c2_a": dict(MQ_LEGER), "c2_b": dict(MQ_LEGER), "c2_c": dict(MQ_LEGER),

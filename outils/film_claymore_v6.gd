@@ -124,7 +124,7 @@ func _film() -> void:
 
 var _cam_gp: Camera3D
 
-## Caméra de gros plan : à 22 cm du poignet droit, sur le côté extérieur et un peu en avant (repère de la caméra du joueur),
+## Caméra de gros plan : à 50 cm du poignet droit, sur le côté extérieur (droite) et en avant (repère de la caméra du joueur),
 ## visée sur le poignet ; suit la main à chaque image (après les mains : priorité de traitement basse).
 func _installer_gros_plan() -> void:
 	_cam_gp = Camera3D.new()
@@ -141,9 +141,9 @@ func _suivre_gros_plan() -> void:
 	var poignet: Vector3 = sq.global_transform * sq.get_bone_global_pose(ih).origin
 	var coude: Vector3 = sq.global_transform * sq.get_bone_global_pose(il).origin
 	var b: Basis = j.camera.global_transform.basis
-	var cote := (b.x * 0.9 + b.z * 0.25 + b.y * 0.15).normalized()
+	var cote := (b.x * 1.0 - b.z * 0.45 + b.y * 0.1).normalized()
 	var vise := poignet.lerp(coude, 0.15)
-	_cam_gp.global_position = vise + cote * 0.24
+	_cam_gp.global_position = vise + cote * 0.5
 	_cam_gp.look_at(vise, b.y)
 
 func _capture() -> Image:
