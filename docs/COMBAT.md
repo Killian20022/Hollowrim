@@ -406,6 +406,38 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
   ~19° (39°). Coups plus vifs (temps des clips Mixamo resserrés dans `gestes_2mains.py`) : coup léger 1,53 s (2,45 s ; épée à
   une main 0,63 s), frappe 0,21 s (0,36), combo 1-2-3 2,4 s (3,8 s). Mesures et planches : `outils/captures_claymore_v4.gd`.
 
+- **Claymore v6 (branche combat/claymore_v6, 2026-11-12 : « mêmes coups propres qu'à l'épée, plus jamais de poignets cassés »)** :
+  modèle et tenue de la v4 inchangés. **La v5 (branche combat/claymore_v5) est REJETÉE** : ses coups étaient écrits pose à pose
+  (poings, lames, coudes posés à la main, reliés par des courbes) — exactement ce que l'utilisateur refuse (poignets cassés,
+  mouvement non fluide) ; ni ses poses ni ses changements de `mains.gd` / `profils_animation.gd` ne sont repris (seuls ses outils de
+  mesure / film le sont : `outils/mesures_coups_v5.gd`, `outils/film_claymore_v5.gd`).
+  - **Méthode = coups d'épée v6** (`coup_a6` …) : `CLIPS_MX_2M_V6` dans `sources_blender/scripts/gestes_2mains.py`, joués par
+    `anim_bras_epee.creer_action_mixamo` : capture Great Sword retargetée par directions, main en orientation anatomique, poignet
+    résolu dans des butées, torsion d'avant-bras qui absorbe la rotation, fondu en S depuis / vers la tenue, + surcouches v6
+    (`POIGNET_2M` poignet verrouillé, `arc` guidé pendant la frappe, `creux`). AUCUNE pose écrite à la main ; mêmes extraits et
+    réglages de cadrage que la v4, seule la TABLE DE TEMPS change (structure des clips d'épée v6 : armé = fondu vers l'image d'armé
+    de la capture, la partie RAPIDE de la capture — vitesse mesurée image par image — tombe dans la fenêtre de frappe, suivi, retour
+    en S). Extraits : c2_a gs_slash 16 → 23 ; c2_b gs_slash_2 47 → 60 ; c2_c gs_slash_2 18 → 28,8 ; charge_2m 10 → 21 ;
+    lourd_2m 21 → 29,3. Marqueurs des coups légers 0,10 / 0,14 / 0,25 / 0,31 / 0,47 ; lourd_2m 0,02 / 0,03 / 0,15 / 0,21 / 0,46.
+  - **Poignet** : verrou f -28..4, r -40..-14 autour de la tenue repos_2m (f -18, r -44) : pendant les coups le poignet est PLUS
+    droit qu'au repos (cassure 16-44° dans la frappe, jamais au-delà des 47-49° de la tenue ; v4 : bascule de -44° cubital à +15°
+    radial, écart à la tenue 57-75°). Butées v3/v4 gardées pour garde_2m (inchangée).
+  - **Bord des clips = la tenue exacte** : la v4 reprenait la tenue avec k, f, r fixés mais sans l'angle du coude ni le point de départ
+    du solveur (bord à 150 px de la tenue, saut vers la garde à la fin de chaque coup) ; v6 : clé « tenue_exacte » (même résolution
+    que le clip repos_2m), raccord 0 px.
+  - Coup 1 : roulis du bras -30 → -10° (avec le poignet verrouillé, la lame finissait couchée pommeau à droite, main gauche à
+    11,5 cm de la fusée) ; c2_c / lourd_2m : suivi arrêté à l'image 28,8 (mains moins longtemps sous le cadre).
+  - **Mesures** (jeu, `mesures_coups_v5.gd`, colonne poignet ajoutée) : coup léger 1,53 → 0,95 s, combo 1-2-3 3,62 → 2,17 s,
+    puissante après relâchement 1,47 → 0,90 s ; à-coups hors frappe (léger) 125 → 24 px/img² (épée v6 : 32), combo 471 → 128
+    (épée 407) ; main gauche ≤ 8,6 cm de la fusée. Détail : `Desktop/Skyrim captures/claymore_v6/mesures.txt`.
+  - Outils : `gestes_2mains.py -- --godot [--mesurer] [--v4] [--essai=<json>]` ; `outils/film_claymore_v6.gd` (`--film`,
+    `--fps=240` avec `--fixed-fps 240` = vrai ralenti × 0,25, `--gros-plan` caméra sur le poignet droit).
+  - Limites : `test_coups_tps` (3e personne) échoue sur la pose finale de la main gauche au début de l'armé de chaque coup (33 cm,
+    retombe sous 6 cm ensuite ; base v4 : 12 cm, déjà en échec) : la 3e personne joue son armé plus vite (calé sur les marqueurs
+    FPS) et une couche après CorpsCoupsTps décale la main gauche (pas la couche de tenue de CorpsMainsTps : essayé) — à reprendre
+    côté 3e personne ; armé du coup 1 court (la lame se lève peu avant de tomber) ; mains sous le cadre à la fin des coups 1 et 3
+    (14-36 images, comme l'épée v6 : 9-28 ; v4 : 28-50).
+
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
 (≈ 35° de la verticale à l'écran, pointe vers le centre haut), tranchant (−0,9 ; 0 ; −0,6) (plat et garde en croix
