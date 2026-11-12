@@ -19,6 +19,11 @@ extends SceneTree
 ##   poignet    : (ajout claymore v6) angle du poignet droit à chaque image, dans le jeu : angle entre l'axe de la main (os hand_r,
 ##                +Y) et l'axe de l'avant-bras (tête de lowerarm_r -> tête de hand_r), en degrés ; max sur le geste, max pendant la
 ##                frappe, plus grande variation d'une image à l'autre (poignet qui « claque »).
+##   poignets   : (claymore v6, coup 2) flexion (+ extension, vers le dos de la main) et déviation (+ radiale, vers le pouce) des
+##                poignets DROIT et GAUCHE, pose APRÈS les modificateurs (IK de la main gauche comprise) : BoneAttachment3D sur
+##                lowerarm / hand / index_01 / pinky_01 ; même calcul que sur les captures (axe avant-bras, axe main = poignet ->
+##                milieu index-auriculaire, côté pouce = auriculaire -> index). Max sur le geste, variation max à la tenue.
+## --seq=leger,coup2,combo,puissant : séquences jouées (coup2 = le 2e coup du combo joué seul, depuis la tenue).
 const SCENE := preload("res://scenes/test_combat.tscn")
 const DT := 1.0 / 60.0
 const ORIGINE := Vector3(-12.0, 0.0, 6.0)
@@ -54,6 +59,31 @@ func _ecran(p_local: Vector3) -> Vector2:
 	var z := maxf(-p.z, 0.25)
 	return Vector2(p.x / z / ProfilsAnimation.TAN_H * 240.0, -p.y / z / ProfilsAnimation.TAN_V * 135.0)
 
+var _att := {}
+
+func _attaches() -> void:
+	var sq: Skeleton3D = mains._sq
+	print("MESURE5 squelette des bras : ", sq.get_path(), " os hand_l=", sq.find_bone("hand_l"), " index_01_l=", sq.find_bone("index_01_l"))
+	for c in ["l", "r"]:
+		for o in ["lowerarm", "hand", "index_01", "pinky_01"]:
+			var b := BoneAttachment3D.new()
+			b.bone_name = "%s_%s" % [o, c]
+			sq.add_child(b)
+			_att["%s_%s" % [o, c]] = b
+
+## [flexion, déviation] (degrés) du poignet `c` (« r » / « l »), pose affichée.
+func _poignet(c: String) -> Vector2:
+	var coude: Vector3 = _att["lowerarm_" + c].global_position
+	var p: Vector3 = _att["hand_" + c].global_position
+	var ix: Vector3 = _att["index_01_" + c].global_position
+	var au: Vector3 = _att["pinky_01_" + c].global_position
+	var a := (p - coude).normalized()
+	var h := ((ix + au) * 0.5 - p).normalized()
+	var x := ix - au
+	var e2 := (x - a * x.dot(a)).normalized()
+	var e3 := a.cross(e2) if c == "r" else e2.cross(a)
+	return Vector2(rad_to_deg(atan2(h.dot(e3), h.dot(a))), rad_to_deg(atan2(h.dot(e2), h.dot(a))))
+
 func _echantillon(t: float) -> Dictionary:
 	var pe: Transform3D = mains.pivot_epee.transform
 	var sq: Skeleton3D = mains._sq
@@ -62,7 +92,7 @@ func _echantillon(t: float) -> Dictionary:
 	var th := sq.get_bone_global_pose(ih)
 	var axe_ab := (th.origin - sq.get_bone_global_pose(il).origin).normalized()
 	var cass := rad_to_deg(acos(clampf(th.basis.y.normalized().dot(axe_ab), -1.0, 1.0)))
-	var d := {"cass": cass, "t": t, "etat": int(mains.combat.etat), "clip": String(mains.anim.clip), "tc": float(mains.anim.t),
+	var d := {"cass": cass, "wd": _poignet("r"), "wg": _poignet("l"), "t": t, "etat": int(mains.combat.etat), "clip": String(mains.anim.clip), "tc": float(mains.anim.t),
 		"p": _ecran(pe * mains._garde_lame.lerp(mains._pointe_lame, 0.6)), "g": _ecran(pe * mains._garde_lame), "pp": _ecran(pe * mains._pointe_lame), "mg": -1.0}
 	if mains.arme != null and mains.arme.deux_mains:
 		var poing_g: Vector3 = mains._accroche_g.global_transform * mains.PRISE_G.origin
@@ -86,8 +116,11 @@ func _remettre() -> void:
 
 ## Joue une séquence : `clics` = [[instant (s), maintien (s)], ...] ; ou « au plus tôt » (n clics, un par coup, dès que le coup
 ## précédent a commencé). S'arrête au retour au repos. Renvoie les échantillons (avec 10 images de repos avant).
-func _sequence(nom: String, clics: Array, au_plus_tot := 0) -> Array:
+func _sequence(nom: String, clics: Array, au_plus_tot := 0, combo_depart := 0) -> Array:
 	await _remettre()
+	if combo_depart > 0:
+		mains._combo = combo_depart
+		mains._depuis_coup = 0.0
 	var ech: Array = []
 	for i in 10:
 		ech.append(_echantillon(-0.1667 + i * DT))
@@ -243,6 +276,21 @@ func _analyser(nom: String, ech: Array, n_coups: int) -> void:
 			c_frappe = maxf(c_frappe, float(ech[i]["cass"]))
 		if i > 0:
 			c_var = maxf(c_var, absf(float(ech[i]["cass"]) - float(ech[i - 1]["cass"])))
+	var pdx := Vector2.ZERO
+	var pgx := Vector2.ZERO
+	var pdv := Vector2.ZERO
+	var pgv := Vector2.ZERO
+	var pd0: Vector2 = ech[0]["wd"]
+	var pg0: Vector2 = ech[0]["wg"]
+	for e in ech:
+		var a: Vector2 = e["wd"]
+		var b: Vector2 = e["wg"]
+		pdx = Vector2(maxf(pdx.x, absf(a.x)), maxf(pdx.y, absf(a.y)))
+		pgx = Vector2(maxf(pgx.x, absf(b.x)), maxf(pgx.y, absf(b.y)))
+		pdv = Vector2(maxf(pdv.x, absf(a.x - pd0.x)), maxf(pdv.y, absf(a.y - pd0.y)))
+		pgv = Vector2(maxf(pgv.x, absf(b.x - pg0.x)), maxf(pgv.y, absf(b.y - pg0.y)))
+	print("MESURE5 %s %-22s poignet DROIT tenue f%+.0f d%+.0f, max |f| %.0f |d| %.0f, ecart a la tenue f %.0f d %.0f | GAUCHE tenue f%+.0f d%+.0f, max |f| %.0f |d| %.0f, ecart f %.0f d %.0f" % [
+		etiq, nom, pd0.x, pd0.y, pdx.x, pdx.y, pdv.x, pdv.y, pg0.x, pg0.y, pgx.x, pgx.y, pgv.x, pgv.y])
 	var mg_max := -1.0
 	var mg_moy := 0.0
 	var mg_n := 0
@@ -256,9 +304,9 @@ func _analyser(nom: String, ech: Array, n_coups: int) -> void:
 		bosses, n_coups, acc_hors, acc_hors_t, saut, saut_t, rebonds, float(ech[i_calme]["t"]) - total, residu, mg_max, mg_moy / maxf(mg_n, 1), c_max, float(ech[0]["cass"]), c_frappe, c_var])
 	if csv != "":
 		var f := FileAccess.open(csv.path_join("%s_%s.csv" % [etiq, nom.replace(" ", "_")]), FileAccess.WRITE)
-		f.store_line("t;etat;clip;tc;px;py;gx;gy;actif;main_g_cm;poing_g/cible_g;poignet_deg")
+		f.store_line("t;etat;clip;tc;px;py;gx;gy;actif;main_g_cm;poing_g/cible_g;poignet_deg;poignetD_flex;poignetD_dev;poignetG_flex;poignetG_dev")
 		for e in ech:
-			f.store_line("%.4f;%d;%s;%.4f;%.2f;%.2f;%.2f;%.2f;%d;%.2f;%s;%.1f" % [e["t"], e["etat"], e["clip"], e["tc"], e["p"].x, e["p"].y, e["g"].x, e["g"].y, 1 if e.get("actif", false) else 0, e["mg"], e.get("xg", ""), e["cass"]])
+			f.store_line("%.4f;%d;%s;%.4f;%.2f;%.2f;%.2f;%.2f;%d;%.2f;%s;%.1f;%.1f;%.1f;%.1f;%.1f" % [e["t"], e["etat"], e["clip"], e["tc"], e["p"].x, e["p"].y, e["g"].x, e["g"].y, 1 if e.get("actif", false) else 0, e["mg"], e.get("xg", ""), e["cass"], e["wd"].x, e["wd"].y, e["wg"].x, e["wg"].y])
 		f.close()
 
 func _go() -> void:
@@ -280,9 +328,16 @@ func _go() -> void:
 	for i in 10:
 		await physics_frame
 	mains.pas_manuel = true
+	var seqs := _arg("seq", "leger,combo,puissant").split(",")
 	for id in ["epee_metal", "claymore"]:
 		mains.equipement.equiper("droite", CatalogueArmes.donnees(id) if CatalogueArmes.connu(id) else load("res://data/armes/%s.tres" % id))
 		await _images(60)
+		for b in _att.values():
+			if is_instance_valid(b):
+				b.queue_free()
+		_att.clear()
+		_attaches()
+		await _images(2)
 		var a: DonneesArme = mains.arme
 		var combo: Array = ProfilsAnimation.profil(a.profil)["combo"]
 		print("MESURE5 %s arme %s : vitesse=%.2f preparation=%.2f recuperation=%.2f combo=%s" % [etiq, id, a.vitesse, a.preparation, a.recuperation, str(combo)])
@@ -301,11 +356,17 @@ func _go() -> void:
 		for c in clips:
 			var L: float = mains.anim.longueur(c)
 			print("MESURE5 %s raccord %s %s : debut-repos=%.1f px, fin-repos=%.1f px" % [etiq, id, c, (lame.call(c, 0.0) - r0).length(), (lame.call(c, L) - r0).length()])
-		var e1 := await _sequence(id + " leger", [[0.0, 0.05]])
-		_analyser(id + " leger", e1, 1)
-		var ec := await _sequence(id + " combo", [], combo.size())
-		_analyser(id + " combo", ec, combo.size())
-		var ep := await _sequence(id + " puissant", [[0.0, 0.9]])
-		_analyser(id + " puissant", ep, 1)
+		if "leger" in seqs:
+			var e1 := await _sequence(id + " leger", [[0.0, 0.05]])
+			_analyser(id + " leger", e1, 1)
+		if "coup2" in seqs:
+			var e2 := await _sequence(id + " coup2", [[0.0, 0.05]], 0, 1)
+			_analyser(id + " coup2", e2, 1)
+		if "combo" in seqs:
+			var ec := await _sequence(id + " combo", [], combo.size())
+			_analyser(id + " combo", ec, combo.size())
+		if "puissant" in seqs:
+			var ep := await _sequence(id + " puissant", [[0.0, 0.9]])
+			_analyser(id + " puissant", ep, 1)
 	print("FIN_MESURES5")
 	quit(0)

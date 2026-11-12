@@ -1856,16 +1856,44 @@ func _poser_deux_mains(dt: float) -> void:
 	var y := maxf(_milieu_d - arme.ecart_mains, arme.fusee_bas)
 	var prise := Transform3D(Basis(Vector3.UP, deg_to_rad(arme.rotation_main_gauche)), Vector3(0.0, y, 0.0))
 	pivot_torche.transform = pivot_epee.transform * prise
-	_coude_g.position = arme.coude_gauche_2m
 	# poignet visé (cible de l'IK) hors de portée : l'épaule gauche avance d'autant vers lui (bornée) — le buste tourne vers la
 	# poignée, comme un vrai geste à deux mains ; sans quoi la main gauche resterait à quelques cm de la fusée
-	var poignet := (pivot_torche.transform * PRISE_G.affine_inverse()).origin
+	var main_g := pivot_torche.transform * PRISE_G.affine_inverse()   # repère voulu de hand_l (repère des mains)
+	var poignet := main_g.origin
 	var v := poignet - _epaule_g
 	var manque := v.length() - (_l_bras + _l_avant_bras) * ALLONGE_G_2M
 	var dec := Transform3D()
 	if manque > 0.0:
 		dec.origin = v.normalized() * minf(manque, AVANCE_EPAULE_G_MAX)
 	_avance_epaule_g.set("decalage", _bras_base.affine_inverse() * dec * _bras_base)
+	_coude_g.position = _pole_coude_g_2m(main_g, _epaule_g + dec.origin, dt)
+
+## Claymore v6 (coup 2, retour utilisateur 2026-11-12 : « le coup de gauche à droite casse encore le poignet ») : POIGNET GAUCHE DANS
+## L'AXE DE L'AVANT-BRAS. La main gauche est orientée par la fusée (orienteur de poignet) ; avec un pôle de coude FIXE
+## (arme.coude_gauche_2m), quand la lame balaie de gauche à droite l'avant-bras restait orienté vers le bas-gauche et tout l'écart
+## passait dans le poignet (mesuré : déviation jusqu'à 45-58° de plus que la tenue). Le pôle est maintenant le coude qui mettrait
+## l'avant-bras dans le prolongement de la main (poignet - axe de la main × longueur de l'avant-bras), écarté de l'axe épaule-
+## poignet : l'IK choisit, parmi les coudes possibles, celui qui redresse le poignet ; pôle fixe quand ce coude est sur l'axe
+## (bras tendu, plan indéfini) ; lissé (pas de saut de coude). Aucune pose : une contrainte anatomique de l'IK.
+var _pole_g_2m := Vector3.ZERO
+var _pole_g_2m_ok := false
+
+func _pole_coude_g_2m(main_g: Transform3D, epaule: Vector3, dt: float) -> Vector3:
+	var fixe: Vector3 = arme.coude_gauche_2m
+	var w := main_g.origin
+	var axe_main := main_g.basis.y.normalized()           # os hand_l : +Y vers les doigts
+	var ideal := w - axe_main * _l_avant_bras            # coude d'un poignet droit
+	var sw := (w - epaule)
+	var dir_sw := sw.normalized() if sw.length() > 1e-4 else Vector3.FORWARD
+	var milieu := epaule + dir_sw * dir_sw.dot(ideal - epaule)
+	var perp := ideal - milieu
+	var voulu := fixe
+	if perp.length() > 0.02:
+		voulu = ideal + perp.normalized() * 0.25
+	var k := 1.0 - exp(-30.0 * dt)
+	_pole_g_2m = voulu if not _pole_g_2m_ok else _pole_g_2m.lerp(voulu, k)
+	_pole_g_2m_ok = true
+	return _pole_g_2m
 	porte_torche.visible = false
 	for fl in flammes:
 		fl.emitting = false

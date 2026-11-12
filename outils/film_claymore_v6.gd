@@ -83,6 +83,23 @@ func _film() -> void:
 	mains._combo = 0
 	_texte("%s : garde" % etiq)
 	await _attendre(0.6)
+	if _arg("coup2") != "":
+		# coup 2 du combo (gauche -> droite) joué SEUL depuis la tenue, puis pause
+		_texte("%s : coup 2 seul" % etiq)
+		mains._combo = 1
+		mains._depuis_coup = 0.0
+		mains.entrees.appuyer()
+		await process_frame
+		mains.entrees.relacher()
+		var tc := 0.0
+		while tc < 4.0 and not (tc > 0.3 and mains.combat.calme()):
+			await process_frame
+			j.vigueur = j.vigueur_max
+			tc += DT
+		print("FILM coup2 %.2f s" % tc)
+		await _attendre(0.8)
+		mains._depuis_coup = 9.0
+		mains._combo = 0
 	_texte("%s : combo complet (clics au plus tôt)" % etiq)
 	var n: int = ProfilsAnimation.profil(mains.arme.profil)["combo"].size()
 	var clics := 0
@@ -128,11 +145,39 @@ var _cam_gp: Camera3D
 ## visée sur le poignet ; suit la main à chaque image (après les mains : priorité de traitement basse).
 func _installer_gros_plan() -> void:
 	_cam_gp = Camera3D.new()
-	_cam_gp.fov = 40.0
+	_cam_gp.fov = 40.0 if _arg("gros-plan") != "2" else 55.0
 	_cam_gp.near = 0.01
 	s.add_child(_cam_gp)
 	_cam_gp.current = true
+	if _arg("gros-plan") == "2":
+		# les DEUX poignets, vus de face (devant les mains, un peu en dessous), éclairés par une lampe posée sur la caméra
+		var l1 := OmniLight3D.new()
+		l1.light_energy = 2.5
+		l1.omni_range = 3.0
+		l1.light_cull_mask = 0xFFFFFFFF
+		l1.shadow_enabled = false
+		_cam_gp.add_child(l1)
+		l1.position = Vector3(0.15, 0.25, 0.0)
+		var l2 := OmniLight3D.new()
+		l2.light_energy = 1.2
+		l2.omni_range = 3.0
+		l2.light_cull_mask = 0xFFFFFFFF
+		_cam_gp.add_child(l2)
+		l2.position = Vector3(-0.3, -0.1, 0.1)
+		process_frame.connect(_suivre_deux_poignets)
+		return
 	process_frame.connect(_suivre_gros_plan)
+
+func _suivre_deux_poignets() -> void:
+	var sq: Skeleton3D = mains._sq
+	var pd: Vector3 = mains._accroche_d.global_position
+	var pg: Vector3 = mains._accroche_g.global_position
+	var vise := (pd + pg) * 0.5
+	var b: Basis = j.camera.global_transform.basis
+	# devant les mains (vers ce que regarde le joueur), un peu sur la droite et en dessous : on voit l'intérieur des deux poignets
+	var pos := vise - b.z * 0.55 + b.x * 0.12 - b.y * 0.08
+	_cam_gp.global_position = pos
+	_cam_gp.look_at(vise, b.y)
 
 func _suivre_gros_plan() -> void:
 	var sq: Skeleton3D = mains._sq
