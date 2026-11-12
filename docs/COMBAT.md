@@ -441,6 +441,9 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
   (lames un peu plus épaisses, comme la v2). Planches : `outils/captures_armes_hd.gd` (générique : `AVANT[id]` = modèle
   d'origine, après = catalogue ; vues entière, 3/4, garde, pommeau, lame, 1re personne jour et nuit ; superposition ; famille).
   Essai rejeté : garde à section « losange adouci » (`garde_hd`, gardée dans le script) : faces trop molles, moins nettes.
+  Lot 2 (haches, marteaux, masse, boucliers Quaternius) NON fait : une passe générique (chanfrein des arêtes vives + manche
+  reconstruit, 4,5-18 k tris) gardait la forme à 95-100 % mais ne se voyait pas en rendu -> rejetée ; il faut une modélisation
+  dédiée par arme (mesurée comme les lames). Captures « avant » : Desktop/Skyrim captures/quaternius_hd/brut/.
 
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
