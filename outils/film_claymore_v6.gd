@@ -73,6 +73,8 @@ func _go() -> void:
 		await _planche()
 	if _arg("gros-plan") != "":
 		_installer_gros_plan()
+	if _arg("vue-derriere") != "":
+		_installer_vue_derriere(_arg("vue-derriere"))
 	if _arg("film") != "":
 		await _film()
 	print("FIN_FILM_V6")
@@ -167,6 +169,32 @@ func _installer_gros_plan() -> void:
 		process_frame.connect(_suivre_deux_poignets)
 		return
 	process_frame.connect(_suivre_gros_plan)
+
+## --vue-derriere=d|g : 1re personne VUE DE DOS — caméra 0,6 m derrière la tête du joueur, 0,25 m au-dessus, décalée de 0,2 m
+## vers l'épaule droite (d) ou gauche (g), qui regarde dans la même direction que la caméra du joueur (inclinée de 20° vers le bas) ; deux lampes (bras lisibles).
+var _cote_derriere := 1.0
+
+func _installer_vue_derriere(cote: String) -> void:
+	_cote_derriere = -1.0 if cote == "g" else 1.0
+	_cam_gp = Camera3D.new()
+	_cam_gp.fov = 55.0
+	_cam_gp.near = 0.02
+	s.add_child(_cam_gp)
+	_cam_gp.current = true
+	for r in [[Vector3(0.3 * _cote_derriere, 0.4, 0.2), 2.2], [Vector3(-0.3 * _cote_derriere, 0.0, -0.6), 1.2]]:
+		var l := OmniLight3D.new()
+		l.light_energy = r[1]
+		l.omni_range = 4.0
+		l.light_cull_mask = 0xFFFFFFFF
+		_cam_gp.add_child(l)
+		l.position = r[0]
+	process_frame.connect(_suivre_derriere)
+
+func _suivre_derriere() -> void:
+	# même direction que la caméra du joueur, inclinée de 20° vers le bas : les bras (sous la caméra) restent dans le cadre
+	var t: Transform3D = j.camera.global_transform
+	var b := t.basis * Basis(Vector3.RIGHT, deg_to_rad(-20.0))
+	_cam_gp.global_transform = Transform3D(b, t.origin + t.basis.z * 0.6 + t.basis.y * 0.25 + t.basis.x * 0.2 * _cote_derriere)
 
 func _suivre_deux_poignets() -> void:
 	var sq: Skeleton3D = mains._sq
