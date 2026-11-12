@@ -272,9 +272,9 @@ CLIPS_MX_2M_V6 = {
     # 1 : gs_slash, armé image 16 (lame en diagonale au-dessus de l'épaule droite, comme l'armé de la v4 ; les images 12-16, lame
     # qui monte vers la caméra, sont sautées comme l'armé derrière la tête de l'épée v6), rapide 16 -> 22 (pic 18-21)
     "c2_a": _v6(CLIPS_MX_2M["c2_a"], [(16, 0.0), (16, 0.09), (16.5, 0.14), (22, 0.25), (22.6, 0.31), (23, 0.40), (23, 0.47)], (0.10, 0.27), ARC_LEGER),
-    # 2 : horizontal GAUCHE -> DROITE (refait le 2026-11-12, « le coup de gauche à droite casse encore le poignet ») : voir
-    # C2B_V6 plus bas (gs_slash_2 images 4 -> 10, le 1er balayage de la capture, poignets de la capture presque fixes).
-    "c2_b": _v6(CLIPS_MX_2M["c2_b"], [(4, 0.0), (4, 0.08), (5, 0.14), (8, 0.25), (9, 0.31), (10, 0.40), (10, 0.47)], (0.10, 0.27), ARC_LEGER,
+    # 2 : GAUCHE -> DROITE montant (corrigé le 2026-11-12, « le coup de gauche à droite casse encore le poignet ») : même extrait
+    # (gs_slash_2 images 47 -> 60), poignet droit verrouillé à ±5° de la tenue, roulis_prise 90 supprimé : voir C2B_V6 plus bas.
+    "c2_b": _v6(CLIPS_MX_2M["c2_b"], [(47, 0.0), (47, 0.08), (50, 0.14), (56, 0.25), (57.5, 0.31), (60, 0.40), (60, 0.47)], (0.10, 0.27), ARC_LEGER,
                 poignet=((-23, -13), (-44, -34))),
     # 3 : gs_slash_2, 1er coup, armé image 18 (presque immobile à 17-18), rapide 20 -> 28 (pic 22-25) ; suivi arrêté à l'image
     # 28,8 (les images 29-31 emmènent les mains sous le cadre ; idem pour la puissante)
@@ -289,20 +289,19 @@ CLIPS_MX_2M_V6["charge_2m"]["plein"] = (0.30, 0.55)
 # couchée à l'horizontale, pommeau à droite : main gauche à 11,5 cm de la fusée, mains sous le cadre ; à -10° : 8,7 cm, lame
 # qui finit en bas à gauche comme le coup 1 de l'épée v6)
 CLIPS_MX_2M_V6["c2_a"]["cadrage"] = (0, 35, -10)
-# 2 (C2B_V6) : choisi sur MESURES parmi les balayages gauche -> droite des captures Great Sword (azimut de la lame +60° et plus,
-# lame proche de l'horizontale ; outils hors dépôt : vitesse, sens du balayage vu de la caméra, flexion / déviation des DEUX poignets
-# de la capture image par image) puis retargeté et mesuré dans le jeu (mesures_coups_v5 --seq=coup2) :
-#   ancien gs_slash_2 46-60 (fin d'un enchaînement en vrille, corps qui tourne de 360°) : poignet droit de la capture de -44 à +77°
-#   de flexion ; dans le jeu, poignet droit à 42° de la tenue en flexion, poignet gauche à 45-49° en déviation ;
-#   gs_slash_2 4-10 (1er balayage) : poignets de la capture à ±15° ; dans le jeu 5° / 11° (droit), 14° de déviation (gauche).
-#   Écartés : gs_spin 44-50 (la lame repart vers la gauche), gs_kick_2 8-16 et gs_slash_4 27-33 (lame qui monte ou passe derrière la
-#   tête, balayage < 0,3 écran), gs_slash_3 (balayage droite -> gauche).
-# La capture commence face à l'avant : le bras est tourné de 60° vers la GAUCHE autour de l'épaule pendant l'armé (lame au-dessus de
-# l'épaule gauche) puis revient à 0° pendant la frappe (« balayage », comme le revers de l'épée v6 coup_b : la rotation du buste
-# porte le coup) ; bras moins relevé (tangage 15° au lieu de 30) : trajet horizontal à hauteur de poitrine. roulis_prise 90 SUPPRIMÉ
-# (la rotation de la prise passait dans le poignet) : le plat tourne par la torsion de l'avant-bras ; poignet verrouillé à ±5° de la
-# tenue (f -23..-13, r -44..-34).
-CLIPS_MX_2M_V6["c2_b"].update(roulis_prise=0, centre=6, cadrage=(0, 15, 0), balayage=(60, 0, 0.12, 0.25))
+# 2 (C2B_V6) : candidats mesurés (2026-11-12) parmi les balayages gauche -> droite des captures Great Sword (azimut de la lame
+# +60° et plus ; sens du balayage vu de la caméra, vitesse, flexion / déviation des DEUX poignets de la capture image par image ;
+# outils hors dépôt), puis retargetés et mesurés dans le jeu (mesures_coups_v5 --seq=coup2, deux poignets après l'IK) :
+#   gs_slash_2 47-60 (2e coup)  : seul candidat dont l'ARMÉ est à gauche (lame pointée à gauche, au-dessus de l'épaule gauche) et
+#                                 qui traverse l'écran ; la capture tourne le buste et casse son poignet (flexion -44 -> +77°) : on
+#                                 ne la suit PAS au poignet (verrou ±5° autour de la tenue), la torsion de l'avant-bras (29 -> 57°)
+#                                 et le bras portent la rotation. Jeu : poignet droit 16° / 11° de la tenue (v6 : 42° / 29°).
+#   gs_slash_2 4-10 (1er coup)  : poignets de la capture à ±15°, mais part de face (pas d'armé à gauche) : avec un balayage du
+#                                 buste de 60°, lame VERTICALE qui glisse de gauche à droite (« essuie-glace ») : rejeté sur film.
+#   gs_spin 43-50               : mains sous le cadre (garde y -6,6) ; gs_kick_2 8-16, gs_slash_4 27-33 : lame qui monte ou passe
+#                                 derrière la tête, balayage < 0,3 écran ; gs_slash_3 : droite -> gauche.
+# roulis_prise 90 SUPPRIMÉ : il faisait tourner la prise dans la main, rotation que le poignet absorbait (mesuré : 42° de flexion).
+CLIPS_MX_2M_V6["c2_b"].update(roulis_prise=0)
 import json as _json
 _essai = NS["ARGS"].get("essai", "")   # --essai=<fichier.json> : essais de réglage des clips v6 sans modifier ce fichier
 for _n, _r in (_json.load(open(_essai, encoding="utf-8")) if _essai else {}).items():
