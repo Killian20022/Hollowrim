@@ -36,6 +36,9 @@ const VARIANTES := ["metal", "or", "rubis", "verre", "obsidienne"]
 ## L9 : épées uniques (même repère et mêmes matériaux, hors des cinq de la planche) : assets/modeles/armes/epees/<nom>.glb.
 const UNIQUES := ["skarnholt"]
 const DOSSIER := "res://assets/modeles/armes/epees/"
+## Épées longues HD (2026-11-12, sources_blender/epees_longues_hd) : même forme, même repère, 7-9,5 k tris ; préférées par instancier().
+## Les originaux restent dans DOSSIER (retour arrière : remettre les `modele` des data/armes/epee_*.tres).
+const DOSSIER_HD := "res://assets/modeles/armes/epees/hd/"
 
 ## Stats d'exemple de la planche (dégâts, vitesse, poids) : indicatif, pour le code de combat.
 const STATS := {
@@ -90,6 +93,17 @@ const MATIERES := {
 	"saphir": {"teinte": Color(1.0, 1.0, 1.08), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.44, "opacite": 0.88, "reflet": Color(0.92, 0.96, 1.04)},
 	"emeraude": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.8, "poli": 1.0, "profondeur": 0.04, "lueur": 0.18, "reflet": Color(0.92, 1.0, 0.95)},
 	"obsidienne": {"teinte": Color(0.95, 0.95, 1.0), "metal": 0.12, "bord": 0.85, "poli": 1.0, "reflet": Color(0.88, 0.84, 1.0), "l9": [0.7, 0.03], "reflet_l9": Color(0.8, 0.72, 1.0)},
+	# ÉPÉES LONGUES HD (assets/modeles/armes/epees/hd/, 2026-11-12) : matières propres aux six épées refaites (noms « *_hd » dans
+	# leurs glb), même texture que la matière de base, brillance relevée : fil d'acier qui accroche la lumière (éclat L9 plus fort et
+	# fil constant visible), fer forgé plus métallique sur les pans chanfreinés, or plus chaud, rubis / verre plus profonds (moins de
+	# lueur propre, plus de bord vitreux et de profondeur), obsidienne noire aux reflets vitreux francs. Les autres armes ne changent pas.
+	"lame_hd": {"teinte": Color(1.08, 1.08, 1.1), "metal": 0.86, "poli": 0.92, "reflet": Color(0.96, 1.0, 1.06), "l9": [1.0, 0.07], "l9_largeur": 0.055},
+	"lame_or_hd": {"teinte": Color(1.06, 1.01, 0.95), "metal": 0.8, "poli": 0.8, "reflet": Color(1.1, 0.93, 0.64), "l9": [0.95, 0.06], "reflet_l9": Color(1.0, 0.9, 0.62), "l9_largeur": 0.055},
+	"fer_hd": {"teinte": Color(1.02, 1.02, 1.05), "boite": 6.0, "metal": 0.64, "poli": 0.58, "bord": 0.1, "reflet": Color(0.95, 0.97, 1.03)},
+	"or_hd": {"teinte": Color(1.04, 1.0, 0.94), "boite": 4.0, "metal": 0.84, "poli": 0.74, "bord": 0.08, "reflet": Color(1.12, 0.92, 0.6)},
+	"rubis_hd": {"teinte": Color(1.08, 1.0, 1.0), "bord": 0.75, "poli": 1.0, "metal": 0.08, "profondeur": 0.08, "lueur": 0.3, "opacite": 0.8, "reflet": Color(1.0, 0.92, 0.94)},
+	"verre_hd": {"teinte": Color(1.0, 1.06, 1.0), "bord": 0.8, "poli": 1.0, "metal": 0.06, "profondeur": 0.08, "lueur": 0.3, "opacite": 0.68, "reflet": Color(0.92, 1.04, 0.96)},
+	"obsidienne_hd": {"teinte": Color(0.9, 0.9, 0.96), "metal": 0.16, "bord": 1.0, "poli": 1.0, "reflet": Color(0.86, 0.82, 1.0), "l9": [0.9, 0.05], "reflet_l9": Color(0.82, 0.74, 1.0), "l9_largeur": 0.055},
 }
 
 static var _mats := {}
@@ -98,7 +112,8 @@ static var _shader_verre: Shader
 
 ## Instance habillée de la variante (« metal », « or », « rubis », « verre », « obsidienne »).
 static func instancier(variante: String) -> Node3D:
-	var e: Node3D = load(DOSSIER + variante + ".glb").instantiate()
+	var hd := DOSSIER_HD + variante + ".glb"
+	var e: Node3D = load(hd if ResourceLoader.exists(hd) else DOSSIER + variante + ".glb").instantiate()
 	e.name = "epee_" + variante
 	habiller(e)
 	return e
@@ -164,6 +179,13 @@ static func materiaux() -> Dictionary:
 		"verre": _verre(_cristal(EMERAUDE, 57), 0.5),
 		"emeraude": _matiere("emeraude", _cristal_profond(EMERAUDE, 5)),
 		"obsidienne": _matiere("obsidienne", _obsidienne()),
+		"lame_hd": _matiere("lame_hd", acier),
+		"lame_or_hd": _matiere("lame_or_hd", _lame_or_patine(acier)),
+		"fer_hd": _matiere("fer_hd", _fer_forge(false)),
+		"or_hd": _matiere("or_hd", _or_patine(false)),
+		"rubis_hd": _matiere("rubis_hd", _cristal_profond(RUBIS_PROFOND, 41)),
+		"verre_hd": _matiere("verre_hd", _cristal_profond(EMERAUDE, 57)),
+		"obsidienne_hd": _matiere("obsidienne_hd", _obsidienne()),
 		"veine": _lueur(ImageTexture.create_from_image(_veine()), Color.WHITE, 1.4),
 		"entrelacs": Palette.materiau(ImageTexture.create_from_image(_entrelacs()), Vector2.ONE, Color(1.12, 1.06, 0.98)),
 	}
@@ -188,7 +210,7 @@ static func _matiere(nom: String, img: Image) -> ShaderMaterial:
 	m.set_shader_parameter("reflet_force", l9[0])
 	m.set_shader_parameter("reflet_fil", l9[1])
 	m.set_shader_parameter("reflet_couleur", p.get("reflet_l9", Color(0.86, 0.93, 1.0)))
-	m.set_shader_parameter("reflet_largeur", 0.045)
+	m.set_shader_parameter("reflet_largeur", float(p.get("l9_largeur", 0.045)))
 	return m
 
 # ------------------------------------------------------------------ variantes du shader ps1
