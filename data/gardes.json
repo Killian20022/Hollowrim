@@ -17,8 +17,8 @@
     "lancier": {"ensemble": "fer", "arme": "lance", "tabard": "tabard_skarnholt"},
     "epee": {"ensemble": "acier", "arme": "epee", "tabard": "tabard_skarnholt"},
     "archer": {"ensemble": "cuir", "arme": "arc"},
-    "elite": {"ensemble": "verre", "arme": "epee", "bouclier": ""},
-    "chef": {"ensemble": "or", "arme": "epee", "bouclier": ""}
+    "elite": {"ensemble": "acier", "arme": "epee", "bouclier": "", "tabard": "tabard_skarnholt"},
+    "chef": {"ensemble": "acier", "arme": "epee", "bouclier": "", "tabard": "tabard_skarnholt"}
   },
   "haldor": {"role": "epee", "pieces": {"tete": "casque_acier_nordique"}},
   "interpellations": [
