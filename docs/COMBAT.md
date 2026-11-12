@@ -425,6 +425,24 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
   l'original (outil : `_superposition_rouge_original_cyan_v2.png`). Tris : soldat 5 024, sabre 5 398, dorée 6 512, dague 3 676.
   Repères exactement ceux d'origine (dague : garde 0,1041, pointe (0,013 ; 0,4473)). Lames un peu plus épaisses que l'original
   (lisibilité vue de tranche en main).
+- **Épées longues HD (branche armes/epees_longues_hd, 2026-11-12 : « au niveau des lames HD, en gardant leur forme d'origine ;
+  raffine les lignes, fais ressortir les éléments, la brillance du shader »)** : les six épées longues (metal, or, rubis, verre,
+  obsidienne, skarnholt) sont refaites par `sources_blender/epees_longues_hd/epees_longues_hd.py` → `assets/modeles/armes/epees/hd/<v>.glb`
+  (les originaux restent dans `epees/<v>.glb` : retour arrière = remettre `modele` et `materiau_lame` des `data/armes/epee_<v>.tres` ;
+  `EpeesLongues.instancier` préfère `hd/`, Hrafn garde l'ancien rubis). Même méthode que les lames HD v2 : la LAME est mesurée par
+  coupes sur le glb d'origine (`mesure_quaternius.py`, à chaque hauteur de sommet + tous les 1,5 cm : bords, crans de l'obsidienne,
+  épaisseur) et reçoit des sections HD (acier : fil, biseau secondaire, méplat, gouttière à fond creux ; cristal : facettes en gradins
+  tous les 4,2 cm à arête décalée, UV propres à chaque facette ; obsidienne : biseaux festonnés par éclats + bande de veine) ; garde,
+  pommeau, gemmes et fusée REJOUENT la recette d'origine (`epees_longues.py`) avec des primitives HD aux mêmes paramètres (section
+  d'origine aux arêtes chanfreinées et remise à la même étendue, stations subdivisées, profils lissés passant par les points d'origine,
+  gemmes taillées serties de quatre griffes, cuir enroulé en volume, viroles rivetées, fils d'or croisés pour l'épée en or). Tris
+  avant → après : metal 330 → 9 056, or 340 → 9 504, rubis 346 → 7 270, verre 342 → 7 990, obsidienne 394 → 7 320, skarnholt
+  406 → 8 582. Silhouette commune avec l'original 98-100 % de face, 93-100 % de profil (obsidienne 93 % : arête de veine et pointe
+  du pommeau fermée). Repères prise / garde / pointe, longueurs, stats : inchangés. Matières propres `*_hd` (`EpeesLongues.MATIERES`) :
+  lame_hd / lame_or_hd (éclat L9 1,0 et fil constant 0,07 : le fil accroche la lumière), fer_hd et or_hd plus métalliques,
+  rubis_hd / verre_hd translucides profonds (profondeur 0,08, bord 0,75-0,8, moins de lueur propre), obsidienne_hd (bord 1,0,
+  éclat L9). Planches : `outils/captures_epees_longues_hd.gd` (`--etiquette=avant|apres`, vues studio + 1re personne jour ET nuit
+  à la torche, superposition des silhouettes, famille avec la claymore v4 et les lames HD v2).
 
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)

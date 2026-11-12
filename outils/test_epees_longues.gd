@@ -1,9 +1,12 @@
 extends SceneTree
-## Épées longues (assets/modeles/armes/epees/*.glb) : nœuds prise / garde / pointe, repère et échelle communs avec
+## Épées longues (assets/modeles/armes/epees/*.glb et leurs versions HD epees/hd/*.glb) : nœuds prise / garde / pointe, repère et échelle communs avec
 ## epee_nordique.glb (+Y lame, +X quillons, poing à y = 0,03), budget de triangles, noms de matériaux, habillage PS1.
 ##   godot --headless --path . --script outils/test_epees_longues.gd -- --nouvelle
-const NOMS_MATS := ["lame", "lame_or", "fer", "or", "cuir", "gemme", "rubis", "verre", "emeraude", "obsidienne", "veine"]
+const NOMS_MATS := ["lame", "lame_or", "fer", "or", "cuir", "gemme", "rubis", "verre", "emeraude", "obsidienne", "veine", "entrelacs",
+	"lame_hd", "lame_or_hd", "fer_hd", "or_hd", "rubis_hd", "verre_hd", "obsidienne_hd"]
 const TRIS_MAX := 450
+## Épées longues HD (assets/modeles/armes/epees/hd/, 2026-11-12) : même repère, même échelle, budget des armes HD.
+const TRIS_MAX_HD := 10000
 const MILIEU_POIGNEE := 0.03   # scripts/mains.gd
 
 var _echecs := 0
@@ -49,12 +52,18 @@ func _lancer() -> void:
 	var mr := _mesurer(ref)
 	var br: AABB = mr["boite"]
 	print("référence epee_nordique : y [%.3f ; %.3f]  x ±%.3f  z ±%.3f  cuir y %s  %d tris" % [br.position.y, br.end.y, br.size.x * 0.5, br.size.z * 0.5, mr["mats"].get("cuir"), mr["tris"]])
-	for v: String in EpeesLongues.VARIANTES:
-		var chemin: String = EpeesLongues.DOSSIER + v + ".glb"
+	var lot: Array = []
+	for v: String in EpeesLongues.VARIANTES + EpeesLongues.UNIQUES:
+		lot.append([v, EpeesLongues.DOSSIER, TRIS_MAX if v != "skarnholt" else 450])
+		lot.append([v + " (hd)", EpeesLongues.DOSSIER_HD, TRIS_MAX_HD])
+	for el: Array in lot:
+		var v: String = el[0]
+		var chemin: String = el[1] + v.get_slice(" ", 0) + ".glb"
 		_verifier(ResourceLoader.exists(chemin), "%s introuvable" % chemin)
 		if not ResourceLoader.exists(chemin):
 			continue
-		var e := EpeesLongues.instancier(v)
+		var e: Node3D = (load(chemin) as PackedScene).instantiate()
+		EpeesLongues.habiller(e)
 		root.add_child(e)
 		var m := _mesurer(e)
 		var b: AABB = m["boite"]
@@ -79,7 +88,7 @@ func _lancer() -> void:
 		_verifier(reps["garde"].y > 0.08 and reps["garde"].y < 0.11, "%s : garde à y = %.3f" % [v, reps["garde"].y])
 		_verifier(absf(reps["pointe"].y - b.end.y) < 0.002 and reps["pointe"].y > 0.9, "%s : pointe %.3f ≠ bout de lame %.3f" % [v, reps["pointe"].y, b.end.y])
 		_verifier(b.end.y > br.end.y, "%s : plus courte que l'épée nordique" % v)
-		_verifier(m["tris"] <= TRIS_MAX, "%s : %d triangles > %d" % [v, m["tris"], TRIS_MAX])
+		_verifier(m["tris"] <= int(el[2]), "%s : %d triangles > %d" % [v, m["tris"], int(el[2])])
 		# matériaux : noms connus, tous remplacés par un ShaderMaterial PS1
 		for nom in m["mats"]:
 			_verifier(nom in NOMS_MATS, "%s : matériau inconnu « %s »" % [v, nom])
