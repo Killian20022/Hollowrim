@@ -170,6 +170,9 @@ _poser = NS["poser"]
 
 
 def _poser_suivi(c, cote="r"):
+    if c.get("tenue_exacte"):   # v6 : bord des clips Mixamo = la tenue repos_2m EXACTEMENT comme son clip la pose (solveur libre)
+        NS["PREC"][0] = None
+        return _poser(dict(REPOS_2M), cote)
     if c.get("suivre") and NS["PREC"][0] is not None:
         c = dict(c, torsion=NS["PREC"][0][0], poids_torsion=0.12)
     return _poser(c, cote)
@@ -232,6 +235,66 @@ MARQUEURS.update(MARQUEURS_MX_2M)
 NS["LIM_MX"].update(torsion=(-85, 85), flexion=(-35, 35), inclinaison=(-22, 15))
 
 
+# =====================================================================================================================
+# v6 (2026-11-12, retour utilisateur : « mêmes coups propres qu'à l'épée, plus jamais de poignets cassés ») : MÊME MÉTHODE que
+# les coups d'épée v6 validés (coup_a6 / coup_b6 / coup_t6 / coup_c6, gestes_une_main.surcouche_v6) : captures Great Sword
+# retargetées par anim_bras_epee.creer_action_mixamo (directions du bras, main en orientation anatomique, poignet résolu DANS
+# des butées, torsion de l'avant-bras qui absorbe la rotation, fondu en S depuis / vers la tenue validée), avec les trois
+# surcouches v6 : POIGNET VERROUILLÉ autour de la tenue, ARC GUIDÉ pendant la frappe, CREUX de poids. AUCUNE pose écrite à la
+# main : mêmes extraits et mêmes réglages de cadrage que la v4 (validés pour le cadrage), seule la TABLE DE TEMPS de lecture
+# change (structure des clips d'épée v6 : armé = fondu de la tenue vers l'image d'armé de la capture, tenue jusqu'à la tension,
+# la partie RAPIDE de la capture (vitesse de la lame mesurée image par image dans coups_2mains.json) tombe exactement dans la
+# fenêtre de frappe, suivi, puis fondu en S jusqu'à la tenue exacte).
+# Défaut de la v4 corrigé (mesuré : 150 px entre le bord des clips et la tenue, d'où un saut vers la garde à la fin de chaque
+# coup) : le bord des clips reprenait la tenue SANS l'angle du coude (phi, trouvé par le solveur de repos_2m) -> phi gardé.
+# Les anciens clips v4 se régénèrent avec --v4.
+# Poignet verrouillé (flexion, inclinaison)° autour de la tenue repos_2m (k 37, f -18, r -44) : même logique que POIGNET_V6
+# de l'épée (tenue f -11 / r -32, verrou f -28..8, r -29..-18) : flexion à ±18° de la tenue, inclinaison ramenée de 2 à 14°
+# vers le neutre (la tenue est déjà en inclinaison cubitale) : pendant les coups, le poignet est PLUS droit qu'au repos.
+POIGNET_2M = ((-28, 0), (-40, -28))
+LIM_MX_2M = dict(torsion=(-85, 85), flexion=(-55, 55), inclinaison=(-45, 18))
+
+
+def _v6(spec, temps, fondu, arc, poignet=POIGNET_2M, creux=0.03):
+    s = dict(spec)
+    s.update(temps=temps, fondu=fondu, plein=(fondu[0], min(fondu[1] + 0.08, temps[-1][1])), poignet=poignet, lim_mx=LIM_MX_2M)
+    if arc is not None:
+        s.update(arc=arc, creux=creux)
+    return s
+
+
+# coups légers : armé 0,10 s (fondu), tension 0,10 -> 0,14, frappe 0,14 -> 0,25, suivi -> 0,31, retour en S -> 0,47 (claymore du
+# jeu : coup léger ~0,95 s, frappe ~0,17 s ; épée v6 : 0,13 / 0,16 / 0,26 / 0,33 / 0,54). Images de la capture (30 i/s) : armé =
+# image où la lame est la plus lente avant le coup, frappe = la partie rapide.
+MQ_LEGER = {"arme": 0.10, "frappe": 0.14, "fin_frappe": 0.25, "suivi": 0.31, "fin": 0.47}
+ARC_LEGER = (0.14, 0.25, 0.85)
+CLIPS_MX_2M_V6 = {
+    # 1 : gs_slash, armé image 13 (lame la plus lente), rapide 14 -> 23 (pic 18-21)
+    "c2_a": _v6(CLIPS_MX_2M["c2_a"], [(13, 0.0), (13, 0.08), (16, 0.14), (22, 0.25), (23.5, 0.31), (25, 0.40), (25, 0.47)], (0.10, 0.27), ARC_LEGER),
+    # 2 : gs_slash_2, 2e coup, armé image 47, rapide 48 -> 58 (pic 50-55)
+    "c2_b": _v6(CLIPS_MX_2M["c2_b"], [(47, 0.0), (47, 0.08), (50, 0.14), (56, 0.25), (57.5, 0.31), (60, 0.40), (60, 0.47)], (0.10, 0.27), ARC_LEGER),
+    # 3 : gs_slash_2, 1er coup, armé image 18 (presque immobile à 17-18), rapide 20 -> 28 (pic 22-25)
+    "c2_c": _v6(CLIPS_MX_2M["c2_c"], [(18, 0.0), (18, 0.08), (21.5, 0.14), (27.5, 0.25), (29, 0.31), (31, 0.40), (31, 0.47)], (0.10, 0.27), ARC_LEGER),
+    # puissante : même capture que le 3 ; charge = fondu de la tenue vers l'armé (image 21, tenue pendant la charge), coup =
+    # image 22,5 -> 28 en frappe, suivi, retour en S (après le relâchement : ~0,9 s de jeu)
+    "charge_2m": _v6(CLIPS_MX_2M["charge_2m"], [(10, 0.0), (19, 0.30), (21, 0.55)], (0.30, 0.55), None),
+    "lourd_2m": _v6(CLIPS_MX_2M["lourd_2m"], [(21, 0.0), (22.5, 0.03), (28, 0.15), (29.5, 0.21), (31, 0.30), (31, 0.46)], (0.0, 0.24), (0.03, 0.15, 0.85)),
+}
+CLIPS_MX_2M_V6["charge_2m"]["plein"] = (0.30, 0.55)
+CLIPS_MX_2M_V6["lourd_2m"]["plein"] = (0.0, 0.32)
+MARQUEURS_MX_2M_V6 = {
+    "c2_a": dict(MQ_LEGER), "c2_b": dict(MQ_LEGER), "c2_c": dict(MQ_LEGER),
+    "charge_2m": {"arme": 0.30, "fin": 0.55},
+    "lourd_2m": {"arme": 0.02, "frappe": 0.03, "fin_frappe": 0.15, "suivi": 0.21, "fin": 0.46},
+}
+V4 = "v4" in NS["ARGS"]
+if not V4:
+    CLIPS_MX_2M.update(CLIPS_MX_2M_V6)
+    MARQUEURS.update(MARQUEURS_MX_2M_V6)
+# butées de la v3/v4 (les clips Mixamo sans « lim_mx », dont la garde garde_2m : inchangés)
+LIM_MX_V4 = dict(NS["LIM_MX"])
+
+
 def _preparer_mx_2m():
     """Données Mixamo deux bras + tenue de repos à deux mains comme bord des clips retargetés."""
     import json
@@ -239,8 +302,11 @@ def _preparer_mx_2m():
     NS["_MX"].update(json.load(open(os.path.join(NS["BASE"], "sources_blender", "mixamo", "coups_2mains.json"), encoding="utf-8")))
     NS["PREC"][0] = None
     NS["poser"](dict(REPOS_2M))
-    k, f, r = NS["PREC"][0][:3]
+    k, f, r, phi = NS["PREC"][0][:4]
     NS["REPOS"] = dict(REPOS_2M, k=k, f=f, r=r)   # poignet fixé : exactement la tenue de repos aux bords des clips
+    if not V4:   # v6 : bord des clips = la tenue exacte (k, f, r fixés sans phi, poser() reprenait phi = 0 et un autre point
+        # de départ du poignet : bord des clips à 150 px de la tenue, d'où un saut vers la garde à la fin de chaque coup)
+        NS["REPOS"]["tenue_exacte"] = True
 
 
 
@@ -254,6 +320,7 @@ def main():
     actions = {}
     for nom in noms:
         if nom in CLIPS_MX_2M:
+            NS["LIM_MX"].update(CLIPS_MX_2M[nom].get("lim_mx", LIM_MX_V4))
             actions[nom] = NS["creer_action_mixamo"](nom, CLIPS_MX_2M[nom])
             continue
         cles = CLIPS[nom]
