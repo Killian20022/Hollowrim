@@ -26,7 +26,10 @@ const TRIS_HD_ID := {"cuirasse_or": 3000, "cuirasse_or_enchante": 3000, "bottes_
 ## Passe 2 « géométrie » des armures lourdes (2026-11-11, budget validé par l'utilisateur : 6-8 k triangles par ensemble porté) : plaques
 ## articulées superposées (épaulières à lames, couters, genouillères, tassettes), bordures roulées et rivets en relief, cape d'or plissée.
 ## (Intégration n°3 : budgets des deux branches gardés, chacun pour ses familles.)
-const TRIS_P2_LOURDES := {"tete": 1500, "torse": 3600, "mains": 1300, "pieds": 1400}
+## v3 (2026-11-12, branche armures/lourdes_hd_v3 ; demande « avec 8 000 à 10 000 triangles ça peut être incroyable ») : bords roulés en
+## bourrelet, rivets en dôme, plaques articulées à pans doublés, plaques subdivisées -> ~10 k triangles par ensemble porté.
+const TRIS_P2_LOURDES := {"tete": 2000, "torse": 5300, "mains": 1650, "pieds": 1950}
+const TRIS_V3_LOURDES_ID := {"bottes_or": 3400, "bottes_or_enchante": 3400}
 const FAMILLES_P2_LOURDES := ["_fer", "_acier_nordique", "_obsidienne", "_obsidienne_enchante", "_or", "_or_enchante"]
 ## Passe 2 « géométrie » des armures précieuses (2026-11-11, budget validé : ~6-8 k triangles par ensemble porté) : cadres de
 ## cristal en volume, rivets, lanières, mèches. Pièces des familles ci-dessous (et leurs variantes enchantées).
@@ -189,6 +192,7 @@ func _verifier_piece(id: String, e: String) -> void:
 	for suf: String in FAMILLES_P2_LOURDES:
 		if cle.ends_with(suf) and not cle.begins_with("chausses") and TRIS_P2_LOURDES.has(e):
 			tmax = maxi(tmax, int(TRIS_P2_LOURDES[e]))
+			tmax = maxi(tmax, int(TRIS_V3_LOURDES_ID.get(cle, 0)))
 	if FAMILLES_P2_PRECIEUSES.any(func(f: String) -> bool: return cle.trim_suffix("_enchante").ends_with("_" + f)):
 		tmax = maxi(tmax, int(TRIS_P2_PRECIEUSES.get(e, tmax)))
 	ok(tris <= tmax, "%s : %d triangles (<= %d)" % [id, tris, tmax])

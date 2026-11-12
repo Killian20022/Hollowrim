@@ -52,8 +52,12 @@ def _composantes_faces(bm, faces):
 
 
 def relief(ob, lip=0.0, ep=0.0055, sortie=0.0025, min_tris=10, rivet_pas=0.045, rivet_r=0.0042, rivet_h=0.0034,
-           rivet_retrait=0.0085, rivet_min_tris=24, rivets=True, filtre=None, verbeux=True, max_rivets=70, bords_on=True, deja_epais=0.55, couvert=0.035, min_tris_bord=None):
-    """filtre(centre_monde, nom_mat) -> bool : bords à traiter (None = tous les métaux)."""
+           rivet_retrait=0.0085, rivet_min_tris=24, rivets=True, filtre=None, verbeux=True, max_rivets=70, bords_on=True, deja_epais=0.55, couvert=0.035, min_tris_bord=None,
+           roule=None, rivet_cotes=3):
+    """filtre(centre_monde, nom_mat) -> bool : bords à traiter (None = tous les métaux).
+    roule (v3, 2026-11-12) : liste de (dn, do) en m = rangées successives du BORD ROULÉ (dn le long de la normale, do hors de la
+    plaque) : la tôle mince s'enroule en bourrelet (2-4 mm) au lieu d'une tranche plate ; ombrage lissé (le bourrelet accroche la
+    lumière comme un fil rond). None = tranche simple d'avant (ep, sortie)."""
     me = ob.data
     mats = [m.name if m else "" for m in me.materials]
     metal_idx = {i for i, n in enumerate(mats) if est_metal(n)}
@@ -131,43 +135,37 @@ def relief(ob, lip=0.0, ep=0.0055, sortie=0.0025, min_tris=10, rivet_pas=0.045, 
     for e, f in bords:
         for l in f.loops:
             boucle[(f, l.vert)] = l
-    r1, r2 = {}, {}
+    if roule is None:
+        roule = ([(lip, sortie)] if lip > 0 else []) + [(-ep, sortie)]
+        lisse = False
+    else:
+        lisse = True
+    rangs = [{} for _ in roule]
     for v in (sor if bords_on else []):
         n, o = nrm[v], sor[v]
-        if lip > 0:
-            r1[v] = bm.verts.new(v.co + n * lip + o * sortie, v)
-        r2[v] = bm.verts.new(v.co - n * ep + o * sortie, v)
+        for k, (dn, do) in enumerate(roule):
+            rangs[k][v] = bm.verts.new(v.co + n * dn + o * do, v)
     nf = 0
     for e, f in (bords if bords_on else []):
         a, b = e.verts
-        if a not in r2 or b not in r2:
+        if a not in rangs[0] or b not in rangs[0]:
             continue
         la, lb = boucle[(f, a)], boucle[(f, b)]
         # orientation : la face de bord regarde « hors de la plaque » (même sens d'enroulement que la face source)
-        if la.link_loop_next.vert is b:
-            s1 = s2 = [lb, la, la, lb]
-            q1 = [b, a, r1[a], r1[b]] if lip > 0 else None
-            q2 = [r1[b], r1[a], r2[a], r2[b]] if lip > 0 else None
-        else:
-            s1 = s2 = [la, lb, lb, la]
-            q1 = [a, b, r1[b], r1[a]] if lip > 0 else None
-            q2 = [r1[a], r1[b], r2[b], r2[a]] if lip > 0 else None
-        if lip <= 0:
-            # une seule tranche : du bord droit vers l'intérieur (2 tris)
-            if la.link_loop_next.vert is b:
-                q2 = [b, a, r2[a], r2[b]]
+        sens = la.link_loop_next.vert is b
+        prec = {a: a, b: b}
+        for R in rangs:
+            if sens:
+                q, sl = [prec[b], prec[a], R[a], R[b]], [lb, la, la, lb]
             else:
-                q2 = [a, b, r2[b], r2[a]]
-            todo = ((q2, s2),)
-        else:
-            todo = ((q1, s1), (q2, s2))
-        for q, s in todo:
+                q, sl = [prec[a], prec[b], R[b], R[a]], [la, lb, lb, la]
+            prec = {a: R[a], b: R[b]}
             try:
                 fn = bm.faces.new(q, f)
             except ValueError:
                 continue
-            _copier_boucles(bm, fn, s)
-            fn.smooth = False
+            _copier_boucles(bm, fn, sl)
+            fn.smooth = lisse
             nf += 1
     # rivets le long des bords (plaques assez grandes)
     nr = 0
@@ -201,21 +199,32 @@ def relief(ob, lip=0.0, ep=0.0055, sortie=0.0025, min_tris=10, rivet_pas=0.045, 
                 tg = (b.co - a.co).normalized()
                 bi = n.cross(tg)
                 lb = boucle[(f, a)]
-                base = [bm.verts.new(c0 + (tg * math.cos(an) + bi * math.sin(an)) * rivet_r + n * 0.0006, a)
-                        for an in (0.5 * math.pi, 1.1667 * math.pi, 1.8333 * math.pi)]
+                if rivet_cotes <= 3:
+                    anneaux = [[bm.verts.new(c0 + (tg * math.cos(an) + bi * math.sin(an)) * rivet_r + n * 0.0006, a)
+                                for an in (0.5 * math.pi, 1.1667 * math.pi, 1.8333 * math.pi)]]
+                else:
+                    # v3 : tête de rivet en DÔME (2 anneaux + sommet, ombrage lissé : un point de lumière rond)
+                    angs = [2 * math.pi * i / rivet_cotes for i in range(rivet_cotes)]
+                    anneaux = [[bm.verts.new(c0 + (tg * math.cos(an) + bi * math.sin(an)) * rivet_r * kr - n * 0.0004 + n * rivet_h * kh, a)
+                                for an in angs] for kr, kh in ((1.0, 0.0), (0.72, 0.72))]
                 som = bm.verts.new(c0 + n * rivet_h, a)
-                for i in range(3):
-                    tri = [base[i], base[(i + 1) % 3], som]
+                nc = len(anneaux[0])
+                polys = []
+                for k in range(len(anneaux) - 1):
+                    A_, B_ = anneaux[k], anneaux[k + 1]
+                    polys += [[A_[i], A_[(i + 1) % nc], B_[(i + 1) % nc], B_[i]] for i in range(nc)]
+                polys += [[anneaux[-1][i], anneaux[-1][(i + 1) % nc], som] for i in range(nc)]
+                for tri in polys:
                     try:
                         fn = bm.faces.new(tri, f)
                     except ValueError:
                         continue
-                    # tri orienté vers l'extérieur
+                    # face orientée vers l'extérieur
                     fn.normal_update()
                     if fn.normal.dot(n) < 0:
                         fn.normal_flip()
-                    _copier_boucles(bm, fn, [lb, lb, lb])
-                    fn.smooth = False
+                    _copier_boucles(bm, fn, [lb] * len(tri))
+                    fn.smooth = rivet_cotes > 3
                 nr += 1
     bm.to_mesh(me); bm.free(); me.update()
     tris1 = sum(len(p.vertices) - 2 for p in me.polygons)

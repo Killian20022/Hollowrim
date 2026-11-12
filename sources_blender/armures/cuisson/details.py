@@ -146,8 +146,9 @@ def _bande_cylindre(p, ctr_xy, z_c, hw, rayon):
 
 def relief_mid(pid, p, acier):
     """Relief moyen (m) porté par la haute déf ; acier : masque des sommets d'acier."""
-    h = martelage(p) + coups(p)
-    if "cuirasse" in pid:
+    # fer (v3) : tôle rustique, martelage plus marqué et plus serré que l'acier nordique
+    h = (martelage(p, cell=0.018, prof=0.00030) if pid.endswith("_fer") else martelage(p)) + coups(p)
+    if "cuirasse" in pid and not pid.endswith("_fer"):
         x, y, z = p[..., 0], p[..., 1], p[..., 2]
         # plastron : arête médiane vive et trois cannelures de chaque côté, en éventail vers le bas
         av = lisse(-0.02, -0.07, y)

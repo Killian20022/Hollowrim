@@ -485,6 +485,7 @@ def cuire(pid, px, niveau, dbg, exporter, apercu):
     print("PIECE", pid, tris0, "->", C.compter_tris(ob), "tris", "atlas", px, "groupes", len(ob.vertex_groups), "matieres",
           [mm.name for mm in ob.data.materials], round(time.time() - t0, 1), "s")
     if exporter:
+        print("MATERIAUX", pid, G.AF.renommer_materiaux(ob))      # v3 : noms propres aux lourdes (shader_lourd en jeu)
         C.exporter([ob], r, os.path.join(C.PORTE, pid + ".glb"))
         G.version_sol(r, ob, pid)
     if apercu:

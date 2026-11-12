@@ -172,7 +172,7 @@ def _p(**kw):
 
 
 def epaulieres(cx, lames=3, dome=(-0.07, 0.085), angles=(-112, 112), dec=0.020, pas=0.055, recouvre=0.016, bombe=0.012,
-               evase=0.008, na=9, nt_dome=5, mats=("acier", "fer", "obsidienne", "or"), arete=0.0):
+               evase=0.008, na=9, nt_dome=5, mats=("acier", "fer", "obsidienne", "or"), arete=0.0, pas_dec=0.004, nt_lame=2):
     """Dôme d'épaule + lames étagées qui descendent le bras ; la lame du dessus recouvre celle du dessous."""
     r = cx.r
     n = 0
@@ -184,18 +184,18 @@ def epaulieres(cx, lames=3, dome=(-0.07, 0.085), angles=(-112, 112), dec=0.020, 
         def pd(t, a, cote=cote):
             k = max(0.0, min(1.0, (t + 0.02) / 0.06))
             return {"clavicle_" + cote: 0.45 * (1 - k), "upperarm_" + cote: 0.55 + 0.45 * k}
-        n += coque_membre(cx, A, B, dome[0], dome[1], angles[0], angles[1], haut, nt=nt_dome, na=na, decalage=dec + lames * 0.004,
+        n += coque_membre(cx, A, B, dome[0], dome[1], angles[0], angles[1], haut, nt=nt_dome, na=na, decalage=dec + lames * pas_dec,
                           bombe=bombe, evase=evase, poids=pd, mats=mats, profil=prof)
         for k in range(lames):
             t0 = dome[1] - recouvre + k * pas
             t1 = t0 + pas + recouvre
             a0, a1 = angles[0] + 8 + 6 * k, angles[1] - 8 - 6 * k
-            n += coque_membre(cx, A, B, t0, t1, a0, a1, haut, nt=2, na=na, decalage=dec + (lames - k - 1) * 0.004, bombe=bombe * 0.6,
+            n += coque_membre(cx, A, B, t0, t1, a0, a1, haut, nt=nt_lame, na=na, decalage=dec + (lames - k - 1) * pas_dec, bombe=bombe * 0.6,
                               evase=evase, poids=_p(**{"upperarm_" + cote: 1.0}), mats=mats, profil=prof)
     return n
 
 
-def couters(cx, dec=0.016, bombe=0.014, aile=True, mats=("acier", "fer", "obsidienne", "or"), taille=1.0, na=7):
+def couters(cx, dec=0.016, bombe=0.014, aile=True, mats=("acier", "fer", "obsidienne", "or"), taille=1.0, na=7, nt=4, na_aile=4):
     """Cubitière bombée à l'arrière du coude + ailette en éventail côté extérieur ; 50/50 bras/avant-bras."""
     r = cx.r
     n = 0
@@ -203,19 +203,19 @@ def couters(cx, dec=0.016, bombe=0.014, aile=True, mats=("acier", "fer", "obsidi
         A, B = r.os["lowerarm_" + cote], r.os["hand_" + cote]
         pw = _p(**{"upperarm_" + cote: 0.5, "lowerarm_" + cote: 0.5})
         dos = Vector((0, 1, 0))
-        n += coque_membre(cx, A, B, -0.055 * taille, 0.055 * taille, -85, 85, dos, nt=4, na=na, decalage=dec, bombe=bombe, evase=0.0, portee=0.15,
+        n += coque_membre(cx, A, B, -0.055 * taille, 0.055 * taille, -85, 85, dos, nt=nt, na=na, decalage=dec, bombe=bombe, evase=0.0, portee=0.15,
                           poids=pw, mats=mats, profil=lambda s, q: 0.010 * math.sin(math.pi * s) * math.sin(math.pi * q))
         if aile:
             # ailette : côté extérieur (vers le haut en pose T = vers l'extérieur bras baissé), évasée vers l'extérieur
             g = cote == "l"
             a0, a1 = (55, 108) if g else (-108, -55)
-            n += coque_membre(cx, A, B, -0.045 * taille, 0.045 * taille, a0, a1, dos, nt=3, na=4, decalage=dec + 0.004, portee=0.15,
+            n += coque_membre(cx, A, B, -0.045 * taille, 0.045 * taille, a0, a1, dos, nt=3, na=na_aile, decalage=dec + 0.004, portee=0.15,
                               bombe=0.004, evase=0.0, poids=pw, mats=mats,
                               profil=(lambda s, q: 0.022 * q * math.sin(math.pi * s)) if g else (lambda s, q: 0.022 * (1 - q) * math.sin(math.pi * s)))
     return n
 
 
-def genouilleres(cx, dec=0.016, bombe=0.014, aile=True, mats=("acier", "fer", "obsidienne", "or"), taille=1.0, na=7):
+def genouilleres(cx, dec=0.016, bombe=0.014, aile=True, mats=("acier", "fer", "obsidienne", "or"), taille=1.0, na=7, nt=4, na_aile=4):
     """Genouillère bombée + ailette extérieure ; 50/50 cuisse/mollet."""
     r = cx.r
     n = 0
@@ -223,18 +223,18 @@ def genouilleres(cx, dec=0.016, bombe=0.014, aile=True, mats=("acier", "fer", "o
         A, B = r.os["calf_" + cote], r.os["foot_" + cote]
         pw = _p(**{"thigh_" + cote: 0.5, "calf_" + cote: 0.5})
         devant = Vector((0, -1, 0))
-        n += coque_membre(cx, A, B, -0.065 * taille, 0.06 * taille, -78, 78, devant, nt=4, na=na, decalage=dec, bombe=bombe, evase=0.0, portee=0.14,
+        n += coque_membre(cx, A, B, -0.065 * taille, 0.06 * taille, -78, 78, devant, nt=nt, na=na, decalage=dec, bombe=bombe, evase=0.0, portee=0.14,
                           poids=pw, mats=mats, profil=lambda s_, q: 0.012 * math.sin(math.pi * s_) * math.sin(math.pi * q))
         if aile:
             # ailette côté extérieur (+X à gauche, -X à droite) : angle mesuré depuis l'avant, positif vers -X x devant... on teste les deux
             a0, a1 = (70, 118) if s < 0 else (-118, -70)
-            n += coque_membre(cx, A, B, -0.05 * taille, 0.05 * taille, a0, a1, devant, nt=3, na=4, decalage=dec + 0.006, portee=0.14,
+            n += coque_membre(cx, A, B, -0.05 * taille, 0.05 * taille, a0, a1, devant, nt=3, na=na_aile, decalage=dec + 0.006, portee=0.14,
                               bombe=0.004, evase=0.0, poids=pw, mats=mats,
                               profil=(lambda s_, q: 0.024 * q * math.sin(math.pi * s_)) if s < 0 else (lambda s_, q: 0.024 * (1 - q) * math.sin(math.pi * s_)))
     return n
 
 
-def tassettes(cx, lames=3, t0=0.02, pas=0.06, angles=(-35, 95), dec=0.022, recouvre=0.014, mats=("acier", "fer", "obsidienne", "or"), na=7):
+def tassettes(cx, lames=3, t0=0.02, pas=0.06, angles=(-35, 95), dec=0.022, recouvre=0.014, mats=("acier", "fer", "obsidienne", "or"), na=7, pas_dec=0.004):
     """Tassettes en lames sur le haut des cuisses (devant + côté), du bassin vers la cuisse : la plaque suit la jambe (pas de
     traversée à la marche)."""
     r = cx.r
@@ -250,7 +250,7 @@ def tassettes(cx, lames=3, t0=0.02, pas=0.06, angles=(-35, 95), dec=0.022, recou
 
             def pw(t, a, cote=cote, kk=kk):
                 return {"pelvis": 0.55 * (1 - kk), "thigh_" + cote: 0.45 + 0.55 * kk}
-            n += coque_membre(cx, A, B, ta, tb, a0, a1, devant, nt=2, na=na, decalage=dec + (lames - k - 1) * 0.004, bombe=0.006, portee=0.2,
+            n += coque_membre(cx, A, B, ta, tb, a0, a1, devant, nt=2, na=na, decalage=dec + (lames - k - 1) * pas_dec, bombe=0.006, portee=0.2,
                               evase=0.006, poids=pw, mats=mats)
     return n
 

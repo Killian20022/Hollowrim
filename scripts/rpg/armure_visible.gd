@@ -52,7 +52,6 @@ const MATIERES := {
 	"or": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.72, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62)},
 	# --- armures HD (branche armures_hd/os_verre) : clés « preset.variante » (nom complet du matériau Blender), sinon le preset seul
 	# acier patiné des armures lourdes HD (affinage 2026-11-11) : moins de reflet de ciel que « acier » (lu blanc/plastique en plein jour)
-	"acier.patine": {"teinte": Color(0.80, 0.80, 0.82), "metal": 0.5, "poli": 0.40, "reflet": Color(0.76, 0.78, 0.82)},   # passe 2 : moins clair en plein jour
 	"fer.rouille": {"teinte": Color(1.0, 0.98, 0.96), "metal": 0.28, "poli": 0.22, "reflet": Color(0.95, 0.92, 0.88)},
 	# verre : OPAQUE à faux translucide (facettes en dégradé, veines internes et filets peints dans l'atlas + reflet vitreux rasant
 	# « bord ») ; aucun tri alpha (Godot et navigateur)
@@ -75,6 +74,24 @@ const MATIERES := {
 	"obsidienne.enchante": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.1, "bord": 0.6, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 1.1},
 	"or.patine": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.0, "poli": 0.0, "reflet": Color(1.0, 0.95, 0.82)},
 	"or.lion": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.0, "poli": 0.0, "reflet": Color(1.0, 0.95, 0.82)},
+	# --- ARMURES LOURDES v3 (branche armures/lourdes_hd_v3, 2026-11-12) : shader_lourd (vrai spéculaire des lumières de la scène :
+	# soleil le jour, torche la nuit ; ciel reflété dans l'albédo, donc éteint dans le noir ; aucune émission, aucun scintillement).
+	# spec = force de l'éclat, exp = finesse (grand = point net, vitreux), spec_col = teinte de l'éclat, fresnel = liseré rasant.
+	# Les clés ci-dessous ne servent qu'aux familles fer, acier nordique, obsidienne, or (et leurs enchantées / chausses).
+	"acier.patine": {"teinte": Color(0.80, 0.80, 0.83), "metal": 0.42, "poli": 0.45, "reflet": Color(0.74, 0.79, 0.86),
+		"spec": 1.6, "exp": 70.0, "spec_col": Color(0.86, 0.93, 1.0), "fresnel": 0.10, "seuil": Vector2(0.16, 0.72)},
+	"fer.lourd": {"teinte": Color(0.74, 0.73, 0.73), "metal": 0.2, "poli": 0.22, "reflet": Color(0.86, 0.85, 0.83),
+		"spec": 1.0, "exp": 40.0, "spec_col": Color(0.95, 0.93, 0.9), "fresnel": 0.05, "seuil": Vector2(0.2, 0.8)},
+	"fer.obsidienne": {"teinte": Color(0.95, 0.95, 0.97), "metal": 0.3, "poli": 0.3, "reflet": Color(0.84, 0.82, 0.88),
+		"spec": 1.0, "exp": 32.0, "spec_col": Color(0.92, 0.9, 1.0), "fresnel": 0.06, "seuil": Vector2(0.2, 0.8)},
+	"obsidienne.lourd": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.12, "bord": 0.45, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 0.75,
+		"spec": 2.2, "exp": 120.0, "spec_col": Color(0.96, 0.94, 1.0), "fresnel": 0.20, "seuil": Vector2(0.28, 0.75)},
+	"obsidienne.lourd.enchante": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.12, "bord": 0.45, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 1.1,
+		"spec": 2.2, "exp": 120.0, "spec_col": Color(0.96, 0.94, 1.0), "fresnel": 0.20, "seuil": Vector2(0.28, 0.75)},
+	"or.lourd": {"teinte": Color(1.0, 0.99, 0.97), "metal": 0.55, "poli": 0.55, "reflet": Color(1.06, 0.9, 0.62),
+		"spec": 1.7, "exp": 60.0, "spec_col": Color(1.0, 0.9, 0.62), "fresnel": 0.12, "seuil": Vector2(0.3, 0.95)},
+	"or.lourd.enchante": {"teinte": Color(1.02, 1.0, 0.98), "metal": 0.58, "poli": 0.6, "reflet": Color(1.08, 0.92, 0.64), "lueur": 0.05,
+		"spec": 1.8, "exp": 60.0, "spec_col": Color(1.0, 0.9, 0.62), "fresnel": 0.13, "seuil": Vector2(0.3, 0.95)},
 	"tissu": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08},
 	"tissu.enchante": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08, "lueur": 0.8},
 	"gemme": {"teinte": Color(1.05, 1.0, 1.0), "metal": 0.05, "bord": 0.45, "poli": 1.0, "lueur": 0.25, "reflet": Color(1.0, 0.93, 0.94)},
@@ -219,9 +236,54 @@ static func shader_gemme() -> Shader:
 }""")
 	return _shader_gemme
 
+## --- ARMURES LOURDES v3 (2026-11-12) : métal sous les VRAIES lumières --------------------------------------------------------------
+## Dérivé de shader_armure (ps1 : accroche des sommets, affine, mipmaps, texels nets ; alpha de la texture = brillance cuite : arêtes
+## polies, rayures ; creux et crasse éteints). Différences avec shader_metal / shader_or :
+##  - l'éclat spéculaire vient d'une fonction light() : chaque lumière de la scène (soleil, lune, TORCHE, feux) pose son propre point
+##    de lumière, de sa couleur, là où il doit être ; la nuit, seule la torche fait briller les arêtes ;
+##  - le reflet du ciel reste dans l'ALBÉDO (shader matière : il est éclairé par la scène, donc sombre la nuit) ; aucun terme en
+##    émission (plus de pièce qui luit dans le noir), pas de cellules scintillantes ni de veine balayante ;
+##  - éclat en deux paliers à bords adoucis (smoothstep étroit) : lisible en 480 x 270 sans crénelage qui clignote en mouvement ;
+##  - liseré de fresnel en paliers dans l'albédo (obsidienne vitreuse, or chaud).
+static var _shader_lourd: Shader
+static func shader_lourd() -> Shader:
+	if _shader_lourd == null:
+		_shader_lourd = Shader.new()
+		var c := shader_armure().code
+		c = c.replace("ALBEDO += mt_reflet * mt_s * (mt_km + mt_bord * 0.5) * mt_b * 0.9;", "")
+		c = c.replace("uniform float mt_lueur = 0.0;", "uniform float mt_lueur = 0.0;\nuniform float lr_spec = 1.0;\nuniform float lr_exp = 40.0;\nuniform vec3 lr_col : source_color = vec3(1.0);\nuniform float lr_fresnel = 0.0;\nuniform vec2 lr_seuil = vec2(0.3, 0.9);")
+		c = c.replace("\tROUGHNESS = 1.0;\n}", """	{
+		vec3 lr_n = normalize(NORMAL);
+		vec3 lr_v = normalize(VIEW);
+		float lr_a = texture(tex_base, uv).a;
+		float lr_f = 1.0 - clamp(dot(lr_n, lr_v), 0.0, 1.0);
+		float lr_fq = floor(lr_f * lr_f * 4.0) / 4.0;
+		ALBEDO += mt_reflet * ALBEDO * lr_fq * lr_fresnel * 2.0 * (0.4 + 0.6 * lr_a) + mt_reflet * lr_fq * lr_fresnel * 0.08;
+		// masque d'éclat (arêtes polies) passé à light() par ROUGHNESS (une varying fragment -> light donnait des NaN aux arêtes ;
+		// SPECULAR_AMOUNT est celui de la LUMIÈRE). SPECULAR = 0 : aucun reflet d'environnement du moteur (le ciel est déjà dans l'albédo).
+		SPECULAR = 0.0;
+		ROUGHNESS = 1.0 - 0.9 * smoothstep(lr_seuil.x, lr_seuil.y, lr_a);
+	}
+}
+
+void light() {
+	float lr_ndl = dot(NORMAL, LIGHT);
+	DIFFUSE_LIGHT += clamp(lr_ndl, 0.0, 1.0) * ATTENUATION * LIGHT_COLOR / PI;
+	vec3 lr_h = normalize(LIGHT + VIEW);
+	float lr_s = pow(clamp(dot(NORMAL, lr_h), 0.0, 1.0), lr_exp);
+	float lr_haut = smoothstep(0.40, 0.55, lr_s);
+	lr_s = lr_haut + 0.2 * smoothstep(0.10, 0.18, lr_s) * (1.0 - lr_haut);
+	SPECULAR_LIGHT += lr_col * lr_s * lr_spec * clamp((1.0 - ROUGHNESS) / 0.9, 0.0, 1.0) * smoothstep(-0.05, 0.15, lr_ndl) * ATTENUATION * LIGHT_COLOR / PI;
+}""")
+		c = c.replace("specular_disabled", "specular_schlick_ggx")
+		_shader_lourd.code = c
+	return _shader_lourd
+
 ## Shader de brillance d'un preset : gemme (verre, gemme), métal précieux (acier, obsidienne, argent), or (shader_or) ; null = matériau
 ## mat (cuir, fourrure, os, fer, tissu, runes). Seulement pour les atlas HD.
 static func shader_brillance(nom: String) -> Shader:
+	if MATIERES.get(nom, {}).has("spec"):
+		return shader_lourd()
 	if nom.begins_with("plaque_") or nom.begins_with("cristal_"):
 		return shader_pierre(nom.contains("saphir"))
 	if nom.begins_with("or"):
@@ -331,6 +393,9 @@ const CHAUSSES_PAR_TORSE := {
 	"cuirasse_rubis": "rubis", "cuirasse_saphir": "saphir",
 }
 
+## Chausses portées d'office des armures lourdes v3 : matière à vrai spéculaire (shader_lourd), comme leurs plaques.
+const PRESET_CHAUSSES := {"fer": "fer.lourd", "acier": "acier.patine", "obsidienne": "obsidienne.lourd", "or": "or.lourd"}
+
 static func famille_chausses(id_torse: String) -> String:
 	id_torse = base_de(id_torse)
 	if id_torse.ends_with("_" + ENCHANTE) and not CHAUSSES_PAR_TORSE.has(id_torse):
@@ -361,7 +426,7 @@ func _poser_chausses() -> void:
 	_portees.erase("jambes")
 	if id == "" or not ResourceLoader.exists(chemin):
 		return
-	var mi := charger_chemin(chemin, var_mat, preset_de(jb) if jb != "" else "")
+	var mi := charger_chemin(chemin, var_mat, preset_de(jb) if jb != "" else String(PRESET_CHAUSSES.get(famille_chausses(porte("torse")), "")))
 	if mi == null:
 		return
 	mi.name = "armure_jambes"
@@ -516,6 +581,8 @@ static func nom_preset(nom_blender: String, var_mat := "") -> String:
 	var parts := nom_blender.split(".")
 	var preset := parts[0]
 	var v := parts[1] if parts.size() > 1 and not parts[1].is_valid_int() else ""
+	if var_mat != "" and v != "" and MATIERES.has(preset + "." + v + "." + var_mat):
+		return preset + "." + v + "." + var_mat
 	if var_mat != "" and MATIERES.has(preset + "." + var_mat):
 		return preset + "." + var_mat
 	if v != "" and MATIERES.has(preset + "." + v):
@@ -542,6 +609,12 @@ static func materiau(nom: String, tex: Texture2D, var_mat := "") -> ShaderMateri
 		m.set_shader_parameter("mt_" + k, float(p.get(k, 0.0)))
 	m.set_shader_parameter("mt_opacite", 1.0)
 	m.set_shader_parameter("br_eclat", float(p.get("eclat", 1.0)))
+	if p.has("spec"):
+		m.set_shader_parameter("lr_spec", float(p["spec"]))
+		m.set_shader_parameter("lr_exp", float(p.get("exp", 40.0)))
+		m.set_shader_parameter("lr_col", p.get("spec_col", Color.WHITE))
+		m.set_shader_parameter("lr_fresnel", float(p.get("fresnel", 0.0)))
+		m.set_shader_parameter("lr_seuil", p.get("seuil", Vector2(0.3, 0.9)))
 	m.set_shader_parameter("mt_reflet", p.get("reflet", Color.WHITE))
 	m.set_shader_parameter("reflet_force", 0.0)
 	m.set_shader_parameter("reflet_fil", 0.0)
@@ -563,7 +636,7 @@ static func shader_armure() -> Shader:
 	return _shader_armure
 
 static func est_shader_armure(sh: Shader) -> bool:
-	return sh == EpeesLongues.shader_matiere(false) or sh == shader_armure() or sh == shader_or() or sh == shader_metal() or sh == shader_gemme() or sh == shader_pierre(false) or sh == shader_pierre(true)
+	return sh == EpeesLongues.shader_matiere(false) or sh == shader_armure() or sh == shader_or() or sh == shader_metal() or sh == shader_gemme() or sh == shader_pierre(false) or sh == shader_pierre(true) or sh == shader_lourd()
 
 # ------------------------------------------------------------------------------------------------------------- masquage
 ## Zones recouvertes par les pièces réellement posées ; « cape » en plus quand la pièce de tête descend sur les épaules (capuche
