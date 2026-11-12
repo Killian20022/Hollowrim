@@ -405,6 +405,18 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
   Tenue redressée : repos ~6° de la verticale à l'écran (était 37°), garde 17° (31°) ; 3e personne `CorpsMainsTps.RedresseDeuxMains`
   ~19° (39°). Coups plus vifs (temps des clips Mixamo resserrés dans `gestes_2mains.py`) : coup léger 1,53 s (2,45 s ; épée à
   une main 0,63 s), frappe 0,21 s (0,36), combo 1-2-3 2,4 s (3,8 s). Mesures et planches : `outils/captures_claymore_v4.gd`.
+- **Lames HD (branche armes/lames_hd, 2026-11-12 : « que ça fasse moins jouet et vraie épée, comme la claymore »)** : les quatre
+  lames Quaternius CC0 du catalogue sont refaites maison, `sources_blender/lames_hd/lames_hd.py` → `assets/modeles/armes/lames_hd/<id>.glb`
+  (les `cc0_essai/0[1-4]_*.glb` restent). `epee_soldat` 872 → 4 300 tris (lame à large gouttière, fil + biseau secondaire, 3 petites
+  ébréchures, marque de forge incrustée, croisée à 12 pans et olives, fusée de cuir enroulé en volume, garde haute + pommeau à 5 lobes) ;
+  `sabre_pillard` 942 → 4 282 (fauchon à un tranchant : ventre élargi, dos qui plonge vers la pointe, gouttière le long du dos,
+  7 ébréchures, croisée en S avec nagel, lacet de cuir croisé, pommeau-crochet rivé) ; `epee_doree` 1 006 → 6 654 (lame `lame_or`
+  gravée en feuille, quillons à volutes, pas d'âne, écusson serti, chape, fusée filetée de deux fils d'or, bagues torsadées, pommeau
+  en poire serti) ; `dague_acier` 726 → 2 776 (deux tranchants, courte gouttière, quillons recourbés à boules, pommeau à pans).
+  Matériaux EpeesLongues par nom (lame, lame_or, fer, or, cuir, gemme : plus de `remap_materiaux`), UV de lame relatives à la largeur
+  locale (gouttière et fil de la texture suivent la géométrie ; sabre : u 0,5 au dos -> 1 au fil). Mêmes ids, stats, longueurs et
+  repères prise / garde / pointe (dague : échelle 1,3 des anciens .tscn intégrée au modèle, pointe x 0,013 -> 0). Planches :
+  `outils/captures_lames_hd.gd` (`--etiquette=avant` remonte les modèles Quaternius).
 
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
