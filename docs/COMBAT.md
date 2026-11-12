@@ -438,6 +438,40 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
     côté 3e personne ; armé du coup 1 court (la lame se lève peu avant de tomber) ; mains sous le cadre à la fin des coups 1 et 3
     (14-36 images, comme l'épée v6 : 9-28 ; v4 : 28-50).
 
+### Coup horizontal gauche → droite à deux mains (claymore v6, coup 2 ; retour utilisateur 2026-11-12 : « casse encore le poignet »)
+**Anatomie** (droitier : main droite en haut contre la garde, main gauche au pommeau) :
+- armé : lame au-dessus / derrière l'épaule GAUCHE, avant-bras droit qui croise le buste, coude droit plié, coude gauche près du corps ;
+- la puissance vient de la rotation du bassin puis du buste (les bras suivent le buste, ils ne « fouettent » pas) ;
+- frappe : les bras se tendent et restent presque tendus en fin de frappe ; effet de levier : la main droite POUSSE, la gauche
+  TIRE le pommeau vers le corps ;
+- le plat de la lame tourne par PRONATION / SUPINATION de l'avant-bras (torsion), PAS par flexion du poignet ;
+- les deux poignets restent à peu près dans l'axe de l'avant-bras, avec une petite déviation ulnaire au contact.
+**Seuils mesurés** (`mesures_coups_v5.gd --seq=coup2` : flexion / déviation des poignets DROIT et GAUCHE, pose après l'IK, écart à
+la tenue sur tout le coup) : droit ≤ 20° en flexion / extension et ≤ 15° en déviation ; gauche ≤ 30° / ≤ 30° ; variation par image
+pas pire que les coups d'épée v6 (jusqu'à 22,7°/image pour le poignet droit du revers coup_b6).
+**Cause mesurée** (v6 du matin, gs_slash_2 46-60, `roulis_prise` 90) : la capture est la fin d'un enchaînement en vrille (le buste
+fait un tour) et casse elle-même son poignet (flexion -44 → +77°) ; le roulis de prise de 90° était absorbé par le poignet : poignet
+droit à 42° / 29° de la tenue, poignet gauche à 45° en déviation ; et le poignet GAUCHE, posé par IK sur la fusée avec un pôle de
+coude FIXE (`coude_gauche_2m`), encaissait tout l'écart quand la lame balayait vers la droite.
+**Correction** (aucune pose écrite) :
+- candidats extraits du Great Sword Pack complet (`extraire_2mains.py` : slide attack, kick, kick (2), impact (3), draw ajoutés) et
+  mesurés (sens du balayage vu de la caméra, vitesse, poignets des deux mains de la capture), puis retargetés et mesurés dans le jeu ;
+  retenu : gs_slash_2 47 → 60, seul armé réellement à gauche qui traverse l'écran (gs_slash_2 4-10, poignets de capture à ±15°,
+  donnait une lame verticale en « essuie-glace » ; gs_spin, gs_kick_2, gs_slash_4 : mains sous le cadre ou lame derrière la tête) ;
+- `roulis_prise` 90 supprimé ; poignet droit verrouillé à ±5° de la tenue (f -23..-13, r -44..-34) : la torsion de l'avant-bras
+  (29 → 57°) et le bras portent la rotation de la capture ;
+- main gauche : le pôle du coude est le coude qui mettrait l'avant-bras dans le prolongement de la main (`mains._pole_coude_g_2m`,
+  contrainte anatomique de l'IK, passage continu vers le pôle fixe près de l'axe épaule-poignet) : main gauche ≤ 1,7 cm de la fusée
+  dans les 25 poses du test (8,2 cm avant) ;
+- `AnimateurBras.jouer(nom, fondu, depart)` : le départ en cours de clip ne consomme plus le fondu (`advance(depart)` le jouait d'un
+  coup : enchaînements de combo sans fondu, poignets qui sautaient de 30° en une image ; concerne aussi les combos d'épée, plus doux).
+**Résultat** (coup 2 seul) : poignet droit 16° / 11° de la tenue (avant 42° / 29°), gauche 28° / 30° (avant 27° / 45°) ; détail image
+par image : `Desktop/Skyrim captures/claymore_v6/coup2/mesures.txt`. 3e personne (non modifiée, autre branche) : même capture,
+gs_slash_2, images [44, 47, 50, 56, 60] (début, armé, frappe, fin de frappe, fin), en annulant le lacet du buste de la capture
+(épaules 149° → 5° entre 47 et 60), sinon le corps finit dos à la caméra.
+Limites : le coup 2 monte en diagonale (lame finie en haut à droite) plutôt qu'un vrai plat à hauteur de poitrine ; mains sous le
+cadre pendant l'armé à gauche ; poignet gauche jusqu'à 15,6°/image au départ de l'armé (la fusée tourne vite sous la main).
+
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
 (≈ 35° de la verticale à l'écran, pointe vers le centre haut), tranchant (−0,9 ; 0 ; −0,6) (plat et garde en croix

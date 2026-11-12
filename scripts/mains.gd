@@ -1887,10 +1887,12 @@ func _pole_coude_g_2m(main_g: Transform3D, epaule: Vector3, dt: float) -> Vector
 	var dir_sw := sw.normalized() if sw.length() > 1e-4 else Vector3.FORWARD
 	var milieu := epaule + dir_sw * dir_sw.dot(ideal - epaule)
 	var perp := ideal - milieu
+	# passage CONTINU du pôle fixe au pôle « poignet droit » selon la distance du coude idéal à l'axe (pas de bascule d'une image à
+	# l'autre quand il frôle l'axe)
 	var voulu := fixe
-	if perp.length() > 0.02:
-		voulu = ideal + perp.normalized() * 0.25
-	var k := 1.0 - exp(-30.0 * dt)
+	if perp.length() > 1e-4:
+		voulu = fixe.lerp(ideal + perp.normalized() * 0.25, smoothstep(0.01, 0.06, perp.length()))
+	var k := 1.0 - exp(-20.0 * dt)
 	_pole_g_2m = voulu if not _pole_g_2m_ok else _pole_g_2m.lerp(voulu, k)
 	_pole_g_2m_ok = true
 	return _pole_g_2m
