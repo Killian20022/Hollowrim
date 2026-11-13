@@ -27,9 +27,23 @@ extends SkeletonModifier3D
 ## l'IK de CorpsMainsTps), et les mesures (poignet, écart main gauche) partent de sa prise.
 
 const BIBLIOTHEQUE := preload("res://assets/animations/corps_coups_tps.res")
-const FONDU := 0.1          # s : passage d'un geste à l'autre (pose affichée -> nouvelle capture)
+## FONDUS ET TEMPS DU CORPS (branche tps/coups_propres, 2026-11-12 ; retour : « les mouvements ne se terminent pas, on dirait un
+## enchaînement de convulsions ») : voir docs/COMBAT.md, « 3e personne ». En bref :
+## - le temps de la capture ne suit plus le temps du clip FPS à la lettre (ses courbes d'armé / de frappe, découpées par morceaux,
+##   faisaient avancer la capture par à-coups : 1,2 -> 0,2 -> 0,8 image par image) : il le POURSUIT avec une vitesse lissée
+##   (SUIVI_LISSAGE) et un rattrapage (SUIVI_GAIN), d'où un mouvement continu, recalé sur la frappe ;
+## - un geste quitté (coup suivant en tampon, retour au repos) n'est plus figé puis fondu en 0,1 s : il continue à sa vitesse
+##   naturelle jusqu'à sa fin (« retour » dans CLIPS : la garde retrouvée) pendant que le suivant s'arme, fondu en courbe douce
+##   (FONDU_COUP, fini au plus tard à la frappe du nouveau coup) ; au repos, le corps finit son retour avant de rendre la main à la
+##   locomotion (FONDU_SORTIE).
+const FONDU := 0.2          # s : entrée depuis la locomotion (courbe douce ; finie au plus tard à la frappe du geste)
+const FONDU_DEUX_MAINS := 0.07   # s : entrée à deux mains
+const FONDU_COUP := 0.24    # s : passage d'un geste à l'autre (le geste quitté continue pendant ce fondu)
+const FONDU_SORTIE := 0.26  # s : retour à la locomotion, une fois le geste fini
+const SUIVI_LISSAGE := 0.07 # s : lissage de la vitesse de la capture (le clip FPS accélère / freine par morceaux)
+const SUIVI_GAIN := 16.0    # 1/s : rattrapage de l'écart au temps FPS (synchronisation de la frappe)
+const SUIVI_NATUREL := 1.15 # vitesse (× temps réel) d'un geste quitté qui finit son suivi / son retour
 const POIGNET_MAX_TEST := 40.0   # degrés : borne vérifiée par outils/test_coups_tps.gd (retarget : 38°)
-const FONDU_SORTIE := 0.22  # s : retour à la locomotion
 const PRISE_EPEE_CORPS := 0.04   # milieu de la poignée de epee_nordique.glb (repère du modèle) : la prise PRISE de corps_joueur y tombe
 
 ## clip FPS (nom RÉEL joué par AnimateurBras) -> capture : « src » (clip de corps_coups_tps.res), « im » = images de la
@@ -38,32 +52,37 @@ const PRISE_EPEE_CORPS := 0.04   # milieu de la poignée de epee_nordique.glb (r
 ## gestes_une_main.py, gestes_2mains.py) gardent leurs images ; ici l'armé derrière la tête, coupé en vue FPS, est rendu.
 const CLIPS := {
 	# --- épée à une main : combo 1-2-3-4 (coups v6) ---
+	# « retour » : image où la capture retrouve la garde ; le corps y va même quand le clip FPS est fini ou qu'un autre coup
+	# s'arme (tps/coups_propres). Plages choisies sur planche (outils/planche_captures_tps.gd) : aucune ne finit au milieu d'un
+	# tour sur soi-même ; chaque coup part à peu près d'où le précédent s'arrête (droite haute -> gauche basse -> gauche -> droite).
 	# 1 diagonale haut-droite -> bas-gauche (« Sword And Shield Slash (1) »)
-	"coup_a6": {"src": "slash_1", "im": [6, 15, 17, 23, 34]},
-	# 2 revers horizontal gauche -> droite (« Sword And Shield Slash (2) », début ; la vrille qui suit l'image 22 est coupée)
-	"coup_b6": {"src": "slash_2", "im": [2, 10, 12, 19, 23]},
-	# 3 taille horizontale droite -> gauche (Quaternius UAL2 « Sword_Regular_Combo », 3e coup)
-	"coup_t6": {"src": "q_Sword_Regular_Combo", "im": [24, 31, 33, 38, 44]},
-	# 4 estoc (« Stabbing »)
-	"coup_c6": {"src": "estoc", "im": [1, 6, 8, 14, 30]},
+	"coup_a6": {"src": "slash_1", "im": [6, 15, 17, 23, 34], "retour": 44},
+	# 2 revers horizontal gauche -> droite (« Sword And Shield Slash (2) » tournait sur lui-même : coupé au milieu du tour à
+	# l'image 23, le corps revenait de 150° en 0,2 s. Remplacé par l'« inward slash » : armé sur l'épaule gauche, taille vers la droite)
+	"coup_b6": {"src": "interieur", "im": [22, 31, 33, 39, 50], "retour": 62},
+	# 3 taille horizontale droite -> gauche (UAL2 « Sword_Regular_Combo », 3e coup, faisait un tour complet sur lui-même pendant la
+	# frappe : saut de 137° d'une image à l'autre. Remplacé par l'« outward slash » : épée levée à droite, balayage vers la gauche)
+	"coup_t6": {"src": "revers", "im": [14, 22, 24, 30, 40], "retour": 56},
+	# 4 estoc (« Stabbing ») : jusqu'au retrait de la lame (la plage s'arrêtait bras tendu, image 30)
+	"coup_c6": {"src": "estoc", "im": [2, 8, 10, 15, 33], "retour": 45},
 	# coups v5 (mêmes captures)
-	"coup_a": {"src": "slash_1", "im": [6, 15, 17, 23, 34]},
-	"coup_b": {"src": "slash_2", "im": [2, 10, 12, 19, 23]},
-	"coup_t": {"src": "q_Sword_Regular_Combo", "im": [24, 31, 33, 38, 44]},
-	"coup_c": {"src": "estoc", "im": [1, 6, 8, 14, 30]},
+	"coup_a": {"src": "slash_1", "im": [6, 15, 17, 23, 34], "retour": 44},
+	"coup_b": {"src": "interieur", "im": [22, 31, 33, 39, 50], "retour": 62},
+	"coup_t": {"src": "revers", "im": [14, 22, 24, 30, 40], "retour": 56},
+	"coup_c": {"src": "estoc", "im": [2, 8, 10, 15, 33], "retour": 45},
 	# --- coups puissants (clic maintenu), selon le déplacement au début de la charge ---
 	# à l'arrêt / de côté gauche : frappe verticale de haut en bas (« Standing Melee Attack Downward »)
 	"charge_lourd": {"src": "vertical", "im": [1, 19, 21]},
-	"lourd": {"src": "vertical", "im": [21, 21, 22, 27, 45]},
+	"lourd": {"src": "vertical", "im": [21, 21, 22, 27, 45], "retour": 60},
 	# en avançant : grand coup par-dessus en fendant (« Sword And Shield Attack »)
 	"charge_vertical": {"src": "ss_attack", "im": [1, 14, 16]},
-	"lourd_vertical": {"src": "ss_attack", "im": [16, 16, 17, 24, 45]},
+	"lourd_vertical": {"src": "ss_attack", "im": [16, 16, 17, 24, 45], "retour": 62},
 	# pas de côté à droite : balayage gauche -> droite (« Stable Sword Outward Slash »)
 	"charge_gd": {"src": "revers", "im": [1, 14, 16]},
-	"lourd_gd": {"src": "revers", "im": [16, 16, 17, 25, 45]},
+	"lourd_gd": {"src": "revers", "im": [16, 22, 24, 30, 45], "retour": 56},
 	# en reculant : revers court (« Standing Melee Attack Backhand »)
 	"charge_revers": {"src": "revers_b", "im": [1, 18, 20]},
-	"lourd_revers": {"src": "revers_b", "im": [20, 20, 21, 30, 50]},
+	"lourd_revers": {"src": "revers_b", "im": [20, 20, 21, 30, 50], "retour": 76},
 	# --- finishers v2 (branche combat/finishers_v2) : mêmes captures que les clips FPS fin_* (gestes_finishers.py) ; « marq » = noms
 	# des marqueurs du clip FPS auxquels « im » (une image de plus : le début) est calé, tenue plantée comprise ---
 	# épée plantée / dans le dos : « Stabbing » (images 2 -> 14 estoc, 14 -> 26 tenue, 26 -> 50 retrait et retour)
@@ -77,7 +96,7 @@ const CLIPS := {
 	"parade": {"src": "q_Sword_Block", "im": [4, 14]},
 	"encaisse": {"src": "ss_impact", "im": [0, 14]},
 	"garde_brisee": {"src": "q_Idle_Shield_Break", "im": [0, 32]},
-	"contre": {"src": "slash_1", "im": [12, 15, 17, 23, 34]},
+	"contre": {"src": "slash_1", "im": [12, 15, 17, 23, 34], "retour": 44},
 	# --- deux mains (claymore, hybrides 6-8 ; captures de la claymore v3) ---
 	"c2_a": {"src": "gs_slash", "im": [4, 12, 16, 24, 38]},
 	"c2_b": {"src": "gs_slash_2", "im": [40, 46, 50, 57, 70]},
@@ -90,17 +109,17 @@ const CLIPS := {
 	"brisee_2m": {"src": "gs_impact", "im": [0, 26]},
 	# --- haches, masses, marteaux (gestes lourds) ---
 	# hache : 1 diagonale, 2 revers, 3 taille verticale ; puissante = grand vertical
-	"h_a": {"src": "slash_1", "im": [6, 15, 17, 23, 34]},
-	"h_b": {"src": "interieur", "im": [1, 14, 16, 24, 40]},
-	"h_c": {"src": "vertical", "im": [1, 19, 21, 27, 45]},
+	"h_a": {"src": "slash_1", "im": [6, 15, 17, 23, 34], "retour": 44},
+	"h_b": {"src": "interieur", "im": [18, 31, 33, 39, 50], "retour": 62},   # frappe calée sur la taille (images 33-39), plus sur l'armé
+	"h_c": {"src": "vertical", "im": [1, 19, 21, 27, 45], "retour": 60},
 	"charge_h": {"src": "vertical", "im": [1, 19, 21]},
-	"lourd_h": {"src": "vertical", "im": [21, 21, 22, 27, 45]},
+	"lourd_h": {"src": "vertical", "im": [21, 21, 22, 27, 45], "retour": 60},
 	# masse / marteau : crochet, revers, écrasement ; puissante = écrasement à deux temps (UAL2 « Sword_Heavy_Combo »)
-	"m_a": {"src": "revers_b", "im": [1, 18, 20, 30, 50]},
-	"m_b": {"src": "revers", "im": [1, 14, 16, 25, 45]},
-	"m_c": {"src": "vertical", "im": [1, 19, 21, 27, 45]},
+	"m_a": {"src": "revers_b", "im": [1, 18, 20, 30, 50], "retour": 76},
+	"m_b": {"src": "revers", "im": [10, 22, 24, 30, 40], "retour": 56},   # idem (balayage images 24-30)
+	"m_c": {"src": "vertical", "im": [1, 19, 21, 27, 45], "retour": 60},
 	"charge_m": {"src": "vertical", "im": [1, 19, 21]},
-	"lourd_m": {"src": "vertical", "im": [21, 21, 22, 27, 45]},
+	"lourd_m": {"src": "vertical", "im": [21, 21, 22, 27, 45], "retour": 60},
 	# grand marteau (deux mains) : grand vertical tête -> sol
 	"gm_a": {"src": "gs_slash_2", "im": [8, 18, 23, 31, 40]},
 	"charge_gm": {"src": "gs_slash_2", "im": [8, 21, 22]},
@@ -114,17 +133,25 @@ var _pistes := {}            # src -> {os: piste de rotation} ; « _bassin » : 
 var _os: Array[int] = []
 var _bas := {}               # os -> true (bassin et jambes)
 var _i_bassin := -1
-var _clip := ""              # clip FPS suivi
+var _clip := ""              # clip FPS suivi (geste « entrant », synchronisé sur les bras)
 var _src := ""
-var _t_src := 0.0            # s dans la capture
+var _t_src := 0.0            # s dans la capture (temps AFFICHÉ du geste entrant, lissé)
+var _cible_prec := -1.0      # temps de capture visé par le clip FPS à l'image précédente
+var _vitesse := 0.0          # vitesse lissée du temps visé (s de capture par s)
+var _poids_lin := 0.0        # 0 -> 1 linéaire ; _poids en est la courbe douce
 var _poids := 0.0            # 0 : locomotion seule, 1 : geste
-var _fondu := 1.0            # 0 -> 1 : fondu depuis _pose_depart
-var _pose_depart := {}       # os -> Quaternion (pose affichée au changement de geste)
-var _bassin_depart := Vector3.ZERO
-var _derniere := {}          # os -> Quaternion (dernière pose du geste, pour la sortie)
+var _sor := {}               # geste quitté qui finit : {src, t, taux, fin, j} ou {pose, bassin} (pose figée, cas rare)
+var _b := 1.0                # fondu geste quitté -> geste entrant (0 -> 1, courbe douce)
+var _t_b := 0.0
+var _derniere := {}          # os -> Quaternion (dernière pose affichée du geste)
 var _bassin_dernier := Vector3.ZERO
 var _poids_jambes := 1.0
-var _actif_clip := false
+var _actif_clip := false     # un geste entrant (clip FPS) est suivi
+var _j := -1                 # entrée du journal du geste entrant
+var _t_debut := 0.0          # temps de capture où le geste entrant a commencé (il peut partir après son image de début)
+## Journal des gestes (mesures, outils/film_coups_tps_propres.gd) : {clip, src, debut, image (la plus loin montrée à plus de 50 %
+## du poids)}, en images de capture ; 256 derniers.
+var journal: Array[Dictionary] = []
 var _force := ""             # captures : --tps-clip=src:image
 var ik_gauche := true
 ## Bras gauche quand la main gauche tient la torche (ou un sort) : part de la capture gardée (les captures balancent le bras
@@ -192,7 +219,7 @@ static func existe(clip: String) -> bool:
 
 ## Le corps est piloté par un geste de combat (corps_joueur ne joue alors ni son ancien coup ni sa pose armée / garde).
 func pilote() -> bool:
-	return _force != "" or _clip_courant() != ""
+	return _force != "" or _clip_courant() != "" or (not _sor.is_empty() and _poids > 0.3)
 
 ## Part du geste dans la pose (0 : locomotion seule, 1 : capture entière) : CorpsMainsTps y règle ses couches de bras et son IK.
 func poids_geste() -> float:
@@ -241,6 +268,40 @@ static func temps_capture(spec: Dictionary, m: Dictionary, t: float, longueur: f
 			return lerpf(float(im[i - 1]), float(im[i]), u) / fps
 	return float(im[im.size() - 1]) / fps
 
+static func _douce(x: float) -> float:
+	x = clampf(x, 0.0, 1.0)
+	return x * x * x * (x * (x * 6.0 - 15.0) + 10.0)
+
+## Fin (s de capture) d'un geste quitté : sa « retour » (garde retrouvée) si CLIPS en donne une, sinon sa dernière image.
+static func _fin_geste(spec: Dictionary) -> float:
+	var im: Array = spec["im"]
+	return float(spec.get("retour", im[im.size() - 1])) / 30.0
+
+## Avancée du geste entrant de son départ vers sa FRAPPE (0 -> 1) : les fondus sont finis au plus tard quand la lame part, la
+## frappe se lit entière (finir à l'armé, souvent 3-4 images après un départ en cours de clip, donnait des embardées de 50°/image).
+## 0 pour les gestes sans frappe (tenues, défense à deux images).
+func _phase_armee(im: Array) -> float:
+	if im.size() <= 2:
+		return 0.0
+	var a := maxf(float(im[2] if im.size() > 3 else im[1]), _t_debut * 30.0 + 2.0)
+	return clampf(inverse_lerp(_t_debut * 30.0, a, _t_src * 30.0), 0.0, 1.0)
+
+func _noter(j: int, t: float, w: float) -> void:
+	if j >= 0 and j < journal.size() and w >= 0.5:
+		journal[j]["image"] = maxf(float(journal[j]["image"]), t * 30.0)
+
+## Le geste entrant (s'il y en a un) devient le geste quitté : il continue jusqu'à sa fin. Si un fondu était encore en cours entre
+## deux gestes, la pose affichée est figée et sert de départ (cas rare : trois gestes en moins de FONDU_COUP).
+func _quitter() -> void:
+	if not _actif_clip or _clip == "":
+		return
+	if not _sor.is_empty() and _b < 0.999:
+		_sor = {"pose": _derniere.duplicate(), "bassin": _bassin_dernier}
+	else:
+		_sor = {"src": _src, "t": _t_src, "taux": maxf(_vitesse, 0.3), "fin": maxf(_fin_geste(CLIPS[_clip]), _t_src), "j": _j}
+	_actif_clip = false
+	_clip = ""
+
 func _process(dt: float) -> void:
 	if corps == null or corps.mains == null:
 		return
@@ -248,84 +309,156 @@ func _process(dt: float) -> void:
 	var joueur: CharacterBody3D = corps.joueur
 	if joueur.mort:
 		_poids = 0.0
+		_poids_lin = 0.0
 		_actif_clip = false
+		_clip = ""
+		_sor = {}
 		influence = 0.0
 		return
 	influence = 1.0
-	var clip := ""
-	var spec := {}
 	if _force != "":
 		var d := _force.split(":")
 		_src = d[0]
 		_t_src = float(d[1]) / 30.0 if d.size() > 1 else 0.0
 		_poids = 1.0
-		_fondu = 1.0
+		_poids_lin = 1.0
+		_b = 1.0
+		_sor = {}
 		_poids_jambes = 1.0
 		_actif_clip = true
 		return
 	var anim: AnimateurBras = mains.anim
-	clip = _clip_courant()
+	var clip := _clip_courant()
 	if clip != "":
-		spec = CLIPS[clip]
-		var src: String = spec["src"]
-		var t := temps_capture(spec, anim.marqueurs(anim.clip), anim.t, anim.longueur(anim.clip))
-		if clip != _clip:
-			# nouveau geste : fondu depuis le geste précédent encore affiché (depuis la locomotion, c'est la montée de _poids
-			# qui fond)
-			if _poids > 0.01 and not _derniere.is_empty():
-				_pose_depart = _derniere.duplicate()
-				_bassin_depart = _bassin_dernier
-				_fondu = 0.0
-			else:
-				_fondu = 1.0
+		var spec: Dictionary = CLIPS[clip]
+		var cible := temps_capture(spec, anim.marqueurs(anim.clip), anim.t, anim.longueur(anim.clip))
+		# nouveau geste (autre clip, ou le même relancé : son temps repart en arrière)
+		if clip != _clip or cible < _cible_prec - 0.1:
+			var depuis_geste := _poids_lin > 0.01 and (_actif_clip or not _sor.is_empty())
+			_quitter()
+			if not depuis_geste:
+				_sor = {}
+			_b = 0.0 if not _sor.is_empty() else 1.0
+			_t_b = 0.0
 			_clip = clip
-		_src = src
-		_t_src = t
-		_actif_clip = true
-		_poids = minf(1.0, _poids + dt / FONDU)
-		_fondu = minf(1.0, _fondu + dt / FONDU)
+			_src = String(spec["src"])
+			_t_src = cible
+			_t_debut = cible
+			_vitesse = 0.0
+			_cible_prec = cible
+			_actif_clip = true
+			journal.append({"clip": clip, "src": _src, "debut": cible * 30.0, "image": cible * 30.0})
+			if journal.size() > 256:
+				journal.pop_front()
+			_j = journal.size() - 1
+		else:
+			# poursuite lissée du temps visé : la vitesse de la capture varie en douceur, l'écart est rattrapé (frappe à l'heure)
+			var mesure := clampf((cible - _cible_prec) / maxf(dt, 1e-4), 0.0, 6.0)
+			_vitesse = lerpf(_vitesse, mesure, 1.0 - exp(-dt / SUIVI_LISSAGE))
+			var taux := maxf(0.0, _vitesse + SUIVI_GAIN * (cible - _t_src))
+			_t_src = minf(_t_src + taux * dt, maxf(cible, _t_src) + 1.0 / 30.0)
+			_cible_prec = cible
+		var im_e: Array = spec["im"]
+		var ph := _phase_armee(im_e)
+		# deux mains : entrée brève (pendant un fondu, la main gauche est entre la tenue de CorpsMainsTps et la poignée de la capture)
+		_poids_lin = minf(1.0, maxf(_poids_lin + dt / (FONDU_DEUX_MAINS if _deux_mains() else FONDU), ph))
 	else:
-		_clip = ""
-		_actif_clip = false
-		_poids = maxf(0.0, _poids - dt / FONDU_SORTIE)
+		_quitter()
+	# geste quitté : il finit son suivi et son retour à sa vitesse naturelle
+	if not _sor.is_empty() and _sor.has("src"):
+		_sor["taux"] = move_toward(float(_sor["taux"]), SUIVI_NATUREL, dt * 4.0)
+		_sor["t"] = minf(float(_sor["t"]) + float(_sor["taux"]) * dt, float(_sor["fin"]))
+	if _actif_clip:
+		if not _sor.is_empty():
+			# fondu en courbe douce ; il est fini au plus tard à la frappe du nouveau geste (la frappe se lit entière)
+			_t_b += dt
+			_b = _douce(maxf(_t_b / FONDU_COUP, _phase_armee(CLIPS[_clip]["im"])))
+			if _b >= 0.999:
+				_b = 1.0
+				_sor = {}
+	else:
+		# plus de geste suivi : on rend la main à la locomotion quand le geste quitté a (presque) fini son retour
+		var reste := 0.0
+		if not _sor.is_empty() and _sor.has("src"):
+			reste = (float(_sor["fin"]) - float(_sor["t"])) / SUIVI_NATUREL
+		if reste <= FONDU_SORTIE * 0.5:
+			_poids_lin = maxf(0.0, _poids_lin - dt / FONDU_SORTIE)
+		if _poids_lin <= 0.0:
+			_sor = {}
+	_poids = _douce(_poids_lin)
+	_noter(_j, _t_src, _poids * _b if _actif_clip else 0.0)
+	if not _sor.is_empty() and _sor.has("src"):
+		_noter(int(_sor["j"]), float(_sor["t"]), _poids * ((1.0 - _b) if _actif_clip else 1.0))
 	# jambes : à l'arrêt elles suivent la capture, en marche elles gardent la locomotion
 	var v := Vector2(joueur.velocity.x, joueur.velocity.z).length()
 	var but_jambes := 1.0 - smoothstep(0.4, 1.4, v) if joueur.is_on_floor() else 0.0
-	_poids_jambes = move_toward(_poids_jambes, but_jambes, dt * 5.0)
+	_poids_jambes = move_toward(_poids_jambes, but_jambes, dt * 4.0)
+
+## Rotation de l'os `i` dans le geste entrant / quitté (null si la capture n'a pas cet os).
+func _rot(src: String, t: float, i: int) -> Variant:
+	var a := BIBLIOTHEQUE.get_animation(src)
+	var p := _pistes_de(src)
+	if a == null or not p.has(i):
+		return null
+	return a.rotation_track_interpolate(p[i], clampf(t, 0.0, a.length))
+
+func _bassin_de(src: String, t: float) -> Variant:
+	var a := BIBLIOTHEQUE.get_animation(src)
+	var p := _pistes_de(src)
+	if a == null or not p.has("_bassin"):
+		return null
+	return a.position_track_interpolate(p["_bassin"], clampf(t, 0.0, a.length))
 
 func _process_modification() -> void:
 	if sq == null or (_poids <= 0.0 and not _actif_clip):
 		return
 	var _gauche_occupee: bool = not _deux_mains() and _main_gauche_occupee()
-	var a := BIBLIOTHEQUE.get_animation(_src) if _src != "" else null
-	var p := _pistes_de(_src) if a != null else {}
-	var tc := clampf(_t_src, 0.0, a.length) if a != null else 0.0
+	var ent := _actif_clip and _src != ""
+	var sor := not _sor.is_empty()
+	var sor_src: String = _sor.get("src", "")
+	var sor_t := float(_sor.get("t", 0.0))
+	var sor_pose: Dictionary = _sor.get("pose", {})
+	var b := _b if ent else 0.0
 	for i in _os:
 		var sous := sq.get_bone_pose_rotation(i)   # locomotion (AnimationPlayer du corps)
+		var ge = _rot(_src, _t_src, i) if ent else null
+		var gs = null
+		if sor:
+			gs = _rot(sor_src, sor_t, i) if sor_src != "" else sor_pose.get(i)
 		var geste: Quaternion
-		if _actif_clip and p.has(i):
-			geste = a.rotation_track_interpolate(p[i], tc)
-			if _fondu < 1.0 and _pose_depart.has(i):
-				geste = (_pose_depart[i] as Quaternion).slerp(geste, smoothstep(0.0, 1.0, _fondu))
-			_derniere[i] = geste
+		if ge != null and gs != null and b < 1.0:
+			geste = (gs as Quaternion).slerp(ge, b)
+		elif ge != null:
+			geste = ge
+		elif gs != null:
+			geste = gs
 		elif _derniere.has(i):
 			geste = _derniere[i]
 		else:
 			continue
+		_derniere[i] = geste
 		var w := _poids * (_poids_jambes if _bas.has(i) else 1.0)
 		if _gauche_occupee and _gauche.has(i):
 			w *= poids_bras_gauche_occupe
 		sq.set_bone_pose_rotation(i, sous.slerp(geste, w))
 	# bassin : hauteur et décalage de la capture (à l'arrêt seulement)
 	var sous_b := sq.get_bone_pose_position(_i_bassin)
+	var be = _bassin_de(_src, _t_src) if ent else null
+	var bs = null
+	if sor:
+		bs = _bassin_de(sor_src, sor_t) if sor_src != "" else _sor.get("bassin")
 	var geste_b := _bassin_dernier
-	if _actif_clip and p.has("_bassin"):
-		geste_b = a.position_track_interpolate(p["_bassin"], tc)
-		if _fondu < 1.0:
-			geste_b = _bassin_depart.lerp(geste_b, smoothstep(0.0, 1.0, _fondu))
-		_bassin_dernier = geste_b
+	if be != null and bs != null and b < 1.0:
+		geste_b = (bs as Vector3).lerp(be, b)
+	elif be != null:
+		geste_b = be
+	elif bs != null:
+		geste_b = bs
+	_bassin_dernier = geste_b
 	sq.set_bone_pose_position(_i_bassin, sous_b.lerp(geste_b, _poids * _poids_jambes))
 	if ik_gauche and _deux_mains():
+		# poids plein dès que le geste se voit : avec deux IK à demi-poids (la nôtre, celle de CorpsMainsTps à 1 - poids), la main
+		# gauche restait à mi-chemin de la poignée pendant les fondus
 		_main_gauche_sur_poignee(_poids)
 	_mesurer()
 

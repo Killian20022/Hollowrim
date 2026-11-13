@@ -195,9 +195,39 @@ Arrêt sur image, secousse et voile rouge d'un coup qui porte viennent des profi
 (moyenne ramenée vers −19 dB) ; non écoutés à l'oreille.
 
 ### 3e personne
-Contre et finisher passent par l'ancien état ARMER puis FRAPPE (`Sword_Attack` joué par corps_joueur.gd, vitesse du coup
-lourd) ; garde : image de garde de `Sword_Attack` ; garde brisée : `Hit_Chest` (coup reçu). Pas d'animation dédiée
-(parade, finisher) dans la bibliothèque.
+Le corps joue le même geste que les bras FPS (`CorpsCoupsTps`, scripts/combat/corps_coups_tps.gd) : table `CLIPS`, clip FPS ->
+capture (assets/animations/corps_coups_tps.res, 30 i/s) et images calées sur les marqueurs `arme / frappe / fin_frappe / fin`
+(+ `retour` : image où la capture retrouve la garde). Ni les dégâts ni la machine à états de mains.gd n'en dépendent.
+
+**Coups propres (tps/coups_propres, 2026-11-12 ; retour : « les mouvements ne se terminent pas, enchaînement de convulsions »)**.
+Causes mesurées (outils/film_coups_tps_propres.gd, avant/après) :
+- deux captures du combo épée tournaient sur elles-mêmes : coup 2 (`slash_2`, coupé à l'image 23, dos tourné à 150° : le corps
+  revenait de 150° en 0,2 s) et coup 3 (`q_Sword_Regular_Combo`, tour complet pendant la frappe : saut de 137° d'une image à
+  l'autre) ; remplacés par `interieur` (armé épaule gauche, taille vers la droite) et `revers` (épée levée à droite, balayage vers
+  la gauche) ; l'estoc s'arrêtait bras tendu (image 30) : il va au retrait (33, garde 45) ;
+- le temps de la capture recopiait le temps du clip FPS, dont l'armé et la frappe ont leurs propres courbes, découpé par morceaux :
+  la capture avançait par à-coups (1,2 puis 0,2 puis 0,8 image par image) ;
+- un coup quitté (clic en tampon, retour au repos) était figé puis fondu en 0,1 s vers le suivant (ou en 0,22 s vers la locomotion).
+
+Fonctionnement :
+- **temps du corps** : il POURSUIT le temps visé par le clip FPS (vitesse lissée `SUIVI_LISSAGE` 0,07 s + rattrapage `SUIVI_GAIN`
+  16/s) : mouvement continu, écart au plus ~1 image de capture pendant la frappe (le coup touche quand la lame passe) ;
+- **geste quitté** : il continue à sa vitesse naturelle (`SUIVI_NATUREL` ×1,15) jusqu'à son `retour` pendant que le suivant s'arme,
+  fondu en courbe douce (smootherstep) sur `FONDU_COUP` 0,24 s, fini au plus tard à la FRAPPE du nouveau coup ; au repos, le corps
+  finit son retour à la garde avant de rendre la main à la locomotion (`FONDU_SORTIE` 0,26 s) ;
+- entrée depuis la locomotion en courbe douce (`FONDU` 0,2 s, finie au plus tard à la frappe ; deux mains : 0,07 s, sinon la main
+  gauche reste entre la tenue de CorpsMainsTps et la poignée) ;
+- plages : chaque coup du combo part à peu près d'où le précédent s'arrête (droite haute -> gauche basse -> gauche -> droite) ;
+  hache 2 / masse 2 / puissant de côté : frappe recalée sur le vrai balayage de la capture (elle tombait dans l'armé) ;
+- clips FPS plus courts (claymore refaite ailleurs) : tout est calé sur les marqueurs du clip joué, rien sur sa durée.
+
+Mesures (bras droit / main / buste, 60 i/s, rugosité = écart de la vitesse angulaire à la moyenne de ses voisines) : combo à l'arrêt
+en clics répétés, rugosité max de la main 166 -> 25 °/image, moyenne 7,1 -> 3,9, va-et-vient 10 -> 0 ; clics espacés, rugosité max
+132 -> 26 ; chaque coup du combo espacé montré jusqu'à 38-56 / garde 44-62 (avant : coup 2 arrêté à 23 / 60). Films et chiffres :
+Desktop/Skyrim captures/coups_tps_propres/. Outils : `outils/film_coups_tps_propres.gd` (film + mesures, `--camera=cote`),
+`outils/planche_captures_tps.gd` (capture posée image par image), `outils/analyse_captures_tps.gd` (vitesses, tours sur soi).
+Reste : contre et finishers suivent aussi `CLIPS` ; la claymore `c2_b` (`gs_slash_2` 40-70) fait encore pivoter le corps dos à la
+caméra (capture de la claymore v3, à revoir avec les nouveaux clips 2 mains).
 
 ## Tracé de lame (détection)
 - Échantillons à **pas fixe de 1/240 s** du temps du geste (indépendant des images par seconde). La pose de chaque
