@@ -111,6 +111,8 @@ func _lancer() -> void:
 		else:
 			_verifier(reperes_tres or (reps["prise"].distance_to(Vector3(0, 0.03, 0)) < 0.002 and is_equal_approx(d.milieu_poignee, 0.03)), "%s : prise au centre du poing (0 ; 0,03 ; 0) : %s" % [id, reps["prise"]])
 			var cuir: AABB = m["mats"].get("cuir", m["mats"].get("fer", AABB()))
+			if m["mats"].has("cuir") and m["mats"].has("bois"):    # modèles HD : manche (bois) + bagues (cuir) = la fusée
+				cuir = cuir.merge(m["mats"]["bois"])
 			_verifier(cuir.position.y < 0.0 and cuir.end.y > 0.07, "%s : la fusée (cuir) entoure le poing : y [%.3f ; %.3f]" % [id, cuir.position.y, cuir.end.y])
 			_verifier(reps["garde"].y > 0.06 and reps["pointe"].y > reps["garde"].y + 0.15, "%s : garde %s sous la pointe %s" % [id, reps["garde"], reps["pointe"]])
 			_verifier(reps["pointe"].y <= b.end.y + 0.01 and reps["pointe"].y > b.end.y - 0.25, "%s : pointe %.3f près du bout %.3f" % [id, reps["pointe"].y, b.end.y])

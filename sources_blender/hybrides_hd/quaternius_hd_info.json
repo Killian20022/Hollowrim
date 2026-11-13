@@ -1,0 +1,37 @@
+{
+ "hache_guerre": {
+  "source": "06_axe",
+  "triangles_avant": 1130,
+  "triangles": 7876
+ },
+ "hachette": {
+  "source": "07_axe_small",
+  "triangles_avant": 966,
+  "triangles": 6932
+ },
+ "marteau_guerre": {
+  "source": "08_hammer_small",
+  "triangles_avant": 1474,
+  "triangles": 9230
+ },
+ "grand_marteau": {
+  "source": "09_hammer_double",
+  "triangles_avant": 1918,
+  "triangles": 10068
+ },
+ "masse_cloutee": {
+  "source": "10_club_mace",
+  "triangles_avant": 456,
+  "triangles": 6400
+ },
+ "bouclier_cercle": {
+  "source": "11_shield_round",
+  "triangles_avant": 1056,
+  "triangles": 7926
+ },
+ "ecu_chevalier": {
+  "source": "12_shield_heater",
+  "triangles_avant": 1084,
+  "triangles": 6916
+ }
+}

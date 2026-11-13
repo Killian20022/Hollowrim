@@ -134,6 +134,10 @@ func _tris(m: Node3D) -> int:
 			tris += (idx.size() if idx.size() > 0 else (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
 	return tris
 
+func _repere(m: Node3D, nom: String) -> Vector3:
+	var n := m.find_child(nom, true, false)
+	return _local(m, n).origin if n else Vector3.ZERO
+
 func _repere_y(m: Node3D, nom: String, defaut: float) -> float:
 	var n := m.find_child(nom, true, false)
 	return _local(m, n).origin.y if n else defaut
@@ -171,6 +175,27 @@ func _studio(id: String) -> void:
 		["sil_face", true, lg * 0.6, Vector3(0, 0, 3), Vector3.ZERO, Vector3(0, 0, -PI / 2), Vector3(-yc, 0, 0)],
 		["sil_profil", true, lg * 0.6, Vector3(0, 0, 3), Vector3.ZERO, Vector3(PI / 2, 0, -PI / 2), Vector3(-yc, 0, 0)],
 	]
+	var donnees: DonneesArme = CatalogueArmes.donnees(id)
+	var reg := _repere(m, "garde")
+	if donnees.categorie == DonneesArme.Categorie.BOUCLIER:    # face avant vers la caméra (+x du montage), dos, bord, umbo
+		var t := maxf(b.size.y, b.size.z)
+		var cb := b.get_center()
+		var av := -PI / 2
+		vues = [
+			["entiere", true, t * 1.15, Vector3(0, cb.y, 3), Vector3(0, cb.y, 0), Vector3(0, av, 0), Vector3(0, 0, -cb.z)],
+			["entiere_34", true, t * 1.15, Vector3(0, cb.y, 3), Vector3(0, cb.y, 0), Vector3(deg_to_rad(-15), av + deg_to_rad(40), 0), Vector3(0, 0, 0)],
+			["garde", false, 34.0, Vector3(0.10, cb.y + t * 0.30, 0.42), Vector3(0, cb.y + t * 0.36, 0), Vector3(0, av + deg_to_rad(25), 0), Vector3(0, 0, 0)],
+			["pommeau", true, t * 1.15, Vector3(0, cb.y, 3), Vector3(0, cb.y, 0), Vector3(0, -av, 0), Vector3(0, 0, 0)],
+			["lame", false, 34.0, Vector3(0.08, cb.y + 0.03, 0.40), Vector3(0, cb.y, 0), Vector3(0, av + deg_to_rad(20), 0), Vector3(0, 0, 0)],
+			["sil_face", true, t * 1.15, Vector3(0, cb.y, 3), Vector3(0, cb.y, 0), Vector3(0, av, 0), Vector3(0, 0, 0)],
+			["sil_profil", true, t * 1.15, Vector3(0, cb.y, 3), Vector3(0, cb.y, 0), Vector3(0, 0, 0), Vector3(0, 0, 0)],
+		]
+	elif not AVANT.has(id) or not String(AVANT[id]).contains("hybrides"):   # armes d'hast courtes : tête, talon, tranchant / face
+		var yh := (yg + b.end.y) * 0.5
+		var hx := reg.x + 0.04
+		var th := maxf(b.end.y - yg, 0.2)
+		vues[2] = ["garde", false, 38.0, Vector3(hx + 0.18 * th, yh + 0.06 * th, 0.75 * th + 0.12), Vector3(hx, yh, 0), Vector3(0, deg_to_rad(20), 0), Vector3.ZERO]
+		vues[4] = ["lame", false, 34.0, Vector3(hx + 0.22 * th, yh + 0.12 * th, 0.40 * th + 0.08), Vector3(hx + 0.05, yh - 0.02, 0), Vector3(0, deg_to_rad(-35), 0), Vector3.ZERO]
 	for v in vues:
 		cam.projection = Camera3D.PROJECTION_ORTHOGONAL if v[1] else Camera3D.PROJECTION_PERSPECTIVE
 		if v[1]:
@@ -194,6 +219,9 @@ func _famille(ids: Array) -> void:
 	var cam: Camera3D = r[1]
 	var pas := 3.6 / ids.size()
 	var x := -1.8 + pas * 0.5
+	if ids.size() < 8:
+		pas = 4.0 / ids.size()
+		x = -2.0 + pas * 0.5
 	var ms: Array[Node3D] = []
 	for id in ids:
 		var m := _modele(id)
@@ -202,12 +230,13 @@ func _famille(ids: Array) -> void:
 		ms.append(m)
 		x += pas
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = 2.05
+	cam.size = 2.05 if ids.size() >= 8 else 2.3
 	for v in [["plat", 0.0], ["34", 38.0]]:
 		cam.position = Vector3(0, 0.05, 3)
 		cam.look_at(Vector3(0, 0.05, 0))
-		for m in ms:
-			m.rotation = Vector3(0, deg_to_rad(v[1]), 0)
+		for i in ms.size():
+			var bq := CatalogueArmes.donnees(ids[i]).categorie == DonneesArme.Categorie.BOUCLIER
+			ms[i].rotation = Vector3(0, deg_to_rad(v[1]) + (PI / 2 if bq else 0.0), 0)
 		await _attendre(0.2)
 		var img := vp.get_texture().get_image()
 		img.convert(Image.FORMAT_RGBA8)
@@ -222,7 +251,7 @@ func _famille(ids: Array) -> void:
 		var m := ms[i]
 		m.visible = true
 		m.position = Vector3.ZERO
-		m.rotation = Vector3(0, deg_to_rad(12), 0)
+		m.rotation = Vector3(0, deg_to_rad(12) + (PI / 2 if CatalogueArmes.donnees(ids[i]).categorie == DonneesArme.Categorie.BOUCLIER else 0.0), 0)
 		var yg := _repere_y(m, "garde", 0.17)
 		var b := _boite(m)
 		cam.projection = Camera3D.PROJECTION_PERSPECTIVE
@@ -270,8 +299,12 @@ func _fps(armes: Array, nuit: bool) -> void:
 		var a: DonneesArme = CatalogueArmes.donnees(id).duplicate()
 		if etiq == "avant":
 			a.modele = AVANT.get(id, a.modele)
-		var cote := "gauche" if a.categorie == DonneesArme.Categorie.BOUCLIER else "droite"
-		mains.equipement.equiper(cote, a)
+		if a.categorie == DonneesArme.Categorie.BOUCLIER:     # bouclier au bras gauche, épée de soldat en main droite
+			mains.equipement.equiper("droite", CatalogueArmes.donnees("epee_soldat"))
+			await _attendre(0.3)
+			mains.equipement.equiper("gauche", a)
+		else:
+			mains.equipement.equiper("droite", a)
 		await _attendre(1.4)
 		var img := root.get_viewport().get_texture().get_image()
 		img.convert(Image.FORMAT_RGBA8)

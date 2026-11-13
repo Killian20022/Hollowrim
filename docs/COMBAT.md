@@ -441,9 +441,16 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
   (lames un peu plus épaisses, comme la v2). Planches : `outils/captures_armes_hd.gd` (générique : `AVANT[id]` = modèle
   d'origine, après = catalogue ; vues entière, 3/4, garde, pommeau, lame, 1re personne jour et nuit ; superposition ; famille).
   Essai rejeté : garde à section « losange adouci » (`garde_hd`, gardée dans le script) : faces trop molles, moins nettes.
-  Lot 2 (haches, marteaux, masse, boucliers Quaternius) NON fait : une passe générique (chanfrein des arêtes vives + manche
-  reconstruit, 4,5-18 k tris) gardait la forme à 95-100 % mais ne se voyait pas en rendu -> rejetée ; il faut une modélisation
-  dédiée par arme (mesurée comme les lames). Captures « avant » : Desktop/Skyrim captures/quaternius_hd/brut/.
+  Lot 2 FAIT (haches, marteaux, masse, boucliers Quaternius) : modélisation dédiée par arme, `sources_blender/hybrides_hd/quaternius_hd.py`
+  (sources `cc0_essai/06..12_*.glb` gardées) -> `assets/modeles/armes/integrees/hd/<source>.glb` + `hd/<id>.tscn` (même montage que
+  l'original, matériaux nommés lame/fer/acier_fil/bois/planches/cuir, plus de remap) ; catalogue + `hache_kolbeinn.tres` pointés sur hd,
+  anciens `integrees/<id>.tscn` gardés. Haches : fer mesuré par coupes (cornes, crans), joues, biseau et fil, douille, ferrures
+  rivetées ; marteaux : têtes/collets chanfreinés, clous bombés, sangles gardées ; masse : corps à pans, pointes en cônes, viroles,
+  cuir enroulé ; boucliers : planches séparées, cerclage riveté, umbo (rond), poignées. Tris avant -> après : hache de guerre
+  1 130 -> 7 876, hachette 966 -> 6 932, marteau de guerre 1 474 -> 9 230, grand marteau 1 918 -> 10 068, masse 456 -> 6 400,
+  bouclier cerclé 1 056 -> 7 926, écu 1 084 -> 6 916. Planches : Desktop/Skyrim captures/hybrides_hd/lot2/. Le test
+  `test_armes_catalogue` compte désormais bois + cuir pour la « fusée » (manche bois séparé des bagues).
+  Captures « avant » brutes : Desktop/Skyrim captures/quaternius_hd/brut/.
 
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
