@@ -19,7 +19,8 @@ var torsion := 0.0
 var cible := CIBLE
 var os := -1
 
-const LIMITE := 85.0   # écart maximal (°) imposé par rapport à l'orientation du clip
+const LIMITE := 85.0   # écart maximal (°) imposé par rapport à l'orientation du clip (par défaut ; `limite` pour une arme dressée, ArmesEnnemis)
+var limite := LIMITE
 var _w := 0.0
 
 func _process(dt: float) -> void:
@@ -36,7 +37,7 @@ func _process(dt: float) -> void:
 		var main := sq.get_bone_global_pose(os).basis.orthonormalized()
 		var cur := (main * b0.y).normalized()
 		var cib := cible.normalized()
-		var ang := minf(cur.angle_to(cib), deg_to_rad(LIMITE)) * _w
+		var ang := minf(cur.angle_to(cib), deg_to_rad(limite)) * _w
 		var axe := cur.cross(cib)
 		if axe.length() > 0.0001 and ang > 0.0001:
 			var rot := Basis(axe.normalized(), ang)

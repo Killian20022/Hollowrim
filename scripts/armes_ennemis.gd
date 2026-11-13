@@ -123,6 +123,7 @@ static func poser(sq: Skeleton3D, centre: Vector3, id_corps: String, id: String,
 	var rg: Dictionary = (donnees().get("prises", {}) as Dictionary).get(_de_base(id), {})      # réglage propre à l'arme (prime sur la famille)
 	var tors := float(rg.get("torsion", u.get("torsion", fam.get("torsion", 0.0))))
 	var cb: Array = rg.get("cible", u.get("cible", fam.get("cible", [])))
+	var lim := float(rg.get("limite", u.get("limite", fam.get("limite", 85.0))))
 	var bs := Basis(Vector3.RIGHT, deg_to_rad(EnnemiTripo.INCL)) * EnnemiTripo.PRISE.basis * Basis(Vector3.UP, deg_to_rad(tors))
 	bs = bs.scaled(Vector3.ONE * e)
 	a.transform = Transform3D(bs, centre - bs.y.normalized() * grip * e)
@@ -136,6 +137,7 @@ static func poser(sq: Skeleton3D, centre: Vector3, id_corps: String, id: String,
 	ar.set("grip", grip)
 	ar.set("incl", EnnemiTripo.INCL)
 	ar.set("torsion", tors)
+	ar.set("limite", lim)
 	if cb.size() == 3:
 		ar.set("cible", Vector3(float(cb[0]), float(cb[1]), float(cb[2])))
 	ar.set("os", sq.find_bone("hand_r"))

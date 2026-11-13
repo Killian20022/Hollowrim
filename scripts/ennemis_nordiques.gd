@@ -360,7 +360,7 @@ static func _relier(gab: Node3D, copie: Node3D) -> void:
 	var ag := sg.get_node_or_null("Arme/Aplomb")
 	var ac := sc.get_node_or_null("Arme/Aplomb")
 	if ag != null and ac != null:
-		for v: String in ["base", "centre", "ech", "grip", "incl", "os", "torsion", "cible"]:
+		for v: String in ["base", "centre", "ech", "grip", "incl", "os", "torsion", "cible", "limite"]:
 			ac.set(v, ag.get(v))
 		ac.set("sq", sc)
 		ac.set("arme", (sc.get_node("Arme") as Node).get_child(0))

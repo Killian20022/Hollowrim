@@ -7,12 +7,12 @@
 		"une_main": {"torsion": 0.0},
 		"epee_longue": {"torsion": 0.0},
 		"dague": {"torsion": 0.0},
-		"masse": {"torsion": 0.0, "cible": [-0.1, 0.8, 0.6]},
-		"marteau": {"torsion": 0.0, "cible": [-0.1, 0.8, 0.6]}
+		"masse": {"torsion": 0.0, "cible": [-0.15, 0.6, 0.8], "limite": 180.0},
+		"marteau": {"torsion": 0.0, "cible": [-0.15, 0.6, 0.8], "limite": 180.0}
 	},
 	"prises": {
-		"hache_guerre": {"cible": [-0.1, 0.8, 0.6]},
-		"hachette": {"cible": [-0.1, 0.8, 0.6]}
+		"hache_guerre": {"cible": [-0.15, 0.6, 0.8], "limite": 180.0},
+		"hachette": {"cible": [-0.15, 0.6, 0.8], "limite": 180.0}
 	},
 	"profils": {
 		"draugr": {"usure": [0.74, 0.66, 0.6], "armes": [

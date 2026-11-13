@@ -166,23 +166,42 @@ func _go() -> void:
 				lum.global_position = cible_c + dir2 * 1.0 + Vector3(0.4, 0.8, 0)
 				await _photo(_sortie.path_join("%s__%s_%s.png" % [cas[0], p, vue2]))
 		if mort:
-			# mort : le coup fatal, puis l'arme au sol (3 s plus tard) vue de dessus et de côté
+			# mort : le coup fatal, puis (3,5 s plus tard) l'arme au sol : de dessus, de côté bas, et plan large avec le corps
 			e.set_process(true)
 			e.set_physics_process(true)
 			e.vie = 1.0
 			e.recevoir_coup(50.0, e.global_position + Vector3(0, 0, 2.0))
 			await create_timer(3.5, true, false, true).timeout
-			var pos_c: Vector3 = e.global_position
+			var butin: Node3D = null
 			for b in get_nodes_in_group("corps_butin"):
-				pos_c = (b as Node3D).global_position
-			cam.fov = 40.0
-			cam.global_position = pos_c + Vector3(1.4, 2.6, 1.6)
-			cam.look_at(pos_c + Vector3(0.2, 0.0, 0.0))
-			lum.global_position = pos_c + Vector3(0.6, 1.8, 0.8)
-			await _photo(_sortie.path_join("%s__mort_dessus.png" % cas[0]))
-			cam.global_position = pos_c + Vector3(0.2, 0.9, 1.9)
-			cam.look_at(pos_c + Vector3(0.2, 0.05, 0.0))
-			await _photo(_sortie.path_join("%s__mort_cote.png" % cas[0]))
+				butin = b
+			var sol := butin.get_node_or_null(ArmesEnnemis.SOL) as Node3D if butin != null else null
+			if sol == null:
+				print("MORT %s : pas d'arme au sol (jarl : arme unique)" % cas[0])
+			else:
+				var pa := sol.global_position
+				var boite := AABB()
+				var premier := true
+				for mi: MeshInstance3D in sol.find_children("*", "MeshInstance3D", true, false):
+					var bb := mi.global_transform * mi.get_aabb()
+					boite = bb if premier else boite.merge(bb)
+					premier = false
+				print("MORT %s : arme %s au sol à %.2f m du corps, hauteur du sol %.3f, épaisseur %.2f m, longueur %.2f m" % [cas[0], butin.get_meta("arme_sol"), pa.distance_to(e.global_position), pa.y - m.hauteur(pa.x, pa.z), boite.size.y, maxf(boite.size.x, boite.size.z)])
+				lum.global_position = pa + Vector3(0.5, 1.6, 0.6)
+				cam.fov = 40.0
+				cam.global_position = pa + Vector3(0.3, 1.5, 0.9)
+				cam.look_at(pa)
+				await _photo(_sortie.path_join("%s__mort_dessus.png" % cas[0]))
+				cam.global_position = pa + Vector3(0.0, 0.35, 1.4)
+				cam.look_at(pa + Vector3(0, 0.05, 0))
+				await _photo(_sortie.path_join("%s__mort_cote.png" % cas[0]))
+				var cc: Vector3 = butin.global_position
+				cam.fov = 45.0
+				cam.global_position = (cc + pa) * 0.5 + Vector3(1.8, 1.9, 2.4)
+				cam.look_at((cc + pa) * 0.5)
+				await _photo(_sortie.path_join("%s__mort_large.png" % cas[0]))
+			for b in get_nodes_in_group("corps_butin"):
+				(b as Node).queue_free()
 		m.draugrs.erase(e.ident)
 		e.queue_free()
 		await process_frame
