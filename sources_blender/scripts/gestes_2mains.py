@@ -302,6 +302,13 @@ CLIPS_MX_2M_V6["c2_a"]["cadrage"] = (0, 35, -10)
 #                                 derrière la tête, balayage < 0,3 écran ; gs_slash_3 : droite -> gauche.
 # roulis_prise 90 SUPPRIMÉ : il faisait tourner la prise dans la main, rotation que le poignet absorbait (mesuré : 42° de flexion).
 CLIPS_MX_2M_V6["c2_b"].update(roulis_prise=0)
+# TRANCHANT QUI MÈNE (2026-11-13, mesure : coup 2 = le PLAT mène, fil / mouvement 74° en moyenne ; coup 1 : 34° ; épée v6 : 12-24°) :
+# pendant la frappe, l'avant-bras tourne sur son axe (pronation / supination, le poignet reste verrouillé) de l'angle qui met la
+# normale du plat perpendiculaire à la vitesse de la lame (anim_bras_epee._thetas_tranchant, sur la lame réellement obtenue).
+# Coup 1 : -78° max, fil 16° en moyenne. Coup 2 : la lame balaie presque dans l'axe de l'avant-bras, la torsion ne suffit pas
+# (bornée à 85°, au-delà d'une rotation anatomique) : 74 -> 54°.
+CLIPS_MX_2M_V6["c2_a"].update(tranchant=(0.14, 0.25, 0.10), theta_max=85.0)
+CLIPS_MX_2M_V6["c2_b"].update(tranchant=(0.14, 0.25, 0.10), theta_max=85.0)
 import json as _json
 _essai = NS["ARGS"].get("essai", "")   # --essai=<fichier.json> : essais de réglage des clips v6 sans modifier ce fichier
 for _n, _r in (_json.load(open(_essai, encoding="utf-8")) if _essai else {}).items():

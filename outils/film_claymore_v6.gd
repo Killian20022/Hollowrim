@@ -67,7 +67,7 @@ func _go() -> void:
 	calque.add_child(l)
 	s.placer_joueur(Vector3(0, 0, 6.0), 0.0, -4.0)
 	await _attendre(0.5)
-	mains.equipement.equiper("droite", CatalogueArmes.donnees("claymore"))
+	mains.equipement.equiper("droite", CatalogueArmes.donnees(_arg("arme", "claymore")))
 	await _attendre(1.2)
 	if _arg("planche") != "":
 		await _planche()

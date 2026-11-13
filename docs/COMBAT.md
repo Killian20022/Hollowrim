@@ -472,6 +472,16 @@ gs_slash_2, images [44, 47, 50, 56, 60] (début, armé, frappe, fin de frappe, f
 Limites : le coup 2 monte en diagonale (lame finie en haut à droite) plutôt qu'un vrai plat à hauteur de poitrine ; mains sous le
 cadre pendant l'armé à gauche ; poignet gauche jusqu'à 15,6°/image au départ de l'armé (la fusée tourne vite sous la main).
 
+### Claymore v6 : tranchant qui mène (2026-11-13)
+Mesure (`mesures_coups_v5.gd`, ligne TRANCHE : écart entre le fil et le mouvement de la lame pendant la frappe, 0° = la tranche mène) :
+coup 1 34°, coup 2 74° (le plat mène), coup 3 10° ; épée v6 12-24°. Correction sans pose écrite : clé `tranchant=(t0, t1, rampe)` +
+`theta_max` de `creer_action_mixamo` (anim_bras_epee.py, `_thetas_tranchant`) : l'avant-bras tourne sur son axe (poignet verrouillé
+intact) de l'angle qui met la normale du plat perpendiculaire à la vitesse de la lame, par passes sur la lame réellement obtenue.
+Coup 1 : -78° max, 34 -> 20° (armé plus à gauche au-dessus de l'épaule). Coup 2 : la lame balaie presque dans l'axe de l'avant-bras,
+85° de torsion (limite anatomique) ne donnent que 74 -> 56° ; roulis_prise 45/90/135/180 essayés : pire ou égal. DÉFAUT RESTANT.
+Fondu d'AnimateurBras.jouer sur l'épée (combo, avant -> après) : saut max 218 -> 89 px/img, à-coups 401 -> 146 px/img², variation du
+poignet 19 -> 8,7°/img ; tranche inchangée. Films : Desktop/Skyrim captures/claymore_v6/coup2/vue_derriere/combo/.
+
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
 (≈ 35° de la verticale à l'écran, pointe vers le centre haut), tranchant (−0,9 ; 0 ; −0,6) (plat et garde en croix

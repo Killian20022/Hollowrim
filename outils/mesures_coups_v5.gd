@@ -94,6 +94,15 @@ func _echantillon(t: float) -> Dictionary:
 	var cass := rad_to_deg(acos(clampf(th.basis.y.normalized().dot(axe_ab), -1.0, 1.0)))
 	var d := {"cass": cass, "wd": _poignet("r"), "wg": _poignet("l"), "t": t, "etat": int(mains.combat.etat), "clip": String(mains.anim.clip), "tc": float(mains.anim.t),
 		"p": _ecran(pe * mains._garde_lame.lerp(mains._pointe_lame, 0.6)), "g": _ecran(pe * mains._garde_lame), "pp": _ecran(pe * mains._pointe_lame), "mg": -1.0}
+	# claymore v6 (horizontaux) : lame AFFICHÉE (modèle tenu par la main, +Y lame, +X tranchant, +Z normale du plat) dans le
+	# repère des mains (la caméra : l'élan du joueur n'entre pas dans la vitesse) ; épaule droite (tête de upperarm_r)
+	if mains._modele_arme_d != null:
+		var mt: Transform3D = mains.global_transform.affine_inverse() * mains._modele_arme_d.global_transform
+		d["m3"] = mt * mains._garde_lame.lerp(mains._pointe_lame, 0.6)
+		d["nz"] = mt.basis.z.normalized()
+		d["ax"] = mt.basis.y.normalized()
+		d["ep"] = mains.global_transform.affine_inverse() * (sq.global_transform * sq.get_bone_global_pose(sq.find_bone("upperarm_r")).origin)
+		d["fa"] = (mains.global_transform.affine_inverse().basis * (sq.global_transform.basis * (th.origin - sq.get_bone_global_pose(il).origin))).normalized()
 	if mains.arme != null and mains.arme.deux_mains:
 		var poing_g: Vector3 = mains._accroche_g.global_transform * mains.PRISE_G.origin
 		var cible: Vector3 = mains.to_global(mains.pivot_torche.position)
@@ -181,7 +190,63 @@ func _sequence(nom: String, clics: Array, au_plus_tot := 0, combo_depart := 0) -
 
 var _coups_lances := 0
 
+## Claymore v6, horizontaux : par CLIP joué (segments de la séquence), pendant la frappe (actif) : écart du FIL au mouvement =
+## asin(|normale du plat · vitesse|) (0° = le tranchant mène, 90° = le plat balaie à plat), moyenne, max, part des images < 20° ;
+## COURSE de la pointe à l'écran (x min -> max, en % de la largeur, sur tout le clip et pendant la frappe), hauteur pendant la
+## frappe ; avancée de l'épaule droite (cm, repère caméra) ; rotation de la lame autour de la verticale (lacet, degrés).
+func _tranche(nom: String, ech: Array) -> void:
+	var segs: Array = []
+	for i in ech.size():
+		var c: String = ech[i]["clip"]
+		if segs.is_empty() or segs[-1][0] != c:
+			segs.append([c, i, i])
+		segs[-1][2] = i
+	for sg in segs:
+		var c: String = sg[0]
+		if not (c.begins_with("c2_") or c.begins_with("lourd") or c.begins_with("coup_")):
+			continue
+		var ecarts: Array[float] = []
+		var xs := Vector2(INF, -INF)
+		var xa := Vector2(INF, -INF)
+		var ya := Vector2(INF, -INF)
+		var ez := Vector2(INF, -INF)
+		var lac := Vector2(INF, -INF)
+		var lignes := []
+		var ang_ab := 0.0
+		for i in range(maxi(sg[1], 1), mini(sg[2], ech.size() - 2) + 1):
+			var e: Dictionary = ech[i]
+			if not e.has("m3"):
+				continue
+			var x: float = e["pp"].x
+			xs = Vector2(minf(xs.x, x), maxf(xs.y, x))
+			ez = Vector2(minf(ez.x, e["ep"].z), maxf(ez.y, e["ep"].z))
+			var ax: Vector3 = e["ax"]
+			var l := rad_to_deg(atan2(ax.x, -ax.z))
+			lac = Vector2(minf(lac.x, l), maxf(lac.y, l))
+			var v: Vector3 = ech[i + 1]["m3"] - ech[i - 1]["m3"]
+			var ec := rad_to_deg(asin(clampf(absf(v.normalized().dot(e["nz"])), 0.0, 1.0))) if v.length() > 1e-4 else 0.0
+			if e.get("actif", false):
+				ecarts.append(ec)
+				ang_ab += rad_to_deg((e["ax"] as Vector3).angle_to(e["fa"]))
+				xa = Vector2(minf(xa.x, x), maxf(xa.y, x))
+				ya = Vector2(minf(ya.x, e["p"].y), maxf(ya.y, e["p"].y))
+			lignes.append("%.2f%s:%.0f" % [e["t"], "*" if e.get("actif", false) else "", ec])
+		if ecarts.is_empty():
+			continue
+		var moy := 0.0
+		var mx := 0.0
+		var bons := 0
+		for a in ecarts:
+			moy += a
+			mx = maxf(mx, a)
+			bons += 1 if a < 20.0 else 0
+		moy /= ecarts.size()
+		print("MESURE5 %s %-22s TRANCHE %s : fil/mouvement pendant la frappe moy %.0f deg max %.0f deg, %d/%d images < 20 deg | course pointe x %.0f..%.0f px = %.0f %% de l'ecran (frappe %.0f..%.0f = %.0f %%), hauteur frappe y %.0f..%.0f | epaule droite avance %.1f cm | lacet lame %.0f..%.0f deg | angle lame / avant-bras droit %.0f deg" % [
+			etiq, nom, c, moy, mx, bons, ecarts.size(), xs.x, xs.y, 100.0 * (xs.y - xs.x) / 480.0, xa.x, xa.y, 100.0 * (xa.y - xa.x) / 480.0, ya.x, ya.y, 100.0 * (ez.y - ez.x), lac.x, lac.y, ang_ab / ecarts.size()])
+		print("MESURE5 %s %-22s FIL %s : %s" % [etiq, nom, c, " ".join(lignes)])
+
 func _analyser(nom: String, ech: Array, n_coups: int) -> void:
+	_tranche(nom, ech)
 	var n := ech.size()
 	var v: Array[float] = []
 	var vv: Array[Vector2] = []
@@ -338,6 +403,15 @@ func _go() -> void:
 		_att.clear()
 		_attaches()
 		await _images(2)
+		if mains._modele_arme_d != null:   # lame dans le repère ANATOMIQUE de la main droite (pour mesurer les captures)
+			var pw: Vector3 = _att["hand_r"].global_position
+			var yv: Vector3 = ((_att["index_01_r"].global_position + _att["pinky_01_r"].global_position) * 0.5 - pw).normalized()
+			var xv: Vector3 = _att["index_01_r"].global_position - _att["pinky_01_r"].global_position
+			xv = (xv - yv * xv.dot(yv)).normalized()
+			var hb := Basis(xv, yv, xv.cross(yv))
+			var mb: Basis = mains._modele_arme_d.global_transform.basis.orthonormalized()
+			var loc := hb.inverse() * mb
+			print("MESURE5 %s LAME_DANS_MAIN %s x=%s y=%s z=%s" % [etiq, id, str(loc.x), str(loc.y), str(loc.z)])
 		var a: DonneesArme = mains.arme
 		var combo: Array = ProfilsAnimation.profil(a.profil)["combo"]
 		print("MESURE5 %s arme %s : vitesse=%.2f preparation=%.2f recuperation=%.2f combo=%s" % [etiq, id, a.vitesse, a.preparation, a.recuperation, str(combo)])
