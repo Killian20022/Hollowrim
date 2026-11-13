@@ -300,9 +300,9 @@ def fer_hache(m, tris, pas=0.007):
         k = min(k, len(infos) - 1)
         a, W = infos[k]
         return (0.5 + 0.5 * min(1.0, max(0.0, (p[0] - a) / W)), (p[2] - z0) / (z1 - z0))
-    ids = relier(m, anneaux, lambda k, i: "lame", uv)
-    capuchon(m, ids[0], anneaux[0], "lame", uv)
-    m.face(ids[-1], "lame", [uv(p, len(anneaux) - 1, 0) for p in anneaux[-1]])
+    ids = relier(m, anneaux, lambda k, i: "acier_fil", uv)
+    capuchon(m, ids[0], anneaux[0], "acier_fil", uv)
+    m.face(ids[-1], "acier_fil", [uv(p, len(anneaux) - 1, 0) for p in anneaux[-1]])
     return st
 
 
