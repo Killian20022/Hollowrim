@@ -43,6 +43,8 @@ func _suivre() -> void:
 	var dir := (-j.global_transform.basis.z).rotated(Vector3.UP, deg_to_rad(suivi["deg"]))
 	cam.global_position = cible + dir * suivi["dist"] + Vector3(0, suivi["dh"], 0)
 	cam.look_at(cible, Vector3.UP)
+	if not cam.current:
+		cam.make_current()
 
 func _attendre(sec: float) -> void:
 	for i in maxi(1, roundi(sec / DT)):
