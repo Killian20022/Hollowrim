@@ -501,6 +501,82 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
   `test_armes_catalogue` compte désormais bois + cuir pour la « fusée » (manche bois séparé des bagues).
   Captures « avant » brutes : Desktop/Skyrim captures/quaternius_hd/brut/.
 
+- **Claymore v6 (branche combat/claymore_v6, 2026-11-12 : « mêmes coups propres qu'à l'épée, plus jamais de poignets cassés »)** :
+  modèle et tenue de la v4 inchangés. **La v5 (branche combat/claymore_v5) est REJETÉE** : ses coups étaient écrits pose à pose
+  (poings, lames, coudes posés à la main, reliés par des courbes) — exactement ce que l'utilisateur refuse (poignets cassés,
+  mouvement non fluide) ; ni ses poses ni ses changements de `mains.gd` / `profils_animation.gd` ne sont repris (seuls ses outils de
+  mesure / film le sont : `outils/mesures_coups_v5.gd`, `outils/film_claymore_v5.gd`).
+  - **Méthode = coups d'épée v6** (`coup_a6` …) : `CLIPS_MX_2M_V6` dans `sources_blender/scripts/gestes_2mains.py`, joués par
+    `anim_bras_epee.creer_action_mixamo` : capture Great Sword retargetée par directions, main en orientation anatomique, poignet
+    résolu dans des butées, torsion d'avant-bras qui absorbe la rotation, fondu en S depuis / vers la tenue, + surcouches v6
+    (`POIGNET_2M` poignet verrouillé, `arc` guidé pendant la frappe, `creux`). AUCUNE pose écrite à la main ; mêmes extraits et
+    réglages de cadrage que la v4, seule la TABLE DE TEMPS change (structure des clips d'épée v6 : armé = fondu vers l'image d'armé
+    de la capture, la partie RAPIDE de la capture — vitesse mesurée image par image — tombe dans la fenêtre de frappe, suivi, retour
+    en S). Extraits : c2_a gs_slash 16 → 23 ; c2_b gs_slash_2 47 → 60 ; c2_c gs_slash_2 18 → 28,8 ; charge_2m 10 → 21 ;
+    lourd_2m 21 → 29,3. Marqueurs des coups légers 0,10 / 0,14 / 0,25 / 0,31 / 0,47 ; lourd_2m 0,02 / 0,03 / 0,15 / 0,21 / 0,46.
+  - **Poignet** : verrou f -28..4, r -40..-14 autour de la tenue repos_2m (f -18, r -44) : pendant les coups le poignet est PLUS
+    droit qu'au repos (cassure 16-44° dans la frappe, jamais au-delà des 47-49° de la tenue ; v4 : bascule de -44° cubital à +15°
+    radial, écart à la tenue 57-75°). Butées v3/v4 gardées pour garde_2m (inchangée).
+  - **Bord des clips = la tenue exacte** : la v4 reprenait la tenue avec k, f, r fixés mais sans l'angle du coude ni le point de départ
+    du solveur (bord à 150 px de la tenue, saut vers la garde à la fin de chaque coup) ; v6 : clé « tenue_exacte » (même résolution
+    que le clip repos_2m), raccord 0 px.
+  - Coup 1 : roulis du bras -30 → -10° (avec le poignet verrouillé, la lame finissait couchée pommeau à droite, main gauche à
+    11,5 cm de la fusée) ; c2_c / lourd_2m : suivi arrêté à l'image 28,8 (mains moins longtemps sous le cadre).
+  - **Mesures** (jeu, `mesures_coups_v5.gd`, colonne poignet ajoutée) : coup léger 1,53 → 0,95 s, combo 1-2-3 3,62 → 2,17 s,
+    puissante après relâchement 1,47 → 0,90 s ; à-coups hors frappe (léger) 125 → 24 px/img² (épée v6 : 32), combo 471 → 128
+    (épée 407) ; main gauche ≤ 8,6 cm de la fusée. Détail : `Desktop/Skyrim captures/claymore_v6/mesures.txt`.
+  - Outils : `gestes_2mains.py -- --godot [--mesurer] [--v4] [--essai=<json>]` ; `outils/film_claymore_v6.gd` (`--film`,
+    `--fps=240` avec `--fixed-fps 240` = vrai ralenti × 0,25, `--gros-plan` caméra sur le poignet droit).
+  - Limites : `test_coups_tps` (3e personne) échoue sur la pose finale de la main gauche au début de l'armé de chaque coup (33 cm,
+    retombe sous 6 cm ensuite ; base v4 : 12 cm, déjà en échec) : la 3e personne joue son armé plus vite (calé sur les marqueurs
+    FPS) et une couche après CorpsCoupsTps décale la main gauche (pas la couche de tenue de CorpsMainsTps : essayé) — à reprendre
+    côté 3e personne ; armé du coup 1 court (la lame se lève peu avant de tomber) ; mains sous le cadre à la fin des coups 1 et 3
+    (14-36 images, comme l'épée v6 : 9-28 ; v4 : 28-50).
+
+### Coup horizontal gauche → droite à deux mains (claymore v6, coup 2 ; retour utilisateur 2026-11-12 : « casse encore le poignet »)
+**Anatomie** (droitier : main droite en haut contre la garde, main gauche au pommeau) :
+- armé : lame au-dessus / derrière l'épaule GAUCHE, avant-bras droit qui croise le buste, coude droit plié, coude gauche près du corps ;
+- la puissance vient de la rotation du bassin puis du buste (les bras suivent le buste, ils ne « fouettent » pas) ;
+- frappe : les bras se tendent et restent presque tendus en fin de frappe ; effet de levier : la main droite POUSSE, la gauche
+  TIRE le pommeau vers le corps ;
+- le plat de la lame tourne par PRONATION / SUPINATION de l'avant-bras (torsion), PAS par flexion du poignet ;
+- les deux poignets restent à peu près dans l'axe de l'avant-bras, avec une petite déviation ulnaire au contact.
+**Seuils mesurés** (`mesures_coups_v5.gd --seq=coup2` : flexion / déviation des poignets DROIT et GAUCHE, pose après l'IK, écart à
+la tenue sur tout le coup) : droit ≤ 20° en flexion / extension et ≤ 15° en déviation ; gauche ≤ 30° / ≤ 30° ; variation par image
+pas pire que les coups d'épée v6 (jusqu'à 22,7°/image pour le poignet droit du revers coup_b6).
+**Cause mesurée** (v6 du matin, gs_slash_2 46-60, `roulis_prise` 90) : la capture est la fin d'un enchaînement en vrille (le buste
+fait un tour) et casse elle-même son poignet (flexion -44 → +77°) ; le roulis de prise de 90° était absorbé par le poignet : poignet
+droit à 42° / 29° de la tenue, poignet gauche à 45° en déviation ; et le poignet GAUCHE, posé par IK sur la fusée avec un pôle de
+coude FIXE (`coude_gauche_2m`), encaissait tout l'écart quand la lame balayait vers la droite.
+**Correction** (aucune pose écrite) :
+- candidats extraits du Great Sword Pack complet (`extraire_2mains.py` : slide attack, kick, kick (2), impact (3), draw ajoutés) et
+  mesurés (sens du balayage vu de la caméra, vitesse, poignets des deux mains de la capture), puis retargetés et mesurés dans le jeu ;
+  retenu : gs_slash_2 47 → 60, seul armé réellement à gauche qui traverse l'écran (gs_slash_2 4-10, poignets de capture à ±15°,
+  donnait une lame verticale en « essuie-glace » ; gs_spin, gs_kick_2, gs_slash_4 : mains sous le cadre ou lame derrière la tête) ;
+- `roulis_prise` 90 supprimé ; poignet droit verrouillé à ±5° de la tenue (f -23..-13, r -44..-34) : la torsion de l'avant-bras
+  (29 → 57°) et le bras portent la rotation de la capture ;
+- main gauche : le pôle du coude est le coude qui mettrait l'avant-bras dans le prolongement de la main (`mains._pole_coude_g_2m`,
+  contrainte anatomique de l'IK, passage continu vers le pôle fixe près de l'axe épaule-poignet) : main gauche ≤ 1,7 cm de la fusée
+  dans les 25 poses du test (8,2 cm avant) ;
+- `AnimateurBras.jouer(nom, fondu, depart)` : le départ en cours de clip ne consomme plus le fondu (`advance(depart)` le jouait d'un
+  coup : enchaînements de combo sans fondu, poignets qui sautaient de 30° en une image ; concerne aussi les combos d'épée, plus doux).
+**Résultat** (coup 2 seul) : poignet droit 16° / 11° de la tenue (avant 42° / 29°), gauche 28° / 30° (avant 27° / 45°) ; détail image
+par image : `Desktop/Skyrim captures/claymore_v6/coup2/mesures.txt`. 3e personne (non modifiée, autre branche) : même capture,
+gs_slash_2, images [44, 47, 50, 56, 60] (début, armé, frappe, fin de frappe, fin), en annulant le lacet du buste de la capture
+(épaules 149° → 5° entre 47 et 60), sinon le corps finit dos à la caméra.
+Limites : le coup 2 monte en diagonale (lame finie en haut à droite) plutôt qu'un vrai plat à hauteur de poitrine ; mains sous le
+cadre pendant l'armé à gauche ; poignet gauche jusqu'à 15,6°/image au départ de l'armé (la fusée tourne vite sous la main).
+
+### Claymore v6 : tranchant qui mène (2026-11-13)
+Mesure (`mesures_coups_v5.gd`, ligne TRANCHE : écart entre le fil et le mouvement de la lame pendant la frappe, 0° = la tranche mène) :
+coup 1 34°, coup 2 74° (le plat mène), coup 3 10° ; épée v6 12-24°. Correction sans pose écrite : clé `tranchant=(t0, t1, rampe)` +
+`theta_max` de `creer_action_mixamo` (anim_bras_epee.py, `_thetas_tranchant`) : l'avant-bras tourne sur son axe (poignet verrouillé
+intact) de l'angle qui met la normale du plat perpendiculaire à la vitesse de la lame, par passes sur la lame réellement obtenue.
+Coup 1 : -78° max, 34 -> 20° (armé plus à gauche au-dessus de l'épaule). Coup 2 : la lame balaie presque dans l'axe de l'avant-bras,
+85° de torsion (limite anatomique) ne donnent que 74 -> 56° ; roulis_prise 45/90/135/180 essayés : pire ou égal. DÉFAUT RESTANT.
+Fondu d'AnimateurBras.jouer sur l'épée (combo, avant -> après) : saut max 218 -> 89 px/img, à-coups 401 -> 146 px/img², variation du
+poignet 19 -> 8,7°/img ; tranche inchangée. Films : Desktop/Skyrim captures/claymore_v6/coup2/vue_derriere/combo/.
+
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
 (≈ 35° de la verticale à l'écran, pointe vers le centre haut), tranchant (−0,9 ; 0 ; −0,6) (plat et garde en croix

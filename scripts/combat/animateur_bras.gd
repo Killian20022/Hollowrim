@@ -120,7 +120,10 @@ func jouer(nom: String, fondu := 0.08, depart := 0.0) -> void:
 	var r := reel(nom)
 	ap.play(_prefixe(r) + r, fondu)
 	if depart > 0.0:
-		regler(depart)
+		# claymore v6 : saut direct au temps de départ SANS avancer le lecteur (advance(depart) consommait d'un coup le fondu dès que
+		# depart > fondu : enchaînement de combo sans fondu, poignets qui sautaient de 30° en une image)
+		ap.seek(clampf(depart, 0.0, longueur(nom) - 1e-4), true)
+		t = clampf(depart, 0.0, longueur(nom) - 1e-4)
 	else:
 		ap.advance(0.0)
 

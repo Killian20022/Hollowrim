@@ -170,6 +170,9 @@ _poser = NS["poser"]
 
 
 def _poser_suivi(c, cote="r"):
+    if c.get("tenue_exacte"):   # v6 : bord des clips Mixamo = la tenue repos_2m EXACTEMENT comme son clip la pose (solveur libre)
+        NS["PREC"][0] = None
+        return _poser(dict(REPOS_2M), cote)
     if c.get("suivre") and NS["PREC"][0] is not None:
         c = dict(c, torsion=NS["PREC"][0][0], poids_torsion=0.12)
     return _poser(c, cote)
@@ -232,6 +235,98 @@ MARQUEURS.update(MARQUEURS_MX_2M)
 NS["LIM_MX"].update(torsion=(-85, 85), flexion=(-35, 35), inclinaison=(-22, 15))
 
 
+# =====================================================================================================================
+# v6 (2026-11-12, retour utilisateur : « mêmes coups propres qu'à l'épée, plus jamais de poignets cassés ») : MÊME MÉTHODE que
+# les coups d'épée v6 validés (coup_a6 / coup_b6 / coup_t6 / coup_c6, gestes_une_main.surcouche_v6) : captures Great Sword
+# retargetées par anim_bras_epee.creer_action_mixamo (directions du bras, main en orientation anatomique, poignet résolu DANS
+# des butées, torsion de l'avant-bras qui absorbe la rotation, fondu en S depuis / vers la tenue validée), avec les trois
+# surcouches v6 : POIGNET VERROUILLÉ autour de la tenue, ARC GUIDÉ pendant la frappe, CREUX de poids. AUCUNE pose écrite à la
+# main : mêmes extraits et mêmes réglages de cadrage que la v4 (validés pour le cadrage), seule la TABLE DE TEMPS de lecture
+# change (structure des clips d'épée v6 : armé = fondu de la tenue vers l'image d'armé de la capture, tenue jusqu'à la tension,
+# la partie RAPIDE de la capture (vitesse de la lame mesurée image par image dans coups_2mains.json) tombe exactement dans la
+# fenêtre de frappe, suivi, puis fondu en S jusqu'à la tenue exacte).
+# Défaut de la v4 corrigé (mesuré : 150 px entre le bord des clips et la tenue, d'où un saut vers la garde à la fin de chaque
+# coup) : le bord des clips reprenait la tenue SANS l'angle du coude (phi, trouvé par le solveur de repos_2m) -> phi gardé.
+# Les anciens clips v4 se régénèrent avec --v4.
+# Poignet verrouillé (flexion, inclinaison)° autour de la tenue repos_2m (k 37, f -18, r -44) : même logique que POIGNET_V6
+# de l'épée (tenue f -11 / r -32, verrou f -28..8, r -29..-18) : flexion à ±18° de la tenue, inclinaison ramenée de 2 à 14°
+# vers le neutre (la tenue est déjà en inclinaison cubitale) : pendant les coups, le poignet est PLUS droit qu'au repos.
+POIGNET_2M = ((-28, 4), (-40, -14))
+LIM_MX_2M = dict(torsion=(-85, 85), flexion=(-55, 55), inclinaison=(-45, 18))
+
+
+def _v6(spec, temps, fondu, arc, poignet=POIGNET_2M, creux=0.03):
+    s = dict(spec)
+    s.update(temps=temps, fondu=fondu, plein=(fondu[0], min(fondu[1] + 0.08, temps[-1][1])), poignet=poignet, lim_mx=LIM_MX_2M)
+    if arc is not None:
+        s.update(arc=arc, creux=creux)
+    return s
+
+
+# coups légers : armé 0,10 s (fondu), tension 0,10 -> 0,14, frappe 0,14 -> 0,25, suivi -> 0,31, retour en S -> 0,47 (claymore du
+# jeu : coup léger ~0,95 s, frappe ~0,17 s ; épée v6 : 0,13 / 0,16 / 0,26 / 0,33 / 0,54). Images de la capture (30 i/s) : armé =
+# image où la lame est la plus lente avant le coup, frappe = la partie rapide.
+MQ_LEGER = {"arme": 0.10, "frappe": 0.14, "fin_frappe": 0.25, "suivi": 0.31, "fin": 0.47}
+ARC_LEGER = (0.14, 0.25, 0.85)
+CLIPS_MX_2M_V6 = {
+    # 1 : gs_slash, armé image 16 (lame en diagonale au-dessus de l'épaule droite, comme l'armé de la v4 ; les images 12-16, lame
+    # qui monte vers la caméra, sont sautées comme l'armé derrière la tête de l'épée v6), rapide 16 -> 22 (pic 18-21)
+    "c2_a": _v6(CLIPS_MX_2M["c2_a"], [(16, 0.0), (16, 0.09), (16.5, 0.14), (22, 0.25), (22.6, 0.31), (23, 0.40), (23, 0.47)], (0.10, 0.27), ARC_LEGER),
+    # 2 : GAUCHE -> DROITE montant (corrigé le 2026-11-12, « le coup de gauche à droite casse encore le poignet ») : même extrait
+    # (gs_slash_2 images 47 -> 60), poignet droit verrouillé à ±5° de la tenue, roulis_prise 90 supprimé : voir C2B_V6 plus bas.
+    "c2_b": _v6(CLIPS_MX_2M["c2_b"], [(47, 0.0), (47, 0.08), (50, 0.14), (56, 0.25), (57.5, 0.31), (60, 0.40), (60, 0.47)], (0.10, 0.27), ARC_LEGER,
+                poignet=((-23, -13), (-44, -34))),
+    # 3 : gs_slash_2, 1er coup, armé image 18 (presque immobile à 17-18), rapide 20 -> 28 (pic 22-25) ; suivi arrêté à l'image
+    # 28,8 (les images 29-31 emmènent les mains sous le cadre ; idem pour la puissante)
+    "c2_c": _v6(CLIPS_MX_2M["c2_c"], [(18, 0.0), (18, 0.08), (21.5, 0.14), (27.5, 0.25), (28.3, 0.31), (28.8, 0.40), (28.8, 0.47)], (0.10, 0.27), ARC_LEGER),
+    # puissante : même capture que le 3 ; charge = fondu de la tenue vers l'armé (image 21, tenue pendant la charge), coup =
+    # image 22,5 -> 28 en frappe, suivi, retour en S (après le relâchement : ~0,9 s de jeu)
+    "charge_2m": _v6(CLIPS_MX_2M["charge_2m"], [(10, 0.0), (19, 0.30), (21, 0.55)], (0.30, 0.55), None),
+    "lourd_2m": _v6(CLIPS_MX_2M["lourd_2m"], [(21, 0.0), (22.5, 0.03), (28, 0.15), (28.8, 0.21), (29.3, 0.30), (29.3, 0.46)], (0.0, 0.24), (0.03, 0.15, 0.85)),
+}
+CLIPS_MX_2M_V6["charge_2m"]["plein"] = (0.30, 0.55)
+# 1 : roulis du bras -30 -> -10° (la v4 tournait la capture de 30° pour une diagonale ; avec le poignet verrouillé, la lame finissait
+# couchée à l'horizontale, pommeau à droite : main gauche à 11,5 cm de la fusée, mains sous le cadre ; à -10° : 8,7 cm, lame
+# qui finit en bas à gauche comme le coup 1 de l'épée v6)
+CLIPS_MX_2M_V6["c2_a"]["cadrage"] = (0, 35, -10)
+# 2 (C2B_V6) : candidats mesurés (2026-11-12) parmi les balayages gauche -> droite des captures Great Sword (azimut de la lame
+# +60° et plus ; sens du balayage vu de la caméra, vitesse, flexion / déviation des DEUX poignets de la capture image par image ;
+# outils hors dépôt), puis retargetés et mesurés dans le jeu (mesures_coups_v5 --seq=coup2, deux poignets après l'IK) :
+#   gs_slash_2 47-60 (2e coup)  : seul candidat dont l'ARMÉ est à gauche (lame pointée à gauche, au-dessus de l'épaule gauche) et
+#                                 qui traverse l'écran ; la capture tourne le buste et casse son poignet (flexion -44 -> +77°) : on
+#                                 ne la suit PAS au poignet (verrou ±5° autour de la tenue), la torsion de l'avant-bras (29 -> 57°)
+#                                 et le bras portent la rotation. Jeu : poignet droit 16° / 11° de la tenue (v6 : 42° / 29°).
+#   gs_slash_2 4-10 (1er coup)  : poignets de la capture à ±15°, mais part de face (pas d'armé à gauche) : avec un balayage du
+#                                 buste de 60°, lame VERTICALE qui glisse de gauche à droite (« essuie-glace ») : rejeté sur film.
+#   gs_spin 43-50               : mains sous le cadre (garde y -6,6) ; gs_kick_2 8-16, gs_slash_4 27-33 : lame qui monte ou passe
+#                                 derrière la tête, balayage < 0,3 écran ; gs_slash_3 : droite -> gauche.
+# roulis_prise 90 SUPPRIMÉ : il faisait tourner la prise dans la main, rotation que le poignet absorbait (mesuré : 42° de flexion).
+CLIPS_MX_2M_V6["c2_b"].update(roulis_prise=0)
+# TRANCHANT QUI MÈNE (2026-11-13, mesure : coup 2 = le PLAT mène, fil / mouvement 74° en moyenne ; coup 1 : 34° ; épée v6 : 12-24°) :
+# pendant la frappe, l'avant-bras tourne sur son axe (pronation / supination, le poignet reste verrouillé) de l'angle qui met la
+# normale du plat perpendiculaire à la vitesse de la lame (anim_bras_epee._thetas_tranchant, sur la lame réellement obtenue).
+# Coup 1 : -78° max, fil 16° en moyenne. Coup 2 : la lame balaie presque dans l'axe de l'avant-bras, la torsion ne suffit pas
+# (bornée à 85°, au-delà d'une rotation anatomique) : 74 -> 54°.
+CLIPS_MX_2M_V6["c2_a"].update(tranchant=(0.14, 0.25, 0.10), theta_max=85.0)
+CLIPS_MX_2M_V6["c2_b"].update(tranchant=(0.14, 0.25, 0.10), theta_max=85.0)
+import json as _json
+_essai = NS["ARGS"].get("essai", "")   # --essai=<fichier.json> : essais de réglage des clips v6 sans modifier ce fichier
+for _n, _r in (_json.load(open(_essai, encoding="utf-8")) if _essai else {}).items():
+    CLIPS_MX_2M_V6[_n].update({k: (tuple(v) if isinstance(v, list) else v) for k, v in _r.items()})
+CLIPS_MX_2M_V6["lourd_2m"]["plein"] = (0.0, 0.32)
+MARQUEURS_MX_2M_V6 = {
+    "c2_a": dict(MQ_LEGER), "c2_b": dict(MQ_LEGER), "c2_c": dict(MQ_LEGER),
+    "charge_2m": {"arme": 0.30, "fin": 0.55},
+    "lourd_2m": {"arme": 0.02, "frappe": 0.03, "fin_frappe": 0.15, "suivi": 0.21, "fin": 0.46},
+}
+V4 = "v4" in NS["ARGS"]
+if not V4:
+    CLIPS_MX_2M.update(CLIPS_MX_2M_V6)
+    MARQUEURS.update(MARQUEURS_MX_2M_V6)
+# butées de la v3/v4 (les clips Mixamo sans « lim_mx », dont la garde garde_2m : inchangés)
+LIM_MX_V4 = dict(NS["LIM_MX"])
+
+
 def _preparer_mx_2m():
     """Données Mixamo deux bras + tenue de repos à deux mains comme bord des clips retargetés."""
     import json
@@ -239,8 +334,11 @@ def _preparer_mx_2m():
     NS["_MX"].update(json.load(open(os.path.join(NS["BASE"], "sources_blender", "mixamo", "coups_2mains.json"), encoding="utf-8")))
     NS["PREC"][0] = None
     NS["poser"](dict(REPOS_2M))
-    k, f, r = NS["PREC"][0][:3]
+    k, f, r, phi = NS["PREC"][0][:4]
     NS["REPOS"] = dict(REPOS_2M, k=k, f=f, r=r)   # poignet fixé : exactement la tenue de repos aux bords des clips
+    if not V4:   # v6 : bord des clips = la tenue exacte (k, f, r fixés sans phi, poser() reprenait phi = 0 et un autre point
+        # de départ du poignet : bord des clips à 150 px de la tenue, d'où un saut vers la garde à la fin de chaque coup)
+        NS["REPOS"]["tenue_exacte"] = True
 
 
 
@@ -254,6 +352,7 @@ def main():
     actions = {}
     for nom in noms:
         if nom in CLIPS_MX_2M:
+            NS["LIM_MX"].update(CLIPS_MX_2M[nom].get("lim_mx", LIM_MX_V4))
             actions[nom] = NS["creer_action_mixamo"](nom, CLIPS_MX_2M[nom])
             continue
         cles = CLIPS[nom]

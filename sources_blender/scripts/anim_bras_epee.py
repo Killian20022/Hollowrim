@@ -509,6 +509,52 @@ def _repere_main_local():
     return (H.to_3x3().normalized().inverted() @ F)
 
 
+
+def _thetas_tranchant(thetas, suivi, tranchant, tmax=110.0):
+    """Passe suivante de la rotation de l'avant-bras (degrés, par image à 60 i/s) qui met la normale du plat perpendiculaire à
+    la vitesse de la lame : racine la plus proche de 0 de n(θ)·v, n tournée autour de l'avant-bras réel ; amortie (0,8),
+    lissée sur 5 images dans [t0, t1], puis S de 0 à la valeur du bord sur « rampe » avant t0 et après t1."""
+    t0, t1, rampe = tranchant
+    n = len(thetas) - 1
+    nouv = list(thetas)
+    coeur = [j for j in range(1, n) if t0 <= j / 60 <= t1]
+    for j in coeur:
+        v = suivi[j + 1][0] - suivi[j - 1][0]
+        if v.length < 1e-4:
+            continue
+        v = v.normalized()
+        nn, a = suivi[j][1], suivi[j][2]
+        f = lambda th: (Quaternion(a, math.radians(th)) @ nn).dot(v)
+        meilleur = None
+        prec_f = f(-120.0)
+        for k in range(-119, 121):
+            fk = f(float(k))
+            if (prec_f <= 0.0) != (fk <= 0.0):
+                r = k - 1 + prec_f / (prec_f - fk)
+                if meilleur is None or abs(r) < abs(meilleur):
+                    meilleur = r
+            prec_f = fk
+        if meilleur is None:   # pas de racine : le minimum de |n·v|
+            meilleur = min(range(-120, 121), key=lambda k: abs(f(float(k))))
+        nouv[j] = max(-tmax, min(tmax, thetas[j] + 0.8 * meilleur))
+    lis = list(nouv)
+    for j in coeur:
+        voisins = [nouv[x] for x in range(j - 2, j + 3) if x in coeur]
+        lis[j] = sum(voisins) / len(voisins)
+    if not coeur:
+        return thetas
+    a_, b_ = lis[coeur[0]], lis[coeur[-1]]
+    for j in range(n + 1):
+        t = j / 60
+        if t < t0:
+            u = max(0.0, min(1.0, (t - (t0 - rampe)) / max(rampe, 1e-6)))
+            lis[j] = a_ * u * u * (3 - 2 * u)
+        elif t > t1:
+            u = max(0.0, min(1.0, ((t1 + rampe) - t) / max(rampe, 1e-6)))
+            lis[j] = b_ * u * u * (3 - 2 * u)
+    return lis
+
+
 def creer_action_mixamo(nom, spec):
     """Clip retargeté depuis une capture Mixamo (`spec` : gestes_bras_epee.CLIPS_MIXAMO).
     Retarget par DIRECTIONS (pas par écart de rotations : la garde Mixamo, bras pendant en arrière, n'a rien à voir avec
@@ -618,95 +664,127 @@ def creer_action_mixamo(nom, spec):
             nom, nrm.x, nrm.y, nrm.z, math.degrees(theta), a1 - a0, max(abs(90.0 - math.degrees(v.angle(nrm))) for v in dirs)))
     creux = spec.get("creux", 0.0)
 
-    for i in range(n + 1):
-        t = i / 60
-        fr, im, d_ua, d_la, Fc = cibles(t)
-        u_arc = -1.0
-        if arc is not None and arc[0] <= t <= arc[1]:
-            a0, a1, poids_arc, nrm, p0, theta = arc
-            u_arc = (t - a0) / (a1 - a0)
-            dc = pointe_rel(d_ua, d_la, Fc).normalized()
-            da = Quaternion(nrm, theta * u_arc) @ p0
-            cl_ = min(u_arc, 1.0 - u_arc) / 0.2
-            cl_ = max(0.0, min(1.0, cl_))
-            Qc = Quaternion().slerp(dc.rotation_difference(da), poids_arc * cl_ * cl_ * (3 - 2 * cl_))
-            d_ua, d_la, Fc = Qc @ d_ua, Qc @ d_la, Qc @ Fc
-        w = 1.0
-        if t < t_in:
-            w = t / t_in
-        elif t > t_out:
-            w = (longueur - t) / max(longueur - t_out, 1e-6)
-        w = max(0.0, min(1.0, w))
-        w = w * w * (3 - 2 * w)
-        # épaule : déplacement de l'épaule Mixamo par rapport au cou
-        for pb in (cl, ua, la, ha):
-            pb.matrix_basis = Matrix.Identity(4)
-        cl.matrix_basis = Quaternion(repos_q["clavicle_r"]).to_matrix().to_4x4()
-        cl.location = repos_loc
-        maj()
-        dep = (im["p_epaule"] - ref["p_epaule"]) * echelle + Vector(spec.get("decalage", (0.0, 0.0, 0.0))) * _poids_cadrage(spec, t, longueur)
-        if u_arc >= 0.0:
-            dep = dep + Vector((0.0, -creux * math.sin(math.pi * u_arc), 0.0))
-        cl.matrix = Matrix.Translation(B3 @ (dep * w)) @ cl.matrix
-        maj()
-        S = CAM_DE_B @ ua.head
-        E = S + d_ua * l1
-        W = E + d_la * l2
-        # fondu des cibles avec la garde (positions relatives à l'épaule, repère de la main en slerp)
-        E = S + (E0 - S0).lerp(E - S, w)
-        W = S + (W0 - S0).lerp(W - S, w)
-        # « main » (lacet°, tangage°, roulis° sur la main seule, même cloche que le cadrage) : appliqué dans cibles()
-        if F0.dot(Fc) < 0:   # même hémisphère : le fondu prend le chemin court (sinon la lame fait un tour au retour)
-            Fc = -Fc
-        Fm = F0.slerp(Fc, w).to_matrix()
-        # pôle du coude CONTINU : le plan épaule-coude-poignet de la capture n'est fiable que bras plié ; bras presque tendu,
-        # il bascule d'une image à l'autre (vrille de l'épaule et de l'avant-bras). On garde le pôle précédent, rapproché de
-        # celui de la capture selon le pli du coude, et sa rotation est bornée par image.
-        n_ = (W - S).normalized()
-        ind = E - (S + W) * 0.5
-        ind = ind - n_ * ind.dot(n_)
-        pli = math.degrees((E - S).angle(W - E)) if (E - S).length > 1e-6 and (W - E).length > 1e-6 else 0.0
-        if pole is not None:
-            pp = pole - n_ * pole.dot(n_)
-            pp = pp.normalized() if pp.length > 1e-6 else pole
-            b = max(0.0, min(1.0, (pli - 10.0) / 30.0))
-            cand = (pp * (1.0 - b) + (ind.normalized() if ind.length > 1e-6 else pp) * b)
-            cand = cand.normalized() if cand.length > 1e-6 else pp
-            ang = math.degrees(pp.angle(cand)) if (pp - cand).length > 1e-9 else 0.0
-            if ang > POLE_MAX_MX:
-                cand = Quaternion().slerp(pp.rotation_difference(cand), POLE_MAX_MX / ang) @ pp
-            pole = cand
-        else:
-            pole = ind.normalized() if ind.length > 1e-6 else Vector((0.0, -0.5, 0.5)).normalized()
-        coude, d2, Rl0, allonge = _bras_deux_os("r", B_DE_CAM @ W, pole)
-        Hd = B3 @ Fm @ G.inverted() @ roulis_prise
-        c, k, f, r, Hr = _resoudre_main(Rl0, Hd, prec_k, spec.get("continuite", 0.04), VITESSE_TORSION_MX, 2.0 * (1.0 - w), prec_fr, spec.get("torsion"), spec.get("poignet"))
-        prec_k = k
-        prec_fr = (f, r)
-        Rl = Matrix.Rotation(math.radians(k), 3, d2) @ Rl0
-        la.matrix = Matrix.Translation(coude) @ Rl.to_4x4()
-        maj()
-        ha.matrix = Matrix.Translation(la.tail.copy()) @ Hr.to_4x4()
-        maj()
-        rapport.append((round(t, 3), round(fr, 1), k, f, r, round(c, 1), round(w, 2)))
-        for nb in OS_ANIMES:
-            pb = A.pose.bones[nb]
-            q = pb.matrix_basis.to_quaternion()
-            q0 = repos_q[nb]
-            if q0.dot(q) < 0:
-                q = -q
-            a_ = min(1.0, w / RACCORD_MX)
-            q = q0.slerp(q, a_ * a_ * (3 - 2 * a_))   # bords du clip : exactement la tenue validée (r = -32), raccord doux
-            if nb in prec and prec[nb].dot(q) < 0:
-                q = -q
-            prec[nb] = q
-            if nb == "clavicle_r":
-                loc = repos_loc.lerp(pb.matrix_basis.to_translation(), a_ * a_ * (3 - 2 * a_))
-            pb.rotation_quaternion = q
-            pb.keyframe_insert("rotation_quaternion", frame=t * FPS, group=nb)
-            if nb == "clavicle_r":
-                pb.location = loc
-                pb.keyframe_insert("location", frame=t * FPS, group=nb)
+    # TRANCHANT QUI MÈNE (claymore v6, horizontaux, 2026-11-12 : « il faut que ce soit la TRANCHE qui frappe, pas le plat ») :
+    # « tranchant » = (t0, t1, rampe) : pendant la frappe [t0, t1], la main (donc la prise) tourne autour de l'AXE DE L'AVANT-BRAS
+    # (pronation / supination, jamais le poignet, qui reste verrouillé) de l'angle qui met la normale du plat perpendiculaire
+    # à la vitesse de la lame (point à 60 % garde -> pointe, repère caméra) : le fil mène. Angle cherché par passes successives
+    # sur la lame RÉELLEMENT obtenue (bras résolu, poignet dans ses butées), lissé, ramené à 0 en S sur « rampe » de part et
+    # d'autre (armé et suivi) ; aucune pose écrite : la trajectoire reste celle de la capture.
+    tranchant = spec.get("tranchant")
+    thetas = [0.0] * (n + 1)
+    passes = int(spec.get("passes_tranchant", 4)) if tranchant else 1
+    for passe in range(passes):
+      prec = {}
+      prec_k = None
+      prec_fr = None
+      pole = None
+      rapport = []
+      suivi = []
+      for i in range(n + 1):
+          t = i / 60
+          fr, im, d_ua, d_la, Fc = cibles(t)
+          u_arc = -1.0
+          if arc is not None and arc[0] <= t <= arc[1]:
+              a0, a1, poids_arc, nrm, p0, theta = arc
+              u_arc = (t - a0) / (a1 - a0)
+              dc = pointe_rel(d_ua, d_la, Fc).normalized()
+              da = Quaternion(nrm, theta * u_arc) @ p0
+              cl_ = min(u_arc, 1.0 - u_arc) / 0.2
+              cl_ = max(0.0, min(1.0, cl_))
+              Qc = Quaternion().slerp(dc.rotation_difference(da), poids_arc * cl_ * cl_ * (3 - 2 * cl_))
+              d_ua, d_la, Fc = Qc @ d_ua, Qc @ d_la, Qc @ Fc
+          if thetas[i]:
+              Fc = Quaternion(d_la.normalized(), math.radians(thetas[i])) @ Fc
+          w = 1.0
+          if t < t_in:
+              w = t / t_in
+          elif t > t_out:
+              w = (longueur - t) / max(longueur - t_out, 1e-6)
+          w = max(0.0, min(1.0, w))
+          w = w * w * (3 - 2 * w)
+          # épaule : déplacement de l'épaule Mixamo par rapport au cou
+          for pb in (cl, ua, la, ha):
+              pb.matrix_basis = Matrix.Identity(4)
+          cl.matrix_basis = Quaternion(repos_q["clavicle_r"]).to_matrix().to_4x4()
+          cl.location = repos_loc
+          maj()
+          dep = (im["p_epaule"] - ref["p_epaule"]) * echelle + Vector(spec.get("decalage", (0.0, 0.0, 0.0))) * _poids_cadrage(spec, t, longueur)
+          if u_arc >= 0.0:
+              dep = dep + Vector((0.0, -creux * math.sin(math.pi * u_arc), 0.0))
+          cl.matrix = Matrix.Translation(B3 @ (dep * w)) @ cl.matrix
+          maj()
+          S = CAM_DE_B @ ua.head
+          E = S + d_ua * l1
+          W = E + d_la * l2
+          # fondu des cibles avec la garde (positions relatives à l'épaule, repère de la main en slerp)
+          E = S + (E0 - S0).lerp(E - S, w)
+          W = S + (W0 - S0).lerp(W - S, w)
+          # « main » (lacet°, tangage°, roulis° sur la main seule, même cloche que le cadrage) : appliqué dans cibles()
+          if F0.dot(Fc) < 0:   # même hémisphère : le fondu prend le chemin court (sinon la lame fait un tour au retour)
+              Fc = -Fc
+          Fm = F0.slerp(Fc, w).to_matrix()
+          # pôle du coude CONTINU : le plan épaule-coude-poignet de la capture n'est fiable que bras plié ; bras presque tendu,
+          # il bascule d'une image à l'autre (vrille de l'épaule et de l'avant-bras). On garde le pôle précédent, rapproché de
+          # celui de la capture selon le pli du coude, et sa rotation est bornée par image.
+          n_ = (W - S).normalized()
+          ind = E - (S + W) * 0.5
+          ind = ind - n_ * ind.dot(n_)
+          pli = math.degrees((E - S).angle(W - E)) if (E - S).length > 1e-6 and (W - E).length > 1e-6 else 0.0
+          if pole is not None:
+              pp = pole - n_ * pole.dot(n_)
+              pp = pp.normalized() if pp.length > 1e-6 else pole
+              b = max(0.0, min(1.0, (pli - 10.0) / 30.0))
+              cand = (pp * (1.0 - b) + (ind.normalized() if ind.length > 1e-6 else pp) * b)
+              cand = cand.normalized() if cand.length > 1e-6 else pp
+              ang = math.degrees(pp.angle(cand)) if (pp - cand).length > 1e-9 else 0.0
+              if ang > POLE_MAX_MX:
+                  cand = Quaternion().slerp(pp.rotation_difference(cand), POLE_MAX_MX / ang) @ pp
+              pole = cand
+          else:
+              pole = ind.normalized() if ind.length > 1e-6 else Vector((0.0, -0.5, 0.5)).normalized()
+          coude, d2, Rl0, allonge = _bras_deux_os("r", B_DE_CAM @ W, pole)
+          Hd = B3 @ Fm @ G.inverted() @ roulis_prise
+          c, k, f, r, Hr = _resoudre_main(Rl0, Hd, prec_k, spec.get("continuite", 0.04), VITESSE_TORSION_MX, 2.0 * (1.0 - w), prec_fr, spec.get("torsion"), spec.get("poignet"))
+          prec_k = k
+          prec_fr = (f, r)
+          Rl = Matrix.Rotation(math.radians(k), 3, d2) @ Rl0
+          la.matrix = Matrix.Translation(coude) @ Rl.to_4x4()
+          maj()
+          ha.matrix = Matrix.Translation(la.tail.copy()) @ Hr.to_4x4()
+          maj()
+          rapport.append((round(t, 3), round(fr, 1), k, f, r, round(c, 1), round(w, 2)))
+          for nb in OS_ANIMES:
+              pb = A.pose.bones[nb]
+              q = pb.matrix_basis.to_quaternion()
+              q0 = repos_q[nb]
+              if q0.dot(q) < 0:
+                  q = -q
+              a_ = min(1.0, w / RACCORD_MX)
+              q = q0.slerp(q, a_ * a_ * (3 - 2 * a_))   # bords du clip : exactement la tenue validée (r = -32), raccord doux
+              if nb in prec and prec[nb].dot(q) < 0:
+                  q = -q
+              prec[nb] = q
+              if nb == "clavicle_r":
+                  loc = repos_loc.lerp(pb.matrix_basis.to_translation(), a_ * a_ * (3 - 2 * a_))
+              pb.rotation_quaternion = q
+              pb.keyframe_insert("rotation_quaternion", frame=t * FPS, group=nb)
+              if nb == "clavicle_r":
+                  pb.location = loc
+                  pb.keyframe_insert("location", frame=t * FPS, group=nb)
+          maj()
+          Mb = CAM_DE_B @ ha.matrix @ PRISE_D
+          suivi.append((Mb @ GARDE.lerp(POINTE, 0.6), Mb.to_3x3().normalized().col[2].normalized(),
+                        (CAM_DE_B @ la.tail - CAM_DE_B @ la.head).normalized()))
+      if passe < passes - 1:
+          thetas = _thetas_tranchant(thetas, suivi, tranchant, float(spec.get("theta_max", 110.0)))
+      elif tranchant:
+          ecarts = []
+          for j in range(1, n):
+              v = suivi[j + 1][0] - suivi[j - 1][0]
+              if tranchant[0] <= j / 60 <= tranchant[1] and v.length > 1e-6:
+                  ecarts.append(math.degrees(math.asin(min(1.0, abs(v.normalized().dot(suivi[j][1]))))))
+          print("TRANCHANT %-10s rotation de l'avant-bras %+.0f..%+.0f deg ; fil / mouvement pendant la frappe moy %.0f max %.0f deg" % (
+              nom, min(thetas), max(thetas), sum(ecarts) / max(len(ecarts), 1), max(ecarts or [0.0])))
     for fc in _fcurves(act):
         for kp in fc.keyframe_points:
             kp.interpolation = "LINEAR"

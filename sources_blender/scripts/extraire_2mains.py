@@ -26,6 +26,9 @@ SOURCES = {
     "gs_attack": GS + "attack.fbx", "gs_spin": GS + "high spin attack.fbx", "gs_jump_attack": GS + "jump attack.fbx",
     "gs_block": GS + "blocking.fbx", "gs_block_2": GS + "blocking (2).fbx", "gs_block_3": GS + "blocking (3).fbx",
     "gs_impact": GS + "impact.fbx", "gs_impact_2": GS + "impact (2).fbx",
+    # claymore v6, coup 2 (2026-11-12) : candidats d'un horizontal gauche -> droite
+    "gs_slide_attack": GS + "slide attack.fbx", "gs_kick": GS + "kick.fbx", "gs_kick_2": GS + "kick (2).fbx",
+    "gs_impact_3": GS + "impact (3).fbx", "gs_draw": "great_sword_pack/draw a great sword 1.fbx",
 }
 F = Matrix(((-1, 0, 0), (0, 0, 1), (0, 1, 0))).transposed()
 CAM_DE_MONDE = F.transposed()
