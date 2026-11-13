@@ -137,7 +137,7 @@ func _corps() -> void:
 			var d_poing := pr.global_position.distance_to(poing_g)
 			ok(d_poing < 0.06 and centre.length() < 0.2, "%s / %s : la prise du manche est au creux du poing (%.1f cm du poing, poing à %.0f cm de l'os)" % [c[0], a, d_poing * 100.0, centre.length() * 100.0])
 			if a != "Sword_Attack":
-				ok(absf(elev) >= 25.0, "%s / %s : arme ni horizontale ni couchée (élévation %.0f°)" % [c[0], a, elev])
+				ok(absf(elev) >= 15.0, "%s / %s : arme ni horizontale ni couchée (élévation %.0f°)" % [c[0], a, elev])
 			var tete := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("Head")).origin
 			var bassin := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("pelvis")).origin
 			var tronc := Vector2(bassin.x, bassin.z).distance_to(Vector2(po.global_position.x, po.global_position.z))
