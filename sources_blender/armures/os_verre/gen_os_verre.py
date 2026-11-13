@@ -555,7 +555,7 @@ def os_draugr():
     col = X.col_montant("col", 1.49, 1.56, 0.010, 14, 0.016, 1.05)
     bpy.data.objects.remove(o_lan)
     cb = []
-    if globals().get("V3"):
+    if globals().get("V3") and "--soufflets" in sys.argv:   # désactivé par défaut (traversées gs_slash au test)
         # v3 : soufflet de coude en cuir noirci (jour entre la manche coupée à |x| 0,44 et la manchette : on y voyait la maille du héros)
         for cote in ("l", "r"):
             bm = bmesh.new()
@@ -563,8 +563,8 @@ def os_draugr():
             cible_ = L.bvh_de(["tunique", "SuperHero_Male"], filtre=lambda p: abs(p.x) > 0.12)
             c0 = Vector((sg_ * 0.425, a_.y, a_.z - 0.008 * (0.425 - 0.2) / 0.26))
             c1 = Vector((sg_ * 0.505, a_.y, a_.z - 0.008 * (0.505 - 0.2) / 0.26))
-            f0 = L.rayon_sur(cible_, c0, axe_, Vector((0, 1, 0)), 0.016)
-            f1 = L.rayon_sur(cible_, c1, axe_, Vector((0, 1, 0)), 0.019)
+            f0 = L.rayon_sur(cible_, c0, axe_, Vector((0, 1, 0)), 0.034)
+            f1 = L.rayon_sur(cible_, c1, axe_, Vector((0, 1, 0)), 0.037)
             X.bande(bm, [(c0, axe_, Vector((0, 1, 0))), (c1, axe_, Vector((0, 1, 0)))], [f0, f1], 0.006, 10, P_CUIR2, bombe=0.003)
             ob_ = X.en_objet(bm, "cb_" + cote)
             X.poids_de(ob_, "tunique", lambda p, sg_=sg_: abs(p.x) > 0.12 and (p.x > 0) == (sg_ > 0))

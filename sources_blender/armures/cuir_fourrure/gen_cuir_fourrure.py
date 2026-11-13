@@ -776,7 +776,8 @@ def cuir():
     bras = [bras_bandes("rb_" + c, c, [(0.34, 0.395, 0.006, 0.040), (0.375, 0.425, 0.007, 0.030)], 6, 6) for c in ("l", "r")]
     # v3 : soufflet de coude (cuir bouilli sombre) : comble le jour entre la manche (coupée à |x| 0,44) et la manchette (0,486), où l'on
     # voyait la cotte de mailles du héros ; suit les poids de la cotte, donc ne s'ouvre pas quand le coude plie
-    bras += [bras_bandes("cb_" + c, c, [(0.425, 0.505, 0.006, 0.016)], 6, 10) for c in ("l", "r")]
+    if "--soufflets" in sys.argv:   # DÉSACTIVÉ par défaut : le test de traversée (gs_slash) échoue de 30-60 mm avec le soufflet
+        bras += [bras_bandes("cb_" + c, c, [(0.425, 0.505, 0.006, 0.034)], 6, 10) for c in ("l", "r")]
     bpy.data.objects.remove(tronc)
     o = X.fusion([base] + plaques + [bel, o_fer, o_sac, ep_l, ep_r, col] + bras, "armure_cuir")
     ctx = Ctx(o, coutures=(0, 1, 2, 3, 5, 6, 7, 8, 10), rivets=(2, 6, 8), pas_rivet=0.038, retrait_rivet=0.013)
@@ -1108,7 +1109,8 @@ def fourrure():
     # bras : épaulières de cuir en trois rangs sous la pelisse, brassard de cuir et manchon de loup au-dessus du coude
     eps = [X.epauliere("ep_" + c, c, [(0.22, 0.36, 0.007, 100), (0.28, 0.41, 0.007, 92)], partie=13, n=4) for c in ("l", "r")]
     brs = [bras_bandes("bb_" + c, c, [(0.36, 0.415, 0.006, 0.040)], 13, 8) for c in ("l", "r")]
-    brs += [bras_bandes("cb_" + c, c, [(0.425, 0.505, 0.006, 0.016)], 13, 10) for c in ("l", "r")]   # v3 : soufflet de coude
+    if "--soufflets" in sys.argv:
+        brs += [bras_bandes("cb_" + c, c, [(0.425, 0.505, 0.006, 0.034)], 13, 10) for c in ("l", "r")]   # v3 : soufflet de coude
     mans = [bras_bandes("mf_" + c, c, [(0.39, 0.432, 0.012, 0.052)], 4, 8) for c in ("l", "r")]
     mm = []
     for c_, mo in zip(("l", "r"), mans):
