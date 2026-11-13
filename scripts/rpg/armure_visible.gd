@@ -79,19 +79,19 @@ const MATIERES := {
 	# spec = force de l'éclat, exp = finesse (grand = point net, vitreux), spec_col = teinte de l'éclat, fresnel = liseré rasant.
 	# Les clés ci-dessous ne servent qu'aux familles fer, acier nordique, obsidienne, or (et leurs enchantées / chausses).
 	"acier.patine": {"teinte": Color(0.92, 0.92, 0.95), "metal": 0.62, "poli": 0.6, "reflet": Color(0.78, 0.83, 0.92),
-		"spec": 2.4, "exp": 30.0, "spec_col": Color(0.86, 0.93, 1.0), "fresnel": 0.10, "seuil": Vector2(0.16, 0.72)},
+		"spec": 2.6, "exp": 90.0, "spec_col": Color(0.86, 0.93, 1.0), "fresnel": 0.10, "seuil": Vector2(0.30, 0.85)},
 	"fer.lourd": {"teinte": Color(0.84, 0.83, 0.83), "metal": 0.4, "poli": 0.4, "reflet": Color(0.86, 0.85, 0.83),
-		"spec": 1.8, "exp": 26.0, "spec_col": Color(0.95, 0.93, 0.9), "fresnel": 0.05, "seuil": Vector2(0.2, 0.8)},
+		"spec": 2.2, "exp": 70.0, "spec_col": Color(0.95, 0.93, 0.9), "fresnel": 0.05, "seuil": Vector2(0.28, 0.85)},
 	"fer.obsidienne": {"teinte": Color(0.95, 0.95, 0.97), "metal": 0.4, "poli": 0.4, "reflet": Color(0.84, 0.82, 0.88),
 		"spec": 1.8, "exp": 26.0, "spec_col": Color(0.92, 0.9, 1.0), "fresnel": 0.06, "seuil": Vector2(0.2, 0.8)},
 	"obsidienne.lourd": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.12, "bord": 0.45, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 0.75,
 		"spec": 2.6, "exp": 60.0, "spec_col": Color(0.96, 0.94, 1.0), "fresnel": 0.20, "seuil": Vector2(0.28, 0.75)},
 	"obsidienne.lourd.enchante": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.12, "bord": 0.45, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 1.1,
 		"spec": 2.6, "exp": 60.0, "spec_col": Color(0.96, 0.94, 1.0), "fresnel": 0.20, "seuil": Vector2(0.28, 0.75)},
-	"or.lourd": {"teinte": Color(1.0, 0.99, 0.97), "metal": 0.7, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62),
-		"spec": 2.4, "exp": 34.0, "spec_col": Color(1.0, 0.9, 0.62), "fresnel": 0.12, "seuil": Vector2(0.3, 0.95)},
-	"or.lourd.enchante": {"teinte": Color(1.02, 1.0, 0.98), "metal": 0.72, "poli": 0.62, "reflet": Color(1.08, 0.92, 0.64), "lueur": 0.05,
-		"spec": 2.5, "exp": 34.0, "spec_col": Color(1.0, 0.9, 0.62), "fresnel": 0.13, "seuil": Vector2(0.3, 0.95)},
+	"or.lourd": {"teinte": Color(1.0, 0.97, 0.9), "metal": 0.3, "poli": 0.5, "reflet": Color(1.04, 0.84, 0.5),
+		"spec": 1.8, "exp": 60.0, "spec_col": Color(1.0, 0.82, 0.42), "fresnel": 0.12, "seuil": Vector2(0.3, 0.95)},
+	"or.lourd.enchante": {"teinte": Color(1.02, 1.0, 0.98), "metal": 0.32, "poli": 0.52, "reflet": Color(1.06, 0.86, 0.52), "lueur": 0.05,
+		"spec": 1.9, "exp": 60.0, "spec_col": Color(1.0, 0.82, 0.42), "fresnel": 0.13, "seuil": Vector2(0.3, 0.95)},
 	"tissu": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08},
 	"tissu.enchante": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08, "lueur": 0.8},
 	"gemme": {"teinte": Color(1.05, 1.0, 1.0), "metal": 0.05, "bord": 0.45, "poli": 1.0, "lueur": 0.25, "reflet": Color(1.0, 0.93, 0.94)},
@@ -394,7 +394,7 @@ const CHAUSSES_PAR_TORSE := {
 }
 
 ## Chausses portées d'office des armures lourdes v3 : matière à vrai spéculaire (shader_lourd), comme leurs plaques.
-const PRESET_CHAUSSES := {"fer": "fer.lourd", "acier": "acier.patine", "obsidienne": "obsidienne.lourd", "or": "or.lourd"}
+const PRESET_CHAUSSES := {"fer": "fer.lourd", "acier": "acier.patine", "obsidienne": "obsidienne.lourd"}
 
 static func famille_chausses(id_torse: String) -> String:
 	id_torse = base_de(id_torse)

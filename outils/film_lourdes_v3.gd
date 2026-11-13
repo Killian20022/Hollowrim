@@ -9,6 +9,8 @@ const FAMILLES := {
 	"fer": ["casque_fer", "cuirasse_fer", "gantelets_fer", "bottes_fer"],
 	"obsidienne": ["casque_obsidienne", "cuirasse_obsidienne", "gantelets_obsidienne", "bottes_obsidienne"],
 	"or": ["casque_or", "cuirasse_or", "gantelets_or", "bottes_or"],
+	"obsidienne_enchante": ["casque_obsidienne_enchante", "cuirasse_obsidienne_enchante", "gantelets_obsidienne_enchante", "bottes_obsidienne_enchante"],
+	"or_enchante": ["casque_or_enchante", "cuirasse_or_enchante", "gantelets_or_enchante", "bottes_or_enchante"],
 }
 const PiecesEssai := preload("res://outils/pieces_essai.gd")
 var s: Node

@@ -827,7 +827,7 @@ if not V2:
     # torse plus serré que les membres (k_region : le volume « jouet » du plastron et des épaules disparaît ; les avant-bras gardent
     # leur jeu pour les coups)
     _KR = {"torse": 0.26, "epaules": 0.30}
-    RETREINT = {"obsidienne": dict(m=0.010, k=0.32, D1=0.12, k_region=_KR), "or": dict(m=0.010, k=0.38, D1=0.12, k_region=_KR)}
+    RETREINT = {"obsidienne": dict(m=0.010, k=0.32, D1=0.12, k_region=_KR), "or": dict(m=0.015, k=0.55, D1=0.12)}   # or : réglages de la passe 2 (v3 écrasait le lion de l'épaulière et déchiquetait la cape)
     ARTIC = {
         "cuirasse_obsidienne": lambda cx: AR.couters(cx, mats=("obsidienne",), dec=0.010, bombe=0.010, na=11, na_aile=5)
                                           + AR.tassettes(cx, lames=2, mats=("obsidienne",), dec=0.016, pas_dec=0.0025, na=11),
