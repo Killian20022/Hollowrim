@@ -45,12 +45,13 @@ il ne décale aucun des tirages existants (casque, tenue, état du draugr). Sans
   pendant les coups (`Sword_Attack`, `Punch_Cross`, `Zombie_*`), la mort et les réactions, l'arme est rendue au clip.
   L'épée pointe vers l'avant et le bas (valeur d'origine) ; les armes d'hast (hache, hachette, masse, marteau, gourdin) ont la tête
   levée en diagonale (`cible` et `limite` dans `armes_ennemis.json`, par famille ou par arme ; `torsion` tourne l'arme autour de son axe).
+- Poing MESURÉ (`EnnemiTripo.poing_mesure`, outil `outils/mesure_prise_main.gd`) : centre du poing et ligne des articulations lus sur le maillage de `hand_r` (repère de la pose de liaison du skin) ; l'axe du manche est cette ligne (le manche traverse le poing fermé, en travers des doigts), et l'aplomb garde le manche à au moins 45° des doigts quel que soit le clip. Les bandits utilisent leur propre poing mesuré (l'ancien `centre_fixe` était 7 cm au-delà de la main).
 - Les clips d'attaque sont ceux d'origine (captures Mixamo des ennemis) : aucune clé de pose écrite à la main.
 
 ## Combat
 
 `Draugr._armer_catalogue` (sauf chefs) : dégâts × rapport des dégâts de l'arme à ceux de l'épée de soldat, rythme des gestes × rapport
-des vitesses, portée du corps à corps = `PORTEE` + écart de portée de l'arme / 2 ; tout borné par `equilibre` du JSON (dégâts 0,8-1,35,
+des vitesses, portée du corps à corps = `PORTEE` + (longueur RÉELLE de l'arme − celle de l'épée, `ArmesEnnemis.longueur`, mesurée sur le modèle de la prise au bout du maillage) / 2 ; tout borné par `equilibre` du JSON (dégâts 0,8-1,35,
 rythme 0,8-1,12, portée ±0,2 m). La hache de guerre est donc plus lente et plus mordante que l'épée, le gourdin plus faible, le
 marteau le plus lent. Les armes à deux mains (grand marteau) ne sont données à aucun ennemi courant.
 

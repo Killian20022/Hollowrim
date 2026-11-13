@@ -124,6 +124,7 @@ static func vider() -> void:
 	_mx.lock()
 	_mats.clear()
 	_centres.clear()
+	_poings.clear()
 	_mx.unlock()
 
 ## `arme` : "arc", une arme du catalogue (ArmesEnnemis : « hache_guerre », « gourdin »…) ou, anciennement, « epee » / « hache » / « masse » / « epee_courte »
@@ -157,7 +158,7 @@ static func creer(id: String, arme := "", profil := "") -> Node3D:
 	elif arme == "arc":
 		EnnemisNordiques._arc(sq)
 	elif arme != "" and ArmesEnnemis.connu(arme):
-		var tenue := ArmesEnnemis.poser(sq, centre_poing(sq, corps, id), id, arme, profil)
+		var tenue := ArmesEnnemis.poser(sq, (poing_mesure(sq, id) as Dictionary)["centre"], id, arme, profil, (poing_mesure(sq, id) as Dictionary)["axe"])
 		if tenue != null:
 			(sq.get_node("Arme/Aplomb") as Node).set("ap", ap)
 			racine.set_meta("arme_id", arme)
@@ -172,6 +173,80 @@ static func creer(id: String, arme := "", profil := "") -> Node3D:
 	if ECHELLES.has(id):
 		racine.set_meta("echelle_tripo", float(ECHELLES[id]))
 	return racine
+
+## Poing mesuré sur la vraie main (poids >= 0,5 sur hand_r, tous les maillages du squelette), repère de repos de hand_r :
+## {centre, axe}. `axe` = ligne des articulations (axe principal du poing dans le plan perpendiculaire aux doigts) : c'est la direction du MANCHE
+## qui traverse le poing fermé ; signe choisi du côté de l'axe d'arme historique (PRISE incliné de INCL). Mis en cache par corps.
+static var _poings := {}
+static func poing_mesure(sq: Skeleton3D, id: String) -> Dictionary:
+	_mx.lock()
+	var deja: Variant = _poings.get(id)
+	_mx.unlock()
+	if deja != null:
+		return deja
+	var pts: Array[Vector3] = []
+	for mi: MeshInstance3D in sq.find_children("*", "MeshInstance3D", false, false):
+		if mi.mesh == null or mi.skin == null:
+			continue
+		# repère de la main = celui de la POSE DE LIAISON du maillage (inverse de la matrice de liaison de hand_r) : c'est lui que le rendu déforme,
+		# donc celui où l'arme (BoneAttachment3D sur hand_r) doit être posée ; le repos du squelette peut en différer (rig Tripo).
+		var inv := Transform3D.IDENTITY
+		for bi in mi.skin.get_bind_count():
+			if mi.skin.get_bind_name(bi) == "hand_r":
+				inv = mi.skin.get_bind_pose(bi)
+		for s in mi.mesh.get_surface_count():
+			var a := mi.mesh.surface_get_arrays(s)
+			var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+			var b: PackedInt32Array = a[Mesh.ARRAY_BONES]
+			var w: PackedFloat32Array = a[Mesh.ARRAY_WEIGHTS]
+			if b.is_empty():
+				continue
+			var par := b.size() / maxi(v.size(), 1)
+			for i in v.size():
+				var p := 0.0
+				for k in par:
+					if mi.skin.get_bind_name(b[i * par + k]) == "hand_r":
+						p += w[i * par + k]
+				if p >= 0.5:
+					pts.append(inv * v[i])
+	var ds: Array[float] = []
+	for q in pts:
+		ds.append(q.length())
+	ds.sort()
+	var res := {"centre": Vector3(-0.01, -0.08, 0.0), "axe": Vector3.ZERO}
+	if ds.size() >= 8:
+		var r := ds[int(ds.size() * 0.95)]
+		var poing: Array[Vector3] = []
+		var somme := Vector3.ZERO
+		for q in pts:
+			var d := q.length()
+			if d >= FIST_MIN * r and d <= FIST_MAX * r:
+				poing.append(q)
+				somme += q
+		if poing.size() >= 4:
+			var c := somme / poing.size()
+			var f := c.normalized()
+			var u := f.cross(Vector3.UP if absf(f.y) < 0.9 else Vector3.RIGHT).normalized()
+			var v2 := f.cross(u)
+			var sxx := 0.0
+			var sxy := 0.0
+			var syy := 0.0
+			for q in poing:
+				var a2 := (q - c).dot(u)
+				var b2 := (q - c).dot(v2)
+				sxx += a2 * a2
+				sxy += a2 * b2
+				syy += b2 * b2
+			var th := 0.5 * atan2(2.0 * sxy, sxx - syy)
+			var larg := u * cos(th) + v2 * sin(th)
+			var hist := (Basis(Vector3.RIGHT, deg_to_rad(INCL)) * PRISE.basis).y
+			if larg.dot(hist) < 0.0:
+				larg = -larg
+			res = {"centre": c, "axe": larg.normalized()}
+	_mx.lock()
+	_poings[id] = res
+	_mx.unlock()
+	return res
 
 ## Centre du poing droit du maillage (poids >= 0,5 sur hand_r), dans le repère de repos de hand_r.
 static func centre_poing(sq: Skeleton3D, mi: MeshInstance3D, id: String) -> Vector3:

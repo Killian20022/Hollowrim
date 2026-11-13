@@ -546,10 +546,10 @@ static func _boss_draugr(ch: Dictionary) -> Node3D:
 
 # ======================================================================================================== bandits
 const TENUES_BANDIT := [
-	{"tun": Color(0.62, 0.5, 0.4), "pan": Color(0.75, 0.62, 0.5), "bot": Color(0.7, 0.62, 0.55), "cape": Color(0.45, 0.3, 0.18), "ch": Color(0.55, 0.42, 0.3)},
-	{"tun": Color(0.5, 0.52, 0.5), "pan": Color(0.6, 0.55, 0.62), "bot": Color(0.6, 0.55, 0.5), "cape": Color(0.4, 0.38, 0.35), "ch": Color(0.8, 0.62, 0.4)},
-	{"tun": Color(0.7, 0.58, 0.42), "pan": Color(0.5, 0.48, 0.5), "bot": Color(0.55, 0.45, 0.38), "cape": Color(0.52, 0.26, 0.14), "ch": Color(0.35, 0.3, 0.26)},
-	{"tun": Color(0.45, 0.4, 0.38), "pan": Color(0.62, 0.52, 0.42), "bot": Color(0.5, 0.46, 0.44), "cape": Color(0.26, 0.2, 0.16), "ch": Color(0.7, 0.66, 0.6)},
+	{"tun": Color(0.62, 0.5, 0.4), "pan": Color(0.75, 0.62, 0.5), "bot": Color(0.7, 0.62, 0.55), "cape": Color(0.4, 0.33, 0.3), "ch": Color(0.55, 0.42, 0.3)},
+	{"tun": Color(0.5, 0.52, 0.5), "pan": Color(0.6, 0.55, 0.62), "bot": Color(0.6, 0.55, 0.5), "cape": Color(0.36, 0.36, 0.4), "ch": Color(0.8, 0.62, 0.4)},
+	{"tun": Color(0.7, 0.58, 0.42), "pan": Color(0.5, 0.48, 0.5), "bot": Color(0.55, 0.45, 0.38), "cape": Color(0.42, 0.3, 0.26), "ch": Color(0.35, 0.3, 0.26)},
+	{"tun": Color(0.45, 0.4, 0.38), "pan": Color(0.62, 0.52, 0.42), "bot": Color(0.5, 0.46, 0.44), "cape": Color(0.28, 0.27, 0.29), "ch": Color(0.7, 0.66, 0.6)},
 ]
 
 static func _bandit(ch: Dictionary) -> Node3D:
@@ -567,7 +567,8 @@ static func _bandit(ch: Dictionary) -> Node3D:
 	_teinter_piece(sq, "Hair_Beard", t["ch"])
 	_teinter_acc(sq, Color(0.74, 0.68, 0.62), t["cape"])
 	var arme_id: String = ch.get("arme_id", "")
-	var tenue: Node3D = ArmesEnnemis.poser(sq, ArmesEnnemis.centre_fixe(), "bandit", arme_id, "bandit_costaud" if casque else "bandit") if arme_id != "" else null
+	var poing := EnnemiTripo.poing_mesure(sq, "bandit")      # poing MESURÉ sur la main du bandit (centre + ligne des articulations)
+	var tenue: Node3D = ArmesEnnemis.poser(sq, poing["centre"], "bandit", arme_id, "bandit_costaud" if casque else "bandit", poing["axe"]) if arme_id != "" else null
 	if tenue != null:
 		(sq.get_node("Arme/Aplomb") as Node).set("ap", n.get_node("Animations"))
 		n.set_meta("arme_id", arme_id)
