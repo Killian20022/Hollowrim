@@ -69,6 +69,8 @@
 			"mult": {"degats": 0.92, "vitesse": 1.08, "poids": 0.7, "allonge": 0.8}, "description": "Outil de bûcheron devenu arme : légère, courte, bon marché."},
 		"masse_cloutee": {"nom": "Masse cloutée", "famille": "masse", "materiau": "fer", "modele": "res://assets/modeles/armes/integrees/hd/masse_cloutee.tscn", "materiau_lame": "fer", "rarete": "commun",
 			"description": "Gourdin ferré hérissé de clous : écrase les os et déséquilibre."},
+		"gourdin": {"nom": "Gourdin noueux", "famille": "masse", "materiau": "bois", "modele": "res://assets/modeles/armes/integrees/hd/gourdin.tscn", "materiau_lame": "bois", "rarete": "commun", "mult": {"degats": 0.8, "vitesse": 1.06, "poids": 0.55, "valeur": 0.45, "allonge": 0.9},
+			"description": "Branche de chêne durcie au feu, poignée de cuir lié : l'arme du pillard sans le sou. Assomme plus qu'elle ne blesse."},
 		"marteau_guerre": {"nom": "Marteau de guerre", "famille": "marteau", "materiau": "acier", "modele": "res://assets/modeles/armes/integrees/hd/marteau_guerre.tscn", "materiau_lame": "lame", "rarete": "peu_commun",
 			"description": "Tête d'acier à bec : lente, mais chaque coup fait reculer."},
 		"grand_marteau": {"nom": "Grand marteau à deux têtes", "famille": "marteau", "materiau": "acier", "modele": "res://assets/modeles/armes/integrees/hd/grand_marteau.tscn", "materiau_lame": "lame", "rarete": "peu_commun",

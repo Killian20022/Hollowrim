@@ -24,6 +24,7 @@ garder_journal_moteur() {   # $1 = nom du test
 # nom_du_test|arguments après « -- » (toujours au moins un, voir plus haut)
 TESTS=(
 	"test_filet|--nouvelle"
+	"test_armes_ennemis|--nouvelle"   # vraies armes des ennemis (catalogue) : tirage stable, prise, jamais horizontale, stats de combat, chute au sol, butin, dépouille
 	"test_terrain_sans_discard|--nouvelle"   # le sol n'a aucun discard (early-Z : ×1,9 de GPU dehors sinon)
 	"test_shaders_sans_discard|--nouvelle"   # idem généralisé : aucun shader ne gagne de discard (liste dans banc_perf_reference.json)
 	"test_quetes|--nouvelle"

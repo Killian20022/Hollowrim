@@ -13,6 +13,10 @@ var centre: Vector3
 var ech := 1.0
 var grip := 0.04
 var incl := -35.0
+## Torsion de l'arme autour de son propre axe (°) : amène le tranchant d'une hache / la face d'un marteau du bon côté (ArmesEnnemis, par famille).
+var torsion := 0.0
+## Direction visée de la pointe / de la tête au repos et en marche (repère du modèle) ; ArmesEnnemis la règle par arme (haches, masses : tête levée en diagonale).
+var cible := CIBLE
 var os := -1
 
 const LIMITE := 85.0   # écart maximal (°) imposé par rapport à l'orientation du clip
@@ -26,12 +30,12 @@ func _process(dt: float) -> void:
 	if ATTAQUES.has(clip) or clip.begins_with("Death") or clip.begins_with("Hit"):
 		veut = 0.0
 	_w = lerpf(_w, veut, clampf(dt * 8.0, 0.0, 1.0))
-	var b0 := Basis(Vector3.RIGHT, deg_to_rad(incl)) * base
+	var b0 := Basis(Vector3.RIGHT, deg_to_rad(incl)) * base * Basis(Vector3.UP, deg_to_rad(torsion))
 	var bs := b0
 	if _w > 0.001:
 		var main := sq.get_bone_global_pose(os).basis.orthonormalized()
 		var cur := (main * b0.y).normalized()
-		var cib := CIBLE.normalized()
+		var cib := cible.normalized()
 		var ang := minf(cur.angle_to(cib), deg_to_rad(LIMITE)) * _w
 		var axe := cur.cross(cib)
 		if axe.length() > 0.0001 and ang > 0.0001:

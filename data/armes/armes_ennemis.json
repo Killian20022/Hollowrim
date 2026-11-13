@@ -1,0 +1,57 @@
+{
+	"_doc": "Armes des ennemis (scripts/armes_ennemis.gd, ArmesEnnemis). Chaque profil = tirage pondéré parmi les armes du CATALOGUE (catalogue_armes.json), à graine stable : graine = identifiant de l'ennemi + « |arme », donc le même ennemi tient la même arme à chaque partie, en sauvegarde et sur sa dépouille. Aucune arme précieuse (or, verre, rubis, obsidienne, saphir) chez les ennemis communs. `usure` = teinte multipliée sur les matériaux de l'arme (fer terni, rouille). `uniques` : arme propre à un chef = modèle d'une arme du catalogue + teinte, jamais lâchée (déjà posée dans le monde comme objet unique). `equilibre` : bornes du rapport des stats de l'arme à celles de la référence (épée de soldat), appliqué aux dégâts, au rythme des gestes et à la portée de l'ennemi.",
+	"reference": "epee_soldat",
+	"equilibre": {"degats": [0.8, 1.35], "rythme": [0.8, 1.12], "portee": [-0.2, 0.15]},
+	"_prises": "Réglages de prise : `familles` (torsion = rotation de l'arme autour de son axe, ° ; cible = direction visée de la pointe / de la tête au repos et en marche, repère du squelette, +z = devant) ; `prises` : réglage propre à une arme, prime sur la famille. Au repos l'épée pointe vers l'avant et le bas (défaut d'ArmeAplombTripo) ; les armes d'hast (haches, masses, marteaux) ont la tête levée en diagonale.",
+	"familles": {
+		"une_main": {"torsion": 0.0},
+		"epee_longue": {"torsion": 0.0},
+		"dague": {"torsion": 0.0},
+		"masse": {"torsion": 0.0, "cible": [-0.1, 0.8, 0.6]},
+		"marteau": {"torsion": 0.0, "cible": [-0.1, 0.8, 0.6]}
+	},
+	"prises": {
+		"hache_guerre": {"cible": [-0.1, 0.8, 0.6]},
+		"hachette": {"cible": [-0.1, 0.8, 0.6]}
+	},
+	"profils": {
+		"draugr": {"usure": [0.74, 0.66, 0.6], "armes": [
+			{"id": "epee_soldat", "poids": 4},
+			{"id": "hache_guerre", "poids": 3},
+			{"id": "masse_cloutee", "poids": 2},
+			{"id": "hachette", "poids": 2}
+		]},
+		"draugr_ancien": {"usure": [0.7, 0.64, 0.6], "armes": [
+			{"id": "hache_guerre", "poids": 4},
+			{"id": "epee_soldat", "poids": 3},
+			{"id": "marteau_guerre", "poids": 2},
+			{"id": "masse_cloutee", "poids": 1}
+		]},
+		"squelette": {"usure": [0.78, 0.66, 0.56], "armes": [
+			{"id": "epee_soldat", "poids": 4},
+			{"id": "gourdin", "poids": 3},
+			{"id": "hachette", "poids": 3}
+		]},
+		"bandit": {"usure": [0.94, 0.9, 0.86], "armes": [
+			{"id": "hachette", "poids": 3},
+			{"id": "gourdin", "poids": 3},
+			{"id": "sabre_pillard", "poids": 3},
+			{"id": "masse_cloutee", "poids": 2}
+		]},
+		"bandit_costaud": {"usure": [0.94, 0.9, 0.86], "armes": [
+			{"id": "hache_guerre", "poids": 4},
+			{"id": "masse_cloutee", "poids": 2},
+			{"id": "marteau_guerre", "poids": 1}
+		]},
+		"gobelin": {"usure": [0.9, 0.86, 0.8], "armes": [
+			{"id": "dague_acier", "poids": 4},
+			{"id": "gourdin", "poids": 1}
+		]},
+		"jarl": {"usure": [1.0, 1.0, 1.0], "armes": [
+			{"id": "hache_kolbeinn", "poids": 1}
+		]}
+	},
+	"uniques": {
+		"hache_kolbeinn": {"modele_de": "hache_guerre", "teinte": [0.92, 1.08, 1.35], "butin": false}
+	}
+}

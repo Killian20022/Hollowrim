@@ -56,6 +56,8 @@ const ACCEL := 8.0  # m/s²
 const ROT_MAX := 6.0  # rad/s ; 10 pendant le geste d'attaque
 
 var type := "guerrier"
+var _portee := PORTEE   # portée du corps à corps : PORTEE modulée par l'arme tenue (ArmesEnnemis.stats_combat)
+var _arme := ""         # arme du catalogue tenue (méta « arme_id » du modèle) ; vide = mains nues, arc ou ancien corps
 var _poings := false  # squelette Tripo sans arme (par défaut, ModelesTripo) : griffes et poings
 var _os := false  # type « squelette* » (renseigné dans _ready)
 var _humain := false  # bandit vivant (personnage de base) : bourse « cadavre_bandit » au lieu de « cadavre_draugr »
@@ -265,7 +267,7 @@ func _ready() -> void:
 	if app.has("perso"):
 		modele = Personnage.creer(app["perso"])      # bandits vivants : personnage de base unifie (PersoDef)
 	elif type == "gobelin":
-		modele = EnnemiTripo.creer("gobelin", "epee_courte")
+		modele = EnnemiTripo.creer("gobelin", ArmesEnnemis.tirer("gobelin", ident), "gobelin")
 	elif _os:
 		modele = EnnemisNordiques.squelette({"type": type, "archer": archer, "ident": ident, "variante": variante, "teinte": teinte_os, "modele_ancien": modele_ancien})   # copie d'un gabarit préconstruit
 	else:
@@ -282,6 +284,7 @@ func _ready() -> void:
 	_poings = _os and bool(modele.get_meta("squelette_poings", false))
 	if _poings:
 		degats *= 0.85    # griffes et poings osseux : un peu moins qu'à l'épée
+	_armer_catalogue()
 	add_child(modele)
 	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):
 		_mailles.append(mi)
@@ -359,6 +362,17 @@ func _clip(nom: String) -> String:
 	if zombie and ANIMS_ZOMBIE.has(nom) and anim.has_animation(ANIMS_ZOMBIE[nom]):
 		return ANIMS_ZOMBIE[nom]
 	return nom
+
+## Arme du catalogue tenue (ArmesEnnemis) : dégâts, rythme des gestes et portée suivent l'arme, par rapport à l'épée de soldat (bornes dans
+## data/armes/armes_ennemis.json). Les chefs à arme unique (hache de Kolbeinn) gardent leurs réglages : leurs dégâts sont ceux de ReglagesCombat.
+func _armer_catalogue() -> void:
+	_arme = ArmesEnnemis.arme_de(modele)
+	if _arme == "" or boss != "":
+		return
+	var st := ArmesEnnemis.stats_combat(_arme)
+	degats *= float(st["degats"])
+	_rythme *= float(st["rythme"])
+	_portee = PORTEE + float(st["portee"])
 
 ## Lame nordique rouillée (modèle du joueur) tenue dans la main droite.
 func _armer(squelette: Skeleton3D) -> void:
@@ -570,8 +584,8 @@ func _physics_process(dt: float) -> void:
 	var ecart_y := absf(c.global_position.y - global_position.y)
 	if ecart_y > (7.0 if archer else 3.5):
 		dist = 1000.0
-	elif ecart_y > 3.5 and dist < PORTEE + 1.0:
-		dist = PORTEE + 1.0  # pas de corps à corps à travers un étage
+	elif ecart_y > 3.5 and dist < _portee + 1.0:
+		dist = _portee + 1.0  # pas de corps à corps à travers un étage
 	var vitesse := 0.0
 	var regard := true
 	var vitesse_rot := ROT_MAX
@@ -632,7 +646,7 @@ func _physics_process(dt: float) -> void:
 				_lancer_appel("squelettes")
 			elif boss == "svanhild" and _phase == 2 and _cd_souffle <= 0.0 and dist > 2.5 and dist < 11.0:
 				_lancer_souffle(dir)
-			elif archer and dist > PORTEE:
+			elif archer and dist > _portee:
 				var av := global_position.distance_to(_pos_prec)
 				_pos_prec = global_position
 				if _retr and _vit > 0.3 and av < _vit * dt * 0.3:
@@ -660,7 +674,7 @@ func _physics_process(dt: float) -> void:
 					Sons.jouer_a(self, ["cloth1", "cloth2"], global_position + Vector3.UP, -2.0, 0.1)
 				else:
 					_jouer("Sword_Idle")
-			elif dist > (PORTEE + AMORCE if _menace else PORTEE):
+			elif dist > (_portee + AMORCE if _menace else _portee):
 				vitesse = _course if dist > 4.0 else _marche_proche
 				loco = "Jog_Fwd" if dist > 4.0 else "Walk"
 				if dist > ReglagesCombat.CHARGE_DIST_MIN and _joueur_lanceur() and c == joueur and not zombie and boss == "" and _lecon <= 0.0:
@@ -677,7 +691,7 @@ func _physics_process(dt: float) -> void:
 				_flanc_t = 0.0
 				regard = true
 				var tang := Vector3(-dir.z, 0.0, dir.x) * _cote_pause
-				_lateral = tang * 1.1 + dir * clampf(dist - (PORTEE - 0.2), -1.0, 1.0) * 0.7
+				_lateral = tang * 1.1 + dir * clampf(dist - (_portee - 0.2), -1.0, 1.0) * 0.7
 				if _repli > 0.0:
 					_repli -= dt
 					_lateral = tang * 0.8 - dir * 2.8
@@ -764,9 +778,9 @@ func _physics_process(dt: float) -> void:
 					_coup_donne = true
 					Sons.jouer_a(self, ["swing", "swing2", "swing3"], global_position + Vector3.UP, -6.0, 0.2)
 					var face := global_transform.basis.z
-					if dist < PORTEE + 0.6 and dir.dot(Vector3(face.x, 0, face.z).normalized()) > 0.4 and c != joueur:
+					if dist < _portee + 0.6 and dir.dot(Vector3(face.x, 0, face.z).normalized()) > 0.4 and c != joueur:
 						Rivalites.frapper(self, c, degats * _mult_coup())
-					elif dist < PORTEE + 0.6 and dir.dot(Vector3(face.x, 0, face.z).normalized()) > 0.4:
+					elif dist < _portee + 0.6 and dir.dot(Vector3(face.x, 0, face.z).normalized()) > 0.4:
 						var r: String = joueur.recevoir_coup(degats * _mult_coup(), global_position)
 						if r == "parade":
 							# parade réussie : le draugr est déséquilibré (grosse usure de posture, fenêtre de finisher)
@@ -777,9 +791,9 @@ func _physics_process(dt: float) -> void:
 								_tituber(-dir * 1.2, 0.7)
 							return
 				if _menace:
-					if not _coup_donne and dist > PORTEE - 0.1:
+					if not _coup_donne and dist > _portee - 0.1:
 						_lateral = dir * ELAN   # pas d'élan pendant la préparation du coup
-					if _coup_donne and _serie < _serie_max and _t >= duree * ReglagesCombat.MENACE_SERIE_DEPART and dist < PORTEE + 0.9 and not c_mort:
+					if _coup_donne and _serie < _serie_max and _t >= duree * ReglagesCombat.MENACE_SERIE_DEPART and dist < _portee + 0.9 and not c_mort:
 						_serie += 1   # coup suivant de la série, sans reprendre son souffle
 						_combo = _serie - 1
 						_coup_donne = false
@@ -790,7 +804,7 @@ func _physics_process(dt: float) -> void:
 						_repli = ReglagesCombat.MENACE_REPLI if randf() < 0.5 else 0.0
 						_changer(TRAQUE)
 				elif _t >= duree * 0.92:
-					if boss == "hrafn" and _combo == 0 and dist < PORTEE + 1.2:
+					if boss == "hrafn" and _combo == 0 and dist < _portee + 1.2:
 						# enchaînement lisible : deuxième coup d'un autre geste, un peu plus fort
 						_combo = 1
 						_attaque = "Punch_Cross"
@@ -1283,7 +1297,7 @@ func _chercher_allie_contact(ma_dist: float) -> Node3D:
 		if a == self or not (a is CharacterBody3D) or a.get("_menace") != true or a.get("etat") == MORT:
 			continue
 		var d := Vector2(a.global_position.x - joueur.global_position.x, a.global_position.z - joueur.global_position.z).length()
-		if d > PORTEE + 1.2:
+		if d > _portee + 1.2:
 			continue
 		if d < ma_dist - 0.4 or (absf(d - ma_dist) <= 0.4 and a.get_instance_id() < get_instance_id()):
 			meilleur = a
@@ -1580,6 +1594,11 @@ func _laisser_butin() -> void:
 	elif boss == "jarl":
 		b.contenu["pieces"] = rng.randi_range(70, 110)
 	b.modele_spec = spec_depouille()
+	var arme_lachee := _arme != "" and ArmesEnnemis.butin_possible(_arme)      # l'arme tombe et se ramasse sur le corps (même objet du catalogue)
+	if arme_lachee:
+		b.contenu[_arme] = 1
 	get_parent().add_child(b)
 	b.global_position = global_position + global_transform.basis.z * 0.6
+	if arme_lachee:
+		ArmesEnnemis.lacher(modele, b, _arme)
 	BUTIN.enregistrer_cadavre(self, b)

@@ -84,13 +84,15 @@ var modele_spec := {}
 
 ## Dépouille statique : le vrai modèle de l'ennemi (même type, même arme) en pose Death01 allongée, sans physique, comme le corps d'Eirik.
 ## Posée au même endroit que le cadavre (la bourse est à 0,6 m devant lui). Sans description (ancienne sauvegarde) : draugr guerrier.
-static func modele_depouille(spec: Dictionary) -> Node3D:
+static func modele_depouille(spec: Dictionary, butin_ref: Node3D = null) -> Node3D:
 	var sp: Dictionary = spec if not spec.is_empty() else {"type": "guerrier"}
 	var m: Node3D = (load("res://scripts/draugr.gd") as GDScript).call("modele_depouille", sp)
 	m.name = "ModeleDepouille"
 	var l := float(sp.get("lacet", 0.0))
 	m.rotation.y = l
 	m.position = -Vector3(sin(l), 0.0, cos(l)) * 0.6
+	if butin_ref != null:
+		ArmesEnnemis.deposer_depouille(m, butin_ref)      # l'arme n'est plus en main : au sol près du corps (si elle est encore dans son butin)
 	# une fois en scène (après la pose Death01 rejouée par Draugr.figer_pose_allongee) : épouse la pente du sol
 	m.tree_entered.connect(func() -> void:
 		if is_instance_valid(m) and m.is_inside_tree():
@@ -155,7 +157,7 @@ static func enregistrer_cadavre(e: Node3D, b: Node3D) -> void:
 		_cadavres.erase(vieux)
 		var ve: Node3D = vieux["e"]
 		var vb: Node3D = vieux["b"]
-		vb.add_child(modele_depouille(ve.call("spec_depouille")))
+		vb.add_child(modele_depouille(ve.call("spec_depouille"), vb))
 		ve.queue_free()
 
 ## Tests : nombre de cadavres d'ennemis encore en scène (ragdoll) suivis par le plafond.
@@ -187,7 +189,7 @@ static func restaurer(parent: Node, joueur_: CharacterBody3D, hud_: Control) -> 
 		b.contenu = (ButinTables.restes[cle] as Dictionary).duplicate()
 		b.cle_sauvegarde = cle
 		b.modele_spec = (e.get("modele", {}) as Dictionary).duplicate()
-		b.add_child(modele_depouille(b.modele_spec))      # le cadavre d'origine (ragdoll) n'est pas sauvegardé : même modèle, posé
+		b.add_child(modele_depouille(b.modele_spec, b))      # le cadavre d'origine (ragdoll) n'est pas sauvegardé : même modèle, posé
 		parent.add_child(b)
 		b.global_position = Vector3(float(pos[0]), float(pos[1]), float(pos[2]))
 
@@ -231,6 +233,9 @@ func fouiller() -> bool:
 	return false
 
 func _apres_fouille() -> void:
+	var sol := get_node_or_null(ArmesEnnemis.SOL)      # arme d'ennemi posée au sol : elle part avec l'objet pris dans le corps
+	if sol != null and not objets.has(String(get_meta("arme_sol", ""))):
+		sol.queue_free()
 	if cle_sauvegarde.begins_with("lache:") and not objets.is_empty():
 		Lacher.habiller(self, objets)               # fouille partielle : ne montrer que ce qui reste au sol
 	if objets.is_empty() and _inter != null and is_instance_valid(_inter):
