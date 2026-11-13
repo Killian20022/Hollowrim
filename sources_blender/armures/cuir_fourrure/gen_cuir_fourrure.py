@@ -883,6 +883,20 @@ def cuir():
             if r_ < 1.0 and dz < 0.0:
                 k_ = 1.0 / max(r_, 1e-3)
                 v.co = B(Vector((p.x * k_, p.y, COU.z + dz * k_)))
+    # v3 passe 2 : l'ourlet de nuque était irrégulier (voûte : 14 cm d'écart de hauteur entre le centre et les côtés) : les sommets du bord
+    # libre derrière le cou sont abaissés vers l'enveloppe basse de leurs voisins (jamais relevés), l'ourlet devient une ligne continue
+    if V3_CAPUCHE:
+        bord_ = sorted([v for v in bm.verts if any(e.is_boundary for e in v.link_edges) and G(v.co).z < COU.z + 0.02 and G(v.co).y < TETE.y - 0.04],
+                       key=lambda v: G(v.co).x)
+        for _ in range(8):
+            ys_ = [G(v.co).y for v in bord_]
+            for i_, v in enumerate(bord_):
+                w_ = ys_[max(0, i_ - 3):i_ + 4]
+                m_ = sum(w_) / len(w_)
+                if m_ < ys_[i_]:
+                    g_ = G(v.co)
+                    g_.y = m_
+                    v.co = B(g_)
     # tranche rabattue autour du visage seulement : sous la nuque, le rabat frôlait la peau du cou (traversées tête penchée)
     # (pas sur les joues : la barbe passait sous la tranche quand la tête tourne)
     epaissir(bm, 0.007, lambda a, b: min(a.y, b.y) > 1.645)

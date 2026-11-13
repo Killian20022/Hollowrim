@@ -309,6 +309,33 @@ func _v3() -> void:
 		["epaule", 60.0, 1.05, 1.40, 1.52, 34.0, Rect2i(240, 0, 480, 540)], ["coude", 95.0, 1.0, 1.08, 1.15, 34.0, Rect2i(240, 0, 480, 540)],
 		["genou", 25.0, 1.05, 0.55, 0.72, 34.0, Rect2i(240, 0, 480, 540)], ["tete", 20.0, 1.05, 1.62, 1.68, 30.0, Rect2i(240, 0, 480, 540)],
 		["tete_dos", 160.0, 1.05, 1.62, 1.68, 30.0, Rect2i(240, 0, 480, 540)]]
+	var dbg := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--dbg="):
+			dbg = a.substr(6)
+	if dbg != "":
+		# diagnostic : chaque maillage du héros en magenta uni, tour à tour, vue du coude
+		for f in familles:
+			_equiper_famille(f)
+			await _attendre(0.8)
+			for mi: MeshInstance3D in j.find_children("*", "MeshInstance3D", true, false):
+				if mi.is_visible_in_tree():
+					print("VIS ", j.get_path_to(mi), " tris ", mi.mesh.get_faces().size() / 3)
+			for nom in dbg.split(","):
+				var mag := StandardMaterial3D.new()
+				mag.albedo_color = Color(1, 0, 1)
+				mag.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+				for mi: MeshInstance3D in j.find_children("*", "MeshInstance3D", true, false):
+					if String(mi.name) == nom and mi.visible:
+						mi.material_overlay = mag
+				cam.fov = 34.0
+				_placer_cam(95.0, 1.0, 1.08, 1.15)
+				await _attendre(0.15)
+				await _capture("dbg_%s_%s" % [f, nom], Rect2i(240, 0, 480, 540), nom)
+				for mi: MeshInstance3D in j.find_children("*", "MeshInstance3D", true, false):
+					if String(mi.name) == nom:
+						mi.material_overlay = null
+		return
 	for f in familles:
 		_equiper_famille(f)
 		l.text = ""
