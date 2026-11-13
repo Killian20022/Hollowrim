@@ -66,6 +66,38 @@ static func deux_mains(id: String) -> bool:
 	var d := CatalogueArmes.donnees(_de_base(id))
 	return d != null and d.deux_mains
 
+## Longueur RÉELLE de l'arme (m), mesurée sur son modèle : de la prise au point le plus éloigné du maillage le long de l'axe du manche (prise -> pointe).
+## C'est elle qui fixe la portée au corps à corps (stats_combat), pas une valeur écrite à la main.
+static var _longueurs := {}
+static func longueur(id: String) -> float:
+	var k := _de_base(id)
+	if _longueurs.has(k):
+		return _longueurs[k]
+	var a := instancier(k)
+	var lg := 0.0
+	if a != null:
+		var pr := a.get_node_or_null("prise") as Node3D
+		var po := a.get_node_or_null("pointe") as Node3D
+		var axe := Vector3.UP
+		var o := Vector3.ZERO
+		if pr != null and po != null:
+			o = pr.position
+			axe = (po.position - pr.position).normalized()
+		for mi: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
+			if mi.mesh == null:
+				continue
+			var t := mi.transform
+			var n: Node = mi.get_parent()
+			while n != null and n != a:
+				t = (n as Node3D).transform * t
+				n = n.get_parent()
+			var bb := mi.mesh.get_aabb()
+			for i in 8:
+				lg = maxf(lg, ((t * bb.get_endpoint(i)) - o).dot(axe))
+		a.free()
+	_longueurs[k] = lg
+	return lg
+
 ## Rapports de l'arme à la référence (épée de soldat), bornés par « equilibre » : {degats, rythme, portee (m, écart à la portée de base)}.
 static func stats_combat(id: String) -> Dictionary:
 	var eq: Dictionary = donnees().get("equilibre", {})
@@ -79,7 +111,7 @@ static func stats_combat(id: String) -> Dictionary:
 	return {
 		"degats": clampf(float(s["degats_leger"]) / float(r["degats_leger"]), float(bd[0]), float(bd[1])),
 		"rythme": clampf(float(s["vitesse"]) / float(r["vitesse"]), float(br[0]), float(br[1])),
-		"portee": clampf((float(s["portee"]) - float(r["portee"])) * 0.5, float(bp[0]), float(bp[1])),
+		"portee": clampf((longueur(id) - longueur(String(donnees().get("reference", "epee_soldat")))) * 0.5, float(bp[0]), float(bp[1])),
 	}
 
 ## Modèle d'une arme (hors de l'arbre) : scène du catalogue habillée en matériaux PS1, teintée par l'usure du profil (ou la teinte de l'unique).
@@ -106,7 +138,7 @@ static func centre_fixe() -> Vector3:
 
 ## Arme dans la main droite de `sq` (os hand_r). `centre` : centre du poing dans le repère de hand_r (EnnemiTripo.centre_poing pour les corps Tripo).
 ## Le nœud « Arme » (BoneAttachment3D) a l'arme pour enfant 0 puis le nœud d'aplomb ; `ap` (AnimationPlayer) est relié par l'appelant.
-static func poser(sq: Skeleton3D, centre: Vector3, id_corps: String, id: String, profil := "") -> Node3D:
+static func poser(sq: Skeleton3D, centre: Vector3, id_corps: String, id: String, profil := "", axe := Vector3.ZERO) -> Node3D:
 	var a := instancier(id, profil)
 	if a == null:
 		return null
@@ -123,23 +155,30 @@ static func poser(sq: Skeleton3D, centre: Vector3, id_corps: String, id: String,
 	var rg: Dictionary = (donnees().get("prises", {}) as Dictionary).get(_de_base(id), {})      # réglage propre à l'arme (prime sur la famille)
 	var tors := float(rg.get("torsion", u.get("torsion", fam.get("torsion", 0.0))))
 	var cb: Array = rg.get("cible", u.get("cible", fam.get("cible", [])))
-	var lim := float(rg.get("limite", u.get("limite", fam.get("limite", 85.0))))
-	var bs := Basis(Vector3.RIGHT, deg_to_rad(EnnemiTripo.INCL)) * EnnemiTripo.PRISE.basis * Basis(Vector3.UP, deg_to_rad(tors))
+	var lim := float(rg.get("limite", u.get("limite", fam.get("limite", 180.0))))
+	# Base de l'arme : orientation historique (PRISE incliné de INCL), puis rotation minimale qui amène l'axe du manche sur la ligne des
+	# articulations MESURÉE du poing (axe non nul) : le manche traverse le poing fermé au lieu de longer l'avant-bras.
+	var base := Basis(Vector3.RIGHT, deg_to_rad(EnnemiTripo.INCL)) * EnnemiTripo.PRISE.basis
+	if axe.length() > 0.5:
+		base = Basis(Quaternion(base.y.normalized(), axe.normalized())) * base
+	var bs := base * Basis(Vector3.UP, deg_to_rad(tors))
 	bs = bs.scaled(Vector3.ONE * e)
 	a.transform = Transform3D(bs, centre - bs.y.normalized() * grip * e)
 	var ar: Node = preload("res://scripts/arme_aplomb_tripo.gd").new()
 	ar.name = "Aplomb"
 	ar.set("sq", sq)
 	ar.set("arme", a)
-	ar.set("base", EnnemiTripo.PRISE.basis)
+	ar.set("base", base)
 	ar.set("centre", centre)
 	ar.set("ech", e)
 	ar.set("grip", grip)
-	ar.set("incl", EnnemiTripo.INCL)
+	ar.set("incl", 0.0)
 	ar.set("torsion", tors)
 	ar.set("limite", lim)
 	if cb.size() == 3:
 		ar.set("cible", Vector3(float(cb[0]), float(cb[1]), float(cb[2])))
+	if axe.length() > 0.5:
+		ar.set("doigts", centre.normalized())
 	ar.set("os", sq.find_bone("hand_r"))
 	acc.add_child(ar)
 	return a

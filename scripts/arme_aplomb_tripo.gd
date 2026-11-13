@@ -18,6 +18,10 @@ var torsion := 0.0
 ## Direction visée de la pointe / de la tête au repos et en marche (repère du modèle) ; ArmesEnnemis la règle par arme (haches, masses : tête levée en diagonale).
 var cible := CIBLE
 var os := -1
+## Direction des doigts du poing (repère de hand_r, mesurée sur la main : ArmesEnnemis.poser). Non nulle : le manche reste à au moins `ecart_min` ° de cette
+## direction (et de son opposée) : il traverse le poing fermé en travers des doigts, jamais « en broche » le long de l'avant-bras, quel que soit le clip.
+var doigts := Vector3.ZERO
+var ecart_min := 45.0
 
 const LIMITE := 85.0   # écart maximal (°) imposé par rapport à l'orientation du clip (par défaut ; `limite` pour une arme dressée, ArmesEnnemis)
 var limite := LIMITE
@@ -37,6 +41,16 @@ func _process(dt: float) -> void:
 		var main := sq.get_bone_global_pose(os).basis.orthonormalized()
 		var cur := (main * b0.y).normalized()
 		var cib := cible.normalized()
+		if doigts != Vector3.ZERO:
+			var fw := (main * doigts).normalized()
+			var em := deg_to_rad(ecart_min)
+			var a := cib.angle_to(fw)
+			if a < em or a > PI - em:
+				var f2 := fw if a < PI * 0.5 else -fw
+				var perp := cib - f2 * cib.dot(f2)
+				if perp.length() < 0.0001:
+					perp = f2.cross(Vector3.UP)
+				cib = (f2 * cos(em) + perp.normalized() * sin(em)).normalized()
 		var ang := minf(cur.angle_to(cib), deg_to_rad(limite)) * _w
 		var axe := cur.cross(cib)
 		if axe.length() > 0.0001 and ang > 0.0001:

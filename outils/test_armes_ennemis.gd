@@ -121,6 +121,10 @@ func _corps() -> void:
 			continue
 		(acc.get_node("Aplomb") as Node).set("ap", ap)
 		var main_os := sq.find_bone("hand_r")
+		var pm := EnnemiTripo.poing_mesure(sq, "bandit" if c[0].begins_with("bandit") else String(spec.get("type", "")))
+		var cm: Vector3 = pm["centre"]
+		var am: Vector3 = pm["axe"]
+		ok(cm.length() > 0.05 and am.length() > 0.99 and absf(am.dot(cm.normalized())) < 0.8, "%s : poing mesuré sur la main (à %.0f cm du poignet), manche dans le sens des articulations (%.0f° des doigts)" % [c[0], cm.length() * 100.0, rad_to_deg(acos(absf(am.dot(cm.normalized()))))])
 		var t0 := Time.get_ticks_msec()
 		for a: String in ANIMS:
 			ap.play(a)
@@ -136,6 +140,13 @@ func _corps() -> void:
 			var poing_g := sq.global_transform * (sq.get_bone_global_pose(main_os) * centre)
 			var d_poing := pr.global_position.distance_to(poing_g)
 			ok(d_poing < 0.06 and centre.length() < 0.2, "%s / %s : la prise du manche est au creux du poing (%.1f cm du poing, poing à %.0f cm de l'os)" % [c[0], a, d_poing * 100.0, centre.length() * 100.0])
+			# main fermée sur le manche : en travers des doigts (jamais « en broche » le long de l'avant-bras). Mesuré sur la pose réelle (tolérance : le
+			# BoneAttachment3D a une image de retard sur un clip qui joue).
+			if a != "Sword_Attack":
+				var axe_m := v.normalized()
+				var doigts_w := (sq.global_transform.basis * sq.get_bone_global_pose(main_os).basis * centre).normalized()
+				var en_travers := rad_to_deg(acos(clampf(absf(axe_m.dot(doigts_w)), 0.0, 1.0)))
+				ok(en_travers >= 30.0, "%s / %s : manche en travers des doigts, main fermée dessus (%.0f° des doigts)" % [c[0], a, en_travers])
 			if a != "Sword_Attack":
 				ok(absf(elev) >= 25.0, "%s / %s : arme ni horizontale ni couchée (élévation %.0f°)" % [c[0], a, elev])
 			var tete := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("Head")).origin
@@ -165,6 +176,18 @@ func _combat() -> void:
 	for id: String in ["epee_soldat", "hache_guerre", "hachette", "gourdin", "masse_cloutee", "sabre_pillard", "marteau_guerre", "dague_acier"]:
 		var s := ArmesEnnemis.stats_combat(id)
 		ok(float(s["degats"]) >= 0.8 and float(s["degats"]) <= 1.35 and float(s["rythme"]) >= 0.8 and float(s["rythme"]) <= 1.12 and absf(float(s["portee"])) <= 0.2, "%s : stats dans les bornes (dégâts ×%.2f, rythme ×%.2f, portée %+.2f m)" % [id, s["degats"], s["rythme"], s["portee"]])
+
+	# portée = longueur RÉELLE de l'arme (mesurée sur le modèle), pas une valeur écrite à la main
+	var ids := ["epee_soldat", "hache_guerre", "hachette", "gourdin", "masse_cloutee", "sabre_pillard", "marteau_guerre", "dague_acier"]
+	var lref := ArmesEnnemis.longueur("epee_soldat")
+	ok(lref > 0.8 and lref < 1.3, "épée de soldat : longueur réelle mesurée %.2f m (0,8-1,3)" % lref)
+	for id: String in ids:
+		var lg := ArmesEnnemis.longueur(id)
+		var st := ArmesEnnemis.stats_combat(id)
+		var attendu := clampf((lg - lref) * 0.5, -0.2, 0.15)
+		ok(lg > 0.3 and lg < 1.3 and absf(float(st["portee"]) - attendu) < 0.001, "%s : longueur réelle %.2f m -> portée %+.2f m (moitié de l'écart à l'épée)" % [id, lg, st["portee"]])
+	ok(float(ArmesEnnemis.stats_combat("dague_acier")["portee"]) < float(ArmesEnnemis.stats_combat("hachette")["portee"]) + 0.001 and float(ArmesEnnemis.stats_combat("hachette")["portee"]) < 0.0, "portée : dague <= hachette < épée (plus l'arme est courte, plus l'ennemi doit s'approcher)")
+	ok(ArmesEnnemis.longueur("sabre_pillard") > ArmesEnnemis.longueur("hache_guerre") and float(ArmesEnnemis.stats_combat("sabre_pillard")["portee"]) > float(ArmesEnnemis.stats_combat("hache_guerre")["portee"]), "portée : sabre plus long que la hache de guerre = portée plus grande")
 
 # ------------------------------------------------------------------ mort et butin
 func _mort() -> void:
