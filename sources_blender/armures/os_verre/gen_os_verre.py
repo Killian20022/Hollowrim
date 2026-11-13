@@ -371,7 +371,11 @@ def finir(o, matiere, mats, ident, empl, sol):
     if ident.endswith("_verre") and not ident.startswith("gantelets") and "--sans-resserrer" not in sys.argv:
         # affinage 2026-11-11 (« certaines armures sont trop épaisses ») : resserrage DOUX, le verre v5 reste la référence
         tete, bottes = ident.startswith("casque"), ident.startswith("bottes")
-        RS.resserrer(o, lambda p, m: (0.012, 0.85) if tete else ((0.006, 0.8) if bottes else (0.008, 0.7)))
+        if globals().get("V3"):
+            # v3 : plus près du corps (jeu minimal gardé, compression plus forte des décollements)
+            RS.resserrer(o, lambda p, m: (0.010, 0.72) if tete else ((0.005, 0.7) if bottes else (0.0065, 0.55)))
+        else:
+            RS.resserrer(o, lambda p, m: (0.012, 0.85) if tete else ((0.006, 0.8) if bottes else (0.008, 0.7)))
     if ident.endswith("_verre") and "--sans-relief" not in sys.argv:
         matiere, mats = relief_verre(o, ident, matiere, mats)
     L.lisser_normales(o)
@@ -1458,6 +1462,41 @@ def chausses_hd():
         if APERCU:
             PIECES.append(c)
 
+
+# ------------------------------------------------------------------------------------------------ précieuses HD v3 (2026-11-12)
+# « encore plus de détails et surtout plus fines » : plaques AMINCIES (épaisseur, bombé, saillie du cadre), posées plus près du corps,
+# et plus de sections / colonnes (facettes plus fines, arêtes plus nombreuses). --v2 : géométrie de la passe 2 inchangée.
+V3 = "--v2" not in sys.argv
+FIN = dict(ep=0.48, bombe=0.62, jeu=0.72, saillie=0.62, cadre=0.80, bords=0.5, lame=0.55, pas=0.66, cols=1.5)
+if V3:
+    _plaque2_v2, _ys_v2, _bords_v2, _lame_v2 = plaque2, ys_entre, X.epaissir_bords, lame
+    SAILLIE_CADRE *= FIN["saillie"]
+    CADRE_VERRE *= FIN["cadre"]
+
+    def plaque2(bm, c, axe, ref, cible, ys, arc, n, ep, jeu, partie, dy=None, taper=None, bombe=0.004, **kw):
+        j2 = (lambda u, f=jeu: f(u) * FIN["jeu"]) if callable(jeu) else jeu * FIN["jeu"]
+        n2 = max(n, int(round(n * FIN["cols"])))
+        return _plaque2_v2(bm, c, axe, ref, cible, ys, arc, n2, ep * FIN["ep"], j2, partie, dy=dy, taper=taper, bombe=bombe * FIN["bombe"], **kw)
+
+    def ys_entre(a, b, pas=0.025):
+        return _ys_v2(a, b, pas * FIN["pas"])
+
+    def lame(bm, cibles, sg, th0, th1, ph0, ph1, w, gap, jeu_fn, n=8, ep=0.004, deborde=0.35):
+        return _lame_v2(bm, cibles, sg, th0, th1, ph0, ph1, w, gap * FIN["jeu"], jeu_fn, n=int(round(n * 1.5)), ep=ep * FIN["lame"], deborde=deborde)
+
+    X.epaissir_bords = lambda bm, ep, vers=None, partie=None: _bords_v2(bm, ep * FIN["bords"], vers, partie)
+    # os de draugr (plaque() simple : côtes, sternum, vertèbres) : os plus minces et plus proches, plus de segments ; coque du crâne
+    # plus dense et plus serrée
+    _plaque_v2, _tb_v2, _ct_v2 = plaque, X.torse_base, X.coque_tete
+
+    def plaque(bm, ys, axe_c, axe, ref, cible, jeu, ep, n, partie, arc, bombe=0.004, biseau=0.6):
+        j2 = (lambda th, f=jeu: f(th) * FIN["jeu"]) if callable(jeu) else jeu * FIN["jeu"]
+        return _plaque_v2(bm, ys, axe_c, axe, ref, cible, j2, ep * 0.6, int(round(n * FIN["cols"])), partie, arc, bombe * FIN["bombe"], biseau)
+
+    X.torse_base = lambda nom, tris, jeu=0.012: _tb_v2(nom, int(tris * 1.5), jeu)
+    X.coque_tete = lambda nom, lignes, n, jeu, garder, cibles, partie=0: _ct_v2(nom, lignes, int(round(n * 1.35)), (lambda th, ph, f=jeu: f(th, ph) * 0.8), garder, cibles, partie)
+    RELIEF_VERRE = {k: dict(v, saillie=v["saillie"] * FIN["saillie"], bombe=v["bombe"] * FIN["bombe"]) for k, v in RELIEF_VERRE.items()}
+    BUDGET = {"torse": 5200, "tete": 2200, "mains": 1800, "pieds": 2200}
 
 if QUOI in ("chausses", "tout"):
     chausses_hd()

@@ -30,8 +30,10 @@ const TRIS_P2_LOURDES := {"tete": 1500, "torse": 3600, "mains": 1300, "pieds": 1
 const FAMILLES_P2_LOURDES := ["_fer", "_acier_nordique", "_obsidienne", "_obsidienne_enchante", "_or", "_or_enchante"]
 ## Passe 2 « géométrie » des armures précieuses (2026-11-11, budget validé : ~6-8 k triangles par ensemble porté) : cadres de
 ## cristal en volume, rivets, lanières, mèches. Pièces des familles ci-dessous (et leurs variantes enchantées).
-const TRIS_P2_PRECIEUSES := {"torse": 4100, "tete": 1500, "mains": 1400, "pieds": 1700, "jambes": 1200}
-const FAMILLES_P2_PRECIEUSES := ["verre", "rubis", "saphir", "cuir", "fourrure", "gardiens", "braise", "thaumaturge", "jarl", "rodeur", "hrafn"]
+## Précieuses HD v3 (2026-11-12, budget de l'utilisateur : 8 000 à 10 000 triangles par ensemble là où le détail se lit) : plaques
+## amincies, sections plus nombreuses, coques plus denses qui épousent le corps.
+const TRIS_P2_PRECIEUSES := {"torse": 6000, "tete": 2300, "mains": 2000, "pieds": 2400, "jambes": 1200}
+const FAMILLES_P2_PRECIEUSES := ["os", "verre", "rubis", "saphir", "cuir", "fourrure", "gardiens", "braise", "thaumaturge", "jarl", "rodeur", "hrafn"]
 const TEX_MAX := 1024
 const PiecesEssai := preload("res://outils/pieces_essai.gd")
 const CLIPS := ["Idle", "Walk", "Jog_Fwd", "Sprint", "Sword_Idle", "Sword_Attack", "Hit_Chest", "Jump", "Crouch_Fwd",

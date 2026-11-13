@@ -499,6 +499,17 @@ def parametres_resserrer(pid):
         fur = "fourrure" in m
         if pid in ("heaume_jarl",):
             return (0.012, 0.8)
+        if "--v2" not in sys.argv:
+            # précieuses HD v3 (2026-11-12) : plus près du corps, la fourrure un peu moins gonflée
+            if pid == "capuche_thaumaturge":
+                return (0.010, 0.32) if y < 1.55 else (0.022, 0.25)
+            if "bottes" in pid:
+                return (0.010, 0.8) if fur else (0.005, 0.55)
+            if fur and y > 1.36:
+                return (0.018, 0.8)
+            if "cuir" in m:
+                return (0.005, 0.4)
+            return (0.0065, 0.45)
         if pid == "capuche_thaumaturge":
             return (0.012, 0.4) if y < 1.55 else (0.025, 0.3)   # côtés de la capuche : 10-11 cm du crâne -> ~6 cm (place des cheveux)
         if "bottes" in pid:

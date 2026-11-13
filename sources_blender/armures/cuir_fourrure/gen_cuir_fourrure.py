@@ -601,6 +601,18 @@ def resserrer_piece(o, ident, mats, slot):
     def fn(p, m):
         x, y = abs(p.x), p.y
         fur = "fourrure" in m
+        if globals().get("V3"):
+            # v3 : cuir au plus près (jeu gardé aux bras, qui tournent le plus pendant les coups), fourrure moins gonflée
+            if tete:
+                return (0.012, 0.72) if fur else (0.008, 0.55)
+            if bottes:
+                return (0.008, 0.7) if fur else (0.0035, 0.5)
+            bras = x > 0.15 and y > 1.15
+            if fur:
+                if y > 1.36 and x < 0.30:
+                    return (0.014, 0.62)
+                return (0.012, 0.55) if bras else (0.009, 0.5)
+            return (0.012, 0.48) if bras else (0.008, 0.38)
         if tete:
             return (0.014, 0.85) if fur else (0.010, 0.65)
         if bottes:
@@ -1354,6 +1366,31 @@ def chausses():
         if APERCU:
             PIECES.append(c)
 
+
+# ------------------------------------------------------------------------------------------------ précieuses HD v3 (2026-11-12)
+# « plus fines », « le cuir épouse le corps » : coques plus denses (suivent mieux le corps), plaques de cuir bouilli moins
+# décollées et plus minces (tranche fine), mèches plus nombreuses et plus fines. --v2 : passe 2 inchangée.
+V3 = "--v2" not in sys.argv
+if V3:
+    _sp_v2, _bords_v2, _meches_v2 = surplaque, X.epaissir_bords, meches
+    _tb, _gb, _bb, _ct = X.torse_base, X.gants_base, X.bottes_base, X.coque_tete
+
+    def surplaque(base, nom, plans, decal, ep, partie, souleve=None, symetrie=False, src=None):
+        sv = (lambda p, f=souleve: f(p) * 0.7) if souleve else None
+        return _sp_v2(base, nom, plans, decal * 0.62, ep * 0.55, partie, souleve=sv, symetrie=symetrie, src=src)
+
+    X.epaissir_bords = lambda bm, ep, vers=None, partie=None: _bords_v2(bm, ep * 0.55, vers, partie)
+
+    def meches(surf, nom, n, longueur, largeur, partie, graine, **kw):
+        if "souleve" in kw:
+            kw["souleve"] = kw["souleve"] * 0.75
+        return _meches_v2(surf, nom, int(round(n * 1.35)), longueur, largeur * 0.8, partie, graine, **kw)
+
+    X.torse_base = lambda nom, tris, jeu=0.012: _tb(nom, int(tris * 1.6), jeu if callable(jeu) else jeu * 0.8)
+    X.gants_base = lambda nom, tris, jeu=0.004: _gb(nom, int(tris * 1.4), jeu)
+    X.bottes_base = lambda nom, tris, jeu=0.005, souder=0.010: _bb(nom, int(tris * 1.5), jeu * 0.8, souder)
+    X.coque_tete = lambda nom, lignes, n, jeu, garder, cibles, partie=0: _ct(nom, lignes, int(round(n * 1.35)), (lambda th, ph, f=jeu: f(th, ph) * 0.8), garder, cibles, partie)
+    TRIS_P2 = {"armure": 5600, "capuche": 2200, "casque": 2200, "gants": 1900, "bottes": 2300}
 
 if FAMILLE in ("chausses", "tout"):
     chausses()
