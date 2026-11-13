@@ -8,8 +8,11 @@ extends SceneTree
 ## --sans-ps1 : post-traitement et accroche PS1 coupés (planche « rendu sans ps1 »).
 ## --ambiance=crepuscule (défaut, ciel gris-mauve et soleil bas devant, comme bras_feu_1100.jpg) | nuit.
 ## HUD masqué (le rectangle du post-traitement ps1 reste) ; scène test_magie.
+## --gants=<id>,<id>… : pour chaque paire, équipée sur le joueur (bras FPS habillés par ArmureVisible), une capture
+##   <cas>_<id>.png de chaque cas (précieuses HD v3 : vue des gants en 1re personne).
 
 const SCENE := preload("res://scenes/test_magie.tscn")
+const PiecesEssai := preload("res://outils/pieces_essai.gd")
 const CAS := {
 	"double_feu": ["jet_flammes", "jet_flammes"],
 	"epee_feu": ["jet_flammes", "epee"],
@@ -83,6 +86,21 @@ func _go() -> void:
 	var m: MainSort = s.magie
 	var liste := _arg("cas", "double_feu").split(",")
 	var film := int(_arg("film", "0"))
+	var gants := _arg("gants", "")
+	if gants != "":
+		PiecesEssai.injecter()
+		for g in gants.split(","):
+			s.joueur.inventaire.ajouter(g, 1)
+			s.joueur.equipement_corps.equiper(g)
+			for nom in liste:
+				var c2: Array = CAS.get(nom, CAS["double_feu"])
+				m.equiper("droite", c2[1])
+				m.equiper("gauche", c2[0])
+				s.placer_joueur(Vector3(0, 0, 1.6), 0.0)
+				await _attendre(1.2)
+				await _sauver("%s_%s" % [nom, g])
+		quit(0)
+		return
 	for nom in liste:
 		var c: Array = CAS.get(nom, CAS["double_feu"])
 		m.equiper("droite", c[1])

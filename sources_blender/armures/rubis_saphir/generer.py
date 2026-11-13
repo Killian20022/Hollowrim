@@ -367,7 +367,14 @@ def deco_torse(ens):
             # haut du bras : deux brassards de cristal en couches sous l'épaulière (couverture complète)
             ua = r.os["upperarm_" + ("l" if s > 0 else "r")]
             bras = C.bvh(r, ["tunique", "brassards", "peau"], {"upperarm_" + ("l" if s > 0 else "r")}, 0.5)
-            _plaques_membre(P, st, bras, ua, la, [(0.50, 0.74), (0.68, 0.92)], [math.radians(x) for x in range(0, 361, 36)], 0.030, 0.0, st["mat"])
+            plages_ua = [(0.50, 0.74), (0.68, 0.92)]
+            if globals().get("V3"):
+                plages_ua.append((0.86, 1.02))      # v3 : la dernière lame recouvre le coude (on voyait la maille du héros au coude)
+            _plaques_membre(P, st, bras, ua, la, plages_ua, [math.radians(x) for x in range(0, 361, 36)], 0.030, 0.0, st["mat"])
+            if globals().get("V3"):
+                ha = r.os["hand_" + ("l" if s > 0 else "r")]
+                avb0 = C.bvh(r, ["tunique", "brassards", "peau"], {"lowerarm_" + ("l" if s > 0 else "r")}, 0.5)
+                _plaques_membre(P, st, avb0, la, ha, [(0.0, 0.17), (0.12, 0.31)], [math.radians(x) for x in range(0, 361, 36)], 0.027, 0.0, st["mat"])
         # gorgerin de cristal : deux anneaux de plaques évasées autour du cou, par-dessus le col de mailles
         cou = C.bvh(r, ["tunique", "peau"], PC.TORSE_OS, 0.5)
         def dec_g(j, i, a):
@@ -439,6 +446,41 @@ SAPHIR = dict(pal=P_SAP, mat="plaque_saphir", mat_maille="acier_saphir.maille", 
               mat_doigts="acier_saphir", mat_genou="plaque_saphir", mat_botte="acier_saphir", base=0.5, oxyde=0.0, crasse=0.2, poli=0.7,
               graine=307, pal_maille=P_SAP, pal_cuir=["#08090c", "#171a21", "#2a2f3a", "#424a59"], bord_roule=True, z_ourlet=0.70,
               ep_lames=[0.015, 0.019, 0.027, 0.030, 0.030], ep_epaule=(0.026, 0.008, 0.016), jupe_ev=(0.022, 0.032))
+
+# ------------------------------------------------------------------------------------------------ précieuses HD v3 (2026-11-12)
+# « plus fines » : décollements des lames / épaulières / coque du heaume réduits (la lèvre d'épaisseur qui relie la plaque au corps se
+# lit comme l'épaisseur de la plaque : moins de décollement = plaque plus mince, posée sur le corps), bombés réduits, plus de colonnes
+# (facettes et arêtes plus fines). --v2 : géométrie de la passe 2.
+V3 = "--v2" not in sys.argv
+if V3:
+    def _v3(st):
+        st = dict(st)
+        if "ep_lames" in st:
+            st["ep_lames"] = [e * 0.58 for e in st["ep_lames"]]
+        if "ep_epaule" in st:
+            a, b, c = st["ep_epaule"]
+            st["ep_epaule"] = (a * 0.62, b * 0.7, c * 0.6)
+        if "jupe_ev" in st:
+            st["jupe_ev"] = tuple(e * 0.7 for e in st["jupe_ev"])
+        if "ecart" in st:
+            st["ecart"] = st["ecart"] * 0.66
+        if "bombe" in st:
+            st["bombe"] = st["bombe"] * 0.7
+        if "evasement" in st:
+            st["evasement"] = st["evasement"] * 0.75
+        if "n" in st and "lats" in st:
+            # heaume : plus de colonnes et de rangées (coque à facettes fines)
+            st["n"] = int(round(st["n"] * 1.8))
+            l = st["lats"]
+            st["lats"] = sorted(set([round(x, 3) for x in l] + [round((a + b) / 2, 3) for a, b in zip(l, l[1:])]))
+        elif "n" in st:
+            st["n"] = int(round(st["n"] * 1.4))     # cuirasse : colonnes du tronc (le constructeur relit st["n"])
+        return st
+    _s_v2 = _s
+    def _s(b0, **kw):
+        return _v3(_s_v2(b0, **kw))
+
+
 
 # Bout des manches de mailles (constructeur : 0,435). Au-delà de |x| = 0,41 la manche de tunique du héros suit l'AVANT-bras : un
 # bout de manche plus long l'enfermait et, coude plié (Sort_Jet2M, combo), elle ressortait de 17 à 20 mm (test_armure_visible).
@@ -1114,6 +1156,9 @@ def construire(pid, rapide=False):
         if n == 8 and list(ts) == [0.0, 0.5, 1.0] and kw.get("r_loin") == 0.3:
             dec0 = decalage
             decalage = lambda j, i, a: dec0(j, i, a) + EVASE_MANCHE * (j / 2.0) ** 2 * max(0.0, -math.cos(a)) ** 0.8
+        if V3 and n >= 6 and "cuirasse" not in pid:
+            # v3 : plus de colonnes autour des membres et du tronc (arêtes plus fines, reflets qui glissent mieux)
+            n = int(round(n * 1.5))
         return tube0(arbre, A, B, ts, n, decalage, **kw)
     C.tube = tube
     try:
@@ -1135,12 +1180,16 @@ def construire(pid, rapide=False):
     return r, ob, mats
 
 
-RELIEF_RS = {   # passe 2 : largeur du cadre (= liseré peint, bd < 13 mm), saillie, pyramide du cristal, rivets
+RELIEF_RS_V2 = {   # passe 2 : largeur du cadre (= liseré peint, bd < 13 mm), saillie, pyramide du cristal, rivets
     "cuirasse": dict(largeur=0.012, saillie=0.0030, bombe=0.008, rivet=(0.0030, 0.0028)),
     "casque": dict(largeur=0.010, saillie=0.0026, bombe=0.006, rivet=(0.0026, 0.0024)),
     "gantelets": dict(largeur=0.008, saillie=0.0022, bombe=0.005, rivet=None, aire_min=0.0025),
     "bottes": dict(largeur=0.010, saillie=0.0026, bombe=0.0, rivet=None, aire_min=0.006, facettes=False),
 }
+
+
+RELIEF_RS = {k: dict(v, saillie=v["saillie"] * (0.62 if V3 else 1.0), bombe=v["bombe"] * (0.62 if V3 else 1.0),
+                     largeur=v["largeur"] * (0.8 if V3 else 1.0)) for k, v in RELIEF_RS_V2.items()}
 
 
 def relief_rs(ob, pid, ens):
@@ -1166,6 +1215,12 @@ def parametres_resserrer(pid):
         return lambda p, m: None
     def fn(p, m):
         x, y = abs(p.x), p.y
+        if V3:      # précieuses v3 : plus près du corps
+            if "casque" in pid:
+                return (0.010, 0.65)
+            if "bottes" in pid:
+                return (0.005, 0.6)
+            return (0.0065, 0.5)
         if "casque" in pid:
             return (0.012, 0.75)
         if "bottes" in pid:

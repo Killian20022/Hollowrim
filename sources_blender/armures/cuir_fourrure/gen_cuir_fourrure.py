@@ -22,6 +22,7 @@ ICI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(ICI, ".."))
 sys.path.insert(0, os.path.join(ICI, "..", "legeres"))
 ARGS = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+V3_CAPUCHE = "--v2" not in sys.argv
 FAMILLE = next((a for a in ARGS if "=" not in a), "tout")
 APERCU = next((a.split("=", 1)[1] for a in ARGS if a.startswith("apercu=")), "")
 _argv = sys.argv
@@ -601,6 +602,18 @@ def resserrer_piece(o, ident, mats, slot):
     def fn(p, m):
         x, y = abs(p.x), p.y
         fur = "fourrure" in m
+        if globals().get("V3"):
+            # v3 : cuir au plus près (jeu gardé aux bras, qui tournent le plus pendant les coups), fourrure moins gonflée
+            if tete:
+                return (0.012, 0.72) if fur else (0.011, 0.65)
+            if bottes:
+                return (0.008, 0.7) if fur else (0.0035, 0.5)
+            bras = x > 0.15 and y > 1.15
+            if fur:
+                if y > 1.36 and x < 0.30:
+                    return (0.014, 0.62)
+                return (0.012, 0.55) if bras else (0.009, 0.5)
+            return (0.012, 0.48) if bras else (0.008, 0.38)
         if tete:
             return (0.014, 0.85) if fur else (0.010, 0.65)
         if bottes:
@@ -761,6 +774,10 @@ def cuir():
     col = X.col_montant("col", n=12)
     # haut du bras : deux brassards de cuir bouilli superposés sous l'épaulière, puis coudière (rangs qui se recouvrent)
     bras = [bras_bandes("rb_" + c, c, [(0.34, 0.395, 0.006, 0.040), (0.375, 0.425, 0.007, 0.030)], 6, 6) for c in ("l", "r")]
+    # v3 : soufflet de coude (cuir bouilli sombre) : comble le jour entre la manche (coupée à |x| 0,44) et la manchette (0,486), où l'on
+    # voyait la cotte de mailles du héros ; suit les poids de la cotte, donc ne s'ouvre pas quand le coude plie
+    if "--soufflets" in sys.argv:   # DÉSACTIVÉ par défaut : le test de traversée (gs_slash) échoue de 30-60 mm avec le soufflet
+        bras += [bras_bandes("cb_" + c, c, [(0.425, 0.505, 0.006, 0.034)], 6, 10) for c in ("l", "r")]
     bpy.data.objects.remove(tronc)
     o = X.fusion([base] + plaques + [bel, o_fer, o_sac, ep_l, ep_r, col] + bras, "armure_cuir")
     ctx = Ctx(o, coutures=(0, 1, 2, 3, 5, 6, 7, 8, 10), rivets=(2, 6, 8), pas_rivet=0.038, retrait_rivet=0.013)
@@ -846,6 +863,40 @@ def cuir():
         if e < 1.0:
             s_ = 1.0 + (1.0 / max(e, 1e-3) - 1.0) * k
             v.co = B(Vector((p.x * s_, p.y, COU.z + dz * s_)))
+    # v3 : le drapé laissait des dents (arêtes en dents de scie au bas de la nuque, faces retournées sombres) : lissage de la bande
+    # de nuque (Laplacien, les bords libres suivent) puis rayon constant minimal autour de l'axe du cou
+    if V3_CAPUCHE:
+        bande_ = [v for v in bm.verts if G(v.co).z < COU.z + 0.02 and COU.y - 0.14 < G(v.co).y < TETE.y - 0.02]
+        for _ in range(6):
+            nv = {}
+            for v in bande_:
+                vs = [e.other_vert(v) for e in v.link_edges]
+                if vs:
+                    c_ = sum((u.co for u in vs), Vector()) / len(vs)
+                    nv[v] = v.co.lerp(c_, 0.6)
+            for v, c_ in nv.items():
+                v.co = c_
+        for v in bande_:
+            p = G(v.co)
+            dz = p.z - COU.z
+            r_ = math.hypot(p.x / 0.15, dz / 0.165)
+            if r_ < 1.0 and dz < 0.0:
+                k_ = 1.0 / max(r_, 1e-3)
+                v.co = B(Vector((p.x * k_, p.y, COU.z + dz * k_)))
+    # v3 passe 2 : l'ourlet de nuque était irrégulier (voûte : 14 cm d'écart de hauteur entre le centre et les côtés) : les sommets du bord
+    # libre derrière le cou sont abaissés vers l'enveloppe basse de leurs voisins (jamais relevés), l'ourlet devient une ligne continue
+    if V3_CAPUCHE:
+        bord_ = sorted([v for v in bm.verts if any(e.is_boundary for e in v.link_edges) and G(v.co).z < COU.z + 0.02 and G(v.co).y < TETE.y - 0.04],
+                       key=lambda v: G(v.co).x)
+        for _ in range(8):
+            ys_ = [G(v.co).y for v in bord_]
+            for i_, v in enumerate(bord_):
+                w_ = ys_[max(0, i_ - 3):i_ + 4]
+                m_ = sum(w_) / len(w_)
+                if m_ < ys_[i_]:
+                    g_ = G(v.co)
+                    g_.y = m_
+                    v.co = B(g_)
     # tranche rabattue autour du visage seulement : sous la nuque, le rabat frôlait la peau du cou (traversées tête penchée)
     # (pas sur les joues : la barbe passait sous la tranche quand la tête tourne)
     epaissir(bm, 0.007, lambda a, b: min(a.y, b.y) > 1.645)
@@ -1072,6 +1123,8 @@ def fourrure():
     # bras : épaulières de cuir en trois rangs sous la pelisse, brassard de cuir et manchon de loup au-dessus du coude
     eps = [X.epauliere("ep_" + c, c, [(0.22, 0.36, 0.007, 100), (0.28, 0.41, 0.007, 92)], partie=13, n=4) for c in ("l", "r")]
     brs = [bras_bandes("bb_" + c, c, [(0.36, 0.415, 0.006, 0.040)], 13, 8) for c in ("l", "r")]
+    if "--soufflets" in sys.argv:
+        brs += [bras_bandes("cb_" + c, c, [(0.425, 0.505, 0.006, 0.034)], 13, 10) for c in ("l", "r")]   # v3 : soufflet de coude
     mans = [bras_bandes("mf_" + c, c, [(0.39, 0.432, 0.012, 0.052)], 4, 8) for c in ("l", "r")]
     mm = []
     for c_, mo in zip(("l", "r"), mans):
@@ -1354,6 +1407,31 @@ def chausses():
         if APERCU:
             PIECES.append(c)
 
+
+# ------------------------------------------------------------------------------------------------ précieuses HD v3 (2026-11-12)
+# « plus fines », « le cuir épouse le corps » : coques plus denses (suivent mieux le corps), plaques de cuir bouilli moins
+# décollées et plus minces (tranche fine), mèches plus nombreuses et plus fines. --v2 : passe 2 inchangée.
+V3 = "--v2" not in sys.argv
+if V3:
+    _sp_v2, _bords_v2, _meches_v2 = surplaque, X.epaissir_bords, meches
+    _tb, _gb, _bb, _ct = X.torse_base, X.gants_base, X.bottes_base, X.coque_tete
+
+    def surplaque(base, nom, plans, decal, ep, partie, souleve=None, symetrie=False, src=None):
+        sv = (lambda p, f=souleve: f(p) * 0.7) if souleve else None
+        return _sp_v2(base, nom, plans, decal * 0.62, ep * 0.55, partie, souleve=sv, symetrie=symetrie, src=src)
+
+    X.epaissir_bords = lambda bm, ep, vers=None, partie=None: _bords_v2(bm, ep * 0.55, vers, partie)
+
+    def meches(surf, nom, n, longueur, largeur, partie, graine, **kw):
+        if "souleve" in kw:
+            kw["souleve"] = kw["souleve"] * 0.75
+        return _meches_v2(surf, nom, int(round(n * 1.35)), longueur, largeur * 0.8, partie, graine, **kw)
+
+    X.torse_base = lambda nom, tris, jeu=0.012: _tb(nom, int(tris * 1.6), jeu if callable(jeu) else jeu * 0.8)
+    X.gants_base = lambda nom, tris, jeu=0.004: _gb(nom, int(tris * 1.4), jeu)
+    X.bottes_base = lambda nom, tris, jeu=0.005, souder=0.010: _bb(nom, int(tris * 1.5), jeu * 0.8, souder)
+    X.coque_tete = lambda nom, lignes, n, jeu, garder, cibles, partie=0: _ct(nom, lignes, int(round(n * 1.35)), (lambda th, ph, f=jeu: f(th, ph) * 1.0), garder, cibles, partie)
+    TRIS_P2 = {"armure": 5600, "capuche": 2200, "casque": 2200, "gants": 1900, "bottes": 2300}
 
 if FAMILLE in ("chausses", "tout"):
     chausses()

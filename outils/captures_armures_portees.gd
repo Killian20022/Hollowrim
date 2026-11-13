@@ -16,6 +16,8 @@ const PIECES := {
 	"acier_sans_casque": ["cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
 	"uniques": ["heaume_jarl", "cuirasse_gardiens", "gantelets_hrafn", "bottes_rodeur"],
 	"uniques2": ["capuche_thaumaturge", "brigandine_braise", "gants_cuir", "bottes_cuir"],
+	# précieuses v3 : cuirasse des gardiens + bottes du rôdeur (avec le casque et les gants de fourrure des archers)
+	"uniques3": ["casque_fourrure", "cuirasse_gardiens", "gants_fourrure", "bottes_rodeur"],
 	"verre": ["casque_verre", "cuirasse_verre", "gantelets_verre", "bottes_verre"],
 	"verre_enchante": ["casque_verre_enchante", "cuirasse_verre_enchante", "gantelets_verre_enchante", "bottes_verre_enchante"],
 	# armures HD (branche armures_hd/obsidienne_or ; fiches de sources_blender/armures/obsidienne_or/pieces.json tant que l'agent
@@ -35,7 +37,7 @@ const AVANT := "res://assets/modeles/armures/_avant_os/"
 var avant := false
 const NOMS := {"sans_armure": "Heros sans armure (reference)", "cuir": "CUIR", "fourrure": "FOURRURE", "os": "OS DE DRAUGR",
 	"verre": "VERRE", "verre_enchante": "VERRE RUNIQUE (enchante)", "fer": "FER", "acier": "ACIER NORDIQUE", "fer_sans_casque": "FER (sans casque)", "acier_sans_casque": "ACIER NORDIQUE (sans casque)", "obsidienne": "OBSIDIENNE", "or": "OR",
-	"obsidienne_enchante": "OBSIDIENNE RUNIQUE", "or_enchante": "OR CONSACRE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir",
+	"obsidienne_enchante": "OBSIDIENNE RUNIQUE", "or_enchante": "OR CONSACRE", "uniques": "UNIQUES (Jarl, gardiens, Hrafn, rodeur)", "uniques2": "UNIQUES (thaumaturge, braise) + cuir", "uniques3": "UNIQUES (gardiens, rodeur) + fourrure",
 	"rubis": "RUBIS", "saphir": "SAPHIR", "rubis_enchante": "RUBIS ENCHANTE", "saphir_enchante": "SAPHIR ENCHANTE"}
 var s: Node
 var j: CharacterBody3D
@@ -52,6 +54,8 @@ var casque := false        # gros plans du casque (face, profil, dos)
 var studio := false        # vue studio de face, pose neutre (mains vides), fond uni
 var brillance := false     # --brillance : AVANT/APRÈS de la brillance (3/4 plein cadre, gros plan à 3 angles, pièces au sol)
 var chevilles := false     # gros plans des chevilles (bottes portées), sert au contrôle des fentes
+var v3 := false            # --v3 [--suffixe=jour|nuit] : planche des précieuses v3 (corps entier face / 3/4 / dos, gros plans
+                           # épaule, coude, genou, tête) ; lancer la scène avec --nuit en plus pour la version nuit, torche en main
 
 func _init() -> void:
 	_go.call_deferred()
@@ -149,6 +153,8 @@ func _go() -> void:
 			casque = true
 		elif a == "--brillance":
 			brillance = true
+		elif a == "--v3":
+			v3 = true
 	PiecesEssai.injecter()
 	if avant:
 		for id in PIECES["os"]:
@@ -188,6 +194,8 @@ func _go() -> void:
 		await _tete()
 	elif v2:
 		await _v2()
+	elif v3:
+		await _v3()
 	elif brillance:
 		await _brillance()
 	elif casque:
@@ -277,6 +285,66 @@ func _brillance() -> void:
 		for n in poses:
 			n.queue_free()
 		j.visible = true
+
+## Planche v3 (précieuses HD v3, 2026-11-12) : même cadrage pour l'AVANT et l'APRÈS ; nuit : la scène est lancée avec --nuit et le
+## héros tient une torche (lumière chaude de la torche + lune bleue).
+func _v3() -> void:
+	DirAccess.make_dir_recursive_absolute(sortie)
+	var suf := "jour"
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--suffixe="):
+			suf = a.substr(10)
+	var nuit := OS.get_cmdline_user_args().has("--nuit")
+	cam = Camera3D.new()
+	cam.fov = 40.0
+	s.add_child(cam)
+	cam.current = true
+	mains.magie.equiper("droite", "vide")
+	if nuit:
+		mains.magie.equiper("gauche", "torche")
+		if mains.get("torche_lumiere") != null:
+			mains.torche_lumiere.visible = true
+	var vues := [["face", 0.0, 3.6, 0.95, 1.2, 40.0, Rect2i(300, 0, 360, 540)], ["tq", 40.0, 3.6, 0.95, 1.2, 40.0, Rect2i(300, 0, 360, 540)],
+		["dos", 180.0, 3.6, 0.95, 1.2, 40.0, Rect2i(300, 0, 360, 540)],
+		["epaule", 60.0, 1.05, 1.40, 1.52, 34.0, Rect2i(240, 0, 480, 540)], ["coude", 95.0, 1.0, 1.08, 1.15, 34.0, Rect2i(240, 0, 480, 540)],
+		["genou", 25.0, 1.05, 0.55, 0.72, 34.0, Rect2i(240, 0, 480, 540)], ["tete", 20.0, 1.05, 1.62, 1.68, 30.0, Rect2i(240, 0, 480, 540)],
+		["tete_dos", 160.0, 1.05, 1.62, 1.68, 30.0, Rect2i(240, 0, 480, 540)]]
+	var dbg := ""
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--dbg="):
+			dbg = a.substr(6)
+	if dbg != "":
+		# diagnostic : chaque maillage du héros en magenta uni, tour à tour, vue du coude
+		for f in familles:
+			_equiper_famille(f)
+			await _attendre(0.8)
+			for mi: MeshInstance3D in j.find_children("*", "MeshInstance3D", true, false):
+				if mi.is_visible_in_tree():
+					print("VIS ", j.get_path_to(mi), " tris ", mi.mesh.get_faces().size() / 3)
+			for nom in dbg.split(","):
+				var mag := StandardMaterial3D.new()
+				mag.albedo_color = Color(1, 0, 1)
+				mag.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+				for mi: MeshInstance3D in j.find_children("*", "MeshInstance3D", true, false):
+					if String(mi.name) == nom and mi.visible:
+						mi.material_overlay = mag
+				cam.fov = 34.0
+				_placer_cam(95.0, 1.0, 1.08, 1.15)
+				await _attendre(0.15)
+				await _capture("dbg_%s_%s" % [f, nom], Rect2i(240, 0, 480, 540), nom)
+				for mi: MeshInstance3D in j.find_children("*", "MeshInstance3D", true, false):
+					if String(mi.name) == nom:
+						mi.material_overlay = null
+		return
+	for f in familles:
+		_equiper_famille(f)
+		l.text = ""
+		await _attendre(0.8)
+		for v: Array in vues:
+			cam.fov = v[5]
+			_placer_cam(v[1], v[2], v[3], v[4])
+			await _attendre(0.15)
+			await _capture("%s_%s_%s" % [f, v[0], suf], v[6], "%s - %s (%s)" % [NOMS.get(f, f), v[0], suf])
 
 func _casque() -> void:
 	DirAccess.make_dir_recursive_absolute(sortie)
