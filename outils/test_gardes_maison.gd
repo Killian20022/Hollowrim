@@ -6,8 +6,8 @@ extends SceneTree
 ##   - variété : sans_casque, pieces ; carrure ;
 ##   - démembrement : le morceau tranché emporte les pièces d'armure ; ragdoll ;
 ##   - butin : un garde tué (PnjCombat) laisse les pièces qu'il portait.
-##   - livrée : tabard de Skarnholt (data/gardes.json « tabard ») sur lanciers, gardes à l'épée et Haldor, pas sur l'élite, l'archer ni le
-##     garde d'or ; ôtable par garde ; jamais dans le butin ; maillage fermé, poids sur le torse/bassin/cuisses ; au démembrement il reste
+##   - livrée : tabard de Skarnholt (data/gardes.json « tabard ») sur lanciers, gardes à l'épée, élite, garde du chef et Haldor, pas sur les archers
+##     ; ôtable par garde ; jamais dans le butin ; maillage fermé, poids sur le torse/bassin/cuisses ; au démembrement il reste
 ##     au corps (ni copié dans le morceau, ni replié avec la jambe).
 ##   godot --headless --path . --script res://outils/test_gardes_maison.gd -- --nouvelle
 var _echecs := 0
@@ -38,7 +38,7 @@ func _tester() -> void:
 			var id := String(e[emp])
 			_verif(Inventaire.connu(id) and Inventaire.emplacement_de(id) == emp and ArmureVisible.a_modele(id), "ensemble %s : %s (%s) connu, porté en %s" % [nom, id, emp, emp])
 	var cas := {"so": ["lance", "cuirasse_fer"], "e_s": ["epee", "cuirasse_acier_nordique"], "vigie": ["arc", "armure_fourrure"],
-		"ronde_nord": ["arc", "armure_cuir"], "n_e": ["epee", "cuirasse_verre"], "halle_e": ["epee", "cuirasse_or"], "ronde_ouest": ["epee", "cuirasse_acier_nordique"]}
+		"ronde_nord": ["arc", "armure_cuir"], "n_e": ["epee", "cuirasse_acier_nordique"], "halle_e": ["epee", "cuirasse_acier_nordique"], "ronde_ouest": ["epee", "cuirasse_acier_nordique"]}
 	for id: String in cas:
 		var g := _garde(id)
 		var t0 := Time.get_ticks_usec()
@@ -75,7 +75,7 @@ func _tester() -> void:
 			_verif(dessous == 0, "%s : cotte du Gardien masquée sous la cuirasse (%d triangles restants au milieu du torse)" % [id, dessous])
 		mod.queue_free()
 	# livrée : tabard par rôle
-	var attendus := {"so": true, "e_s": true, "ronde_rue": true, "halle_o": true, "ronde_place": true, "vigie": false, "ronde_nord": false, "n_e": false, "halle_e": false}
+	var attendus := {"so": true, "e_s": true, "ronde_rue": true, "halle_o": true, "ronde_place": true, "vigie": false, "ronde_nord": false, "n_e": true, "halle_e": true}
 	for id: String in attendus:
 		var mt := GardeMaison.creer(_garde(id))
 		var lv := GardeMaison.livree(mt)
