@@ -187,10 +187,15 @@ def deplier(ob, px):
     w = ob.copy(); w.data = me.copy(); w.name = ob.name + "_soude"
     bpy.context.scene.collection.objects.link(w)
     w.modifiers.clear()
-    bm = bmesh.new(); bm.from_mesh(w.data)
-    nf0 = len(bm.faces)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
-    bm.to_mesh(w.data); bm.free()
+    for dist in (1e-5, 1e-6, 1e-7, 1e-9):
+        # (fourrure : les mèches effilées ont des pointes presque confondues ; un seuil trop gros efface des faces)
+        w.data = me.copy()
+        bm = bmesh.new(); bm.from_mesh(w.data)
+        nf0 = len(bm.faces)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=dist)
+        bm.to_mesh(w.data); bm.free()
+        if len(w.data.polygons) == nf0:
+            break
     assert len(w.data.polygons) == nf0 == len(me.polygons), "soudure : faces perdues"
     uv = w.data.uv_layers.new(name="cuisson")
     w.data.uv_layers.active = uv
@@ -784,7 +789,11 @@ def main():
             continue
         cp = os.path.join(PORTE, pid + ".glb")
         cs = os.path.join(SOL, pid + ".glb")
-        res = cuire(pid, px, niveau, dbg, cp, cs, pid)
+        try:
+            res = cuire(pid, px, niveau, dbg, cp, cs, pid)
+        except AssertionError as e:
+            print("CUISSON ECHEC", pid, e, "(glb gardé non cuit)")
+            continue
         ce = os.path.join(PORTE, pid + "_enchante.glb")
         if os.path.exists(ce) and "--pas-enchante" not in ARGS:
             variante(pid + "_enchante", res, ce, os.path.join(SOL, pid + "_enchante.glb"), pid + "_enchante")

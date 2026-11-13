@@ -367,7 +367,14 @@ def deco_torse(ens):
             # haut du bras : deux brassards de cristal en couches sous l'épaulière (couverture complète)
             ua = r.os["upperarm_" + ("l" if s > 0 else "r")]
             bras = C.bvh(r, ["tunique", "brassards", "peau"], {"upperarm_" + ("l" if s > 0 else "r")}, 0.5)
-            _plaques_membre(P, st, bras, ua, la, [(0.50, 0.74), (0.68, 0.92)], [math.radians(x) for x in range(0, 361, 36)], 0.030, 0.0, st["mat"])
+            plages_ua = [(0.50, 0.74), (0.68, 0.92)]
+            if globals().get("V3"):
+                plages_ua.append((0.86, 1.02))      # v3 : la dernière lame recouvre le coude (on voyait la maille du héros au coude)
+            _plaques_membre(P, st, bras, ua, la, plages_ua, [math.radians(x) for x in range(0, 361, 36)], 0.030, 0.0, st["mat"])
+            if globals().get("V3"):
+                ha = r.os["hand_" + ("l" if s > 0 else "r")]
+                avb0 = C.bvh(r, ["tunique", "brassards", "peau"], {"lowerarm_" + ("l" if s > 0 else "r")}, 0.5)
+                _plaques_membre(P, st, avb0, la, ha, [(0.0, 0.17), (0.12, 0.31)], [math.radians(x) for x in range(0, 361, 36)], 0.027, 0.0, st["mat"])
         # gorgerin de cristal : deux anneaux de plaques évasées autour du cou, par-dessus le col de mailles
         cou = C.bvh(r, ["tunique", "peau"], PC.TORSE_OS, 0.5)
         def dec_g(j, i, a):
