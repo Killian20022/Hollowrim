@@ -444,6 +444,33 @@ hybride n°6 `data/armes/coeur_de_braise.tres` ; n°7 et n°8 : même réglage, 
   éclat L9). Planches : `outils/captures_epees_longues_hd.gd` (`--etiquette=avant|apres`, vues studio + 1re personne jour ET nuit
   à la torche, superposition des silhouettes, famille avec la claymore v4 et les lames HD v2).
 
+- **Hybrides HD (branche armes/hybrides_hd, 2026-11-12 : « au niveau des lames HD, en gardant leur forme d'origine »)** : les huit
+  épées hybrides du catalogue (garde_du_guet … croc_de_givre) pointent sur `assets/modeles/armes/hybrides/hd/<h>.glb`
+  (`sources_blender/hybrides_hd/hybrides_hd.py`, méthode de la v2 ci-dessus) ; les glb d'origine `hybrides/<h>.glb` restent
+  (référence « avant », retour arrière en remettant le chemin dans `catalogue_armes.json` / `coeur_de_braise.tres`). Chaque pièce
+  est MESURÉE sur le glb d'origine puis refaite : lame (coupes à chaque hauteur de sommet + tous les 1,4 cm, épaisseur mesurée
+  ×1,08 ; fil, biseau secondaire, méplat, gouttière à flancs nets ; obsidienne : veine de braise au fond de la gouttière ; rune de
+  forge en filets sur l'acier et l'acier doré), garde (gabarit le long de X, 12 pans, 52 stations, rivets bombés), fusée (cuir
+  enroulé en volume, h6 tressé ; fil d'or / de fer couché dans la rainure pour h2, h5, h7, h8), bagues d'origine en viroles à
+  bourrelets, pommeau (gabarit le long de Z, 16 pans, bouton de rivure), gemmes (chaque octaèdre d'origine -> pierre taillée à
+  rondiste, couronne et pavillon dans la même boîte ; chaton + griffes là où elle sort de la garde ou du talon ; cristal de pommeau :
+  bipyramide taillée + collet). Matériaux et repères inchangés (prise 0,03, garde, pointe recopiées du glb d'origine).
+  Tris avant -> après : h1 642 -> 7 386, h2 616 -> 7 602, h3 699 -> 8 218, h4 748 -> 8 212, h5 697 -> 9 042, h6 1 073 -> 10 262,
+  h7 827 -> 9 324, h8 843 -> 10 168. Longueurs identiques à 3 mm près ; silhouette de face commune 97-99 %, de profil 94-97 %
+  (lames un peu plus épaisses, comme la v2). Planches : `outils/captures_armes_hd.gd` (générique : `AVANT[id]` = modèle
+  d'origine, après = catalogue ; vues entière, 3/4, garde, pommeau, lame, 1re personne jour et nuit ; superposition ; famille).
+  Essai rejeté : garde à section « losange adouci » (`garde_hd`, gardée dans le script) : faces trop molles, moins nettes.
+  Lot 2 FAIT (haches, marteaux, masse, boucliers Quaternius) : modélisation dédiée par arme, `sources_blender/hybrides_hd/quaternius_hd.py`
+  (sources `cc0_essai/06..12_*.glb` gardées) -> `assets/modeles/armes/integrees/hd/<source>.glb` + `hd/<id>.tscn` (même montage que
+  l'original, matériaux nommés lame/fer/acier_fil/bois/planches/cuir, plus de remap) ; catalogue + `hache_kolbeinn.tres` pointés sur hd,
+  anciens `integrees/<id>.tscn` gardés. Haches : fer mesuré par coupes (cornes, crans), joues, biseau et fil, douille, ferrures
+  rivetées ; marteaux : têtes/collets chanfreinés, clous bombés, sangles gardées ; masse : corps à pans, pointes en cônes, viroles,
+  cuir enroulé ; boucliers : planches séparées, cerclage riveté, umbo (rond), poignées. Tris avant -> après : hache de guerre
+  1 130 -> 7 876, hachette 966 -> 6 932, marteau de guerre 1 474 -> 9 230, grand marteau 1 918 -> 10 068, masse 456 -> 6 400,
+  bouclier cerclé 1 056 -> 7 926, écu 1 084 -> 6 916. Planches : Desktop/Skyrim captures/hybrides_hd/lot2/. Le test
+  `test_armes_catalogue` compte désormais bois + cuir pour la « fusée » (manche bois séparé des bagues).
+  Captures « avant » brutes : Desktop/Skyrim captures/quaternius_hd/brut/.
+
 ## Pose FPS de repos (phase 1, historique)
 Épée de métal : poignée (0,27 ; −0,24 ; −0,34) (poing gros, dans le coin bas droit), lame (−0,30 ; 0,70 ; −0,65)
 (≈ 35° de la verticale à l'écran, pointe vers le centre haut), tranchant (−0,9 ; 0 ; −0,6) (plat et garde en croix
