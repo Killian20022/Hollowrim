@@ -93,7 +93,7 @@ func _go() -> void:
 	var lacet := c.global_rotation.y
 	var spot := c.to_global(Vector3(0.0, 0.05, -27.0))
 	var lum := OmniLight3D.new()
-	lum.light_color = Color(1.0, 0.72, 0.45)
+	lum.light_color = Color(1.0, 1.0, 1.0) if _arg("lum", "") == "neutre" else Color(1.0, 0.72, 0.45)
 	lum.light_energy = 2.2
 	lum.omni_range = 7.0
 	root.add_child(lum)
@@ -126,6 +126,11 @@ func _go() -> void:
 		e.set_process(false)
 		var mod: Node3D = e.modele
 		var sq := mod.find_child("Skeleton3D", true, false) as Skeleton3D
+		if _arg("sans_arme", "") != "":      # contrôle : le corps seul (fourrure, tenue) sans l'arme
+			var acc0 := sq.get_node_or_null("Arme")
+			if acc0 != null:
+				sq.remove_child(acc0)
+				acc0.queue_free()
 		print("CAS %s : arme %s (%s) variante %s" % [cas[0], ArmesEnnemis.arme_de(mod), e.ident, mod.get_meta("variante", "-")])
 		var ap: AnimationPlayer = e.anim
 		for p: String in poses:
@@ -160,7 +165,11 @@ func _go() -> void:
 				var dir2 := Basis(Vector3.UP, a2) * Vector3(0, 0, 1)
 				cam.fov = 30.0
 				var gros := vue2.begins_with("main")
-				var cible_c := main_d if gros else (main_d + centre_arme) * 0.5
+				var main_vue := main_d      # le poing réel = le repère « prise » de l'arme (l'os hand_r seul est décalé chez les bandits)
+				var pr0 := arme_n.get_node_or_null("prise") as Node3D if arme_n != null else null
+				if pr0 != null:
+					main_vue = pr0.global_position
+				var cible_c := main_vue if gros else (main_d + centre_arme) * 0.5
 				cam.global_position = cible_c + dir2 * (1.0 if gros else 2.3) + Vector3(0, 0.15, 0)
 				cam.look_at(cible_c)
 				lum.global_position = cible_c + dir2 * 1.0 + Vector3(0.4, 0.8, 0)
