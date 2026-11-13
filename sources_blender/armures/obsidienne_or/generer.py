@@ -828,9 +828,6 @@ if not V2:
     # leur jeu pour les coups)
     _KR = {"torse": 0.26, "epaules": 0.30}
     RETREINT = {"obsidienne": dict(m=0.010, k=0.32, D1=0.12, k_region=_KR), "or": dict(m=0.010, k=0.38, D1=0.12, k_region=_KR)}
-# casque d'or : bavolet sur le cou et la barbe (traversée de la barbe 39,6 mm aux coups en v3) : réglages et forme de la passe 2
-RETREINT_ID = {"casque_or": dict(m=0.015, k=0.55, D1=0.12)}
-SANS_SUBDIV = {"casque_or"}
     ARTIC = {
         "cuirasse_obsidienne": lambda cx: AR.couters(cx, mats=("obsidienne",), dec=0.010, bombe=0.010, na=11, na_aile=5)
                                           + AR.tassettes(cx, lames=2, mats=("obsidienne",), dec=0.016, pas_dec=0.0025, na=11),
@@ -838,6 +835,9 @@ SANS_SUBDIV = {"casque_or"}
     }
     _RV3 = dict(roule=[(0.0009, 0.0019), (-0.0026, 0.0019)], rivet_cotes=5, rivet_r=0.0036, rivet_h=0.0027)
     RELIEF_P2 = {k: dict(v, **_RV3) for k, v in RELIEF_P2.items()}
+# casque d'or : bavolet sur le cou et la barbe (traversée de la barbe 39,6 mm aux coups en v3) : réglages et forme de la passe 2
+RETREINT_ID = {"casque_or": dict(m=0.015, k=0.55, D1=0.12)}
+SANS_SUBDIV = {"casque_or"}
 BUDGET_V3 = {"casque": 1900, "cuirasse": 5000, "gantelets": 1500, "bottes": 1800}
 BUDGET_V3_ID = {"bottes_or": 3300, "cuirasse_or": 5000}
 ENSEMBLE = {pid: ("obsidienne" if pid.endswith("obsidienne") else "or") for pid in PIECES}
