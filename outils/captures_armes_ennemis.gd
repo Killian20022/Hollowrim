@@ -134,7 +134,7 @@ func _go() -> void:
 			ap.play(String(def[0]), 0.0)
 			ap.seek(ap.current_animation_length * float(def[1]), true)
 			ap.speed_scale = 0.0
-			for i in 4:
+			for i in 40:      # l'aplomb de l'arme (ArmeAplombTripo) rejoint sa cible en ~0,3 s
 				await process_frame
 			var main_d: Vector3 = sq.global_transform * sq.get_bone_global_pose(sq.find_bone("hand_r")).origin
 			var arme_n := sq.get_node_or_null("Arme/" + (sq.get_node("Arme").get_child(0).name if sq.get_node_or_null("Arme") != null else "")) as Node3D
@@ -186,7 +186,7 @@ func _go() -> void:
 					var bb := mi.global_transform * mi.get_aabb()
 					boite = bb if premier else boite.merge(bb)
 					premier = false
-				print("MORT %s : arme %s au sol à %.2f m du corps, hauteur du sol %.3f, épaisseur %.2f m, longueur %.2f m" % [cas[0], butin.get_meta("arme_sol"), pa.distance_to(e.global_position), pa.y - m.hauteur(pa.x, pa.z), boite.size.y, maxf(boite.size.x, boite.size.z)])
+				print("MORT %s : arme %s au sol à %.2f m du corps, hauteur du sol %.3f, épaisseur %.2f m, longueur %.2f m" % [cas[0], butin.get_meta("arme_sol"), pa.distance_to(e.global_position), pa.y - float(ArmesEnnemis.sol_sous(butin, pa)["pos"].y), boite.size.y, maxf(boite.size.x, boite.size.z)])
 				lum.global_position = pa + Vector3(0.5, 1.6, 0.6)
 				cam.fov = 40.0
 				cam.global_position = pa + Vector3(0.3, 1.5, 0.9)
