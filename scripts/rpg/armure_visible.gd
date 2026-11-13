@@ -52,7 +52,6 @@ const MATIERES := {
 	"or": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.72, "poli": 0.6, "reflet": Color(1.06, 0.9, 0.62)},
 	# --- armures HD (branche armures_hd/os_verre) : clés « preset.variante » (nom complet du matériau Blender), sinon le preset seul
 	# acier patiné des armures lourdes HD (affinage 2026-11-11) : moins de reflet de ciel que « acier » (lu blanc/plastique en plein jour)
-	"acier.patine": {"teinte": Color(0.80, 0.80, 0.82), "metal": 0.5, "poli": 0.40, "reflet": Color(0.76, 0.78, 0.82)},   # passe 2 : moins clair en plein jour
 	"fer.rouille": {"teinte": Color(1.0, 0.98, 0.96), "metal": 0.28, "poli": 0.22, "reflet": Color(0.95, 0.92, 0.88)},
 	# verre : OPAQUE à faux translucide (facettes en dégradé, veines internes et filets peints dans l'atlas + reflet vitreux rasant
 	# « bord ») ; aucun tri alpha (Godot et navigateur)
@@ -77,6 +76,24 @@ const MATIERES := {
 	"obsidienne.enchante": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.1, "bord": 0.6, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 1.1},
 	"or.patine": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.0, "poli": 0.0, "reflet": Color(1.0, 0.95, 0.82)},
 	"or.lion": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.0, "poli": 0.0, "reflet": Color(1.0, 0.95, 0.82)},
+	# --- ARMURES LOURDES v3 (branche armures/lourdes_hd_v3, 2026-11-12) : shader_lourd (vrai spéculaire des lumières de la scène :
+	# soleil le jour, torche la nuit ; ciel reflété dans l'albédo, donc éteint dans le noir ; aucune émission, aucun scintillement).
+	# spec = force de l'éclat, exp = finesse (grand = point net, vitreux), spec_col = teinte de l'éclat, fresnel = liseré rasant.
+	# Les clés ci-dessous ne servent qu'aux familles fer, acier nordique, obsidienne, or (et leurs enchantées / chausses).
+	"acier.patine": {"teinte": Color(0.92, 0.92, 0.95), "metal": 0.62, "poli": 0.6, "reflet": Color(0.78, 0.83, 0.92),
+		"spec": 2.6, "exp": 90.0, "spec_col": Color(0.86, 0.93, 1.0), "fresnel": 0.10, "seuil": Vector2(0.30, 0.85)},
+	"fer.lourd": {"teinte": Color(0.84, 0.83, 0.83), "metal": 0.4, "poli": 0.4, "reflet": Color(0.86, 0.85, 0.83),
+		"spec": 2.2, "exp": 70.0, "spec_col": Color(0.95, 0.93, 0.9), "fresnel": 0.05, "seuil": Vector2(0.28, 0.85)},
+	"fer.obsidienne": {"teinte": Color(0.95, 0.95, 0.97), "metal": 0.4, "poli": 0.4, "reflet": Color(0.84, 0.82, 0.88),
+		"spec": 1.8, "exp": 26.0, "spec_col": Color(0.92, 0.9, 1.0), "fresnel": 0.06, "seuil": Vector2(0.2, 0.8)},
+	"obsidienne.lourd": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.12, "bord": 0.45, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 0.75,
+		"spec": 2.6, "exp": 60.0, "spec_col": Color(0.96, 0.94, 1.0), "fresnel": 0.20, "seuil": Vector2(0.28, 0.75)},
+	"obsidienne.lourd.enchante": {"teinte": Color(0.97, 0.96, 1.0), "metal": 0.12, "bord": 0.45, "poli": 0.6, "reflet": Color(0.9, 0.86, 1.0), "lueur": 1.1,
+		"spec": 2.6, "exp": 60.0, "spec_col": Color(0.96, 0.94, 1.0), "fresnel": 0.20, "seuil": Vector2(0.28, 0.75)},
+	"or.lourd": {"teinte": Color(1.0, 0.97, 0.9), "metal": 0.3, "poli": 0.5, "reflet": Color(1.04, 0.84, 0.5),
+		"spec": 1.8, "exp": 60.0, "spec_col": Color(1.0, 0.82, 0.42), "fresnel": 0.12, "seuil": Vector2(0.3, 0.95)},
+	"or.lourd.enchante": {"teinte": Color(1.02, 1.0, 0.98), "metal": 0.32, "poli": 0.52, "reflet": Color(1.06, 0.86, 0.52), "lueur": 0.05,
+		"spec": 1.9, "exp": 60.0, "spec_col": Color(1.0, 0.82, 0.42), "fresnel": 0.13, "seuil": Vector2(0.3, 0.95)},
 	"tissu": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08},
 	"tissu.enchante": {"teinte": Color(1.0, 1.0, 1.0), "bord": 0.12, "poli": 0.08, "lueur": 0.8},
 	"gemme": {"teinte": Color(1.05, 1.0, 1.0), "metal": 0.05, "bord": 0.45, "poli": 1.0, "lueur": 0.25, "reflet": Color(1.0, 0.93, 0.94)},
@@ -86,43 +103,43 @@ const MATIERES := {
 	# des gemmes et des runes plus forte.
 	# v3 : plaques = métal sombre + incrustations de grenat / de saphir nuit (matière mate, éclat limité) ; « cristal_* » = éclats seuls.
 	"plaque_rubis": {"teinte": Color(1.0, 0.98, 0.97), "metal": 0.35, "poli": 0.4, "bord": 0.2, "profondeur": 0.02, "lueur": 0.04, "reflet": Color(1.0, 0.82, 0.8),
-		"spec": 1.5, "exp": 60.0, "spec_col": Color(1.0, 0.86, 0.82), "fresnel": 0.12, "seuil": Vector2(0.3, 0.7)},
+		"spec": 1.2, "exp": 96.0, "cap": 0.45, "spec_col": Color(1.0, 0.86, 0.82), "fresnel": 0.12, "seuil": Vector2(0.3, 0.7)},
 	"plaque_rubis.enchante": {"teinte": Color(1.02, 0.98, 0.97), "metal": 0.35, "poli": 0.45, "bord": 0.25, "profondeur": 0.02, "lueur": 0.16, "reflet": Color(1.0, 0.82, 0.8),
-		"spec": 1.6, "exp": 60.0, "spec_col": Color(1.0, 0.86, 0.82), "fresnel": 0.14, "seuil": Vector2(0.3, 0.7)},
+		"spec": 1.3, "exp": 96.0, "cap": 0.45, "spec_col": Color(1.0, 0.86, 0.82), "fresnel": 0.14, "seuil": Vector2(0.3, 0.7)},
 	"plaque_saphir": {"teinte": Color(0.98, 0.99, 1.02), "metal": 0.4, "poli": 0.4, "bord": 0.2, "profondeur": 0.02, "lueur": 0.04, "reflet": Color(0.88, 0.94, 1.04),
-		"spec": 1.5, "exp": 60.0, "spec_col": Color(0.86, 0.93, 1.0), "fresnel": 0.12, "seuil": Vector2(0.3, 0.7)},
+		"spec": 1.2, "exp": 96.0, "cap": 0.45, "spec_col": Color(0.86, 0.93, 1.0), "fresnel": 0.12, "seuil": Vector2(0.3, 0.7)},
 	"plaque_saphir.enchante": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.4, "poli": 0.45, "bord": 0.25, "profondeur": 0.02, "lueur": 0.16, "reflet": Color(0.88, 0.94, 1.04),
-		"spec": 1.6, "exp": 60.0, "spec_col": Color(0.86, 0.93, 1.0), "fresnel": 0.14, "seuil": Vector2(0.3, 0.7)},
+		"spec": 1.3, "exp": 96.0, "cap": 0.45, "spec_col": Color(0.86, 0.93, 1.0), "fresnel": 0.14, "seuil": Vector2(0.3, 0.7)},
 	"cristal_rubis": {"teinte": Color(1.0, 0.98, 0.98), "metal": 0.08, "poli": 0.6, "bord": 0.35, "profondeur": 0.03, "lueur": 0.06, "reflet": Color(1.0, 0.72, 0.74),
-		"spec": 2.2, "exp": 110.0, "spec_col": Color(1.0, 0.9, 0.88), "fresnel": 0.25, "seuil": Vector2(0.05, 0.4)},
+		"spec": 1.8, "exp": 176.0, "cap": 0.45, "spec_col": Color(1.0, 0.9, 0.88), "fresnel": 0.25, "seuil": Vector2(0.05, 0.4)},
 	"cristal_rubis.enchante": {"teinte": Color(1.06, 1.0, 1.0), "metal": 0.08, "poli": 0.7, "bord": 0.45, "profondeur": 0.03, "lueur": 0.2, "reflet": Color(1.0, 0.72, 0.74),
-		"spec": 2.3, "exp": 110.0, "spec_col": Color(1.0, 0.9, 0.88), "fresnel": 0.28, "seuil": Vector2(0.05, 0.4)},
+		"spec": 1.8, "exp": 176.0, "cap": 0.45, "spec_col": Color(1.0, 0.9, 0.88), "fresnel": 0.28, "seuil": Vector2(0.05, 0.4)},
 	"acier_rubis": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.6, "poli": 0.55, "reflet": Color(1.04, 0.9, 0.88),
-		"spec": 1.5, "exp": 60.0, "spec_col": Color(1.0, 0.88, 0.84), "fresnel": 0.1, "seuil": Vector2(0.16, 0.7)},
+		"spec": 1.2, "exp": 96.0, "cap": 0.45, "spec_col": Color(1.0, 0.88, 0.84), "fresnel": 0.1, "seuil": Vector2(0.16, 0.7)},
 	"acier_rubis.enchante": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.6, "poli": 0.55, "lueur": 0.22, "reflet": Color(1.04, 0.9, 0.88),
-		"spec": 1.5, "exp": 60.0, "spec_col": Color(1.0, 0.88, 0.84), "fresnel": 0.1, "seuil": Vector2(0.16, 0.7)},
+		"spec": 1.2, "exp": 96.0, "cap": 0.45, "spec_col": Color(1.0, 0.88, 0.84), "fresnel": 0.1, "seuil": Vector2(0.16, 0.7)},
 	"acier_rubis.maille": {"teinte": Color(1.0, 0.97, 0.97), "metal": 0.5, "poli": 0.45, "reflet": Color(1.02, 0.92, 0.9)},
 	"serti_rubis": {"teinte": Color(1.0, 0.98, 0.96), "metal": 0.68, "poli": 0.65, "reflet": Color(1.06, 0.9, 0.78),
-		"spec": 1.7, "exp": 60.0, "spec_col": Color(1.0, 0.9, 0.7), "fresnel": 0.1, "seuil": Vector2(0.2, 0.8)},
+		"spec": 1.4, "exp": 96.0, "cap": 0.45, "spec_col": Color(1.0, 0.9, 0.7), "fresnel": 0.1, "seuil": Vector2(0.2, 0.8)},
 	"rubis": {"teinte": Color(1.12, 1.0, 1.0), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.5, "reflet": Color(1.0, 0.93, 0.94),
-		"spec": 2.4, "exp": 130.0, "spec_col": Color(1.0, 0.92, 0.9), "fresnel": 0.3, "seuil": Vector2(0.05, 0.4)},
+		"spec": 1.9, "exp": 208.0, "cap": 0.45, "spec_col": Color(1.0, 0.92, 0.9), "fresnel": 0.3, "seuil": Vector2(0.05, 0.4)},
 	"rubis.enchante": {"teinte": Color(1.15, 1.0, 1.0), "bord": 0.5, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.9, "reflet": Color(1.0, 0.93, 0.94),
-		"spec": 2.4, "exp": 130.0, "spec_col": Color(1.0, 0.92, 0.9), "fresnel": 0.3, "seuil": Vector2(0.05, 0.4)},
+		"spec": 1.9, "exp": 208.0, "cap": 0.45, "spec_col": Color(1.0, 0.92, 0.9), "fresnel": 0.3, "seuil": Vector2(0.05, 0.4)},
 	"cristal_saphir": {"teinte": Color(0.98, 0.98, 1.02), "metal": 0.08, "poli": 0.6, "bord": 0.35, "profondeur": 0.03, "lueur": 0.06, "reflet": Color(0.9, 0.95, 1.04),
-		"spec": 2.2, "exp": 110.0, "spec_col": Color(0.9, 0.95, 1.0), "fresnel": 0.25, "seuil": Vector2(0.05, 0.4)},
+		"spec": 1.8, "exp": 176.0, "cap": 0.45, "spec_col": Color(0.9, 0.95, 1.0), "fresnel": 0.25, "seuil": Vector2(0.05, 0.4)},
 	"cristal_saphir.enchante": {"teinte": Color(1.0, 1.0, 1.06), "metal": 0.08, "poli": 0.7, "bord": 0.45, "profondeur": 0.03, "lueur": 0.2, "reflet": Color(0.9, 0.95, 1.04),
-		"spec": 2.3, "exp": 110.0, "spec_col": Color(0.9, 0.95, 1.0), "fresnel": 0.28, "seuil": Vector2(0.05, 0.4)},
+		"spec": 1.8, "exp": 176.0, "cap": 0.45, "spec_col": Color(0.9, 0.95, 1.0), "fresnel": 0.28, "seuil": Vector2(0.05, 0.4)},
 	"acier_saphir": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.7, "poli": 0.65, "reflet": Color(0.92, 0.97, 1.06),
-		"spec": 1.6, "exp": 60.0, "spec_col": Color(0.88, 0.94, 1.0), "fresnel": 0.1, "seuil": Vector2(0.16, 0.7)},
+		"spec": 1.3, "exp": 96.0, "cap": 0.45, "spec_col": Color(0.88, 0.94, 1.0), "fresnel": 0.1, "seuil": Vector2(0.16, 0.7)},
 	"acier_saphir.enchante": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.7, "poli": 0.65, "lueur": 0.22, "reflet": Color(0.92, 0.97, 1.06),
-		"spec": 1.6, "exp": 60.0, "spec_col": Color(0.88, 0.94, 1.0), "fresnel": 0.1, "seuil": Vector2(0.16, 0.7)},
+		"spec": 1.3, "exp": 96.0, "cap": 0.45, "spec_col": Color(0.88, 0.94, 1.0), "fresnel": 0.1, "seuil": Vector2(0.16, 0.7)},
 	"acier_saphir.maille": {"teinte": Color(1.0, 1.0, 1.04), "metal": 0.55, "poli": 0.5, "reflet": Color(0.92, 0.97, 1.06)},
 	"serti_saphir": {"teinte": Color(1.02, 1.02, 1.04), "metal": 0.75, "poli": 0.75, "reflet": Color(0.94, 0.98, 1.05),
-		"spec": 1.7, "exp": 60.0, "spec_col": Color(1.0, 0.95, 0.8), "fresnel": 0.1, "seuil": Vector2(0.2, 0.8)},
+		"spec": 1.4, "exp": 96.0, "cap": 0.45, "spec_col": Color(1.0, 0.95, 0.8), "fresnel": 0.1, "seuil": Vector2(0.2, 0.8)},
 	"saphir": {"teinte": Color(1.0, 1.0, 1.12), "bord": 0.45, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.5, "reflet": Color(0.92, 0.96, 1.04),
-		"spec": 2.4, "exp": 130.0, "spec_col": Color(0.92, 0.96, 1.0), "fresnel": 0.3, "seuil": Vector2(0.05, 0.4)},
+		"spec": 1.9, "exp": 208.0, "cap": 0.45, "spec_col": Color(0.92, 0.96, 1.0), "fresnel": 0.3, "seuil": Vector2(0.05, 0.4)},
 	"saphir.enchante": {"teinte": Color(1.0, 1.0, 1.15), "bord": 0.5, "poli": 1.0, "metal": 0.05, "profondeur": 0.05, "lueur": 0.9, "reflet": Color(0.92, 0.96, 1.04),
-		"spec": 2.4, "exp": 130.0, "spec_col": Color(0.92, 0.96, 1.0), "fresnel": 0.3, "seuil": Vector2(0.05, 0.4)},
+		"spec": 1.9, "exp": 208.0, "cap": 0.45, "spec_col": Color(0.92, 0.96, 1.0), "fresnel": 0.3, "seuil": Vector2(0.05, 0.4)},
 }
 ## Variante VISUELLE enchantée (objets rares) : même modèle, matériaux « <preset>.enchante » quand la fiche porte
 ## "variante_materiau": "enchante" ou que l'identifiant finit par _enchante (glb du modèle de base si la fiche n'en donne pas).
@@ -254,7 +271,7 @@ static func shader_lourd() -> Shader:
 		_shader_lourd = Shader.new()
 		var c := shader_armure().code
 		c = c.replace("ALBEDO += mt_reflet * mt_s * (mt_km + mt_bord * 0.5) * mt_b * 0.9;", "")
-		c = c.replace("uniform float mt_lueur = 0.0;", "uniform float mt_lueur = 0.0;\nuniform float lr_spec = 1.0;\nuniform float lr_exp = 40.0;\nuniform vec3 lr_col : source_color = vec3(1.0);\nuniform float lr_fresnel = 0.0;\nuniform vec2 lr_seuil = vec2(0.3, 0.9);")
+		c = c.replace("uniform float mt_lueur = 0.0;", "uniform float mt_lueur = 0.0;\nuniform float lr_spec = 1.0;\nuniform float lr_cap = 50.0;\nuniform float lr_exp = 40.0;\nuniform vec3 lr_col : source_color = vec3(1.0);\nuniform float lr_fresnel = 0.0;\nuniform vec2 lr_seuil = vec2(0.3, 0.9);")
 		c = c.replace("\tROUGHNESS = 1.0;\n}", """	{
 		vec3 lr_n = normalize(NORMAL);
 		vec3 lr_v = normalize(VIEW);
@@ -276,7 +293,7 @@ void light() {
 	float lr_s = pow(clamp(dot(NORMAL, lr_h), 0.0, 1.0), lr_exp);
 	float lr_haut = smoothstep(0.40, 0.55, lr_s);
 	lr_s = lr_haut + 0.2 * smoothstep(0.10, 0.18, lr_s) * (1.0 - lr_haut);
-	SPECULAR_LIGHT += lr_col * lr_s * lr_spec * clamp((1.0 - ROUGHNESS) / 0.9, 0.0, 1.0) * smoothstep(-0.05, 0.15, lr_ndl) * ATTENUATION * LIGHT_COLOR / PI;
+	SPECULAR_LIGHT += min(lr_col * lr_s * lr_spec * clamp((1.0 - ROUGHNESS) / 0.9, 0.0, 1.0) * smoothstep(-0.05, 0.15, lr_ndl) * ATTENUATION * LIGHT_COLOR / PI, vec3(lr_cap));
 }""")
 		c = c.replace("specular_disabled", "specular_schlick_ggx")
 		_shader_lourd.code = c
@@ -396,6 +413,9 @@ const CHAUSSES_PAR_TORSE := {
 	"cuirasse_rubis": "rubis", "cuirasse_saphir": "saphir",
 }
 
+## Chausses portées d'office des armures lourdes v3 : matière à vrai spéculaire (shader_lourd), comme leurs plaques.
+const PRESET_CHAUSSES := {"fer": "fer.lourd", "acier": "acier.patine", "obsidienne": "obsidienne.lourd"}
+
 static func famille_chausses(id_torse: String) -> String:
 	id_torse = base_de(id_torse)
 	if id_torse.ends_with("_" + ENCHANTE) and not CHAUSSES_PAR_TORSE.has(id_torse):
@@ -426,7 +446,7 @@ func _poser_chausses() -> void:
 	_portees.erase("jambes")
 	if id == "" or not ResourceLoader.exists(chemin):
 		return
-	var mi := charger_chemin(chemin, var_mat, preset_de(jb) if jb != "" else "")
+	var mi := charger_chemin(chemin, var_mat, preset_de(jb) if jb != "" else String(PRESET_CHAUSSES.get(famille_chausses(porte("torse")), "")))
 	if mi == null:
 		return
 	mi.name = "armure_jambes"
@@ -581,6 +601,8 @@ static func nom_preset(nom_blender: String, var_mat := "") -> String:
 	var parts := nom_blender.split(".")
 	var preset := parts[0]
 	var v := parts[1] if parts.size() > 1 and not parts[1].is_valid_int() else ""
+	if var_mat != "" and v != "" and MATIERES.has(preset + "." + v + "." + var_mat):
+		return preset + "." + v + "." + var_mat
 	if var_mat != "" and MATIERES.has(preset + "." + var_mat):
 		return preset + "." + var_mat
 	if v != "" and MATIERES.has(preset + "." + v):
@@ -610,6 +632,7 @@ static func materiau(nom: String, tex: Texture2D, var_mat := "") -> ShaderMateri
 	if p.has("spec"):
 		m.set_shader_parameter("lr_spec", float(p["spec"]))
 		m.set_shader_parameter("lr_exp", float(p.get("exp", 40.0)))
+		m.set_shader_parameter("lr_cap", float(p.get("cap", 50.0)))
 		m.set_shader_parameter("lr_col", p.get("spec_col", Color.WHITE))
 		m.set_shader_parameter("lr_fresnel", float(p.get("fresnel", 0.0)))
 		m.set_shader_parameter("lr_seuil", p.get("seuil", Vector2(0.3, 0.9)))
@@ -699,6 +722,37 @@ func limites() -> Dictionary:
 			lim["bottes_max"] = (maxs.values() as Array).max()
 	return lim
 
+## Cotte de mailles du héros (grise, damier) visible au coude et aux manchettes sous les armures de cuir / fourrure / os : teinte en cuir
+## sombre (aucun jour gris entre la manche et la manchette).
+const TORSES_COTTE_TEINTE := ["armure_cuir", "armure_fourrure", "cuirasse_os"]
+static var _bras_teinte: ShaderMaterial
+## Bras nus / manches de maille du maillage « peau » : seulement entre |x| 0,40 et 0,60 du héros (coude et haut de l'avant-bras) ; le reste
+## (visage, cou, mains) n'est pas touché.
+static func _doublure_bras() -> ShaderMaterial:
+	if _bras_teinte == null:
+		var sh := Shader.new()
+		sh.code = """shader_type spatial;
+render_mode cull_disabled;
+varying float lx;
+void vertex() { lx = abs(VERTEX.x); }
+void fragment() {
+	if (lx < 0.395 || lx > 0.60) { discard; }
+	ALBEDO = vec3(0.30, 0.20, 0.12);
+	ROUGHNESS = 1.0;
+	SPECULAR = 0.0;
+}"""
+		_bras_teinte = ShaderMaterial.new()
+		_bras_teinte.shader = sh
+	return _bras_teinte
+
+static var _cotte_teinte: ShaderMaterial
+static func _doublure_cotte() -> ShaderMaterial:
+	if _cotte_teinte == null:
+		_cotte_teinte = materiau("cuir", null)
+		_cotte_teinte.next_pass = null
+		_cotte_teinte.set_shader_parameter("tex_neige", _cotte_teinte.get_shader_parameter("tex_base"))
+	return _cotte_teinte
+
 func _masquer() -> void:
 	var z := zones()
 	var lim := limites()
@@ -731,6 +785,10 @@ func _masquer() -> void:
 			continue
 		if not _originaux.has(mi):
 			_originaux[mi] = mi.mesh
+		if nom in ["tunique", "brassards", "accessoires", "mante", "pantalon"]:
+			mi.material_override = _doublure_cotte() if base_de(porte("torse")) in TORSES_COTTE_TEINTE else null
+		elif nom == "peau":
+			mi.material_overlay = _doublure_bras() if base_de(porte("torse")) in TORSES_COTTE_TEINTE else null
 		var orig: Mesh = _originaux[mi]
 		if z.is_empty() or not _concerne(nom, z):
 			mi.mesh = orig
