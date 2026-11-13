@@ -246,7 +246,9 @@ static func _choix(spec: Dictionary) -> Dictionary:
 		var casque := rng.randf() < 0.45 or String(app.get("casque", "")) != ""
 		var arme: String = ["hache", "epee", "hache", "masse"][rng.randi() % 4]
 		var bouclier: String = ["", "", "dos"][rng.randi() % 3]
-		return {"t": "bandit", "casque": casque, "arme": arme, "bouclier": bouclier, "tenue": rng.randi() % TENUES_BANDIT.size()}
+		# vraie arme du catalogue (data/armes/armes_ennemis.json) : tirage à graine propre, il ne décale aucun des tirages ci-dessus ; casqué = costaud
+		var arme_id := ArmesEnnemis.tirer("bandit_costaud" if casque else "bandit", String(spec.get("ident", "")))
+		return {"t": "bandit", "casque": casque, "arme": arme, "arme_id": arme_id, "bouclier": bouclier, "tenue": rng.randi() % TENUES_BANDIT.size()}
 	var archer := bool(spec.get("archer", false))
 	var type := String(spec.get("type", "sbire"))
 	var etat := rng.randi() % 4
@@ -270,6 +272,11 @@ static func _choix(spec: Dictionary) -> Dictionary:
 	var r_l := rng.randf()
 	var lueur := "givre" if r_l < 0.5 else ("sang" if r_l < 0.75 else "braise")
 	var d := {"t": "draugr", "etat": etat, "arme": arme_d, "bouclier": bouclier_d, "sans_casque": sans_casque, "lueur": lueur}
+	if arme_d == "epee" or arme_d == "hache":
+		# vieille arme usée du catalogue (corps Tripo) : « guerrier » = draugr ancien (armes plus lourdes) ; tirage à graine propre
+		var profil_d := "draugr_ancien" if type == "guerrier" else "draugr"
+		d["profil"] = profil_d
+		d["arme_id"] = ArmesEnnemis.tirer(profil_d, String(spec.get("ident", "")))
 	if ModelesTripo.ancien_impose(spec):
 		d["ancien"] = true      # « "modele_ancien": true » : ancien corps DraugrNordique malgré les modèles Tripo (factions, docs/MODELES_TRIPO.md)
 	return d
@@ -282,7 +289,7 @@ static func _def_corps(ch: Dictionary) -> Array:
 		"boss":
 			var b := String(ch["boss"])
 			if _boss_tripo(ch):
-				return ["boss_" + b + "_tripo", func() -> Node3D: return EnnemiTripo.creer("draugr", "epee")]
+				return ["boss_" + b + "_tripo", func() -> Node3D: return EnnemiTripo.creer("draugr", ArmesEnnemis.tirer("jarl", b), "jarl")]      # hache de Kolbeinn
 			return ["boss_" + b, func() -> Node3D: return DraugrNordique.creer({"bouclier": "bras" if b == "jarl" else "", "epee": true, "corps": "femme" if b == "svanhild" else "homme"})]
 		"barcher":
 			var h: bool = ch["homme"]
@@ -296,7 +303,9 @@ static func _def_corps(ch: Dictionary) -> Array:
 	if EnnemiTripo.actif() and not bool(ch.get("ancien", false)) and String(ch["arme"]) != "mains":
 		var arme_t: String = ch["arme"]
 		var id_t := "archer" if arme_t == "arc" else "draugr"
-		return ["tripo_%s_%s" % [id_t, arme_t], func() -> Node3D: return EnnemiTripo.creer(id_t, arme_t)]
+		var arme_c: String = ch.get("arme_id", arme_t)      # arme du catalogue (sinon l'ancienne « epee » / « hache » / « arc »)
+		var profil_t: String = ch.get("profil", "")
+		return ["tripo_%s_%s" % [id_t, arme_c], func() -> Node3D: return EnnemiTripo.creer(id_t, arme_c, profil_t)]
 	var bd: String = ch["bouclier"]
 	var ep: bool = ch["arme"] == "epee"
 	var ca: bool = not ch["sans_casque"]
@@ -351,7 +360,7 @@ static func _relier(gab: Node3D, copie: Node3D) -> void:
 	var ag := sg.get_node_or_null("Arme/Aplomb")
 	var ac := sc.get_node_or_null("Arme/Aplomb")
 	if ag != null and ac != null:
-		for v: String in ["base", "centre", "ech", "grip", "incl", "os"]:
+		for v: String in ["base", "centre", "ech", "grip", "incl", "os", "torsion", "cible", "limite"]:
 			ac.set(v, ag.get(v))
 		ac.set("sq", sc)
 		ac.set("arme", (sc.get_node("Arme") as Node).get_child(0))
@@ -383,10 +392,15 @@ static func _sq(n: Node3D) -> Skeleton3D:
 static func squelette(spec := {}) -> Node3D:
 	if EnnemiTripo.actif() and not ModelesTripo.ancien_impose(spec):      # Tripo par défaut : squelette généré (mains nues, ou arc) ; ancien SqueletteGuerrier : --modeles-anciens[=ennemis] ou « modele_ancien »
 		var arme_t := arme_squelette(spec)
-		var poings := arme_t != "arc"       # le modèle Tripo ne tient aucune arme (mains osseuses ouvertes) : le guerrier combat à mains nues, seul l'archer garde l'arc
-		var t := EnnemiTripo.creer("squelette", "arc" if not poings else "")
+		# le guerrier tient une vraie arme du catalogue (épée rouillée, gourdin, hachette : tirage à graine stable) ; l'archer garde l'arc
+		var arme_c := ""
+		if arme_t != "arc":
+			var v := String(spec.get("variante", ""))
+			arme_c = ArmesEnnemis.tirer("squelette", String(spec.get("ident", ""))) if not ["epee", "hache"].has(v) else ("epee_soldat" if v == "epee" else "hachette")
+		var poings := arme_t != "arc" and arme_c == ""
+		var t := EnnemiTripo.creer("squelette", "arc" if arme_t == "arc" else arme_c, "squelette")
 		t.set_meta("squelette_poings", poings)
-		t.set_meta("variante", "squelette_" + ("poings" if poings else arme_t))
+		t.set_meta("variante", "squelette_" + ("poings" if poings else (arme_c if arme_c != "" else arme_t)))
 		t.set_meta("teinte", "ivoire")
 		return t
 	return SqueletteGuerrier.modele(arme_squelette(spec), teinte_squelette(spec))
@@ -429,7 +443,7 @@ static func _draugr(ch: Dictionary) -> Node3D:
 	var n := _corps(ch)
 	var sq := _sq(n)
 	if n.has_meta("tripo_ennemi"):      # corps Tripo : couleurs, arme et yeux sont déjà ceux du modèle
-		n.set_meta("variante", "draugr_tripo_%s" % arme)
+		n.set_meta("variante", "draugr_tripo_%s" % String(ch.get("arme_id", arme)))
 		n.set_meta("teinte", "givre")
 		return n
 	var teintes: Array[Color] = [Color(1, 1, 1), Color(0.86, 1.02, 0.9), Color(0.72, 0.7, 0.68), Color(0.88, 0.98, 1.12)]
@@ -532,10 +546,10 @@ static func _boss_draugr(ch: Dictionary) -> Node3D:
 
 # ======================================================================================================== bandits
 const TENUES_BANDIT := [
-	{"tun": Color(0.62, 0.5, 0.4), "pan": Color(0.75, 0.62, 0.5), "bot": Color(0.7, 0.62, 0.55), "cape": Color(1.6, 1.0, 0.25), "ch": Color(0.55, 0.42, 0.3)},
-	{"tun": Color(0.5, 0.52, 0.5), "pan": Color(0.6, 0.55, 0.62), "bot": Color(0.6, 0.55, 0.5), "cape": Color(1.3, 1.0, 0.3), "ch": Color(0.8, 0.62, 0.4)},
-	{"tun": Color(0.7, 0.58, 0.42), "pan": Color(0.5, 0.48, 0.5), "bot": Color(0.55, 0.45, 0.38), "cape": Color(1.4, 0.85, 0.25), "ch": Color(0.35, 0.3, 0.26)},
-	{"tun": Color(0.45, 0.4, 0.38), "pan": Color(0.62, 0.52, 0.42), "bot": Color(0.5, 0.46, 0.44), "cape": Color(1.5, 0.95, 0.28), "ch": Color(0.7, 0.66, 0.6)},
+	{"tun": Color(0.62, 0.5, 0.4), "pan": Color(0.75, 0.62, 0.5), "bot": Color(0.7, 0.62, 0.55), "cape": Color(0.45, 0.3, 0.18), "ch": Color(0.55, 0.42, 0.3)},
+	{"tun": Color(0.5, 0.52, 0.5), "pan": Color(0.6, 0.55, 0.62), "bot": Color(0.6, 0.55, 0.5), "cape": Color(0.4, 0.38, 0.35), "ch": Color(0.8, 0.62, 0.4)},
+	{"tun": Color(0.7, 0.58, 0.42), "pan": Color(0.5, 0.48, 0.5), "bot": Color(0.55, 0.45, 0.38), "cape": Color(0.52, 0.26, 0.14), "ch": Color(0.35, 0.3, 0.26)},
+	{"tun": Color(0.45, 0.4, 0.38), "pan": Color(0.62, 0.52, 0.42), "bot": Color(0.5, 0.46, 0.44), "cape": Color(0.26, 0.2, 0.16), "ch": Color(0.7, 0.66, 0.6)},
 ]
 
 static func _bandit(ch: Dictionary) -> Node3D:
@@ -552,8 +566,15 @@ static func _bandit(ch: Dictionary) -> Node3D:
 	_teinter_piece(sq, "Hair_Long", t["ch"])
 	_teinter_piece(sq, "Hair_Beard", t["ch"])
 	_teinter_acc(sq, Color(0.74, 0.68, 0.62), t["cape"])
-	_poser_arme(sq, arme)
-	n.set_meta("variante", "bandit_%s_%s" % [arme, "casque" if casque else "tete_nue"])
+	var arme_id: String = ch.get("arme_id", "")
+	var tenue: Node3D = ArmesEnnemis.poser(sq, ArmesEnnemis.centre_fixe(), "bandit", arme_id, "bandit_costaud" if casque else "bandit") if arme_id != "" else null
+	if tenue != null:
+		(sq.get_node("Arme/Aplomb") as Node).set("ap", n.get_node("Animations"))
+		n.set_meta("arme_id", arme_id)
+		n.set_meta("arme_profil", "bandit_costaud" if casque else "bandit")
+	else:
+		_poser_arme(sq, arme)
+	n.set_meta("variante", "bandit_%s_%s" % [arme_id if tenue != null else arme, "casque" if casque else "tete_nue"])
 	return n
 
 static func _bandit_archer(ch: Dictionary) -> Node3D:

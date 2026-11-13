@@ -126,7 +126,9 @@ static func vider() -> void:
 	_centres.clear()
 	_mx.unlock()
 
-static func creer(id: String, arme := "") -> Node3D:
+## `arme` : "arc", une arme du catalogue (ArmesEnnemis : « hache_guerre », « gourdin »…) ou, anciennement, « epee » / « hache » / « masse » / « epee_courte »
+## (boîtes de fer d'EnnemisNordiques._arme_mesh, gardées pour les modèles anciens). `profil` : usure de l'arme (data/armes/armes_ennemis.json).
+static func creer(id: String, arme := "", profil := "") -> Node3D:
 	var racine: Node3D = (MODELES[id] as PackedScene).instantiate()
 	racine.name = "Tripo" + id.capitalize()
 	var sq: Skeleton3D = racine.find_child("Skeleton3D", true, false)
@@ -154,6 +156,12 @@ static func creer(id: String, arme := "") -> Node3D:
 		_teinter_arc(sq, id)
 	elif arme == "arc":
 		EnnemisNordiques._arc(sq)
+	elif arme != "" and ArmesEnnemis.connu(arme):
+		var tenue := ArmesEnnemis.poser(sq, centre_poing(sq, corps, id), id, arme, profil)
+		if tenue != null:
+			(sq.get_node("Arme/Aplomb") as Node).set("ap", ap)
+			racine.set_meta("arme_id", arme)
+			racine.set_meta("arme_profil", profil)
 	elif arme != "":
 		_armer(sq, corps, id, arme)
 		(sq.get_node("Arme/Aplomb") as Node).set("ap", ap)
