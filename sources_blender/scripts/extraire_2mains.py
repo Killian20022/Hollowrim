@@ -29,6 +29,15 @@ SOURCES = {
     # claymore v6, coup 2 (2026-11-12) : candidats d'un horizontal gauche -> droite
     "gs_slide_attack": GS + "slide attack.fbx", "gs_kick": GS + "kick.fbx", "gs_kick_2": GS + "kick (2).fbx",
     "gs_impact_3": GS + "impact (3).fbx", "gs_draw": "great_sword_pack/draw a great sword 1.fbx",
+    # claymore v7, coup 2 (2026-11-13) : captures d'un horizontal gauche -> droite à une main (la main droite porte l'épée ; la
+    # main gauche de ces captures n'est pas utilisée, l'IK la pose sur le pommeau)
+    "ss_outward": "Stable Sword Outward Slash.fbx", "ss_inward": "Stable Sword Inward Slash.fbx",
+    "ml_backhand": "Standing Melee Attack Backhand.fbx", "ml_downward": "Standing Melee Attack Downward.fbx",
+    "sh_slash": "sword_and_shield_pack/sword and shield slash.fbx", "sh_slash_2": "sword_and_shield_pack/sword and shield slash (2).fbx",
+    "sh_slash_3": "sword_and_shield_pack/sword and shield slash (3).fbx", "sh_slash_4": "sword_and_shield_pack/sword and shield slash (4).fbx",
+    "sh_slash_5": "sword_and_shield_pack/sword and shield slash (5).fbx",
+    "sh_attack": "sword_and_shield_pack/sword and shield attack.fbx", "sh_attack_2": "sword_and_shield_pack/sword and shield attack (2).fbx",
+    "sh_attack_3": "sword_and_shield_pack/sword and shield attack (3).fbx", "sh_attack_4": "sword_and_shield_pack/sword and shield attack (4).fbx",
 }
 F = Matrix(((-1, 0, 0), (0, 0, 1), (0, 1, 0))).transposed()
 CAM_DE_MONDE = F.transposed()

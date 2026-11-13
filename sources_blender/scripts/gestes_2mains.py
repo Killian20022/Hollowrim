@@ -309,6 +309,15 @@ CLIPS_MX_2M_V6["c2_b"].update(roulis_prise=0)
 # (bornée à 85°, au-delà d'une rotation anatomique) : 74 -> 54°.
 CLIPS_MX_2M_V6["c2_a"].update(tranchant=(0.14, 0.25, 0.10), theta_max=85.0)
 CLIPS_MX_2M_V6["c2_b"].update(tranchant=(0.14, 0.25, 0.10), theta_max=85.0)
+# COUP 2, v7 (2026-11-13, « le coup 2 est un plat qui mène ») : le balayage de gs_slash_2 se faisait presque dans l'axe de l'avant-bras
+# (fil 56°, la torsion bornée à 85° n'y pouvait rien). Nouvelle CAPTURE, même méthode (aucune pose écrite) : « Standing Melee Attack
+# Downward » (Mixamo, source ml_downward, nom trompeur : c'est un grand horizontal gauche -> droite à hauteur de hanche, bras tendu,
+# perpendiculaire à l'avant-bras), images 40 -> 60, armé 40, rapide 41,6 -> 56. Candidats mesurés (jeu, ligne TRANCHE, 0° = le fil
+# mène) : gs_slash_2 47-60 56° ; sh_attack_3 40° ; ss_inward 11° ; sh_slash_2 10° ; ss_outward 14° ; ml_downward 10° (course courte,
+# amplitude 0,5) -> amplitude 0,8 et lacet de cadrage -40° (course 35 % de l'écran comme avant, fil 2°, max 9°). Poignet droit
+# toujours verrouillé (écart à la tenue 16° / 11°, inchangé).
+CLIPS_MX_2M_V6["c2_b"].update(source="ml_downward", centre=50, temps=[(40, 0.0), (40, 0.08), (41.6, 0.14), (56, 0.25), (57.6, 0.31), (60, 0.40), (60, 0.47)],
+                              amplitude=0.8, cadrage=(-40, 30, 0))
 import json as _json
 _essai = NS["ARGS"].get("essai", "")   # --essai=<fichier.json> : essais de réglage des clips v6 sans modifier ce fichier
 for _n, _r in (_json.load(open(_essai, encoding="utf-8")) if _essai else {}).items():

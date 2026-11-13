@@ -818,3 +818,14 @@ et reçoit plus de coups que le bot « spam ».
   centre-haut, pas au-dessus de la tête : une main plus haute ferait sortir la lame (0,87 m) par le haut de l'écran. La
   frappe ne dure que 5-6 images à 60 i/s (rythme demandé) ; la traînée porte la lecture du mouvement. En 3e personne,
   rien ne change (animation `Sword_Attack`).
+
+### Claymore v7 : coup 2 par une autre capture (2026-11-13, branche combat/claymore_v7)
+Défaut restant de la v6 : coup 2 = le plat mène (fil / mouvement 56°, épée v6 12-24°) car gs_slash_2 47-60 balaie dans l'axe de
+l'avant-bras (la torsion, bornée à 85°, n'y peut rien). Correction sans pose écrite : autre CAPTURE, même méthode. Captures ajoutées à
+`extraire_2mains.py` (Stable Sword Inward / Outward Slash, Standing Melee Attack Backhand / Downward, sword and shield slash 1-5 et
+attack 1-4) puis retargetées et mesurées dans le jeu (`--essai=<json>`). Fil moyen : gs_slash_2 56°, sh_attack_3 40°, ss_inward 11°,
+sh_slash_2 10°, ss_outward 14°, ml_downward 10°. Retenu : **Standing Melee Attack Downward** (nom trompeur : grand horizontal
+gauche -> droite à hauteur de hanche), images 40 -> 60, amplitude 0,8, lacet de cadrage -40° : fil **2° (max 9°)**, 10/10 images
+< 20°, course de frappe 35 % de l'écran (44 % avant). Poignet droit inchangé (verrou : 16° / 11° de la tenue) ; poignet gauche : max
+|flexion| 41° / |déviation| 20° (avant 49° / 25°), mais écart à la tenue 37° / 26° (avant 23° / 31°) : le poignet gauche passe de +26° à
+-15° de flexion. À-coups hors frappe 40 -> 27 px/img². Coups 1 et 3, épée à une main : inchangés (seul c2_b modifié).
