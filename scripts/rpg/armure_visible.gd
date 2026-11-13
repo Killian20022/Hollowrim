@@ -57,12 +57,12 @@ const MATIERES := {
 	# verre : OPAQUE à faux translucide (facettes en dégradé, veines internes et filets peints dans l'atlas + reflet vitreux rasant
 	# « bord ») ; aucun tri alpha (Godot et navigateur)
 	"verre": {"teinte": Color(0.96, 1.0, 0.97), "metal": 0.06, "bord": 0.7, "poli": 0.95, "reflet": Color(0.86, 1.0, 0.9),
-		"spec": 1.9, "exp": 90.0, "spec_col": Color(0.92, 1.0, 0.96), "fresnel": 0.22, "seuil": Vector2(0.05, 0.45)},
+		"spec": 0.55, "exp": 160.0, "spec_col": Color(0.62, 0.9, 0.74), "fresnel": 0.22, "seuil": Vector2(0.25, 0.8)},
 	# runes niellées incrustées : fond presque noir, glyphes clairs ; la variante « .enchante » les fait luire (émission ∝ albédo²)
 	"runes": {"teinte": Color(1.0, 1.0, 1.0), "metal": 0.4, "poli": 0.6, "reflet": Color(1.0, 0.96, 0.85)},
 	"runes.enchante": {"teinte": Color(1.1, 1.25, 1.12), "metal": 0.2, "poli": 0.6, "lueur": 2.4, "reflet": Color(0.8, 1.0, 0.85)},
 	"verre.enchante": {"teinte": Color(1.0, 1.06, 1.0), "metal": 0.06, "bord": 0.85, "poli": 0.95, "lueur": 0.06, "reflet": Color(0.8, 1.0, 0.88),
-		"spec": 2.1, "exp": 90.0, "spec_col": Color(0.9, 1.0, 0.95), "fresnel": 0.24, "seuil": Vector2(0.05, 0.45)},
+		"spec": 0.6, "exp": 160.0, "spec_col": Color(0.6, 0.9, 0.74), "fresnel": 0.24, "seuil": Vector2(0.25, 0.8)},
 	"or.enchante": {"teinte": Color(1.04, 1.02, 1.0), "metal": 0.75, "poli": 0.7, "lueur": 0.05, "reflet": Color(1.08, 0.94, 0.66)},
 	# variantes à lueur propre (émission = albédo² : seuls les texels clairs rougeoient, le reste de la pièce reste mat)
 	"cuir.braise": {"teinte": Color(1.04, 1.0, 0.98), "bord": 0.14, "poli": 0.22, "lueur": 0.7},
@@ -734,11 +734,46 @@ func _masquer() -> void:
 		var orig: Mesh = _originaux[mi]
 		if z.is_empty() or not _concerne(nom, z):
 			mi.mesh = orig
+			if nom == "tunique":
+				_doubler_manches(mi, false)
 			continue
 		var cle := "%d|%s" % [orig.get_instance_id(), cle_z]
 		if not _filtres.has(cle):
 			_filtres[cle] = _filtrer(orig, nom, z, lim)
 		mi.mesh = _filtres[cle]
+		if nom == "tunique":
+			_doubler_manches(mi, z.has("torse") and not (porte("torse") in TORSES_MANCHES))
+
+## Précieuses v3b : sous une pièce de torse SANS manche de mailles, ce qui reste de la cotte du héros (manche entre la coupe et la
+## manchette) se voyait au coude comme un damier clair. On le teinte en doublure de cuir sombre (la maille y reste en relief discret).
+static var _tex_dbl: ImageTexture
+## Doublure de cuir sombre : texture quasi unie (4 tons très proches, sans motif de maille) en 8 x 8 texels.
+static func _tex_doublure() -> ImageTexture:
+	if _tex_dbl == null:
+		var im := Image.create(8, 8, true, Image.FORMAT_RGBA8)
+		var tons := [Color(0.20, 0.14, 0.10), Color(0.22, 0.15, 0.11), Color(0.18, 0.13, 0.09), Color(0.21, 0.15, 0.10)]
+		for y in 8:
+			for x in 8:
+				im.set_pixel(x, y, tons[(x * 3 + y * 5 + (x ^ y)) % 4])
+		im.generate_mipmaps()
+		_tex_dbl = ImageTexture.create_from_image(im)
+	return _tex_dbl
+
+func _doubler_manches(mi: MeshInstance3D, actif: bool) -> void:
+	if not actif and not mi.has_meta("doublure_orig"):
+		return
+	if not mi.has_meta("doublure_orig"):
+		mi.set_meta("doublure_orig", mi.material_override)
+	var base: Material = mi.get_meta("doublure_orig")
+	if not actif:
+		mi.material_override = base
+		return
+	if base is ShaderMaterial:
+		var m := (base as ShaderMaterial).duplicate() as ShaderMaterial
+		m.set_shader_parameter("tex_base", _tex_doublure())
+		m.set_shader_parameter("teinte", Color(1, 1, 1))
+		m.set_shader_parameter("saturation", 1.0)
+		mi.material_override = m
 
 ## Hauteur de l'ourlet (pièce de torse) au-dessus du point p (interpolée entre secteurs).
 static func ourlet_en(lim: Dictionary, p: Vector3) -> float:
