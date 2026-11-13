@@ -22,7 +22,8 @@ sys.path.insert(0, os.path.join(ICI, ".."))
 import retreindre as RT
 import relief_lourdes as RL
 import articulees as AR
-for m in (C, PC, hd, PE, RT, RL, AR):
+import affiner_v3 as AF
+for m in (C, PC, hd, PE, RT, RL, AR, AF):
     importlib.reload(m)
 from mathutils import Vector, Matrix
 from mathutils.bvhtree import BVHTree
@@ -283,7 +284,7 @@ def cornes_obsidienne(P, t, r, centre, Pts, R_NAS, R_CORNE):
         hit, n = hd.poser_sur(arbre, centre + d * 0.5, -d)
         if hit is None:
             continue
-        corne(P, hit - d * 0.012, (0.84 * s, 0.26, 0.42), (-0.24 * s, 0.05, 0.40), 0.145, 0.030, seg=7, cotes=7, bague="fer.noir")
+        corne(P, hit - d * 0.012, (0.84 * s, 0.26, 0.42), (-0.24 * s, 0.05, 0.40), 0.145, 0.030, seg=7, cotes=7, bague="fer.obsidienne")
 
 
 def quille(P, t, r, centre, Pts, R_NAS, R_CORNE, mat="obsidienne", h=0.012, dents=False):
@@ -784,7 +785,7 @@ def jambes_or(P, t, r, st, cote, s, jambe, A, B):
 
 
 # ============================================================================================================== styles
-OBS = dict(pal=C.FER_NOIR, mat="obsidienne", mat_rebord="fer.noir", mat_main="obsidienne", mat_doigts="fer.noir", mat_genou="obsidienne",
+OBS = dict(pal=C.FER_NOIR, mat="obsidienne", mat_rebord="fer.obsidienne", mat_main="obsidienne", mat_doigts="fer.obsidienne", mat_genou="obsidienne",
            mat_maille="fer.maille", base=0.4, oxyde=0.0, crasse=0.3, poli=0.6, graine=131, z_ourlet=0.66)
 OR = dict(pal=C.ACIER, mat="or.patine", mat_rebord="or.patine", mat_main="or.patine", mat_doigts="or.patine", mat_genou="or.patine",
           mat_maille="tissu.bleu", base=0.34, oxyde=0.0, crasse=0.2, poli=0.6, graine=151, z_ourlet=0.66)
@@ -795,7 +796,7 @@ PIECES = {
                                                    bandes=0, rebord=0.009,
                                                    decor=[lambda *a: visiere(*a, mat="obsidienne", crete=0.016), cornes_obsidienne, lambda *a: joues(*a, mat="obsidienne", dents=2),
                                                           lambda *a: quille(*a, mat="obsidienne", h=0.010, dents=True)])),
-    "cuirasse_obsidienne": lambda r: PC.cuirasse(r, _s(OBS, id="cuirasse_obsidienne", mat="fer.noir", n=14, lames=3, bombe=0.02,
+    "cuirasse_obsidienne": lambda r: PC.cuirasse(r, _s(OBS, id="cuirasse_obsidienne", mat="fer.obsidienne", n=14, lames=3, bombe=0.02,
                                                        lames_epaule=0, x_manche=0.418, decor=[obs_torse])),
     "gantelets_obsidienne": lambda r: PC.gantelets(r, _s(OBS, id="gantelets_obsidienne", evasement=0.038, griffes=0.011, debut_manchette=0.16,
                                                          mat_griffes="obsidienne",
@@ -820,6 +821,25 @@ ARTIC = {
 RELIEF_P2 = {"casque": dict(max_rivets=12, ep=0.003), "cuirasse": dict(max_rivets=40, min_tris_bord=16), "gantelets": dict(max_rivets=12, ep=0.0035, min_tris_bord=30), "bottes": dict(max_rivets=20, min_tris_bord=16), "bottes_or": dict(max_rivets=20, bords_on=False), "casque_or": dict(max_rivets=0, bords_on=False)}
 # casque d'obsidienne : déjà ajusté (recul moyen 8 mm) ; rétreint, le cou traversait le bavolet de 12,5 mm (sort de zone)
 SANS_RETREINT = {"casque_obsidienne"}
+# --- v3 (2026-11-12, « plus fines, plus de détails ») ; « --v2 » : réglages de la passe 2
+V2 = "--v2" in sys.argv
+if not V2:
+    # torse plus serré que les membres (k_region : le volume « jouet » du plastron et des épaules disparaît ; les avant-bras gardent
+    # leur jeu pour les coups)
+    _KR = {"torse": 0.26, "epaules": 0.30}
+    RETREINT = {"obsidienne": dict(m=0.010, k=0.32, D1=0.12, k_region=_KR), "or": dict(m=0.015, k=0.55, D1=0.12)}   # or : réglages de la passe 2 (v3 écrasait le lion de l'épaulière et déchiquetait la cape)
+    ARTIC = {
+        "cuirasse_obsidienne": lambda cx: AR.couters(cx, mats=("obsidienne",), dec=0.010, bombe=0.010, na=11, na_aile=5)
+                                          + AR.tassettes(cx, lames=2, mats=("obsidienne",), dec=0.016, pas_dec=0.0025, na=11),
+        "cuirasse_or": lambda cx: AR.couters(cx, mats=("or",), dec=0.010, bombe=0.010, na=11, na_aile=5),
+    }
+    _RV3 = dict(roule=[(0.0009, 0.0019), (-0.0026, 0.0019)], rivet_cotes=5, rivet_r=0.0036, rivet_h=0.0027)
+    RELIEF_P2 = {k: dict(v, **_RV3) for k, v in RELIEF_P2.items()}
+# casque d'or : bavolet sur le cou et la barbe (traversée de la barbe 39,6 mm aux coups en v3) : réglages et forme de la passe 2
+RETREINT_ID = {"casque_or": dict(m=0.015, k=0.55, D1=0.12)}
+SANS_SUBDIV = {"casque_or"}
+BUDGET_V3 = {"casque": 1900, "cuirasse": 5000, "gantelets": 1500, "bottes": 1800}
+BUDGET_V3_ID = {"bottes_or": 3300, "cuirasse_or": 5000}
 ENSEMBLE = {pid: ("obsidienne" if pid.endswith("obsidienne") else "or") for pid in PIECES}
 VARIANTE = {"obsidienne": {"obsidienne": "obsidienne.enchante"}, "or": {"tissu.bleu": "tissu.enchante", "tissu.cape": "tissu.enchante", "tissu.tabard": "tissu.enchante", "tissu.doublure": "tissu.enchante", "gemme": "gemme.enchante"}}
 
@@ -1008,12 +1028,15 @@ def bavolet_sur_cou(ob, r):
     print("BAVOLET sur le cou :", n, "sommets")
 
 
-def construire(pid, dossier=None, enchante=True):
+def geometrie(pid, budget_subdiv=0):
+    """Géométrie basse déf du jeu (avant peinture) : constructeur, (v3) plaques subdivisées, retreinte, plaques articulées, relief."""
     r = C.charger_reference()
     ob = PIECES[pid](r)
+    if budget_subdiv:
+        AF.subdiviser_plaques(ob, budget_subdiv)
     if "--epais" not in sys.argv and pid not in SANS_RETREINT:
         # affinage 2026-11-11 : pièces rapprochées du corps (retour « trop épaisses ») ; l'obsidienne, la plus massive, plus serrée
-        RT.retreindre(ob, r, **RETREINT[ENSEMBLE[pid]])
+        RT.retreindre(ob, r, **RETREINT_ID.get(pid, RETREINT[ENSEMBLE[pid]]))
     if pid == "casque_or":
         bavolet_sur_cou(ob, r)
     if pid == "bottes_or":
@@ -1026,6 +1049,17 @@ def construire(pid, dossier=None, enchante=True):
             cx = AR.Contexte(ob, r, RT.arbre_corps(r))
             print("ARTIC", pid, ARTIC[pid](cx), "tris ajoutés")
         RL.relief(ob, **RELIEF_P2.get(pid, RELIEF_P2.get(_piece(pid), {})))
+    return r, ob
+
+
+def construire(pid, dossier=None, enchante=True):
+    budget = 0
+    if not V2 and "--sans-relief" not in sys.argv and pid not in SANS_SUBDIV:
+        r0, ob0 = geometrie(pid, 0)
+        t0 = C.compter_tris(ob0)
+        budget = max(0, int((BUDGET_V3_ID.get(pid, BUDGET_V3[_piece(pid)]) - t0) / 1.45))
+        print("BUDGET", pid, t0, "tris sans subdivision ; subdivision", budget)
+    r, ob = geometrie(pid, budget)
     tris = C.compter_tris(ob)
     print("PIECE", pid, tris, "tris", "matériaux", [m.name for m in ob.data.materials])
     hd.uv_uniques(ob)
@@ -1038,6 +1072,8 @@ def construire(pid, dossier=None, enchante=True):
     hd.poser_image(ob, img)
     hd.couleur_blanche(ob)
     EXP = "--pas-export" not in sys.argv
+    if "--v2" not in sys.argv:
+        print("MATERIAUX", pid, AF.renommer_materiaux(ob))      # v3 : noms propres aux lourdes (shader_lourd en jeu)
     if EXP:
         C.exporter([ob], r, os.path.join(C.PORTE, pid + ".glb"))
         version_sol(r, ob, pid)

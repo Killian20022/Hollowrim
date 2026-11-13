@@ -13,6 +13,11 @@ const PIECES := {
 	"saphir": ["casque_saphir", "cuirasse_saphir", "gantelets_saphir", "bottes_saphir"],
 	"uniques": ["heaume_jarl", "cuirasse_gardiens", "gantelets_hrafn", "bottes_rodeur"],
 	"uniques2": ["capuche_thaumaturge", "brigandine_braise", "gants_cuir", "bottes_cuir"],
+	# armures lourdes v3 (branche armures/lourdes_hd_v3) ; avant : --dossier=res://assets/modeles/armures/_avant_v3/avant/porte/
+	"fer": ["casque_fer", "cuirasse_fer", "gantelets_fer", "bottes_fer"],
+	"acier": ["casque_acier_nordique", "cuirasse_acier_nordique", "gantelets_acier_nordique", "bottes_acier_nordique"],
+	"obsidienne": ["casque_obsidienne", "cuirasse_obsidienne", "gantelets_obsidienne", "bottes_obsidienne"],
+	"or": ["casque_or", "cuirasse_or", "gantelets_or", "bottes_or"],
 }
 var dossier := "res://assets/modeles/armures/porte/"
 var familles: Array = ["verre", "rubis", "saphir", "cuir", "fourrure", "uniques", "uniques2"]

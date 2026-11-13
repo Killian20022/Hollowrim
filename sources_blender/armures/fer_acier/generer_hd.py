@@ -13,9 +13,19 @@ sys.path.insert(0, os.path.join(ICI, ".."))
 import retreindre as RT
 import relief_lourdes as RL
 import articulees as AR
-importlib.reload(C); importlib.reload(H); importlib.reload(PH); importlib.reload(RT); importlib.reload(RL); importlib.reload(AR)
-RETREINT = dict(m=0.015, k=0.55, D1=0.11)
+import affiner_v3 as AF
+importlib.reload(C); importlib.reload(H); importlib.reload(PH); importlib.reload(RT); importlib.reload(RL); importlib.reload(AR); importlib.reload(AF)
+# v3 (2026-11-12, « plus fines ») : jeu au corps 15 -> 10 mm, volume vide comprimé à 38 % (55 % en passe 2) ; « --v2 » : réglages passe 2
+V2 = "--v2" in sys.argv
+RETREINT = dict(m=0.015, k=0.55, D1=0.11) if V2 else dict(m=0.010, k=0.38, D1=0.11, k_region={"torse": 0.26, "epaules": 0.30})
+# bord ROULÉ v3 : tôle de ~3 mm qui s'enroule en bourrelet (rangées (dn, do) en m), rivets en dôme à 6 pans
+ROULE = [(0.0009, 0.0019), (-0.0026, 0.0019)]
+_RV3 = dict(roule=ROULE, rivet_cotes=5, rivet_r=0.0036, rivet_h=0.0027)
 RELIEF = {"tete": dict(max_rivets=20, ep=0.003), "torse": dict(max_rivets=50, min_tris_bord=16), "mains": dict(max_rivets=16, ep=0.0035, min_tris_bord=30), "pieds": dict(max_rivets=24, min_tris_bord=16)}
+if not V2:
+    RELIEF = {k: dict(v, **_RV3) for k, v in RELIEF.items()}
+# budget v3 par pièce (ensemble ~9-10 k triangles, validé par l'utilisateur) : la subdivision des plaques comble l'écart
+CIBLE = {"tete": 1900, "torse": 5000, "mains": 1500, "pieds": 1800}
 from mathutils import Vector, Matrix
 
 # ------------------------------------------------------------------------------------------------ styles
@@ -83,6 +93,18 @@ ARTIC = {
     "bottes_fer": lambda cx: AR.genouilleres(cx, aile=False),
     "bottes_acier_nordique": lambda cx: AR.genouilleres(cx),
 }
+if not V2:
+    # v3 : plaques articulées plus près du bras (décalage 20 -> 11 mm, 4 -> 2,5 mm par lame), bombé réduit, 2x plus de pans (plus de
+    # facettes sur les dômes d'épaule, les cubitières, les genouillères)
+    ARTIC = {
+        "cuirasse_fer": lambda cx: AR.epaulieres(cx, lames=2, dome=(-0.02, 0.07), angles=(-100, 100), na=12, nt_dome=6, dec=0.011, pas_dec=0.0025,
+                                                 bombe=0.008, evase=0.005) + AR.couters(cx, aile=False, dec=0.010, bombe=0.010, na=11),
+        "cuirasse_acier_nordique": lambda cx: AR.epaulieres(cx, lames=3, dome=(-0.035, 0.075), angles=(-108, 108), na=13, nt_dome=6, dec=0.011,
+                                                            pas_dec=0.0025, bombe=0.009, evase=0.005, arete=0.003)
+                                              + AR.couters(cx, dec=0.010, bombe=0.010, na=11, na_aile=5),
+        "bottes_fer": lambda cx: AR.genouilleres(cx, aile=False, dec=0.010, bombe=0.010, na=11, nt=5),
+        "bottes_acier_nordique": lambda cx: AR.genouilleres(cx, dec=0.010, bombe=0.010, na=11, nt=5, na_aile=5),
+    }
 
 MASQUE = {"tete": {"Hair_Long"}, "torse": {"tunique", "mante", "accessoires", "pantalon"}, "mains": set(), "pieds": {"bottes"}}
 
@@ -194,11 +216,21 @@ def main():
         _suite(r, ob, pid, dossier, sol, exporter)
 
 
-def construire(pid):
-    """Pièce basse déf du jeu (passe 2 : retreinte, plaques articulées, crête, bordures/rivets en relief), sans export.
-    Réutilisé par la cuisson (sources_blender/armures/cuisson/cuire.py)."""
+def construire(pid, budget_subdiv=None):
+    """Pièce basse déf du jeu (passe 2 : retreinte, plaques articulées, crête, bordures/rivets en relief ; v3 : plaques subdivisées
+    jusqu'au budget CIBLE), sans export. Réutilisé par la cuisson (sources_blender/armures/cuisson/cuire.py)."""
+    if budget_subdiv is None and not V2 and "--sans-relief" not in sys.argv:
+        # 1re construction sans subdivision : combien de triangles reste-t-il pour lisser les plaques ?
+        r0, ob0 = construire(pid, 0)
+        t0 = C.compter_tris(ob0)
+        for o in list(bpy.data.objects):
+            bpy.data.objects.remove(o, do_unlink=True)
+        budget_subdiv = max(0, int((CIBLE[_famille(pid)] - t0) / 1.45))
+        print("BUDGET", pid, t0, "tris sans subdivision ; subdivision", budget_subdiv)
     r = C.charger_reference()
     ob = PIECES[pid](r)
+    if budget_subdiv:
+        AF.subdiviser_plaques(ob, budget_subdiv)
     if True:
         if "--epais" not in sys.argv:
             # affinage 2026-11-11 : pièces rapprochées du corps (retour « trop épaisses »), même loi pour toutes les pièces
@@ -226,6 +258,8 @@ def _suite(r, ob, pid, dossier, sol, exporter):
             _rep[_m] = _rep.get(_m, 0) + len(_p.vertices) - 2
         print("REPARTITION", pid, _rep)
         if exporter:
+            if not V2:
+                print("MATERIAUX", pid, AF.renommer_materiaux(ob))
             C.exporter([ob], r, os.path.join(C.PORTE, pid + ".glb"))
         if sol and exporter:
             version_sol(r, ob, pid)
