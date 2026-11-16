@@ -142,7 +142,7 @@ func _sur_coup(expediteur: int, _id: Variant, d: Variant) -> void:
 func _physics_process(dt: float) -> void:
 	for a: ProtoAvatar in avatars.values():
 		a.avancer()
-	if not Reseau.est_en_ligne():
+	if not Reseau.est_en_ligne() or Reseau.joueurs().size() < 2:
 		return
 	_t_envoi += dt
 	if _t_envoi >= PERIODE_ENVOI:
