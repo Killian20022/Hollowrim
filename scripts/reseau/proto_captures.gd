@@ -26,8 +26,8 @@ func _ready() -> void:
 	coop.joueur.vie = 1.0e6   # le draugr frappe : ne pas mourir pendant les captures
 	coop.joueur.vie_max = 1.0e6
 	DirAccess.make_dir_recursive_absolute(dossier)
-	Reseau.abonner("cap_moment", _sur_moment)
-	Reseau.abonner("cap_fin", func(e: int, _a: Variant, _b: Variant) -> void: if e == 1: _quitter())
+	ReseauLieux.reseau().abonner("cap_moment", _sur_moment)
+	ReseauLieux.reseau().abonner("cap_fin", func(e: int, _a: Variant, _b: Variant) -> void: if e == 1: _quitter())
 
 func _physics_process(dt: float) -> void:
 	if _fini:
@@ -51,12 +51,12 @@ func _physics_process(dt: float) -> void:
 				_aller(_i + 1)
 			else:
 				_fini = true
-				Reseau.emettre("cap_fin", 0, null)
+				ReseauLieux.reseau().emettre("cap_fin", 0, null)
 				await get_tree().create_timer(1.0).timeout
 				_quitter()
 
 func _aller(n: int) -> void:
-	Reseau.emettre("cap_moment", n, null)
+	ReseauLieux.reseau().emettre("cap_moment", n, null)
 	_sur_moment(1, n, null)   # l'évènement ne revient pas à l'émetteur
 
 func _sur_moment(expediteur: int, n: Variant, _d: Variant) -> void:

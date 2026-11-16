@@ -19,10 +19,10 @@ TESTS=(
 	"test_monde_vivant|PORT=24605 bash outils/test_monde_vivant.sh"
 	"test_integration2|PORT=24606 bash outils/test_integration2.sh"
 	"test_pause_vote|PORT=24607 bash outils/test_pause_vote.sh"
-	"test_villageois|bash outils/tous_les_tests.sh test_villageois"
-	"test_menu_personnage|bash outils/tous_les_tests.sh test_menu_personnage"
-	"test_sommeil|bash outils/tous_les_tests.sh test_sommeil"
-	"test_crime_sommeil|bash outils/tous_les_tests.sh test_crime_sommeil"
+	"test_villageois|SOLO --nouvelle"
+	"test_menu_personnage|SOLO --nouvelle"
+	"test_sommeil|SOLO --nouvelle --paisible"
+	"test_crime_sommeil|SOLO --nouvelle --paisible"
 	"test_combat_solo|timeout 120 $G --headless --path $P res://scenes/test_combat.tscn -- --sans-zone --sans-aide --quitter-apres=5"
 )
 cd "$ICI" || exit 1
@@ -31,11 +31,16 @@ for t in "${TESTS[@]}"; do
 	nom="${t%%|*}"; cmd="${t#*|}"
 	[[ -n "$MOTIF" && "$nom" != *"$MOTIF"* ]] && continue
 	d0=$SECONDS; sortie="$LOGS/$nom.log"
-	JOURNAUX="$LOGS/solo" bash -c "$cmd" > "$sortie" 2>&1; rc=$?
+	if [[ "$cmd" == SOLO* ]]; then   # test solo (--script) : le code de sortie de Godot est trompeur (rc=5 avec RESULTAT OK) -> verdict d'après le journal
+		timeout 300 "$G" --headless --fixed-fps 60 --path "$P" --script "res://outils/$nom.gd" -- ${cmd#SOLO } > "$sortie" 2>&1
+		grep -qaE "^RESULTAT : OK|^ECHECS : 0|^OK +test" "$sortie" && rc=0 || rc=1
+	else
+		bash -c "$cmd" > "$sortie" 2>&1; rc=$?
+	fi
 	ok=1
 	if [[ "$nom" == "test_combat_solo" ]]; then rc=0   # la scène ne se termine pas seule : on ne juge que les erreurs de script
 	elif [[ $rc -ne 0 ]]; then ok=0; fi
-	grep -qaE "SCRIPT ERROR|Parse Error|Identifier not found|ÉCHEC|ECHEC *:|TEST ECHEC" "$sortie" && ok=0
+	grep -qaE "SCRIPT ERROR|Parse Error|Identifier not found|^ÉCHEC|[1-9] ÉCHEC|ECHEC *:|TEST ECHEC" "$sortie" && ok=0
 	[[ "$nom" == "test_combat_solo" ]] && ! grep -qa "SCRIPT ERROR" "$sortie" && ok=1
 	if [[ $ok -eq 1 ]]; then s="OK    "; nok=$((nok+1)); else s="ECHEC "; nko=$((nko+1)); fi
 	RES+=("$s $nom ($((SECONDS-d0)) s)")

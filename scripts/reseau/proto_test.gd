@@ -23,9 +23,9 @@ var _fini := false
 func _ready() -> void:
 	coop.joueur.vie = 1.0e6   # le draugr frappe : le test ne doit pas dépendre de la mort
 	coop.joueur.vie_max = 1.0e6
-	Reseau.abonner("test_phase", _sur_phase)
-	Reseau.abonner("test_fin", _sur_fin)
-	Reseau.abonner("test_resultat", _sur_resultat)
+	ReseauLieux.reseau().abonner("test_phase", _sur_phase)
+	ReseauLieux.reseau().abonner("test_fin", _sur_fin)
+	ReseauLieux.reseau().abonner("test_resultat", _sur_resultat)
 
 func _verifier(nom: String, ok: bool, detail := "") -> void:
 	print("TEST ", "ok    " if ok else "ECHEC ", nom, " ", detail)
@@ -64,8 +64,8 @@ func _physics_process(dt: float) -> void:
 func _changer_phase(n: int) -> void:
 	_phase = n
 	_t_phase = _t
-	Reseau.emettre("test_phase", n, null)
-	_sur_phase(Reseau.mon_id(), n, null)   # l'évènement ne revient pas à l'émetteur : l'hôte l'applique aussi pour lui
+	ReseauLieux.reseau().emettre("test_phase", n, null)
+	_sur_phase(ReseauLieux.reseau().mon_id(), n, null)   # l'évènement ne revient pas à l'émetteur : l'hôte l'applique aussi pour lui
 
 func _sur_phase(expediteur: int, n: Variant, _d: Variant) -> void:
 	if expediteur != 1:
@@ -93,7 +93,7 @@ func _bilan_hote() -> void:
 	var proche: Node = coop.joueur if coop.joueur.global_position.distance_to(d_pos) < av.noeud.global_position.distance_to(d_pos) else av.noeud
 	_verifier("cible du draugr = joueur le plus proche", cible == proche, str(cible.name) if cible else "null")
 	_verifier("porte ouverte côté hôte", coop.monde.porte_ouverte)
-	Reseau.emettre("test_fin", 0, {"hote_pos": coop.joueur.global_position, "draugr_pos": d_pos, "porte": coop.monde.porte_ouverte, "objet_hote": coop.monde.nb_objets_locaux()})
+	ReseauLieux.reseau().emettre("test_fin", 0, {"hote_pos": coop.joueur.global_position, "draugr_pos": d_pos, "porte": coop.monde.porte_ouverte, "objet_hote": coop.monde.nb_objets_locaux()})
 
 func _sur_fin(expediteur: int, _id: Variant, d: Variant) -> void:
 	if expediteur != 1 or coop.est_hote:
@@ -114,7 +114,7 @@ func _sur_fin(expediteur: int, _id: Variant, d: Variant) -> void:
 	var total := int(d["objet_hote"]) + coop.monde.nb_objets_locaux()
 	_verifier("objet pris UNE seule fois", total == 1, "hôte=%d invité=%d" % [d["objet_hote"], coop.monde.nb_objets_locaux()])
 	_verifier("objet retiré chez l'hôte (qui = %d)" % coop.monde.objet_pris_par, coop.monde.objet_pris_par != 0)
-	Reseau.emettre("test_resultat", 0, {"echecs": _echecs.size(), "objet_invite": coop.monde.nb_objets_locaux()}, 1)
+	ReseauLieux.reseau().emettre("test_resultat", 0, {"echecs": _echecs.size(), "objet_invite": coop.monde.nb_objets_locaux()}, 1)
 	_quitter(1 if not _echecs.is_empty() else 0)
 
 func _sur_resultat(expediteur: int, _id: Variant, d: Variant) -> void:

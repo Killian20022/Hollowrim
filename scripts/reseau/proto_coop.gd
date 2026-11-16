@@ -53,7 +53,7 @@ static func installer(sc: Node3D, args: Dictionary) -> ProtoCoop:
 
 func _ready() -> void:
 	Effets.coop = true
-	var err := ReseauLieux.reseau().heberger(port) if est_hote else ReseauLieux.reseau().rejoindre(mode, port)
+	var err: int = ReseauLieux.reseau().heberger(port) if est_hote else ReseauLieux.reseau().rejoindre(mode, port)
 	print("COOP ", "hote" if est_hote else "invite", " réseau: ", error_string(err))
 	if err != OK:
 		push_error("COOP : connexion impossible")

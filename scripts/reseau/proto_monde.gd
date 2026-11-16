@@ -19,10 +19,10 @@ func _ready() -> void:
 	name = "ProtoMonde"
 	_creer_objet()
 	_creer_porte()
-	Reseau.abonner("ramasser_demande", _sur_ramasser_demande)
-	Reseau.abonner("ramasser_ok", _sur_ramasser_ok)
-	Reseau.abonner("porte_demande", _sur_porte_demande)
-	Reseau.abonner("porte_etat", _sur_porte_etat)
+	ReseauLieux.reseau().abonner("ramasser_demande", _sur_ramasser_demande)
+	ReseauLieux.reseau().abonner("ramasser_ok", _sur_ramasser_ok)
+	ReseauLieux.reseau().abonner("porte_demande", _sur_porte_demande)
+	ReseauLieux.reseau().abonner("porte_etat", _sur_porte_etat)
 
 func _boite(taille: Vector3, couleur: Color) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
@@ -66,20 +66,20 @@ func _physics_process(_dt: float) -> void:
 
 # --- objet ---------------------------------------------------------------------------------------------
 func demander_ramasser() -> void:
-	if Reseau.est_hote():
-		_arbitrer_ramasser(Reseau.mon_id())
+	if ReseauLieux.reseau().est_hote():
+		_arbitrer_ramasser(ReseauLieux.reseau().mon_id())
 	else:
-		Reseau.emettre("ramasser_demande", OBJET_ID, null, 1)
+		ReseauLieux.reseau().emettre("ramasser_demande", OBJET_ID, null, 1)
 
 func _sur_ramasser_demande(expediteur: int, _id: Variant, _d: Variant) -> void:
-	if Reseau.est_hote():
+	if ReseauLieux.reseau().est_hote():
 		_arbitrer_ramasser(expediteur)
 
 func _arbitrer_ramasser(qui: int) -> void:
 	if _pris:
 		return   # déjà attribué : le second arrivé n'a rien
 	_pris = true
-	Reseau.emettre("ramasser_ok", OBJET_ID, qui)
+	ReseauLieux.reseau().emettre("ramasser_ok", OBJET_ID, qui)
 	_sur_ramasser_ok(1, OBJET_ID, qui)   # l'évènement ne revient pas à l'émetteur : l'hôte l'applique aussi
 
 func _sur_ramasser_ok(expediteur: int, id: Variant, qui: Variant) -> void:
@@ -89,7 +89,7 @@ func _sur_ramasser_ok(expediteur: int, id: Variant, qui: Variant) -> void:
 	if is_instance_valid(objet):
 		objet.queue_free()
 	objet = null
-	if int(qui) == Reseau.mon_id() and joueur != null:
+	if int(qui) == ReseauLieux.reseau().mon_id() and joueur != null:
 		joueur.inventaire.ajouter(String(id), 1)
 
 func nb_objets_locaux() -> int:
@@ -97,17 +97,17 @@ func nb_objets_locaux() -> int:
 
 # --- porte ---------------------------------------------------------------------------------------------
 func demander_porte() -> void:
-	if Reseau.est_hote():
+	if ReseauLieux.reseau().est_hote():
 		_diffuser_porte(not porte_ouverte)
 	else:
-		Reseau.emettre("porte_demande", "porte", null, 1)
+		ReseauLieux.reseau().emettre("porte_demande", "porte", null, 1)
 
 func _sur_porte_demande(_exp: int, _id: Variant, _d: Variant) -> void:
-	if Reseau.est_hote():
+	if ReseauLieux.reseau().est_hote():
 		_diffuser_porte(not porte_ouverte)
 
 func _diffuser_porte(ouverte: bool) -> void:
-	Reseau.emettre("porte_etat", "porte", ouverte)
+	ReseauLieux.reseau().emettre("porte_etat", "porte", ouverte)
 	_sur_porte_etat(1, "porte", ouverte)
 
 func _sur_porte_etat(expediteur: int, _id: Variant, ouverte: Variant) -> void:
