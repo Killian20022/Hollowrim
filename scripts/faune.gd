@@ -25,6 +25,11 @@ extends Node
 const FICHE := "res://data/vie/faune.json"
 const PERIODES := {"aube": [5.0, 8.0], "jour": [8.0, 17.0], "crepuscule": [17.0, 20.0], "nuit": [20.0, 5.0]}
 const PAS := 0.5          # s entre deux tours de la logique (2 Hz)
+## Coop (lot 4d, docs/reseau_lot4d.md) : l'hôte détient la faune (apparitions, IA, mort) ; l'invité la voit en marionnettes.
+const EV_SPAWN := "faune_spawn"
+const EV_RETIRE := "faune_retire"
+const EV_MORT := "faune_mort"
+const PERTINENCE := 120.0
 
 var monde: Node
 var joueur: Node3D
@@ -46,6 +51,7 @@ var _h_prec := -1.0
 var _t := 0.0
 var _t_spawn := 0.0
 var _grille := {}
+var _marion := false                 # invité : marionnettes, aucune logique d'apparition
 var _seuils := [0.0, 0.0]            # (arbres dans 24x24 m) : clairière ≥ [0], forêt ≥ [1]
 
 # ------------------------------------------------------------------ fonctions pures (testées)
@@ -153,9 +159,12 @@ func demarrer() -> void:
 	territoires = generer_territoires(fiche, biome_de, accepte)
 	_creer_domestiques()
 	_h_prec = float(cycle.get("heure"))
+	_reseau_installer()
 	actualiser()
 
 func _process(dt: float) -> void:
+	if _marion:
+		return
 	_t += dt
 	if _t < PAS:
 		return
@@ -173,7 +182,7 @@ func actualiser() -> void:
 	_tour()
 
 func _tour() -> void:
-	if joueur == null or not is_instance_valid(joueur):
+	if _marion or joueur == null or not is_instance_valid(joueur):
 		return
 	var h := float(cycle.get("heure"))
 	var p := joueur.global_position
@@ -274,6 +283,7 @@ func _creer_groupe(t: Dictionary) -> void:
 	var slot := int(t["id"])
 	var n := int(t["groupe"])
 	var membres: Array = []
+	var descs: Array = []
 	for k in n:
 		var a := TAU * k / maxf(n, 1.0) + float(t["u"]) * TAU
 		var r := 0.0 if n == 1 else 2.5
@@ -284,15 +294,20 @@ func _creer_groupe(t: Dictionary) -> void:
 		var opts := {"espece": t["espece"], "ident": ident}
 		if n > 1 or bool(BeteQuat.ESPECES[t["espece"]].get("meute", false)):
 			opts["meute"] = "faune_%03d" % slot
-		var b: Node = fabrique.call(String(t["espece"]), Vector3(x, float(hauteur_de.call(x, z)) + 0.05, z), a + PI, opts)
+		var pos := Vector3(x, float(hauteur_de.call(x, z)) + 0.05, z)
+		var b: Node = fabrique.call(String(t["espece"]), pos, a + PI, opts)
 		b.set_meta("faune_territoire", slot)
 		b.mort.connect(_a_la_mort.bind(slot, b))
 		if complet:
 			b.process_mode = Node.PROCESS_MODE_DISABLED
 		membres.append(b)
+		descs.append({"ident": ident, "espece": String(t["espece"]), "pos": pos, "lacet": a + PI, "opts": opts.duplicate()})
+		_suivre_bete(b)
 	actifs[slot] = membres
+	_diffuser("spawn", {"slot": slot, "membres": descs})
 
 func _a_la_mort(_id: String, slot: int, b: Node) -> void:
+	_annoncer_mort(b)
 	tues[slot] = temps
 	registre.erase(b.ident)      # une bête sauvage tuée ne reste pas « morte pour toujours » : le territoire se repeuple (exporter)
 
@@ -319,10 +334,13 @@ func _nettoyer(h: float, p: Vector3) -> void:
 			oubli = proche > float(a["dist_max"]) + 5.0
 			heure_passee = not en_service(t, h)
 		if oubli or heure_passee:
+			var idents: Array = []
 			for b in vivantes:
+				idents.append(String(b.ident))
 				registre.erase(b.ident)
 				b.queue_free()
 			actifs.erase(slot)
+			_diffuser("retire", {"slot": slot, "idents": idents})
 
 func _lod(p: Vector3, sous_terre: bool) -> void:
 	if complet:
@@ -355,6 +373,8 @@ func _creer_domestiques() -> void:
 			{"espece": d["espece"], "ident": d["ident"], "rayon_errance": float(d["rayon"])})
 		if complet:
 			b.process_mode = Node.PROCESS_MODE_DISABLED
+		b.mort.connect(func(_id: String) -> void: _annoncer_mort(b))
+		_suivre_bete(b)
 		domestiques.append({"bete": b, "def": d, "phase": "", "maison": Vector3(x, 0.0, z)})
 
 ## Où la bête passe la soirée et la nuit : abri de la fiche s'il en existe un qui l'accueille, sinon sa place contre l'enclos.
@@ -437,3 +457,169 @@ func importer(d: Dictionary) -> void:
 	var t: Dictionary = d.get("tues", {})
 	for k in t:
 		tues[int(k)] = float(t[k])
+
+# ------------------------------------------------------------------ coop (lot 4d) : marionnettes, apparitions, morts
+
+func _reseau_installer() -> void:
+	ReseauCorps.assurer()
+	var r := ReseauCorps.R()
+	if r == null:
+		return
+	add_to_group("faune_gestion")
+	r.abonner(EV_SPAWN, _sur_spawn)
+	r.abonner(EV_RETIRE, _sur_retire)
+	r.abonner(EV_MORT, _sur_mort_bete)
+	var rj := get_node_or_null("/root/Rejoindre")
+	if rj != null:
+		rj.call("contributeur", "faune", Callable(self, "exporter_reseau"), Callable(self, "importer_reseau"))
+	if ReseauCorps.est_invite():
+		basculer_reseau(true)
+
+func _exit_tree() -> void:
+	var r := ReseauCorps.R()
+	if r != null:
+		r.desabonner(EV_SPAWN, _sur_spawn)
+		r.desabonner(EV_RETIRE, _sur_retire)
+		r.desabonner(EV_MORT, _sur_mort_bete)
+
+## Appelé par ReseauCorps quand le rôle change : invité = toutes les bêtes deviennent des marionnettes (les bêtes sauvages locales sont
+## retirées : celles de l'hôte arrivent par « faune_spawn » et l'instantané « faune »), hôte / solo = l'IA reprend.
+func basculer_reseau(invite: bool) -> void:
+	if invite == _marion:
+		return
+	_marion = invite
+	if invite:
+		for slot: int in actifs.keys():
+			for b in actifs[slot]:
+				if is_instance_valid(b):
+					registre.erase(b.ident)
+					b.queue_free()
+		actifs.clear()
+	for e: Dictionary in domestiques:
+		var b = e["bete"]
+		if is_instance_valid(b):
+			_marionnette(b, invite)
+
+func _marionnette(b: Node, oui: bool) -> void:
+	b.set_physics_process(not oui or b.est_mort)     # un cadavre garde son minuteur (libération après 30 s)
+	b.set_process(not oui)
+	if oui and b.process_mode == Node.PROCESS_MODE_DISABLED:
+		b.process_mode = Node.PROCESS_MODE_INHERIT
+		b.set_meta("faune_gele", false)
+	if oui:
+		b.velocity = Vector3.ZERO
+
+func _diffuser(quoi: String, d: Dictionary) -> void:
+	if not ReseauCorps.en_ligne() or not ReseauCorps.est_hote():
+		return
+	var rep := ReseauCorps._rep()
+	if rep != null:
+		rep.call("diffuser", "faune_" + quoi, int(d.get("slot", 0)), d, 0, false)
+
+## Enregistre la bête auprès du réplicateur : l'hôte envoie pos / cap / clip, l'invité les applique (identifiant « b:<ident> »).
+func _suivre_bete(b: Node) -> void:
+	var rep := ReseauCorps._rep()
+	if rep == null or String(b.ident) == "":
+		return
+	rep.call("enregistrer", "b:" + String(b.ident), b, Callable(self, "_etat_bete").bind(b), Callable(self, "_appliquer_bete").bind(b), PERTINENCE)
+	if _marion:
+		_marionnette(b, true)
+
+func _etat_bete(b: Variant) -> Dictionary:
+	if not is_instance_valid(b):
+		return {}
+	return {"pos": (b as Node3D).global_position, "a_lacet": (b as Node3D).rotation.y, "anim": String(b.anim.current_animation),
+		"vit": float(b.anim.speed_scale), "mort": bool(b.est_mort)}
+
+func _appliquer_bete(et: Dictionary, b: Variant) -> void:
+	if not is_instance_valid(b) or bool(b.est_mort) or not et.has("pos"):
+		return
+	(b as Node3D).global_position = et["pos"]
+	(b as Node3D).rotation.y = float(et["a_lacet"])
+	b.velocity = Vector3.ZERO
+	var clip := String(et["anim"])
+	if clip != "" and b.anim.current_animation != clip and b.anim.has_animation(clip):
+		b.anim.play(clip, 0.2)
+	b.anim.speed_scale = float(et["vit"])
+
+func _sur_spawn(exp: int, _id: Variant, d: Variant) -> void:
+	if exp == 1 and _marion and d is Dictionary:
+		_creer_groupe_distant(d)
+
+func _creer_groupe_distant(g: Dictionary) -> void:
+	var slot := int(g["slot"])
+	if actifs.has(slot) or not fabrique.is_valid():
+		return
+	var membres: Array = []
+	for m: Dictionary in g["membres"]:
+		var ident := String(m["ident"])
+		registre.erase(ident)
+		var b: Node = fabrique.call(String(m["espece"]), m["pos"], float(m["lacet"]), (m["opts"] as Dictionary).duplicate())
+		b.set_meta("faune_territoire", slot)
+		b.mort.connect(_a_la_mort.bind(slot, b))
+		membres.append(b)
+		_suivre_bete(b)
+	actifs[slot] = membres
+
+func _sur_retire(exp: int, _id: Variant, d: Variant) -> void:
+	if exp != 1 or not _marion or not (d is Dictionary):
+		return
+	var slot := int((d as Dictionary)["slot"])
+	for b in actifs.get(slot, []):
+		if is_instance_valid(b) and not b.est_mort:
+			registre.erase(b.ident)
+			b.queue_free()
+	actifs.erase(slot)
+
+## Hôte : une bête vient de mourir -> les invités rejouent sa mort (clip Death / MortAraignee) et obtiennent le même butin.
+func _annoncer_mort(b: Node) -> void:
+	if not ReseauCorps.en_ligne() or not ReseauCorps.est_hote() or String(b.ident) == "":
+		return
+	var pos := (b as Node3D).global_position
+	var dir := Vector3.ZERO
+	if joueur != null and is_instance_valid(joueur):
+		dir = pos - joueur.global_position
+		dir.y = 0.0
+		dir = dir.normalized()
+	var ident := String(b.ident)
+	get_tree().create_timer(0.1).timeout.connect(func() -> void:     # le butin (bourse) est posé en fin de _mourir
+		var contenu := {}
+		var a_butin := false
+		if is_instance_valid(b) and is_instance_valid(b.get("_butin")):
+			contenu = (b.get("_butin").get("contenu") as Dictionary).duplicate()
+			a_butin = true
+		var rep := ReseauCorps._rep()
+		if rep != null:
+			rep.call("diffuser", EV_MORT, ident, {"pos": pos, "dir": dir, "contenu": contenu, "a_butin": a_butin}, 0, false))
+
+func _sur_mort_bete(exp: int, id: Variant, d: Variant) -> void:
+	if exp != 1 or not _marion or not (d is Dictionary):
+		return
+	var b := ReseauCorps.trouver(String(id))
+	if b == null or bool(b.est_mort):
+		return
+	var dd: Dictionary = d
+	ReseauCorps.contenus[String(id)] = dd["contenu"] if bool(dd.get("a_butin", false)) else {"pieces": 0}
+	(b as Node3D).global_position = dd["pos"]
+	b.call("_mourir", (dd["pos"] as Vector3) - (dd["dir"] as Vector3), 20.0, false, {}, "legere")
+	b.set_physics_process(true)
+
+## Instantané pour un invité qui arrive en cours de partie : groupes sauvages actifs (les domestiques existent déjà des deux côtés).
+func exporter_reseau() -> Dictionary:
+	var gs: Array = []
+	for slot: int in actifs:
+		var ms: Array = []
+		for b in _vivantes(slot):
+			var opts := {"espece": b.espece, "ident": b.ident}
+			if String(b.meute) != "":
+				opts["meute"] = b.meute
+			ms.append({"ident": String(b.ident), "espece": String(b.espece), "pos": b.global_position, "lacet": b.rotation.y, "opts": opts})
+		if not ms.is_empty():
+			gs.append({"slot": slot, "membres": ms})
+	return {"groupes": gs}
+
+func importer_reseau(d: Dictionary) -> void:
+	if not _marion:
+		return
+	for g: Dictionary in d.get("groupes", []):
+		_creer_groupe_distant(g)

@@ -18,6 +18,9 @@ extends Node
 ##   (collision_layer = 0, collision_mask = 0, set_physics_process(false), vitesse nulle),
 ##   sinon elle reste debout dans le décor et gêne les autres.
 
+## Émis une fois le corps figé (repos) : coop, l'hôte envoie alors la position finale (ReseauCorps).
+signal fige
+
 const CALQUE_OS := 16
 const MASQUE_DEFAUT := 1
 
@@ -303,6 +306,42 @@ func endormir_apres(secondes: float) -> void:
 func est_fige() -> bool:
 	return _fige
 
+## Fige tout de suite (plafond de ragdolls actifs en coop, recalage sur la position de l'hôte).
+func forcer_figer() -> void:
+	if actif and not _fige:
+		_figer()
+
+## Coop : recale le corps sur la position de l'hôte (bassin + direction bassin->tête). Rotation autour de Y puis translation ; les os déjà
+## figés repassent un instant en mode physique pour être déplacés. Retourne l'écart restant (m) du bassin.
+func recaler(bassin: Vector3, tete: Vector3) -> float:
+	var pb0 := os.get("pelvis") as PhysicalBone3D
+	if pb0 == null:
+		return 0.0
+	var pl := pb0.global_position
+	var rot := Basis.IDENTITY
+	var th := os.get("Head") as PhysicalBone3D
+	if th != null:
+		var vl := th.global_position - pl
+		var vh := tete - bassin
+		vl.y = 0.0
+		vh.y = 0.0
+		if vl.length() > 0.2 and vh.length() > 0.2:
+			rot = Basis(Vector3.UP, vl.signed_angle_to(vh, Vector3.UP))
+	var etait_fige := _fige
+	for pb: PhysicalBone3D in os.values():
+		var xf := pb.global_transform
+		var nxf := Transform3D(rot * xf.basis, bassin + rot * (xf.origin - pl))
+		if etait_fige:
+			PhysicsServer3D.body_set_mode(pb.get_rid(), PhysicsServer3D.BODY_MODE_RIGID)
+		pb.global_transform = nxf
+		PhysicsServer3D.body_set_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, nxf)
+		pb.linear_velocity = Vector3.ZERO
+		pb.angular_velocity = Vector3.ZERO
+	if etait_fige:
+		for pb: PhysicalBone3D in os.values():
+			PhysicsServer3D.body_set_mode(pb.get_rid(), PhysicsServer3D.BODY_MODE_STATIC)
+	return pb0.global_position.distance_to(bassin)
+
 func _ready() -> void:
 	set_physics_process(false)
 
@@ -324,3 +363,4 @@ func _figer() -> void:
 	for pb: PhysicalBone3D in os.values():
 		PhysicsServer3D.body_set_mode(pb.get_rid(), PhysicsServer3D.BODY_MODE_STATIC)
 	set_physics_process(false)
+	fige.emit()
