@@ -144,6 +144,8 @@ func _au_sol(p: Vector3) -> Vector3:
 func frapper(cible: Node, quantite: float, s: DonneesSort, point: Vector3, direction: Vector3, continu := false, stagger := -1.0) -> String:
 	if cible == null or not is_instance_valid(cible):
 		return ""
+	if vise == "joueur" and ReseauProjectiles.est_avatar(cible):
+		return ""   # coop : un joueur distant n'est jamais frappé d'ici, sa propre machine résout (copie du projectile / de la zone)
 	var origine := lanceur.global_position if lanceur != null else point - direction
 	var res := ""
 	var base := quantite
@@ -165,14 +167,32 @@ func frapper(cible: Node, quantite: float, s: DonneesSort, point: Vector3, direc
 			cible.set("mana", maxf(0.0, float(cible.get("mana")) - s.vol_mana))
 	else:
 		var st := s.stagger if stagger < 0.0 else stagger
-		var info := {"type": s.type_degats, "ecole": s.ecole, "attaque": "sort", "sort": s.id, "stagger": st, "point": point,
-			"direction": direction.normalized() if direction.length() > 0.01 else Vector3.FORWARD, "lanceur": lanceur,
-			"statut": s.statut, "duree_statut": s.duree_statut, "puissance_statut": s.puissance_statut, "drain": s.drain, "continu": continu}
-		res = DegatsCombat.appliquer(cible, quantite, origine, st >= 24.0, info)
-		if res in ["touche", "tue"]:
-			derniers_coups[cible.get_instance_id()] = horloge
-			Progression.pratiquer_global("destruction", base * 0.06)   # sort du joueur qui porte (lot B)
+		if ReseauProjectiles.deleguer_coup_sort(cible, quantite, s, point, direction, continu, st):
+			res = "touche"   # coop, invité : l'hôte valide et applique (sort_coup) ; la cible est une marionnette ici
+			Progression.pratiquer_global("destruction", base * 0.06)
+		else:
+			res = _infliger(cible, quantite, s, point, direction, continu, st)
+			if res in ["touche", "tue"]:
+				Progression.pratiquer_global("destruction", base * 0.06)   # sort du joueur qui porte (lot B)
 	journal.append({"sort": s.id, "cible": cible, "degats": quantite, "resultat": res, "continu": continu})
+	return res
+
+## Dégâts d'un sort sur une cible ennemie (DegatsCombat : statuts, réactions, combos). `quantite` : déjà multipliée par les perks du lanceur.
+func _infliger(cible: Node, quantite: float, s: DonneesSort, point: Vector3, direction: Vector3, continu: bool, st: float) -> String:
+	var origine := lanceur.global_position if lanceur != null else point - direction
+	var info := {"type": s.type_degats, "ecole": s.ecole, "attaque": "sort", "sort": s.id, "stagger": st, "point": point,
+		"direction": direction.normalized() if direction.length() > 0.01 else Vector3.FORWARD, "lanceur": lanceur,
+		"statut": s.statut, "duree_statut": s.duree_statut, "puissance_statut": s.puissance_statut, "drain": s.drain, "continu": continu}
+	var res := DegatsCombat.appliquer(cible, quantite, origine, st >= 24.0, info)
+	if res in ["touche", "tue"]:
+		derniers_coups[cible.get_instance_id()] = horloge
+	return res
+
+## Coop, hôte : applique le coup de sort d'un invité (quantité déjà multipliée par SES perks ; lanceur = son avatar).
+func infliger_distant(cible: Node, quantite: float, s: DonneesSort, point: Vector3, direction: Vector3, continu := false, stagger := -1.0) -> String:
+	var st := s.stagger if stagger < 0.0 else stagger
+	var res := _infliger(cible, quantite, s, point, direction, continu, st)
+	journal.append({"sort": s.id, "cible": cible, "degats": quantite, "resultat": res, "continu": continu, "distant": true})
 	return res
 
 ## Bonus du coup d'épée qui suit un sort sur la même cible (fenêtre, multiplicateur : regles_mains.json « epee_magie »).
@@ -207,6 +227,8 @@ func lancer(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, charge
 		DonneesSort.Portee.SOI:
 			if s.soin > 0.0 and lanceur.has_method("soigner"):
 				lanceur.soigner(s.soin * k)
+				if vise == "ennemis":
+					ReseauProjectiles.soigner_allies(lanceur, s.soin * k, true)   # coop : les alliés proches en profitent aussi
 			return {"genre": "soi"}
 	return {}
 
@@ -231,7 +253,8 @@ func _projectiles(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3
 		p.vise = vise
 		if vise == "ennemis":
 			p.add_to_group("projectiles_joueur")   # vus (parfois) par les ennemis : draugr._esquiver_projectile
-		p.cible_joueur = cible_joueur
+		p.cible_joueur = ReseauProjectiles.cible_locale(cible_joueur) if cible_joueur != null else null
+		ReseauProjectiles.annoncer_sort(p, s, k, taille, vise == "joueur")   # coop : la copie vole chez les autres (sans effet en solo)
 		tirs.append(p)
 	return {"genre": "projectile", "projectiles": tirs, "point": v["point"], "direction": dir, "taille": taille, "facteur": k}
 
@@ -309,6 +332,7 @@ func _chaine(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k: 
 	if premiere == null:
 		points.append(v["point"])
 		EffetsMagie.chaine(s.ecole, points)
+		ReseauProjectiles.fx_chaine(s, points)
 		EffetsMagie.impact(s.ecole, v["point"], v["normale"], 0.6 * k)
 		return {"genre": "chaine", "cibles": touchees}
 	var courante: Node = premiere
@@ -329,6 +353,7 @@ func _chaine(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k: 
 				break
 		courante = suivante
 	EffetsMagie.chaine(s.ecole, points)
+	ReseauProjectiles.fx_chaine(s, points)
 	return {"genre": "chaine", "cibles": touchees}
 
 ## Décharge d'un sort à charge (Portee.DECHARGE), au relâchement. Forme « orage » : éclairs de Force sur le point visé (la cible
@@ -344,6 +369,7 @@ func _decharge(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k
 	var direction := (point - depart).normalized()
 	EffetsMagie.decharge(s.ecole, s.forme, depart, point, k, normale)
 	EffetsMagie.impact(s.ecole, point, normale, 0.5 + 0.8 * k)
+	ReseauProjectiles.fx_decharge(s, depart, point, k, normale, vise == "joueur")
 	var rayon := maxf(s.rayon, 1.0)
 	if vise == "joueur":
 		if cible_joueur != null and not bool(cible_joueur.get("mort")) and cible_joueur.global_position.distance_to(point) <= rayon + 0.5:
@@ -366,6 +392,7 @@ func zone_en(s: DonneesSort, centre: Vector3, k := 1.0) -> Dictionary:
 
 func _zone(s: DonneesSort, centre: Vector3, k: float) -> Dictionary:
 	EffetsMagie.zone(s.ecole, centre, s.rayon, maxf(s.duree_zone, 0.6))
+	ReseauProjectiles.fx_zone(s, centre, k, vise == "joueur")
 	var touchees := []
 	if s.duree_zone > 0.0:
 		var z := ZoneMagie.new()
@@ -407,8 +434,11 @@ func canaliser(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, dt:
 				# joueur (lot B) : perks « restauration » ; la Restauration progresse selon la vie vraiment rendue
 				var vie_avant := float(lanceur.get("vie")) if lanceur.get("vie") != null else 0.0
 				lanceur.soigner(s.soin * dt * Progression.mult_global("restauration"))
+				ReseauProjectiles.soigner_allies(lanceur, s.soin * dt * Progression.mult_global("restauration"))   # coop : alliés proches
 				if lanceur.get("vie") != null:
 					Progression.pratiquer_global("restauration", (float(lanceur.get("vie")) - vie_avant) * 0.06)
+		if vise == "ennemis" and s.reduction_physique > 0.0:
+			ReseauProjectiles.proteger_allies(lanceur, s)   # coop : la protection couvre aussi les alliés proches
 		return touchees
 	var v := viser(oeil, avant, s.portee)
 	var fin: Vector3 = v["point"]

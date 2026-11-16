@@ -53,6 +53,10 @@ var vitesse_impact := 0.0
 var point_impact := Vector3.ZERO
 var dir_impact := Vector3.ZERO
 var _modele_fleche: Node3D
+## Coop (lot 4c) : identifiant réseau (vide hors ligne) ; `distant` = copie d'un projectile tiré sur une autre machine (visuel seulement :
+## ne blesse pas les ennemis, ne ramasse rien ; un projectile ENNEMI copié ne blesse que le joueur LOCAL). Voir reseau/reseau_projectiles.gd.
+var id_reseau := ""
+var distant := false
 var _vibre := -1.0
 var _t := 0.0
 var _ex: Array[RID] = []
@@ -66,6 +70,7 @@ static func tirer(parent: Node, depart: Vector3, direction: Vector3, tireur_: Co
 	parent.add_child(p)
 	p.global_position = depart
 	p._orienter()
+	ReseauProjectiles.annoncer_ennemi(p, "fleche", VITESSE)
 	return p
 
 ## Trait de givre du mage nordique (voir l'en-tête).
@@ -81,6 +86,7 @@ static func tirer_givre(parent: Node, depart: Vector3, direction: Vector3, tireu
 	parent.add_child(p)
 	p.global_position = depart
 	p._orienter()
+	ReseauProjectiles.annoncer_ennemi(p, "givre", vitesse_)
 	return p
 
 ## Flèche DU JOUEUR (ArcJoueur) : touche les ennemis et les cibles (DegatsCombat.appliquer, comme un coup d'arme), jamais le joueur ;
@@ -248,6 +254,11 @@ func _physics_process(dt: float) -> void:
 		for e in get_tree().get_nodes_in_group("ennemis"):
 			if e is CollisionObject3D:
 				ex.append((e as CollisionObject3D).get_rid())
+	ex.append_array(ReseauProjectiles.exclus_avatars())   # coop : jamais de tir allié, la victime résout chez elle
+	if distant and genre == "fleche_joueur":
+		var loc := ReseauProjectiles.joueur_local() as CollisionObject3D   # flèche d'un autre joueur : ne blesse pas non plus le joueur local
+		if loc != null:
+			ex.append(loc.get_rid())
 	q.exclude = ex
 	var r := get_world_3d().direct_space_state.intersect_ray(q)
 	if r.is_empty():
@@ -265,7 +276,13 @@ func _physics_process(dt: float) -> void:
 			var info := {"type": "perforant", "point": p_imp, "direction": dir_v, "normale": r["normal"],
 				"zone": DegatsCombat.zone(cible as Node3D, p_imp), "attaque": "legere", "arme": "arc",
 				"stagger": 0.35 * clampf(degats_impact / 36.0, 0.2, 1.0), "collider": cible, "affaibli": false, "charge": 0.0, "instant": 0.0}
-			resultat = DegatsCombat.appliquer(cible as Node, degats_impact, p_imp - dir_v * 2.0, false, info)
+			if distant:
+				resultat = "touche"    # copie d'une flèche tirée ailleurs : visuel seulement
+			elif ReseauProjectiles.invite():
+				resultat = "touche"    # invité : l'hôte valide et applique (proj_coup)
+				ReseauProjectiles.envoyer_coup_fleche(self, cible as Node, degats_impact, p_imp, dir_v, v)
+			else:
+				resultat = DegatsCombat.appliquer(cible as Node, degats_impact, p_imp - dir_v * 2.0, false, info)
 			if resultat == "":
 				resultat = "touche"
 			touche.emit(resultat)
@@ -293,6 +310,8 @@ func _physics_process(dt: float) -> void:
 		if resultat == "":
 			resultat = "touche"
 		touche.emit(resultat)
+		if id_reseau != "":
+			ReseauProjectiles.fin(id_reseau, global_position)   # coop : les copies chez les autres disparaissent
 		if genre == "givre":
 			_briser(resultat == "touche")
 		elif resultat == "touche":

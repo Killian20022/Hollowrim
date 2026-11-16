@@ -96,12 +96,13 @@ func _physics_process(dt: float) -> void:
 				ex.append((e as CollisionObject3D).get_rid())
 	if cible_joueur is CollisionObject3D:
 		ex.append((cible_joueur as CollisionObject3D).get_rid())
+	ex.append_array(ReseauProjectiles.exclus_avatars())   # coop : ni tir allié ni blocage par un avatar
 	q.exclude = ex
 	var r := get_world_3d().direct_space_state.intersect_ray(q)
 	if not r.is_empty():
 		global_position = r["position"]
 		resultat = "mur"
-		if r["collider"] is Cassable:      # L5 : urne, tonneau… brisés par le sort
+		if r["collider"] is Cassable and not distant:      # L5 : urne, tonneau… brisés par le sort
 			(r["collider"] as Cassable).briser_sort(r["position"])
 		if rappel.is_valid():
 			rappel.call(null, r["position"], r["normal"])
@@ -139,5 +140,6 @@ func _mur_entre(a: Vector3, b: Vector3) -> bool:
 				ex.append((e as CollisionObject3D).get_rid())
 	if cible_joueur is CollisionObject3D:
 		ex.append((cible_joueur as CollisionObject3D).get_rid())
+	ex.append_array(ReseauProjectiles.exclus_avatars())
 	q.exclude = ex
 	return not get_world_3d().direct_space_state.intersect_ray(q).is_empty()

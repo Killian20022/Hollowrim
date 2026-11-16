@@ -95,7 +95,9 @@ var _pole := {"gauche": Vector3(-0.75, -0.55, 0.25), "droite": Vector3(0.75, -0.
 func _ready() -> void:
 	name = "Magie"
 	joueur = mains.joueur
-	Elements.joueur = joueur
+	if joueur.get("est_local") != false:   # coop : l'avatar d'un autre joueur ne devient pas « le joueur » des éléments
+		Elements.joueur = joueur
+	ReseauProjectiles.installer()
 	regles = EquipementMains._lire(EquipementMains.FICHIER_REGLES)
 	eq = EquipementMains.new(mains.equipement, joueur.inventaire)
 	eq.change.connect(_sur_change)
@@ -730,6 +732,9 @@ func bonus_apres_sort(cible: Node) -> float:
 
 ## Coup reçu par le joueur (joueur.recevoir_coup) : une protection canalisée de face en absorbe une part contre du mana.
 func absorber(degats: float, origine: Vector3, options: Dictionary) -> float:
+	degats = ReseauProjectiles.absorber_allie(degats, options)   # coop : protection lancée par un allié proche (sans effet en solo)
+	if degats <= 0.0:
+		return 0.0
 	for m in MAINS:
 		var i: Incantation = inc[m]
 		var s := eq.sort(m)

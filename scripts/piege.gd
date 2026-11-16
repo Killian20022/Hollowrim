@@ -75,8 +75,10 @@ class Fleche extends Node3D:
 		var ancien := global_position
 		var nouveau := ancien + direction * vitesse * dt
 		var rq := PhysicsRayQueryParameters3D.create(ancien, nouveau)
+		var ex_rq: Array[RID] = ReseauProjectiles.exclus_avatars()   # coop : un avatar n'arrête pas la flèche, sa propre machine résout
 		if joueur != null:
-			rq.exclude = [joueur.get_rid()]
+			ex_rq.append(joueur.get_rid())
+		rq.exclude = ex_rq
 		var r := get_world_3d().direct_space_state.intersect_ray(rq)
 		if joueur != null and not joueur.mort:
 			var seg := nouveau - ancien
@@ -143,11 +145,23 @@ class Dalle extends Mecanisme.Base:
 		for dx in [-0.16, 0.0, 0.16]:
 			Mecanisme.boite(plaque, Vector3(0.09, 0.09, 0.03), Vector3(dx, 0.0, -0.035), noir)
 
+	func _est_dessus(j: Node3D) -> bool:
+		if j == null or bool(j.get("mort")):
+			return false
+		var l := to_local(j.global_position) - pos_dalle
+		return absf(l.x) < 0.65 and absf(l.z) < 0.65 and l.y > -0.3 and l.y < 0.5 and (j as CharacterBody3D).is_on_floor()
+
 	func _physics_process(dt: float) -> void:
-		if joueur == null or joueur.mort:
+		if ReseauProjectiles.invite():
+			return   # coop, invité : l'hôte arbitre la dalle (evenement_distant)
+		if not ReseauProjectiles.en_ligne() and (joueur == null or joueur.mort):
 			return
-		var l := to_local(joueur.global_position) - pos_dalle
-		var dessus: bool = absf(l.x) < 0.65 and absf(l.z) < 0.65 and l.y > -0.3 and l.y < 0.5 and joueur.is_on_floor()
+		var dessus: bool = _est_dessus(joueur)
+		if not dessus and ReseauProjectiles.en_ligne():
+			for a in ReseauProjectiles.avatars():   # coop (hôte) : n'importe quel joueur déclenche la dalle
+				if _est_dessus(a):
+					dessus = true
+					break
 		match etat:
 			ARMEE:
 				if dessus:
@@ -167,6 +181,7 @@ class Dalle extends Mecanisme.Base:
 				if _delai <= 0.0 and not dessus:
 					etat = ARMEE
 					_dalle.position.y = pos_dalle.y
+					ReseauProjectiles.piege_evenement(ident, "arme")
 
 	func _declencher() -> void:
 		etat = AMORCE
@@ -174,16 +189,32 @@ class Dalle extends Mecanisme.Base:
 		tirs_restants = 2
 		_dalle.position.y = pos_dalle.y - 0.04
 		son(["impactPlate_medium_001", "creak1"], pos_dalle, 0.0)
+		ReseauProjectiles.piege_evenement(ident, "declenche")
 
 	func _tirer() -> void:
+		_poser_fleche()
+		ReseauProjectiles.piege_evenement(ident, "tir")
+
+	func _poser_fleche() -> void:
 		var f := Fleche.new()
-		f.joueur = joueur
+		f.joueur = joueur   # chaque machine : la fléchette ne blesse que SON joueur local (la victime décide)
 		f.degats = Piege.DEGATS_FLECHETTE
 		f.direction = global_transform.basis * dir
 		f.position = pos_bouche + dir * 0.2
 		add_child(f)
 		fleches_tirees += 1
 		son(["swing2"], pos_bouche, -4.0)
+
+	## Coop, invité : rejoue ce que l'hôte a décidé (dalle enfoncée, tir, dalle réarmée).
+	func evenement_distant(type: String, _d: Dictionary) -> void:
+		match type:
+			"declenche":
+				_dalle.position.y = pos_dalle.y - 0.04
+				son(["impactPlate_medium_001", "creak1"], pos_dalle, 0.0)
+			"tir":
+				_poser_fleche()
+			"arme":
+				_dalle.position.y = pos_dalle.y
 
 # ------------------------------------------------------------------ souffle de givre
 class Souffle extends Mecanisme.Base:
@@ -194,6 +225,7 @@ class Souffle extends Mecanisme.Base:
 	var largeur := 2.3
 	var temps := 0.0
 	var _tick := 0.0
+	var _sync := 0.0
 	var _phase_prec := ""
 	var _brume: MeshInstance3D
 	var _jet: GPUParticles3D
@@ -305,8 +337,18 @@ class Souffle extends Mecanisme.Base:
 		var perp := Vector3(-dir.z, 0, dir.x)
 		return along >= -0.2 and along <= longueur and absf(v.dot(perp)) <= largeur * 0.5 and v.y >= -1.1 and v.y <= 1.2
 
+	## Coop, invité : recale le cycle sur celui de l'hôte (les phases doivent coïncider chez tous ; chacun blesse son joueur local).
+	func evenement_distant(type: String, d: Dictionary) -> void:
+		if type == "phase":
+			temps = float(d.get("t", temps))
+
 	func _physics_process(dt: float) -> void:
 		temps += dt
+		if ReseauProjectiles.en_ligne() and ReseauProjectiles.est_hote():
+			_sync += dt
+			if _sync >= ReseauProjectiles.PERIODE_PIEGE_SYNC:
+				_sync = 0.0
+				ReseauProjectiles.piege_evenement(ident, "phase", {"t": temps})
 		var ph := phase()
 		if ph != _phase_prec:
 			_changer_phase(ph)
