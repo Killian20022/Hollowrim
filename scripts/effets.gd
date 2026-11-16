@@ -6,6 +6,8 @@ class_name Effets
 ## termine, le temps reprend à 1. (Avant : deux arrêts superposés — épée + dégâts — se coupaient l'un l'autre au premier qui finissait.)
 ## Garde-fou : une demande échue (son minuteur n'a pas rendu la main) est ignorée ; une échelle n'est jamais tenue plus de DUREE_MAX s.
 static var _demandes: Array = []
+## Partie en réseau (coop) : aucun ralenti ni arrêt sur image (le temps est commun) ; posé par scripts/reseau/proto_coop.gd.
+static var coop := false
 const DUREE_MAX := 1.5
 
 ## Option « Arrêt sur image » (Jeu.option("combat", "arret_image")) : 0 désactivé, 1 bref (défaut), 2 appuyé (réglages d'origine).
@@ -45,7 +47,7 @@ static func ralenti(arbre: SceneTree, echelle: float, duree: float) -> void:
 			await _echelle_temps(arbre, echelle, duree)
 
 static func _echelle_temps(arbre: SceneTree, echelle: float, duree: float) -> void:
-	if arbre == null or duree <= 0.0:
+	if coop or arbre == null or duree <= 0.0:
 		return
 	duree = minf(duree, DUREE_MAX)
 	var d := [echelle, Time.get_ticks_msec() + int(duree * 1000.0) + 250]

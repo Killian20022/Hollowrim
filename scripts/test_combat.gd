@@ -67,6 +67,7 @@ func _ready() -> void:
 		zone.mode_draugr = String(a.get("zone-draugr", "fige"))
 		zone.position = POS_ZONE
 		add_child(zone)
+	ProtoCoop.installer(self, a)   # lot 1 multijoueur : seulement avec --coop=hote|<ip> ; sinon solo inchangé
 
 func creer_draugr(p: Vector3, fige: bool) -> CharacterBody3D:
 	var d := CharacterBody3D.new()

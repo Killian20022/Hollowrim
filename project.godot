@@ -27,6 +27,7 @@ boot_splash/show_image=false
 
 Fenetre="*res://scripts/fenetre.gd"
 Lancement="*res://scripts/lancement.gd"
+Reseau="*res://scripts/reseau/reseau.gd"
 
 [display]
 

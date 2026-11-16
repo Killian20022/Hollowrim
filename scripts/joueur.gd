@@ -148,6 +148,9 @@ var _bruit_secousse := FastNoiseLite.new()
 var camera_corps := CameraCorps.new()
 var _secousse_prec := 0.0
 var _t := 0.0
+## Multijoueur (lot 1) : vrai pour le joueur de CETTE machine (seul à lire Input, à avoir la caméra courante et à simuler).
+## Faux pour l'avatar d'un joueur distant (scripts/reseau/proto_avatar.gd pilote sa position) ; à poser AVANT add_child.
+var est_local := true
 
 func _ready() -> void:
 	_actions()
@@ -173,7 +176,7 @@ func _ready() -> void:
 	camera.near = 0.05
 	camera.far = 90.0  # lot 7 : au-delà de la fin du brouillard (75 m max) rien n'est visible
 	tete.add_child(camera)
-	camera.current = true
+	camera.current = est_local
 	mains = Node3D.new()
 	mains.set_script(MAINS)
 	mains.joueur = self
@@ -194,7 +197,10 @@ func _ready() -> void:
 		if a == "--vue=3":
 			basculer_vue(true)
 	_bruit_secousse.frequency = 2.0
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if est_local:
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	else:
+		basculer_vue(true)   # avatar distant : corps visible, jamais la caméra
 
 ## V : passe de la première à la troisième personne. La caméra de la tête reste en place
 ## (hors champ) : les coups d'épée et les invites partent donc toujours des yeux du joueur.
@@ -206,9 +212,9 @@ func basculer_vue(troisieme_personne: bool) -> void:
 		arc.vue_changee()
 	if troisieme:
 		camera_tp.recaler()
-		camera_tp.camera.current = true
+		camera_tp.camera.current = est_local
 	else:
-		camera.current = true
+		camera.current = est_local
 
 func _actions() -> void:
 	Touches.installer()   # avant/arriere/gauche/droite/saut/course/esquive… : actions de l'InputMap, touches réglables (Options > Touches)
@@ -217,7 +223,7 @@ func _actions() -> void:
 ## Manette (scripts/manette.gd) : stick droit = regard, à chaque image (zone morte, courbe, sensibilité, inversion Y des Options).
 ## Les mains reçoivent le même balancement d'inertie qu'avec la souris (en pixels équivalents).
 func _process(dt: float) -> void:
-	if mort or en_dialogue:
+	if not est_local or mort or en_dialogue:
 		return
 	var r := Manette.rotation_regard(dt)
 	if r == Vector2.ZERO:
@@ -228,6 +234,8 @@ func _process(dt: float) -> void:
 		mains.passifs.souris(Vector2(-r.x, -r.y) / SENSIBILITE)
 
 func _unhandled_input(e: InputEvent) -> void:
+	if not est_local:
+		return
 	if e is InputEventJoypadButton and e.pressed and e.button_index != JOY_BUTTON_START and DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED   # manette en jeu (curseur rendu par Échap) : les mains reprennent les entrées
 	if e is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not mort and not en_dialogue:
@@ -353,7 +361,14 @@ func esquive_invulnerable() -> bool:
 ## `options` (facultatif ; troll de givre, mage nordique) : "imparable" (part 0..1 des dégâts qui traverse la garde ; > 0 = pas de
 ## parade possible, le coup « se pare mal »), "recul" (m/s, 4 par défaut), "ralenti" (Vector2(durée s, facteur de vitesse)),
 ## "secousse" (minimum de secousse de caméra).
+## Multijoueur : un coup porté à l'AVATAR d'un joueur distant (est_local faux) n'est pas résolu ici : la victime décide (parade,
+## esquive, armure) sur sa machine ; scripts/reseau/proto_coop.gd relaie ce signal.
+signal coup_distant(degats: float, origine: Vector3, options: Dictionary)
+
 func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
+	if not est_local:
+		coup_distant.emit(degats, origine, options)
+		return "touche"
 	if mort:
 		return ""
 	if esquive_invulnerable():
@@ -480,6 +495,8 @@ var _image_physique := -1
 var _dialogue_avant := false
 
 func _physics_process(dt: float) -> void:
+	if not est_local:
+		return   # avatar distant : position/vitesse imposées par le réseau, aucune entrée lue
 	_t += dt
 	var image := Engine.get_physics_frames()
 	var reprise := (_image_physique >= 0 and image - _image_physique > 1) or _dialogue_avant
