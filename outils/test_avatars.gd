@@ -121,10 +121,12 @@ func _cap(nom: String, distance := 2.7, haut := 1.45, vise := 1.05, cote := 0.9)
 	_cam.global_position = av.global_position + (-b.z * distance) + (b.x * cote) + Vector3(0, haut, 0)
 	_cam.look_at(cible)
 	_cam.current = true
+	_joueur.visible = false   # mon propre joueur (bras de la 1re personne, corps, cadavre) ne masque pas la prise de vue
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var img := get_viewport().get_texture().get_image()
+	_joueur.visible = true
 	var f := "%s/%s_%s.png" % [_dossier, nom, _role]
 	var err := img.save_png(f)
 	print("CAPTURE ", f, " ", img.get_size(), " ", error_string(err))
@@ -159,10 +161,10 @@ func _lancer() -> void:
 	if _role == "hote":
 		_verif(_res.heberger(_port) == OK, "heberger() OK")
 		print("HOTE_PRET")
-		await _attendre(func() -> bool: return _res.joueurs().size() > 1, 60.0)
+		await _attendre(func() -> bool: return _res.joueurs().size() > 1, 240.0)   # l'invité peut attendre un créneau godot_slot (autres Godot en cours)
 	else:
 		_verif(_res.rejoindre("127.0.0.1", _port) == OK, "rejoindre() OK")
-		await _attendre(func() -> bool: return _res.joueurs().size() > 1 and _res.mon_id() > 1, 40.0)
+		await _attendre(func() -> bool: return _res.joueurs().size() > 1 and _res.mon_id() > 1, 90.0)
 	_verif(_res.joueurs().size() == 2, "2 joueurs en ligne")
 	_autre = 1 if _role != "hote" else int(_res.joueurs()[1])
 	_ac = AvatarsCoop.installer(self, _joueur, moi["nom"])
@@ -198,7 +200,7 @@ func _lancer() -> void:
 	_verif(_res.registre.noeud(_autre) == av, "avatar inscrit au registre des joueurs")
 	_verif(Progression.courante() == _joueur.progression, "la progression courante reste celle du joueur local (pas l'avatar)")
 	await _cap("armure", 3.4, 1.35, 0.95, 1.1)
-	await _cap("nom", 2.3, 1.95, 1.9, 0.5)
+	await _cap("nom", 2.3, 1.75, 1.55, 0.5)
 	await _barriere("equip_fin")
 
 	# ===== 2. position / rotation / vitesse / tangage =====
@@ -332,6 +334,8 @@ func _phase_terre(tombe: String) -> void:
 		ATerre.de(_joueur).etats[_autre] = false
 		ATerre.tomber(_joueur)
 	await get_tree().create_timer(2.0).timeout
+	if not je_tombe:
+		await _attendre(func() -> bool: return _av().a_terre and _av().corps._action == "Death01", 6.0)
 	await _barriere("terre_" + tombe)
 	if not je_tombe:
 		var av := _av()
@@ -345,6 +349,8 @@ func _phase_terre(tombe: String) -> void:
 	if je_tombe:
 		ATerre.de(_joueur)._releve()
 	await get_tree().create_timer(2.2).timeout
+	if not je_tombe:   # rendu réel (captures) : images lentes, on laisse jusqu'à 6 s au relevé répliqué
+		await _attendre(func() -> bool: return not _av().a_terre and _av().corps._action == "", 6.0)
 	await _barriere("releve_" + tombe)
 	if not je_tombe:
 		var av2 := _av()
@@ -352,6 +358,7 @@ func _phase_terre(tombe: String) -> void:
 		var h2 := _hauteur_tete(av2)
 		_verif(h2 > 1.3, "corps debout après le relevé : tête à %.2f m" % h2)
 		_verif(av2.corps._action == "", "corps_joueur reprend sa locomotion (action « %s »)" % av2.corps._action)
+	await _barriere("releve_vu_" + tombe)   # le propriétaire ne passe à la suite (mort, etc.) qu'une fois le relevé constaté (évènements en course)
 
 func _autre_gauche() -> String:
 	return String(MOI["invite" if _role == "hote" else "hote"]["gauche"])

@@ -233,7 +233,7 @@ func avancer(dt: float) -> void:
 	noeud.corps.scale.y = lerpf(1.0, JOUEUR.ACCROUPI_CORPS, noeud.accroupi_k)
 	# mort / à terre : « hors jeu » (cibles des ennemis, secours) ; la mort recrée le corps à la réapparition (corps_joueur)
 	if mort and not noeud.mort:
-		noeud.origine_dernier_coup = noeud.global_position + noeud.global_transform.basis.z * 1.0   # tombe en arrière
+		noeud.origine_dernier_coup = noeud.global_position - noeud.global_transform.basis.z * 1.0   # le coup vient de devant : il tombe en arrière
 		noeud.degats_dernier_coup = 20.0
 	noeud.mort = mort
 	noeud.a_terre = a_terre or mort
