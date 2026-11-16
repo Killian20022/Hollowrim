@@ -1,5 +1,5 @@
-extends SceneTree
-## Lot 2c : test headless d'UNE instance (hôte ou invité), lancé deux fois par outils/test_lieux.sh.
+extends Node
+## Lot 2c : test headless (scène outils/test_lieux.tscn : les autoloads doivent exister) d'UNE instance (hôte ou invité), lancé deux fois par outils/test_lieux.sh.
 ## Vérifie : salle_active = union des salles (solo identique, 2 joueurs), coffre « premier arrivé » (un seul gagnant), porte synchronisée,
 ## contenant pillé par le plus rapide, instantané (export/import). Imprime « TEST ok/ECHEC … » puis « TEST_LIEUX <role> OK|ECHEC ».
 
@@ -25,7 +25,7 @@ var _portes_appliquees := 0
 var _etat_rappels := 0
 var _phase := 0
 
-func _init() -> void:
+func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--role="):
 			_role = a.substr(7)
@@ -41,21 +41,21 @@ func _v(nom: String, cond: bool, detail := "") -> void:
 func _attendre(cond: Callable, delai: float) -> bool:
 	var t := 0.0
 	while not cond.call() and t < delai:
-		await create_timer(0.05).timeout
+		await get_tree().create_timer(0.05).timeout
 		t += 0.05
 	return cond.call()
 
 func _R() -> Node:
-	return root.get_node("Reseau")
+	return get_tree().root.get_node("Reseau")
 
 # ------------------------------------------------------------------ salle active (une seule instance, sans réseau)
 func _salle() -> SalleActive:
 	var repere := Node3D.new()
-	root.add_child(repere)
+	get_tree().root.add_child(repere)
 	var j := Node3D.new()
-	root.add_child(j)
+	get_tree().root.add_child(j)
 	var sa := SalleActive.new()
-	sa.arbre = self
+	sa.arbre = get_tree()
 	sa.repere = repere
 	sa.joueur = j
 	var defs := {"A": [Rect2(0, 0, 10, 10), ["B"]], "B": [Rect2(10, 0, 10, 10), ["A"]], "C": [Rect2(100, 0, 10, 10), []]}
@@ -68,12 +68,13 @@ func _salle() -> SalleActive:
 
 func _ennemi(p: Vector3) -> FauxEnnemi:
 	var e := FauxEnnemi.new()
-	root.add_child(e)
+	get_tree().root.add_child(e)
 	e.position = p
 	e.add_to_group("ennemis")
 	return e
 
 func _test_salles(en_ligne: bool) -> void:
+	var marionnettes := en_ligne and _role != "hote"
 	var sa := _salle()
 	var eA := _ennemi(Vector3(5, 0, 5))
 	var eC := _ennemi(Vector3(105, 0, 5))
@@ -83,7 +84,10 @@ func _test_salles(en_ligne: bool) -> void:
 	sa.joueur.position = Vector3(5, 0, 5)
 	sa.rafraichir(true)
 	_v(tag + "un seul joueur en A : actives = A+B", sa.actives.has("A") and sa.actives.has("B") and not sa.actives.has("C"), str(sa.actives.keys()))
-	_v(tag + "ennemi de C gelé, celui de A actif", eC.gele and not eA.gele)
+	if marionnettes:
+		_v(tag + "invité : marionnettes, rien n'est gelé", not eC.gele and not eA.gele)
+	else:
+		_v(tag + "ennemi de C gelé, celui de A actif", eC.gele and not eA.gele)
 	autres.append(Vector3(105, 0, 5))
 	sa.rafraichir(true)
 	_v(tag + "2 joueurs (A et C) : union A+B+C", sa.actives.has("A") and sa.actives.has("B") and sa.actives.has("C"), str(sa.actives.keys()))
@@ -91,13 +95,13 @@ func _test_salles(en_ligne: bool) -> void:
 	_v(tag + "rendu local seulement : décor de C reste caché", not sa._visibles.has("C") and sa._visibles.has("A"), str(sa._visibles.keys()))
 	sa.rafraichir(false)    # joueur local en surface, l'autre dans la crypte
 	_v(tag + "local en surface, autre en C : seule C active", sa.actives.has("C") and not sa.actives.has("A"), str(sa.actives.keys()))
-	_v(tag + "A gelé, C actif", eA.gele and not eC.gele)
+	_v(tag + "A gelé, C actif", (eA.gele and not eC.gele) != marionnettes)
 	autres.clear()
 	sa.rafraichir(false)
-	_v(tag + "personne dedans : tout gelé", sa.actives.is_empty() and eA.gele and eC.gele)
+	_v(tag + "personne dedans : tout gelé", sa.actives.is_empty() and ((eA.gele and eC.gele) != marionnettes))
 	eA.queue_free()
 	eC.queue_free()
-	for e in get_nodes_in_group("ennemis"):
+	for e in get_tree().get_nodes_in_group("ennemis"):
 		e.queue_free()
 
 # ------------------------------------------------------------------ scénario réseau
@@ -118,12 +122,12 @@ func _lancer() -> void:
 		_v("hôte : heberger OK", R.heberger(_port) == OK)
 		print("HOTE_PRET")
 		_v("invité connecté", await _attendre(func() -> bool: return R.joueurs().size() > 1, 30.0))
-		await create_timer(1.0).timeout
+		await get_tree().create_timer(1.0).timeout
 		await _test_salles(true)
 		var inv: int = R.joueurs()[1]
 		# registre : le nœud de l'invité alimente l'union sans callable de test
 		var av := Node3D.new()
-		root.add_child(av)
+		get_tree().root.add_child(av)
 		R.registre.definir_noeud(inv, av)
 		var sa := _salle()
 		sa.joueur.position = Vector3(5, 0, 5)
@@ -135,12 +139,12 @@ func _lancer() -> void:
 	else:
 		_v("invité : rejoindre OK", R.rejoindre("127.0.0.1", _port) == OK)
 		_v("connecté", await _attendre(func() -> bool: return R.joueurs().size() > 1 and R.mon_id() > 1, 20.0))
-		await create_timer(1.0).timeout
+		await get_tree().create_timer(1.0).timeout
 		await _test_salles(true)
 		await _attendre(func() -> bool: return _phase >= 9, 60.0)
-		await create_timer(0.5).timeout
+		await get_tree().create_timer(0.5).timeout
 	print("TEST_LIEUX %s %s" % [_role, "OK" if _ok else "ECHEC"])
-	quit(0 if _ok else 1)
+	get_tree().quit(0 if _ok else 1)
 
 func _go(n: int) -> void:
 	_phase = n
@@ -149,16 +153,16 @@ func _go(n: int) -> void:
 
 func _hote_scenario() -> void:
 	_go(1)           # coffre : hôte et invité demandent en même temps
-	await create_timer(2.0).timeout
+	await get_tree().create_timer(2.0).timeout
 	_go(2)           # porte demandée par l'invité
-	await create_timer(2.0).timeout
+	await get_tree().create_timer(2.0).timeout
 	_go(3)           # contenant : l'invité d'abord, l'hôte ensuite
-	await create_timer(2.5).timeout
+	await get_tree().create_timer(2.5).timeout
 	_go(4)           # instantané
-	await create_timer(2.0).timeout
+	await get_tree().create_timer(2.0).timeout
 	_go(5)           # bilan
 	await _attendre(func() -> bool: return _phase >= 9, 15.0)
-	await create_timer(0.5).timeout
+	await get_tree().create_timer(0.5).timeout
 
 func _sur_go(expediteur: int, n: Variant, _d: Variant) -> void:
 	if expediteur != 1:
@@ -177,7 +181,7 @@ func _sur_go(expediteur: int, n: Variant, _d: Variant) -> void:
 			if _role != "hote":
 				_demander_urne()
 			else:
-				await create_timer(1.0).timeout
+				await get_tree().create_timer(1.0).timeout
 				_demander_urne()
 		4:
 			if _role != "hote":
