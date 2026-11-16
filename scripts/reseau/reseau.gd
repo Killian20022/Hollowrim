@@ -14,7 +14,7 @@ signal connexion_echouee
 const PORT_DEFAUT := 24565
 const ID_HOTE := 1
 
-var transport: ReseauTransport = ReseauTransportENet.new()   # interchangeable (EOS / Steam plus tard)
+var transport: ReseauTransport = ReseauTransportENet.new()   # interchangeable ; choisi au démarrage dans _ready (--transport=enet|eos)
 var registre := RegistreJoueurs.new()
 
 var _en_ligne := false
@@ -22,6 +22,7 @@ var _hote := true
 var _abonnes := {}   # type -> Array[Callable]
 
 func _ready() -> void:
+	transport = ReseauTransportChoix.depuis_arguments()   # ENet par défaut ; EOS seulement si demandé ET disponible
 	registre.ajouter(ID_HOTE)   # solo : l'hôte local est déjà là
 	multiplayer.peer_connected.connect(_pair_connecte)
 	multiplayer.peer_disconnected.connect(_pair_deconnecte)
