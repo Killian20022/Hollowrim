@@ -120,7 +120,7 @@ func ouvrir() -> void:
 	if hud != null and hud.get("panneau_ouvert"):
 		hud.panneau_ouvert = false   # Échap ferme aussi l'inventaire (Tab)
 	ouvert = true
-	get_tree().paused = true
+	PauseCoop.demander_pause(self)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_racine.visible = true
 	_avis.text = ""
@@ -134,7 +134,7 @@ func fermer() -> void:
 	_racine.visible = false
 	_options.visible = false
 	_emplacements.visible = false
-	get_tree().paused = false
+	PauseCoop.liberer(self)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 func _menu_principal() -> void:

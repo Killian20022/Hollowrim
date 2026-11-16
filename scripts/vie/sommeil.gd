@@ -32,6 +32,9 @@ var _en_cours := false            # fondu en cours
 var _ecran: CanvasLayer
 var _noir: ColorRect
 var _texte: Label
+var _vote: VoteCoop               # coop : vote unanime (lot 3), créé dans _ready
+var _lit_propose: Lit = null      # lit choisi par CE joueur pour le vote en cours
+var _touche_ms := -100000         # dernier coup reçu (annule / refuse un vote)
 var dernier := {}                 # dernier sommeil (tests) : {heures, mode, h0, h1, lit, temoin}
 
 signal dormi(heures: int, mode: String)
@@ -73,6 +76,18 @@ func _ready() -> void:
 	_texte.modulate.a = 0.0
 	_ecran.add_child(_texte)
 	scanner()
+	_vote = VoteCoop.new()
+	_vote.verificateur = _refus_vote
+	_vote.clos.connect(_vote_clos)
+	add_child(_vote)
+	PauseCoop.R().abonner("sommeil_heure", _sur_heure)
+	if joueur != null and joueur.has_signal("touche"):
+		joueur.touche.connect(func(_d: float) -> void:
+			_touche_ms = Time.get_ticks_msec()
+			_vote.verifier())
+
+func _exit_tree() -> void:
+	PauseCoop.R().desabonner("sommeil_heure", _sur_heure)
 
 func _process(dt: float) -> void:
 	if get_tree().paused:
@@ -94,7 +109,7 @@ func _process(dt: float) -> void:
 		_h_prec = h
 
 func _unhandled_input(e: InputEvent) -> void:
-	if not e.is_action_pressed("attendre", false) or get_tree().paused or _en_cours or fenetre.ouvert:
+	if not e.is_action_pressed("attendre", false) or PauseCoop.en_pause(get_tree()) or _en_cours or fenetre.ouvert:
 		return
 	if joueur == null or joueur.mort or bool(joueur.get("en_dialogue")) or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and DisplayServer.get_name() != "headless":
 		return
@@ -295,6 +310,8 @@ func refus(lit: Lit = null) -> String:
 		return "Impossible maintenant."
 	if _en_cours:
 		return "Impossible maintenant."
+	if bool(joueur.get("a_terre")):
+		return "Impossible maintenant."
 	if monde.has_method("en_combat") and monde.en_combat():
 		return "Impossible de %s en plein combat." % verbe
 	if ennemi_proche() != null:
@@ -324,6 +341,9 @@ func ennemi_proche() -> Node3D:
 
 ## Ouvre la fenêtre « Dormir » (lit) ou « Attendre » ; refus = avis du HUD.
 func demander(mode: String, lit: Lit = null) -> String:
+	if _vote != null and _vote.en_cours():
+		_avis("Un vote de sommeil est déjà en cours.")
+		return "vote"
 	var r := refus(lit)
 	if r != "":
 		_avis(r)
@@ -336,7 +356,43 @@ func demander(mode: String, lit: Lit = null) -> String:
 	return ""
 
 func _sur_choix(heures: int, mode: String, lit: Lit) -> void:
-	executer(heures, mode, lit)
+	if not PauseCoop.R().est_en_ligne():
+		executer(heures, mode, lit)      # solo : inchangé
+		return
+	# coop : on ne dort / n'attend qu'à l'unanimité (vote arbitré par l'hôte), le monde ne s'arrête pas
+	_lit_propose = lit
+	var h := "1 heure" if heures == 1 else "%d heures" % heures
+	_vote.proposer("sommeil", {"heures": heures, "mode": mode, "libelle": ("dormir " if mode == "dormir" else "attendre ") + h})
+
+## Refus LOCAL d'un vote de sommeil : à terre, mort, combat, ennemi près, ou touché depuis moins de 6 s.
+func _refus_vote(_type: String, _donnees: Dictionary) -> String:
+	if joueur == null or joueur.mort or bool(joueur.get("a_terre")):
+		return "un joueur est à terre"
+	if Time.get_ticks_msec() - _touche_ms < 6000:
+		return "un joueur vient d'être touché"
+	if _en_cours:
+		return "un joueur est déjà en train de dormir"
+	return refus(null)
+
+func _vote_clos(_id: int, type: String, accepte: bool, raison: String, donnees: Dictionary) -> void:
+	if type != "sommeil":
+		return
+	var lit := _lit_propose
+	_lit_propose = null
+	if not accepte:
+		_avis("Sommeil refusé : %s." % raison if raison != "" else "Sommeil refusé.")
+		return
+	executer(int(donnees["heures"]), String(donnees["mode"]), lit if is_instance_valid(lit) else null)
+
+## Invité : l'hôte a avancé l'horloge, on se cale sur la même heure.
+func _sur_heure(expediteur: int, _id: Variant, d: Variant) -> void:
+	if expediteur != 1 or PauseCoop.R().est_hote():
+		return
+	var c: Node = monde.get("cycle") if monde != null else null
+	if c != null:
+		c.avancer_a(float(d["h1"]))
+		c._process(0.0)
+	_h_prec = float(d["h1"])
 
 ## Fondu au noir, temps qui passe, fondu retour (asynchrone). Renvoie le refus éventuel.
 func executer(heures: int, mode: String, lit: Lit = null) -> String:
@@ -389,22 +445,25 @@ func passer_temps(heures: int, mode: String, lit: Lit = null) -> Dictionary:
 		var crime := get_tree().get_first_node_in_group("crime")
 		if crime != null and crime.has_method("signaler_intrusion"):
 			crime.signaler_intrusion(lit, lit.proprietaire if lit.proprietaire != "joueur" else "chef")
-	if c != null:
+	if c != null and PauseCoop.R().est_hote():      # coop : l'hôte avance l'heure (les invités la reçoivent), solo : toujours hôte
 		c.avancer_a(h1)
 		c._process(0.0)                  # éclairage de la nouvelle heure tout de suite (cycle gelé à l'intérieur)
+		PauseCoop.R().envoyer_evenement("sommeil_heure", 0, {"h1": h1})
 	_h_prec = h1
 	# marchands : heures écoulées (réassort) ; l'horloge du marchand repart de la nouvelle heure
-	Marchand.avancer(float(heures))
-	var mch: Node = monde.get("marchand")
+	var hote: bool = PauseCoop.R().est_hote()       # le monde (marchands, faune, PNJ) n'est avancé que chez l'hôte
+	if hote:
+		Marchand.avancer(float(heures))
+	var mch: Node = monde.get("marchand") if hote else null
 	if mch != null and mch.has_method("recaler_horloge"):
 		mch.recaler_horloge()
 	# faune : temps de repeuplement, puis un tour complet à la nouvelle heure
-	var fa: Node = monde.get("faune")
+	var fa: Node = monde.get("faune") if hote else null
 	if fa != null:
 		fa.temps += float(heures)
 		fa.actualiser()
 	# PNJ : saut d'heure (placement direct : au lit, au poste, au feu)
-	var v: Node = monde.get("vie")
+	var v: Node = monde.get("vie") if hote else null
 	if v != null:
 		v._heure_prec = -1.0
 		v.tick()
@@ -414,8 +473,8 @@ func passer_temps(heures: int, mode: String, lit: Lit = null) -> Dictionary:
 	joueur.mana = minf(joueur.mana_max, joueur.mana + (joueur.mana_max - joueur.mana) * part)
 	joueur.vigueur = minf(joueur.vigueur_max, joueur.vigueur + (joueur.vigueur_max - joueur.vigueur) * part)
 	# repos
-	if mode == "dormir" and heures >= HEURES_REPOS and lit != null:
-		_debut_repos("bien_repose" if _a_soi(lit) or (lit.libre() and Rangs.repos_bien()) else "repose")
+	if mode == "dormir" and heures >= HEURES_REPOS and (lit != null or PauseCoop.R().est_en_ligne()):
+		_debut_repos("bien_repose" if lit != null and (_a_soi(lit) or (lit.libre() and Rangs.repos_bien())) else "repose")
 	dernier = {"heures": heures, "mode": mode, "h0": h0, "h1": h1, "lit": lit, "temoin": temoin, "vie": joueur.vie}
 	return dernier
 

@@ -1575,7 +1575,7 @@ func demander_autosauvegarde(raison: String, delai := 0.0) -> void:
 
 ## Vrai si l'on peut figer la partie sans danger : vivant, monde prêt, aucun ennemi en combat, ni dialogue ni menu ouvert.
 func _autosauvegarde_possible() -> bool:
-	if joueur == null or joueur.mort or bool(joueur.get("en_dialogue")) or get_tree().paused or not pret:
+	if joueur == null or joueur.mort or bool(joueur.get("en_dialogue")) or PauseCoop.en_pause(get_tree()) or not pret:
 		return false
 	return not en_combat()
 

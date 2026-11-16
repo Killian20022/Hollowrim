@@ -285,7 +285,7 @@ func ouvrir() -> bool:
 	_haut = 0
 	_avis_t = 0.0
 	_remplir()
-	get_tree().paused = true
+	PauseCoop.demander_pause(self)
 	_souris = Input.mouse_mode
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -300,7 +300,7 @@ func fermer() -> void:
 		return
 	ouvert = false
 	_livre.visible = false
-	get_tree().paused = false
+	PauseCoop.liberer(self)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = _souris if _souris != Input.MOUSE_MODE_VISIBLE else Input.MOUSE_MODE_CAPTURED
 

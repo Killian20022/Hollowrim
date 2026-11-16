@@ -240,11 +240,11 @@ func _process(dt: float) -> void:
 		for a in _avis:
 			a[1] = 4.0
 	_avis = _avis.filter(func(a: Array) -> bool: return a[1] > 0.0)
-	if not _annonces.is_empty() and not panneau_ouvert and not get_tree().paused:   # figée sous le menu pause / l'inventaire
+	if not _annonces.is_empty() and not panneau_ouvert and not PauseCoop.en_pause(get_tree()):   # figée sous le menu pause / l'inventaire
 		_annonces[0][3] = 1.0 if _demo_annonce else _annonces[0][3] + dt
 		if _annonces[0][3] >= _annonces[0][4]:
 			_annonces.pop_front()
-	if aide_t > 0.0 and not panneau_ouvert and not get_tree().paused:
+	if aide_t > 0.0 and not panneau_ouvert and not PauseCoop.en_pause(get_tree()):
 		aide_t = maxf(0.0, aide_t - dt)
 	if decouverte_active and not lieux_nommes.is_empty():
 		_decouverte_t -= dt
@@ -330,7 +330,7 @@ func _decouvrir() -> void:
 
 ## Opacité de l'annonce en cours (0 si aucune) : fondu d'entrée 0,25 s, de sortie 0,6 s.
 func alpha_annonce() -> float:
-	if _annonces.is_empty() or panneau_ouvert or get_tree().paused:
+	if _annonces.is_empty() or panneau_ouvert or PauseCoop.en_pause(get_tree()):
 		return 0.0
 	var t: float = _annonces[0][3]
 	return clampf(minf(t / 0.25, (_annonces[0][4] - t) / 0.6), 0.0, 1.0)
@@ -370,7 +370,7 @@ func _dessiner_annonce(cx: float) -> void:
 
 ## L'aide des touches est-elle à l'écran (début de partie ou F1, ni panneau ni dialogue) ?
 func aide_visible() -> bool:
-	return (aide_forcee or aide_t > 0.0) and not panneau_ouvert and not get_tree().paused and not bool(joueur.get("en_dialogue")) \
+	return (aide_forcee or aide_t > 0.0) and not panneau_ouvert and not PauseCoop.en_pause(get_tree()) and not bool(joueur.get("en_dialogue")) \
 		and not aide_lignes.is_empty()
 
 ## Cartouche d'aide en haut à droite (sous la hauteur de l'objectif) : titre gothique, touche en or, action en parchemin.
