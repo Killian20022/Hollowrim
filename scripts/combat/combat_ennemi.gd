@@ -172,7 +172,7 @@ func subir_parade() -> void:
 ## Catégorie de finisher possible pour `joueur` ("" = aucun) : "etourdi", "sol", "apres_parade", "rapide", "lateral".
 ## L'ennemi doit être vivant (vérifié par l'appelant), à portée (≤ 2,6 m) et pas trop haut / bas.
 func finisher_possible(joueur: Node3D, vie := 1.0, vie_max := 1.0) -> String:
-	if joueur == null:
+	if joueur == null or Effets.coop:   # coop : finishers désactivés
 		return ""
 	var v := joueur.global_position - corps.global_position
 	if absf(v.y) > 1.5:

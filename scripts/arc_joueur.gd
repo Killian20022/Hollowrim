@@ -503,7 +503,7 @@ func vue_changee() -> void:
 	_actualiser_vue()
 
 func _unhandled_input(e: InputEvent) -> void:
-	if joueur.mort or joueur.en_dialogue or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	if not joueur.est_local or joueur.mort or joueur.en_dialogue or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		return
 	if e is InputEventKey and e.pressed and not e.echo and e.physical_keycode == KEY_B:
 		var r := basculer()

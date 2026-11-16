@@ -92,7 +92,7 @@ func desabonner(type: String, rappel: Callable) -> void:
 
 ## Envoie un évènement. `vers` : 0 = tout le monde sauf moi (invité : à l'hôte seulement), sinon un pair précis.
 ## Fiable et ordonné. Hors ligne : sans effet (l'appelant local gère son propre effet).
-func envoyer_evenement(type: String, id: Variant = 0, donnees: Dictionary = {}, vers: int = 0) -> void:
+func envoyer_evenement(type: String, id: Variant = 0, donnees: Variant = null, vers: int = 0) -> void:
 	if not _en_ligne:
 		return
 	if vers == 0:
@@ -103,20 +103,24 @@ func envoyer_evenement(type: String, id: Variant = 0, donnees: Dictionary = {}, 
 	else:
 		evenement.rpc_id(vers, type, id, donnees)
 
+## Alias (prototype lot 1).
+func emettre(type: String, id: Variant = 0, donnees: Variant = null, vers: int = 0) -> void:
+	envoyer_evenement(type, id, donnees, vers)
+
 ## RPC générique (ne pas appeler directement : passer par envoyer_evenement). Distribue aux abonnés du type.
 @rpc("any_peer", "call_remote", "reliable")
-func evenement(type: String, id: Variant, donnees: Dictionary) -> void:
+func evenement(type: String, id: Variant, donnees: Variant) -> void:
 	_distribuer(type, multiplayer.get_remote_sender_id(), id, donnees)
 
 ## Distribue localement un évènement (aussi utilisable en solo pour passer par le même chemin de code).
-func _distribuer(type: String, expediteur: int, id: Variant, donnees: Dictionary) -> void:
+func _distribuer(type: String, expediteur: int, id: Variant, donnees: Variant) -> void:
 	if not _abonnes.has(type):
 		return
 	for c: Callable in (_abonnes[type] as Array).duplicate():
 		if c.is_valid():
 			c.call(expediteur, id, donnees)
 
-func emettre_local(type: String, id: Variant = 0, donnees: Dictionary = {}) -> void:
+func emettre_local(type: String, id: Variant = 0, donnees: Variant = null) -> void:
 	_distribuer(type, mon_id(), id, donnees)
 
 # ---------- Interne ----------
