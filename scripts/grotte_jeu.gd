@@ -91,6 +91,9 @@ func installer(acces_: Node3D, g_: Grotte) -> void:
 	_lancer_prechauffe()
 	salles = SalleActive.depuis_grotte(g, g, acces.joueur, acces.get_tree())
 	salles.cacher_decor = false          # le décor de la grotte est un kit par cases de 10 m (pas par zone) : il reste géré par la portée de dessin
+	ReseauLieux.poser_quetes(acces.quetes, [prefixe + ":"])      # coop : coffres / ressources « premier arrivé », état exporté pour rejoindre en cours
+	ReseauLieux.sur_pris(_pris_ailleurs)
+	ReseauLieux.sur_etat(_etat)
 
 ## Pics d'apparition (2026-10-27) : copies des modèles des prochains ennemis (à moins de DIST_APPARITION + 20 m) faites d'avance, au plus
 ## `max_n` par appel (une par image), rendues par EnnemisNordiques.creer à leur apparition.
@@ -224,6 +227,26 @@ func _coffre(a: Dictionary) -> void:
 
 func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	var cle := "%s:%s" % [prefixe, id]
+	if Reseau.est_en_ligne() and not _vus().has(cle):      # coop : « premier arrivé », l'hôte arbitre (l'invité attend sa réponse)
+		ReseauLieux.reclamer(cle, func() -> void: _coffre_ouvert(id, contenu, lieu))
+		return []
+	return _coffre_ouvert(id, contenu, lieu)
+
+## Un autre joueur a pris `cle` en premier (coffre, ressource) : marqué pris pour nous aussi, couvercle ouvert.
+func _pris_ailleurs(cle: String, _type: String, _qui: int) -> void:
+	for id: String in interactifs:
+		var it: Node3D = interactifs[id]
+		if it.get_meta("cle_etat", "") != cle:
+			continue
+		acces.quetes.signaler(cle)
+		if it.get_meta("genre", "") == "coffre":
+			it.actif = false
+			if couvercles.has(id):
+				(couvercles[id] as CoffreCouvercle).ouvrir()
+		return
+
+func _coffre_ouvert(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
+	var cle := "%s:%s" % [prefixe, id]
 	var n_or := 0
 	if not _vus().has(cle):
 		acces.quetes.signaler(cle)
@@ -344,6 +367,12 @@ func _ressource(a: Dictionary) -> void:
 	interactifs["res_" + id] = it
 
 func _prendre_ressource(_id: String, genre: String, n: int, cle: String) -> Array:
+	if Reseau.est_en_ligne() and not _vus().has(cle):      # coop : premier arrivé
+		ReseauLieux.reclamer(cle, func() -> void: _ressource_prise(genre, n, cle), Callable(), "ressource")
+		return []
+	return _ressource_prise(genre, n, cle)
+
+func _ressource_prise(genre: String, n: int, cle: String) -> Array:
 	acces.quetes.signaler(cle)
 	acces.joueur.inventaire.ajouter(genre, n)
 	acces.hud.avis("+ %d %s" % [n, acces.joueur.inventaire.nom(genre)])

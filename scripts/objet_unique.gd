@@ -67,6 +67,7 @@ static func creer(objet_id: String, xf: Transform3D, dcr: CrypteDecor = null) ->
 		gm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		gm.visibility_range_end = PORTEE
 		gm.visibility_range_end_margin = 3.0
+	u.add_to_group("objets_uniques")      # coop : actualisé quand un autre joueur le prend (ReseauLieux)
 	u.actualiser()
 	return u
 
@@ -79,6 +80,12 @@ func actualiser() -> void:
 static func prendre(objet_id: String, inv: Inventaire, hud: Node = null, noeud: ObjetUnique = null) -> Array:
 	if pris(objet_id):
 		return []
+	if Reseau.est_en_ligne():      # coop : premier arrivé, l'hôte arbitre ; l'invité attend sa réponse
+		ReseauLieux.reclamer(cle(objet_id), func() -> void: _prendre_local(objet_id, inv, hud, noeud), Callable(), "unique")
+		return []
+	return _prendre_local(objet_id, inv, hud, noeud)
+
+static func _prendre_local(objet_id: String, inv: Inventaire, hud: Node, noeud: ObjetUnique) -> Array:
 	ButinTables.piller(cle(objet_id))
 	var res := ButinTables.prendre(inv, [{"id": objet_id, "n": 1, "rarete": "unique"}])
 	if hud != null and hud.has_method("avis"):

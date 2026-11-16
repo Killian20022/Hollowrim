@@ -149,7 +149,6 @@ func casser(avec_effets: bool, origine: Vector3) -> void:
 		mi.visible = false
 	if not avec_effets:
 		return
-	ButinTables.piller(ident)
 	var dir := centre - origine
 	dir.y = 0.0
 	dir = (dir.normalized() if dir.length() > 0.01 else Vector3.UP) * 0.6 + Vector3.UP
@@ -157,7 +156,10 @@ func casser(avec_effets: bool, origine: Vector3) -> void:
 	GerbePixels.emettre(self, centre, dir.normalized(), matiere, 1.5)
 	GerbePixels.emettre(self, global_position + Vector3(0, 0.1, 0), Vector3.UP, "poussiere", 0.9)
 	Sons.jouer_a(self, ["impactWood_heavy_000"] if genre in ["tonneau", "caisse"] else ["impactPlate_medium_000", "impactPlate_medium_001"], centre, 2.0)
-	_butin(centre)
+	# coop : le contenu va au premier arrivé (l'hôte arbitre) ; hors ligne : pillé et versé tout de suite, comme avant
+	ReseauLieux.reclamer(ident, func() -> void:
+		ButinTables.piller(ident)
+		_butin(centre), Callable(), "contenant")
 
 ## Éclats : les triangles de chaque surface sont rangés par secteur (angle autour de l'axe) et par moitié (haut / bas).
 func _eclater(avec_effets: bool, centre: Vector3, origine: Vector3) -> void:
