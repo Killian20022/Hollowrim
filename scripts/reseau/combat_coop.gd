@@ -299,6 +299,13 @@ static func _appliquer(d: Dictionary, e: Node3D) -> void:
 	e.set("vie_max", float(d["vm"]))
 	if bool(d["mort"]):
 		if _vivant(e):
+			if _mort_arbitree(e):   # ReseauCorps rejoue la mort avec le plan de l'hôte ; repli après 2 s si son évènement ne vient pas
+				var t0 := float(e.get_meta("coop_t_mort_vu", -1.0))
+				if t0 < 0.0:
+					e.set_meta("coop_t_mort_vu", Time.get_ticks_msec() / 1000.0)
+					return
+				if Time.get_ticks_msec() / 1000.0 - t0 < 2.0:
+					return
 			_mourir_local(e, e.global_position - e.global_transform.basis.z, 20.0, false, "")
 		return
 	if not _vivant(e):
@@ -397,8 +404,16 @@ static func _sur_impact(exp: int, id: Variant, d: Variant) -> void:
 	journal.append({"type": "impact", "id": String(id), "res": String((d as Dictionary).get("res", "")) if d is Dictionary else ""})
 
 ## HÔTE : l'ennemi meurt (appelé au début de _mourir) -> les marionnettes meurent aussi (ragdoll chez l'invité).
+## Intégration 4a+4d : un ennemi qui a un `ident` et dont `_mourir` (5 arguments : EnnemiBase, Draugr, BeteQuat) passe par ReseauCorps (plan de mort / butin / faune_mort)
+## voit sa mort diffusée par ReseauCorps. Un cb_mort ou un « mort » d'état en plus ferait mourir la marionnette avec des tirages locaux (membre, butin différents).
+static func _mort_arbitree(e: Node) -> bool:
+	var ident: Variant = e.get("ident")
+	return ident != null and str(ident) != "" and e.get_method_argument_count("_mourir") >= 5
+
 static func noter_mort(e: Node3D, origine: Vector3, quantite: float, puissant: bool, sorte: String) -> void:
 	if not en_ligne() or not est_hote() or bool(e.get("marionnette")) or not e.has_meta("coop_id"):
+		return
+	if _mort_arbitree(e):
 		return
 	R().envoyer_evenement(EV_MORT, String(e.get_meta("coop_id")), {"orig": origine, "q": quantite, "puis": puissant, "sorte": sorte})
 

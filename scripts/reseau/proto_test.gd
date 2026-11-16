@@ -90,8 +90,11 @@ func _bilan_hote() -> void:
 		_verifier("mouvement de l'invité répliqué chez l'hôte", d < 0.4, "écart %.2f m" % d)
 	var d_pos: Vector3 = coop.draugr.global_position if is_instance_valid(coop.draugr) else Vector3.ZERO
 	var cible: Node = coop.draugr.joueur if is_instance_valid(coop.draugr) else null
-	var proche: Node = coop.joueur if coop.joueur.global_position.distance_to(d_pos) < av.noeud.global_position.distance_to(d_pos) else av.noeud
-	_verifier("cible du draugr = joueur le plus proche", cible == proche, str(cible.name) if cible else "null")
+	var d_moi: float = coop.joueur.global_position.distance_to(d_pos)
+	var d_av: float = av.noeud.global_position.distance_to(d_pos)
+	# depuis le lot 4a (CombatCoop.maj_cible), la cible a une fidélité de ~3 m : « le plus proche » à cette tolérance près
+	var d_cible: float = cible.global_position.distance_to(d_pos) if cible != null else INF
+	_verifier("cible du draugr = joueur le plus proche (tolérance de fidélité 3 m)", cible != null and (cible == coop.joueur or cible == av.noeud) and d_cible <= minf(d_moi, d_av) + 3.05, str(cible.name) if cible else "null")
 	_verifier("porte ouverte côté hôte", coop.monde.porte_ouverte)
 	ReseauLieux.reseau().emettre("test_fin", 0, {"hote_pos": coop.joueur.global_position, "draugr_pos": d_pos, "porte": coop.monde.porte_ouverte, "objet_hote": coop.monde.nb_objets_locaux()})
 

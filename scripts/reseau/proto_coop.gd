@@ -163,7 +163,7 @@ func _physics_process(dt: float) -> void:
 		_t_cible += dt
 		if _t_cible >= PERIODE_CIBLE:
 			_t_cible = 0.0
-			_retarget()
+			# _retarget() : remplacé au lot 4a par CombatCoop.maj_cible (appelé par l IA du draugr) ; on évite deux écrivains de la cible
 		_t_etat += dt
 		if _t_etat >= PERIODE_ETAT_ENNEMI:
 			_t_etat = 0.0

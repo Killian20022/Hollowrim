@@ -80,10 +80,10 @@ static func trouver(ident: String) -> Node:
 		return null
 	var arbre := Engine.get_main_loop() as SceneTree
 	for n in arbre.get_nodes_in_group("ennemis"):
-		if String(n.get("ident")) == ident:
+		if str(n.get("ident")) == ident:
 			return n
 	for n in arbre.get_nodes_in_group("bete_quat"):
-		if String(n.get("ident")) == ident:
+		if str(n.get("ident")) == ident:
 			return n
 	return null
 
@@ -95,7 +95,7 @@ static func trouver(ident: String) -> Node:
 static func arbitrer_mort(e: Node, dec: Dictionary, f_contenu := Callable()) -> Dictionary:
 	if not en_ligne():
 		return dec
-	var ident := String(e.get("ident"))
+	var ident := str(e.get("ident") if e.get("ident") != null else "")
 	if not plan_impose.is_empty():
 		var p: Dictionary = plan_impose.duplicate()
 		if Demembrement.niveau() == 0:
@@ -222,7 +222,7 @@ static func diffuser_impact(c: Object, r: Dictionary) -> void:
 	var corps: Node = c.get("corps")
 	if corps == null:
 		return
-	var ident := String(corps.get("ident"))
+	var ident := str(corps.get("ident") if corps.get("ident") != null else "")
 	if ident == "" or not r.has("info"):
 		return
 	var i: Dictionary = r["info"]
