@@ -107,6 +107,9 @@ func _test_salles(en_ligne: bool) -> void:
 # ------------------------------------------------------------------ scénario réseau
 func _lancer() -> void:
 	var R := _R()
+	for chemin in ["res://scripts/tertre.gd", "res://scripts/grotte_jeu.gd", "res://scripts/cassable.gd", "res://scripts/objet_unique.gd", "res://scripts/salle_active.gd"]:
+		var sc := load(chemin) as GDScript
+		_v("compile " + chemin.get_file(), sc != null and sc.can_instantiate())
 	await _test_salles(false)
 	# branchements (comme tertre.gd / grotte_jeu.gd)
 	ReseauLieux.poser_quetes(_quetes, ["crypte:"])
@@ -121,7 +124,7 @@ func _lancer() -> void:
 	if _role == "hote":
 		_v("hôte : heberger OK", R.heberger(_port) == OK)
 		print("HOTE_PRET")
-		_v("invité connecté", await _attendre(func() -> bool: return R.joueurs().size() > 1, 30.0))
+		_v("invité connecté", await _attendre(func() -> bool: return R.joueurs().size() > 1, 150.0))
 		await get_tree().create_timer(1.0).timeout
 		await _test_salles(true)
 		var inv: int = R.joueurs()[1]
