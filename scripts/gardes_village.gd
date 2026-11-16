@@ -285,7 +285,7 @@ func _process(dt: float) -> void:
 		for g: Node3D in gardes:
 			if not is_instance_valid(g):
 				continue
-			var d := pj.distance_to(g.global_position)
+			var d := ReseauMondeVivant.distance_joueurs(g.global_position, pj)
 			g.regler_lod(0 if d < DIST_COMPLET else (1 if d < DIST_ALLEGE else 2))
 			g.regler_torche(nuit)
 	_t_alerte -= dt

@@ -223,9 +223,17 @@ func _jouer(nom: String, fondu := 0.2) -> void:
 	if nom != "Walk":
 		anim.speed_scale = _var
 
+var marionnette := false   # multijoueur (reseau_monde_vivant.gd) : chez un invité l'IA est coupée, l'hôte envoie l'état
+
+## Joueur le plus proche (liste du registre réseau). Solo : `joueur`.
+func _cible_joueur() -> CharacterBody3D:
+	return ReseauMondeVivant.joueur_proche(global_position, joueur)
+
 var _images_idle := 0
 
 func _physics_process(dt: float) -> void:
+	if marionnette:
+		return
 	_t += dt
 	if service == "vigie":
 		_vigie(dt)
@@ -234,8 +242,9 @@ func _physics_process(dt: float) -> void:
 		velocity.y -= GRAVITE * dt
 	var vers := Vector3.ZERO
 	var dist := INF
-	if joueur != null and is_instance_valid(joueur):
-		vers = joueur.global_position - global_position
+	var cj := _cible_joueur()
+	if cj != null and is_instance_valid(cj):
+		vers = cj.global_position - global_position
 		vers.y = 0.0
 		dist = vers.length()
 	if _en_conversation:
@@ -323,6 +332,9 @@ func _physics_process(dt: float) -> void:
 		elif not _avance:
 			_jouer("Idle", 0.3)
 	_regard_tete(dist)
+	if cj != joueur and joueur != null and is_instance_valid(joueur):
+		var vl := joueur.global_position - global_position
+		dist = Vector2(vl.x, vl.z).length()      # invite « E Parler » : joueur LOCAL
 	_interactions(dist, dt)
 
 ## Le joueur arrive en face (devant lui, à moins de DIST_CEDER) : il faut lui laisser le passage (escaliers, ruelles).
@@ -411,7 +423,8 @@ func _vers_point(dt: float) -> Vector3:
 
 ## Vrai si ce qui l'arrête est un corps vivant (joueur, villageois, autre garde) : il attend son tour, ce n'est pas un blocage.
 func _gene_par_un_corps() -> bool:
-	if joueur != null and joueur.global_position.distance_to(global_position) < 2.0:
+	var cj := _cible_joueur()
+	if cj != null and cj.global_position.distance_to(global_position) < 2.0:
 		return true
 	for k in get_slide_collision_count():
 		if get_slide_collision(k).get_collider() is CharacterBody3D:
@@ -442,8 +455,9 @@ func _regard_autour(dt: float) -> void:
 func _vigie(dt: float) -> void:
 	_regard_autour(dt)
 	var dist := INF
-	if joueur != null and is_instance_valid(joueur):
-		dist = joueur.global_position.distance_to(global_position)
+	var cj := _cible_joueur()
+	if cj != null and is_instance_valid(cj):
+		dist = cj.global_position.distance_to(global_position)
 	_regard_tete(dist)
 
 func _regard_tete(dist: float) -> void:
@@ -453,9 +467,10 @@ func _regard_tete(dist: float) -> void:
 	if etat == ALERTE and _ennemi != null and is_instance_valid(_ennemi):
 		_tete.cible = _ennemi.global_position + Vector3.UP * 1.3
 		_tete.voulu = true
-	elif joueur != null and (dist < DIST_TETE or _en_conversation):
-		var cam: Camera3D = joueur.camera if "camera" in joueur else null
-		_tete.cible = cam.global_position if cam != null else joueur.global_position + Vector3.UP * 1.6
+	elif _cible_joueur() != null and (dist < DIST_TETE or _en_conversation):
+		var cj := _cible_joueur()
+		var cam: Camera3D = cj.camera if "camera" in cj else null
+		_tete.cible = cam.global_position if cam != null else cj.global_position + Vector3.UP * 1.6
 		_tete.voulu = true
 	elif _autour > 0.0:
 		var moitie := _autour > _autour_duree * 0.5

@@ -843,6 +843,7 @@ func _villageois() -> void:
 		GardesVillage.peupler(self)
 		_chrono("  villageois : gardes")
 	vie = Vie.peupler(self)     # lot vie_pnj : planning jour/nuit, fuite, répliques (data/vie/) ; --sans-vie : A/B
+	ReseauMondeVivant.installer(self)   # multijoueur lot 2b : PNJ en marionnettes chez l'invité, heure partagée (inactif en solo)
 	sommeil = Sommeil.installer(self)   # lot sommeil : lits posés sur les marqueurs, fenêtre Dormir / Attendre (T), PNJ couchés
 	_chrono("  villageois : vie")
 	rangs = Rangs.creer(self)   # factions jouables : rangs et réputation par faction (scripts/rangs.gd)
