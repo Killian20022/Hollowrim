@@ -80,7 +80,7 @@ func actualiser() -> void:
 static func prendre(objet_id: String, inv: Inventaire, hud: Node = null, noeud: ObjetUnique = null) -> Array:
 	if pris(objet_id):
 		return []
-	if Reseau.est_en_ligne():      # coop : premier arrivé, l'hôte arbitre ; l'invité attend sa réponse
+	if ReseauLieux.reseau().est_en_ligne():      # coop : premier arrivé, l'hôte arbitre ; l'invité attend sa réponse
 		ReseauLieux.reclamer(cle(objet_id), func() -> void: _prendre_local(objet_id, inv, hud, noeud), Callable(), "unique")
 		return []
 	return _prendre_local(objet_id, inv, hud, noeud)

@@ -27,7 +27,7 @@ var actives := {}                       # id -> true
 var courante := ""
 var volume := AABB()                    # englobant des salles (repère local)
 var geler_ennemis := true
-## Coop : positions mondiales (Vector3) des AUTRES joueurs ; vide = Reseau.registre (avatars des pairs). Remplaçable (tests).
+## Coop : positions mondiales (Vector3) des AUTRES joueurs ; vide = ReseauLieux.reseau().registre (avatars des pairs). Remplaçable (tests).
 ## Simulation (ennemis gelés / dégelés) = UNION des salles de tous les joueurs ; rendu (décor caché) = salle du joueur LOCAL seulement.
 var positions_autres := Callable()
 var cacher_decor := true
@@ -231,11 +231,11 @@ func _salles_autres() -> Array:
 	var pos: Array = []
 	if positions_autres.is_valid():
 		pos = positions_autres.call()
-	elif Reseau.est_en_ligne():
-		for id: int in Reseau.joueurs():
-			if id == Reseau.mon_id():
+	elif ReseauLieux.reseau().est_en_ligne():
+		for id: int in ReseauLieux.reseau().joueurs():
+			if id == ReseauLieux.reseau().mon_id():
 				continue
-			var n := Reseau.registre.noeud(id) as Node3D
+			var n := ReseauLieux.reseau().registre.noeud(id) as Node3D
 			if n != null and n.is_inside_tree():
 				pos.append(n.global_position)
 	for p: Vector3 in pos:
@@ -294,7 +294,7 @@ func _voulu(n: GeometryInstance3D) -> bool:
 func _ennemis() -> void:
 	nb_geles = 0
 	# Invité en ligne : aucune simulation ici (les ennemis sont des marionnettes de l'hôte) : rien n'est gelé.
-	var marionnettes := Reseau.est_en_ligne() and not Reseau.est_hote()
+	var marionnettes: bool = ReseauLieux.reseau().est_en_ligne() and not ReseauLieux.reseau().est_hote()
 	var personne := actives.is_empty()
 	for e: Node in arbre.get_nodes_in_group("ennemis"):
 		if not is_instance_valid(e) or not e.has_method("peut_geler"):

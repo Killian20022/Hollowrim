@@ -38,10 +38,10 @@ static func _init_reseau() -> void:
 	if _pret:
 		return
 	_pret = true
-	Reseau.abonner(EV_DEMANDE, ReseauLieux._sur_demande)
-	Reseau.abonner(EV_PRIS, ReseauLieux._sur_pris_evt)
-	Reseau.abonner(EV_PORTE_DEMANDE, ReseauLieux._sur_porte_demande)
-	Reseau.abonner(EV_PORTE, ReseauLieux._sur_porte_evt)
+	reseau().abonner(EV_DEMANDE, ReseauLieux._sur_demande)
+	reseau().abonner(EV_PRIS, ReseauLieux._sur_pris_evt)
+	reseau().abonner(EV_PORTE_DEMANDE, ReseauLieux._sur_porte_demande)
+	reseau().abonner(EV_PORTE, ReseauLieux._sur_porte_evt)
 	_brancher_contributeur()
 
 ## Branche le contributeur « lieux » sur l'autoload Rejoindre (lot 2a) s'il existe (recherche dynamique : aucun couplage de compilation).
@@ -84,8 +84,12 @@ static func enregistrer_porte(id: String, appliquer: Callable) -> void:
 	_portes_appliquer[id] = appliquer
 	_init_reseau()
 
+## Autoload Reseau, résolu à l'exécution (ce script est préchargé par des tests en `-s` avant l'enregistrement des autoloads).
+static func reseau() -> Node:
+	return (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Reseau")
+
 static func _en_ligne() -> bool:
-	return Reseau.est_en_ligne()
+	return reseau().est_en_ligne()
 
 static func _vus() -> Dictionary:
 	return _quetes.get("vus") if _quetes != null and is_instance_valid(_quetes) else {}
@@ -100,42 +104,42 @@ static func reclamer(cle: String, si_gagne: Callable, si_perdu := Callable(), ty
 		si_gagne.call()
 		return
 	_init_reseau()
-	if Reseau.est_hote():
+	if reseau().est_hote():
 		if deja_pris(cle):
 			if si_perdu.is_valid():
 				si_perdu.call()
 			return
-		_attribue[cle] = Reseau.mon_id()
-		Reseau.envoyer_evenement(EV_PRIS, cle, {"qui": Reseau.mon_id(), "type": type})
+		_attribue[cle] = reseau().mon_id()
+		reseau().envoyer_evenement(EV_PRIS, cle, {"qui": reseau().mon_id(), "type": type})
 		si_gagne.call()
 	else:
 		if _attente.has(cle):
 			return
 		_attente[cle] = {"gagne": si_gagne, "perdu": si_perdu}
-		Reseau.envoyer_evenement(EV_DEMANDE, cle, {"type": type}, 1)
+		reseau().envoyer_evenement(EV_DEMANDE, cle, {"type": type}, 1)
 
 static func _sur_demande(expediteur: int, cle: Variant, d: Variant) -> void:
-	if not Reseau.est_hote():
+	if not reseau().est_hote():
 		return
 	var c := String(cle)
 	var type := String((d as Dictionary).get("type", "coffre")) if d is Dictionary else "coffre"
 	if deja_pris(c):
 		# perdu : on dit au demandeur qui a gagné (l'hôte par défaut si la clé vient d'une sauvegarde)
-		Reseau.envoyer_evenement(EV_PRIS, c, {"qui": int(_attribue.get(c, Reseau.ID_HOTE)), "type": type, "seul": true}, expediteur)
+		reseau().envoyer_evenement(EV_PRIS, c, {"qui": int(_attribue.get(c, 1)), "type": type, "seul": true}, expediteur)
 		return
 	_attribue[c] = expediteur
-	Reseau.envoyer_evenement(EV_PRIS, c, {"qui": expediteur, "type": type})
+	reseau().envoyer_evenement(EV_PRIS, c, {"qui": expediteur, "type": type})
 	_appliquer_pris_autre(c, type, expediteur)   # l'hôte n'est pas le gagnant : il marque le contenant comme pris
 
 static func _sur_pris_evt(expediteur: int, cle: Variant, d: Variant) -> void:
-	if expediteur != Reseau.ID_HOTE or not (d is Dictionary):
+	if expediteur != 1 or not (d is Dictionary):
 		return
 	var c := String(cle)
 	var qui := int((d as Dictionary).get("qui", 0))
 	var type := String((d as Dictionary).get("type", "coffre"))
 	var att: Dictionary = _attente.get(c, {})
 	_attente.erase(c)
-	if qui == Reseau.mon_id():
+	if qui == reseau().mon_id():
 		if att.has("gagne"):
 			(att["gagne"] as Callable).call()
 		return
@@ -162,27 +166,27 @@ static func router_porte(id: String) -> bool:
 	if _distant:
 		_portes[id] = true
 		return false
-	if Reseau.est_hote():
+	if reseau().est_hote():
 		if _portes.has(id):
 			return true
 		_portes[id] = true
-		Reseau.envoyer_evenement(EV_PORTE, id, null)
+		reseau().envoyer_evenement(EV_PORTE, id, null)
 		return false
-	Reseau.envoyer_evenement(EV_PORTE_DEMANDE, id, null, 1)
+	reseau().envoyer_evenement(EV_PORTE_DEMANDE, id, null, 1)
 	return true
 
 static func _sur_porte_demande(_exp: int, id: Variant, _d: Variant) -> void:
-	if not Reseau.est_hote():
+	if not reseau().est_hote():
 		return
 	var i := String(id)
 	if _portes.has(i):
 		return
 	_portes[i] = true
-	Reseau.envoyer_evenement(EV_PORTE, i, null)
+	reseau().envoyer_evenement(EV_PORTE, i, null)
 	_rejouer_porte(i)
 
 static func _sur_porte_evt(expediteur: int, id: Variant, _d: Variant) -> void:
-	if expediteur != Reseau.ID_HOTE:
+	if expediteur != 1:
 		return
 	_rejouer_porte(String(id))
 

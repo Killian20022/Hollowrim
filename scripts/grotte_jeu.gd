@@ -227,7 +227,7 @@ func _coffre(a: Dictionary) -> void:
 
 func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	var cle := "%s:%s" % [prefixe, id]
-	if Reseau.est_en_ligne() and not _vus().has(cle):      # coop : « premier arrivé », l'hôte arbitre (l'invité attend sa réponse)
+	if ReseauLieux.reseau().est_en_ligne() and not _vus().has(cle):      # coop : « premier arrivé », l'hôte arbitre (l'invité attend sa réponse)
 		ReseauLieux.reclamer(cle, func() -> void: _coffre_ouvert(id, contenu, lieu))
 		return []
 	return _coffre_ouvert(id, contenu, lieu)
@@ -367,7 +367,7 @@ func _ressource(a: Dictionary) -> void:
 	interactifs["res_" + id] = it
 
 func _prendre_ressource(_id: String, genre: String, n: int, cle: String) -> Array:
-	if Reseau.est_en_ligne() and not _vus().has(cle):      # coop : premier arrivé
+	if ReseauLieux.reseau().est_en_ligne() and not _vus().has(cle):      # coop : premier arrivé
 		ReseauLieux.reclamer(cle, func() -> void: _ressource_prise(genre, n, cle), Callable(), "ressource")
 		return []
 	return _ressource_prise(genre, n, cle)

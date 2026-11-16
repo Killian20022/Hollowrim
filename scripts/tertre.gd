@@ -557,7 +557,7 @@ func _choisir(choix: String) -> Array:
 
 func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	var cle := "crypte:" + id
-	if Reseau.est_en_ligne() and not quetes.vus.has(cle):      # coop : « premier arrivé », l'hôte arbitre (l'invité attend sa réponse)
+	if ReseauLieux.reseau().est_en_ligne() and not quetes.vus.has(cle):      # coop : « premier arrivé », l'hôte arbitre (l'invité attend sa réponse)
 		ReseauLieux.reclamer(cle, func() -> void: _coffre_ouvert(id, contenu, lieu))
 		return []
 	return _coffre_ouvert(id, contenu, lieu)

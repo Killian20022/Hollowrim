@@ -1760,7 +1760,10 @@ func charger() -> void:
 
 ## Lot 2a (réseau) : contributeur d'instantané « monde » (heure, jour, butin/graine, morts). Inerte hors ligne.
 func _brancher_rejoindre() -> void:
-	Rejoindre.contributeur("monde", func() -> Dictionary:
+	var rejoindre := get_node_or_null("/root/Rejoindre")   # résolu à l'exécution : monde.gd est préchargé par des tests en `-s`
+	if rejoindre == null:
+		return
+	rejoindre.call("contributeur", "monde", func() -> Dictionary:
 		var morts := []
 		for id in draugrs:
 			if not is_instance_valid(draugrs[id]) or not draugrs[id].vivant():
