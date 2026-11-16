@@ -1,0 +1,28 @@
+# Réseau — lot 4a : ennemis et dégâts multi-cibles
+
+Code : `scripts/reseau/combat_coop.gd` (classe `CombatCoop`, statique + un nœud de surveillance créé tout seul sous `/root`), données `data/coop/echelle.json`.
+Test : `bash outils/test_combat_coop.sh` (2 Godot headless, `GODOT_MAX>=2` — avec d'autres agents, mettre 4 —, port 24811 ; scène `outils/test_combat_coop.tscn`).
+Solo / hors ligne : toutes les fonctions sont sans effet (`maj_cible` sort tout de suite, aucune marionnette, facteurs = 1).
+
+## Principe
+- **Hôte** : IA des ennemis inchangée. **Invité** : `ennemi.marionnette = true` (EnnemiBase, Draugr, Dragon) : `_physics_process` ne fait plus d'IA, MAIS l'animation continue : le réplicateur envoie `anim` (nom du clip, y compris les noms logiques du draugr « reveil »/« releve » via `coop_jouer`), `vit` (speed_scale), position, lacet, `vie`/`vm`, visibilité ; le draugr ajoute `et` (état, pour les pieds au sol), le dragon son état procédural (`et`, `act`, `alt`, `vd`, `bk`, visée) et rejoue `_animer` chaque image.
+- Enregistrement : en fin de `_ready` (différé) chaque ennemi appelle `CombatCoop.enregistrer.call_deferred(self)` → id stable `e:<ident>` (sinon nom + position), `Replicateur.enregistrer`, mémorisation des valeurs de base. Les ennemis sans `ident` unique côté données doivent en avoir un identique sur toutes les machines.
+- **Ciblage** (`CombatCoop.maj_cible(ennemi, dt)`, appelé à chaque image physique par les trois IA ; toutes les 0,25 s) : candidats = joueur local + avatars du registre, hors `mort` / `a_terre`. Score = distance − bonus de menace − fidélité (3 m pour la cible actuelle) ; le plus petit gagne. Menace : `noter_menace(ennemi, pair, dégâts)` (alimentée par chaque coup d'invité validé), +0,08 m par PV, plafonnée à 8 m, demi-vie 6 s. Aucun candidat : on garde la cible actuelle. `ennemi.joueur` reste LE point d'accès (tout le code existant continue de marcher) ; `lanceur_sorts.cible_joueur` du mage est mis à jour.
+- **Coups des joueurs** : chez l'invité, `recevoir_coup` d'une marionnette (appelé tel quel par DegatsCombat / Elements, dégâts calculés localement) envoie `cb_coup` {dégâts, origine, puissant, info (valeurs simples), position} et répond « touche ». L'hôte (`_sur_coup`) valide : ennemi vivant, dégâts finis ∈ ]0 ; 600], avatar de l'émetteur debout, portée (mêlée 6 m + 1,5 m par taille au-dessus de 1 ; coups avec `ecole` / `projectile` / `distance` : 90 m), cadence (≥ 0,1 s par couple joueur/ennemi) ; puis appelle le vrai `recevoir_coup` (info.attaquant = pair), note la menace et diffuse `cb_impact` (éclair sur les marionnettes). Les PV reviennent à l'invité par le réplicateur. Refus journalisés (`CombatCoop.journal`).
+- **Mort** : au début de `_mourir` (EnnemiBase, Draugr, BeteQuat, Dragon) l'hôte diffuse `cb_mort` {origine, dégâts, puissant, sorte} ; les marionnettes jouent leur vraie mort (ragdoll, butin local, signal `mort`). Un état `mort` répliqué rattrape un évènement manqué.
+- **Coups des ennemis** : l'avatar d'un invité (`joueur.gd`, `est_local` faux) émet `coup_distant` ; `CombatCoop` (hôte, branché automatiquement sur les avatars du registre) envoie `cb_coup_subi` {dégâts, origine, options} à la VICTIME, qui exécute `recevoir_coup` chez elle (parade, esquive, armure, PV locaux) et renvoie `cb_coup_res` (`CombatCoop.dernier_res[pair]`). PV des joueurs : `cb_pv` (≤ 2,5 fois par seconde, relayé par l'hôte) met à jour `vie`/`vie_max` des avatars pour l'affichage.
+- **Échelle** : `facteur_pv(n) = 1 + 0,6 (n−1)`, `facteur_degats(n) = 1 + 0,2 (n−1)` (n = joueurs connectés, 4 max ; `data/coop/echelle.json`). Appliqué à l'enregistrement et recalculé à chaque changement de n (hôte) : `vie_max` = base × facteur, `vie` conservée EN PROPORTION ; `degats`, `degats_tir`, `degats_givre`, `degats_zone`, `_degats_souffle` = base × facteur. Les marionnettes prennent `vie`/`vie_max` de l'hôte.
+- `Effets.coop` est posé par le nœud `CombatCoop` (n > 1) : finishers et ralentis coupés (déjà gérés par `CombatEnnemi.finisher_possible` et `Effets`).
+
+## API
+`CombatCoop.enregistrer / retirer / ennemi(id) / ids()`, `maj_cible`, `choisir_cible`, `candidats`, `noter_menace`, `facteur_pv / facteur_degats / appliquer_echelle`, `envoyer_coup`, `noter_mort`, `brancher_avatar`, `joueur_local`, `local_ou(j)`, `positions_joueurs(défaut)`, `reinitialiser()`.
+Évènements : `cb_coup`, `cb_impact`, `cb_mort`, `cb_coup_subi`, `cb_coup_res`, `cb_pv`.
+Hooks facultatifs d'un ennemi : `coop_etat() -> Dictionary`, `coop_appliquer(d)`, `coop_jouer(nom)`.
+`Elements.tous_les_joueurs()` : joueur local + avatars (le `static var joueur` reste le joueur LOCAL : chaque machine ne traite que les coups de son joueur).
+
+## Limites connues
+- Statuts / réactions élémentaires (brûlure, gel, chaînes d'éclairs) nés d'un coup d'invité ne sont pas synchronisés (tics `reaction_de` ignorés côté invité ; l'hôte n'applique pas `Elements.apres_coup` pour un coup distant).
+- Projectiles ennemis (flèches, sorts du mage) : visent `joueur` au tir ; un avatar touché passe par `coup_distant` mais le projectile lui-même n'est pas répliqué chez l'invité (lot 4 projectiles).
+- Butin : la bourse est recréée sur chaque machine à la mort (contenu aléatoire non synchronisé ; « premier arrivé » = lot butin). `quetes.signaler("tue:…")` part aussi chez l'invité (quêtes partagées : lot 5).
+- Faune : apparitions / oubli / gel tiennent compte de tous les joueurs, mais les bêtes apparues dynamiquement ne sont pas créées chez l'invité (id identique requis) ; `PnjCombat` (crime) non répliqué.
+- Dégâts littéraux du dragon (morsure 30, queue 25) et des projectiles ne sont pas mis à l'échelle ; les `dormeurs` gelés par salle_active ne sont pas retargetés.

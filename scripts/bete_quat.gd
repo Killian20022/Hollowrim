@@ -374,6 +374,7 @@ func _choisir_repos() -> void:
 func _mourir(origine_coup := Vector3.ZERO, _quantite := 20.0, _puissant := false, r: Dictionary = {}, sorte := "") -> void:
 	if est_mort:
 		return
+	CombatCoop.noter_mort(self, origine_coup, _quantite, _puissant, sorte)   # coop : les marionnettes meurent aussi
 	degeler()
 	est_mort = true
 	_t_mort = 0.0

@@ -29,6 +29,8 @@ const EPAULE := Vector3(0.7, 2.9, 1.0)
 
 # --- propriétés posées par le monde avant add_child ---
 var joueur: CharacterBody3D
+## Coop (lot 4a) : vrai chez un invité — marionnette (IA coupée ; seule l'animation procédurale tourne, d'après l'état de l'hôte).
+var marionnette := false
 var hauteur_sol: Callable
 var centre := Vector3.ZERO
 var hud: Control
@@ -165,6 +167,7 @@ func _pointe(parent: Node, pos: Vector3, dir: Vector3, long: float, ep: float, m
 func _ready() -> void:
 	add_to_group("ennemis")
 	vie = vie_max
+	CombatCoop.enregistrer.call_deferred(self)   # coop : id stable, réplication, échelle PV / dégâts
 	_vie_debut_sol = vie
 	collision_layer = 0
 	collision_mask = 0
@@ -372,6 +375,8 @@ func altitude() -> float:
 func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, _info: Dictionary = {}) -> String:   # _info : contrat épée FPS (docs/DEGATS.md), non utilisé par le dragon
 	if etat == MORT:
 		return ""
+	if marionnette:
+		return CombatCoop.envoyer_coup(self, quantite, origine_coup, puissant, _info)   # coop : l'hôte valide et applique
 	if _alt > 3.5:
 		return "bloque"
 	vie -= quantite
@@ -498,8 +503,8 @@ func _souffler(actif: bool) -> void:
 	_t_tic = 0.2
 
 func _tic_souffle(dt: float) -> void:
-	if not _souffle:
-		return
+	if not _souffle or marionnette:
+		return   # marionnette : l'haleine est visuelle, les dégâts sont décidés par l'hôte (et subis par la victime)
 	_t_tic -= dt
 	if _t_tic > 0.0:
 		return
@@ -537,7 +542,42 @@ func _changer(nouvel: int) -> void:
 	etat = nouvel
 	_t = 0.0
 
+## Coop : état procédural répliqué (le reste — ailes, cou, pattes — est animé localement par _animer).
+func coop_etat() -> Dictionary:
+	return {"et": etat, "act": _act, "alt": _alt, "vd": _vitesse, "bk": _bank, "cy": _cible_yaw, "ce": _cible_el, "ex": _extra_cible,
+		"ba": _balai_cible, "sf": _souffle}
+
+func coop_appliquer(d: Dictionary) -> void:
+	if etat != MORT:
+		etat = int(d["et"])
+	_act = int(d["act"])
+	_alt = float(d["alt"])
+	_vitesse = float(d["vd"])
+	_bank = float(d["bk"])
+	_coop_visee = [float(d["cy"]), float(d["ce"]), float(d["ex"]), float(d["ba"])]
+	_souffler(bool(d["sf"]))
+
+var _coop_visee: Array = [0.0, 0.0, 0.0, 0.0]
+
+## Marionnette : pas d'IA ni de dégâts ; on rejoue seulement l'animation d'après l'état reçu.
+func _physique_marionnette(dt: float) -> void:
+	_t += dt
+	_sursaut = maxf(0.0, _sursaut - dt * 2.5)
+	_bouche_t = maxf(0.0, _bouche_t - dt)
+	_cible_yaw = _coop_visee[0]
+	_cible_el = _coop_visee[1]
+	_extra_cible = _coop_visee[2]
+	_balai_cible = _coop_visee[3]
+	if etat == MORT:
+		_logique_mort(dt)
+	_animer(dt)
+	_alt_avant = _alt
+
 func _physics_process(dt: float) -> void:
+	if marionnette:
+		_physique_marionnette(dt)
+		return
+	CombatCoop.maj_cible(self, dt)   # coop : joueur le plus proche / menaçant (sans effet hors ligne)
 	_t += dt
 	_recharge -= dt
 	_cible_yaw = 0.0
@@ -806,6 +846,7 @@ func _fin_action(pause: float) -> void:
 # ---------------------------------------------------------------- mort
 
 func _mourir() -> void:
+	CombatCoop.noter_mort(self, global_position, 0.0, false, "")   # coop : les marionnettes meurent aussi
 	_souffler(false)
 	_act = RIEN
 	_changer(MORT)

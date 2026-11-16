@@ -28,6 +28,8 @@ const REF_SPRINT := 7.5
 const DUREE_CADAVRE := 30.0
 
 var joueur: CharacterBody3D
+## Coop (lot 4a) : vrai chez un invité — l'ennemi n'est qu'une marionnette (IA coupée ; position, animation et PV viennent de l'hôte).
+var marionnette := false
 var hud: Control
 var quetes: Node
 var ident := ""
@@ -102,6 +104,7 @@ func _equiper(mod: Node3D, profil: ProfilCible, rayon: float, haut: float, pieds
 	_var = randf_range(0.94, 1.06)
 	origine = global_position
 	_immo = randf() * IMMO_PERIODE
+	CombatCoop.enregistrer.call_deferred(self)   # coop : id stable, réplication, échelle PV / dégâts selon le nombre de joueurs
 
 # ------------------------------------------------------------------ contrat public
 
@@ -175,8 +178,11 @@ func _physics_process(dt: float) -> void:
 		if _t_mort > DUREE_CADAVRE and not BUTIN.corps_a_fouiller(_butin):      # cadavre fouillable : il reste (sinon invite sans modèle)
 			queue_free()
 		return
+	if marionnette:
+		return   # coop : l'IA tourne chez l'hôte ; l'animation et la position arrivent par CombatCoop (réplicateur)
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
+	CombatCoop.maj_cible(self, dt)   # coop : joueur le plus proche / menaçant (sans effet hors ligne)
 	if joueur == null or not is_instance_valid(joueur):
 		return
 	_ia(dt)
@@ -486,6 +492,8 @@ func _pics_glace(centre: Vector3, rayon: float, nombre: int, hauteur := 0.9) -> 
 func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, info: Dictionary = {}) -> String:
 	if est_mort:
 		return ""
+	if marionnette:
+		return CombatCoop.envoyer_coup(self, quantite, origine_coup, puissant, info)   # coop : l'hôte valide et applique
 	degeler()
 	var vers := origine_coup - global_position
 	vers.y = 0.0
@@ -548,6 +556,7 @@ func _mourir_coup(r: Dictionary, sorte := "") -> void:
 func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, r: Dictionary = {}, sorte := "") -> void:
 	if est_mort:
 		return
+	CombatCoop.noter_mort(self, origine_coup, quantite, puissant, sorte)   # coop : les marionnettes meurent aussi
 	degeler()
 	est_mort = true
 	_t_mort = 0.0

@@ -1,0 +1,20 @@
+{
+	"_doc": "Combat coop (lot 4a) : mise à l'échelle des ennemis selon le nombre de joueurs connectés n, et limites de validation des coups reçus par l'hôte. PV x (1 + pv_par_joueur*(n-1)), dégâts x (1 + degats_par_joueur*(n-1)).",
+	"pv_par_joueur": 0.6,
+	"degats_par_joueur": 0.2,
+	"joueurs_max": 4,
+	"validation": {
+		"cadence_min_s": 0.1,
+		"portee_melee_m": 6.0,
+		"portee_melee_par_taille_m": 1.5,
+		"portee_distance_m": 90.0,
+		"degats_max": 600.0
+	},
+	"menace": {
+		"periode_s": 0.25,
+		"fidelite_m": 3.0,
+		"m_par_degat": 0.08,
+		"bonus_max_m": 8.0,
+		"demi_vie_s": 6.0
+	}
+}

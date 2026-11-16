@@ -28,8 +28,22 @@ const COUPS_EQUIPEMENT := {
 }
 
 static var _table := {}
-## Le joueur (posé par MainSort) : lame enchantée, soin des combos.
+## Le joueur LOCAL (posé par MainSort) : lame enchantée, soin des combos. Coop (lot 4a) : chaque machine ne traite que les coups de SON joueur
+## (dégâts calculés localement, l'hôte valide) ; `tous_les_joueurs()` donne aussi les avatars distants (ciblage, portée de zones).
 static var joueur: Node
+
+## Tous les joueurs connus : le local, puis les avatars du registre réseau (solo : le seul joueur).
+static func tous_les_joueurs() -> Array[Node]:
+	var res: Array[Node] = []
+	if joueur != null and is_instance_valid(joueur):
+		res.append(joueur)
+	var r := CombatCoop.R()
+	if r != null and r.est_en_ligne():
+		for id: int in r.registre.ids():
+			var n: Node = r.registre.noeud(id)
+			if n != null and n != joueur and not res.has(n):
+				res.append(n)
+	return res
 ## Journal des réactions et combos (tests, débogage) : [{nom, genre, cible, position}].
 static var journal: Array = []
 

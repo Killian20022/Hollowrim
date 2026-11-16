@@ -177,11 +177,15 @@ func _tour() -> void:
 		return
 	var h := float(cycle.get("heure"))
 	var p := joueur.global_position
+	# coop (lot 4a) : la faune vit autour de TOUS les joueurs (oubli et gel : joueur le plus proche ; apparitions : un joueur par tour)
+	var tous := CombatCoop.positions_joueurs(p)
+	_tour_n += 1
+	var p_spawn: Vector3 = tous[_tour_n % tous.size()]
 	var sous_terre: bool = monde != null and monde.get("_sous_terre_actif") == true
 	_domestiques(h, p)
 	_nettoyer(h, p)
 	if not sous_terre:
-		_peupler(h, p)
+		_peupler(h, p_spawn)
 	_lod(p, sous_terre)
 
 # ------------------------------------------------------------------ biomes (arbres du monde)
@@ -296,6 +300,15 @@ func _a_la_mort(_id: String, slot: int, b: Node) -> void:
 	tues[slot] = temps
 	registre.erase(b.ident)      # une bête sauvage tuée ne reste pas « morte pour toujours » : le territoire se repeuple (exporter)
 
+var _tour_n := 0
+
+## Distance horizontale de `pos` au joueur le plus proche (le local `p`, plus les avatars en coop ; solo : `p` seul).
+func _dist_joueurs(pos: Vector3, p: Vector3) -> float:
+	var d := INF
+	for q: Vector3 in CombatCoop.positions_joueurs(p):
+		d = minf(d, Vector2(pos.x - q.x, pos.z - q.z).length())
+	return d
+
 func _nettoyer(h: float, p: Vector3) -> void:
 	var a: Dictionary = fiche["apparition"]
 	for slot: int in actifs.keys():
@@ -308,7 +321,7 @@ func _nettoyer(h: float, p: Vector3) -> void:
 		var combat := false
 		var vue := false
 		for b in vivantes:
-			proche = minf(proche, Vector2(b.global_position.x - p.x, b.global_position.z - p.z).length())
+			proche = minf(proche, _dist_joueurs(b.global_position, p))
 			combat = combat or b.en_combat()
 			vue = vue or _vu(b.global_position + Vector3.UP)
 		if combat:
@@ -335,7 +348,7 @@ func _lod(p: Vector3, sous_terre: bool) -> void:
 		if is_instance_valid(e["bete"]) and e["bete"].vivant():
 			toutes.append(e["bete"])
 	for b in toutes:
-		var d := Vector2(b.global_position.x - p.x, b.global_position.z - p.z).length()
+		var d := _dist_joueurs(b.global_position, p)
 		var geler: bool = sous_terre or d > dist_gel
 		if b.get_meta("faune_gele", false) == geler:
 			continue

@@ -67,6 +67,8 @@ var _marche_proche := MARCHE_PROCHE
 var _course := COURSE
 var dort := false
 var joueur: CharacterBody3D
+## Coop (lot 4a) : vrai chez un invité — marionnette (IA coupée ; position, animation, PV de l'hôte).
+var marionnette := false
 var vie := 80.0
 var vie_max := 80.0
 var degats := 11.0   # PV et dégâts : ReglagesCombat (table unique d'équilibrage), posés dans _ready
@@ -250,6 +252,7 @@ func _ready() -> void:
 		_cd_lourd = randf_range(ReglagesCombat.MENACE_LOURD_PREMIER.x, ReglagesCombat.MENACE_LOURD_PREMIER.y)
 		_cote_pause = [1.0, -1.0].pick_random()
 	vie = vie_max
+	CombatCoop.enregistrer.call_deferred(self)   # coop : id stable, réplication, échelle PV / dégâts selon le nombre de joueurs
 	floor_snap_length = 0.4
 	var forme := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
@@ -466,6 +469,25 @@ func _ligne_de_vue() -> bool:
 func vivant() -> bool:
 	return etat != MORT
 
+## Coop : état propre au draugr répliqué (pour les pieds au sol des marionnettes).
+func coop_etat() -> Dictionary:
+	return {"et": etat}
+
+## Coop : joue le clip répliqué (`_anim` peut être un nom « logique » : réveil et relevé rejouent Death01 à l'envers).
+func coop_jouer(nom: String) -> void:
+	if nom == "reveil" or nom == "releve":
+		_anim = nom
+		anim.play_backwards("Death01")
+	elif anim.has_animation(_clip(nom)):
+		_jouer(nom, 0.2)
+	else:
+		_anim = nom
+
+func coop_appliquer(d: Dictionary) -> void:
+	if d.has("et") and int(d["et"]) != etat and int(d["et"]) != MORT and etat != MORT:
+		etat = int(d["et"])
+		_regler_pieds()
+
 ## Premier combat guidé (scripts/aides.gd) : retarde le prochain geste rouge annoncé (non parable) d'au moins `s` secondes,
 ## pour que l'élève apprenne à bloquer, frapper et se soigner sans être puni par un coup qu'on ne lui a pas encore montré.
 func differer_geste_annonce(s: float) -> void:
@@ -562,6 +584,9 @@ func _physics_process(dt: float) -> void:
 		if _t > 30.0 and not BUTIN.corps_a_fouiller(_butin):      # un cadavre encore fouillable ne disparaît pas (sinon : invite sans modèle)
 			queue_free()
 		return
+	if marionnette:
+		return   # coop : l'IA tourne chez l'hôte ; l'animation et la position arrivent par CombatCoop (réplicateur)
+	CombatCoop.maj_cible(self, dt)   # coop : joueur le plus proche / menaçant (sans effet hors ligne)
 	_recharge -= dt
 	_cd_souffle -= dt
 	_cd_lourd -= dt
@@ -1307,6 +1332,8 @@ func _chercher_allie_contact(ma_dist: float) -> Node3D:
 func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, info: Dictionary = {}) -> String:
 	if etat == MORT:
 		return ""
+	if marionnette:
+		return CombatCoop.envoyer_coup(self, quantite, origine_coup, puissant, info)   # coop : l'hôte valide et applique
 	degeler()
 	if etat == DORT and _attend:
 		_attend = false
@@ -1433,6 +1460,7 @@ func _eclair() -> void:
 ## "chute" (fauché aux jambes), "puissant" (projeté loin, sang à flots, voile rouge), "finisher" (décapitation, coup de grâce…).
 ## Le butin tombe et le signal mort (sauvegarde des morts) part dans TOUS les cas.
 func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, r: Dictionary = {}, sorte := "") -> void:
+	CombatCoop.noter_mort(self, origine_coup, quantite, puissant, sorte)   # coop : les marionnettes meurent aussi
 	degeler()
 	_changer(MORT)
 	if is_instance_valid(_cone):

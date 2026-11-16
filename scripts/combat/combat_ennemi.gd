@@ -329,7 +329,7 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 	if r["reaction"] in ["moyen", "lourd", "recul", "chute"] and randf() < 0.6:
 		RetourImpact.cri(corps, "douleur", point, profil.matiere, profil.mort_vivant)
 	if not bool(i.get("rival", false)):        # coup d'un autre ennemi (Rivalites) : ni arrêt sur image ni secousse pour le joueur
-		RetourImpact.jouer(corps, p, joueur)
+		RetourImpact.jouer(corps, p, CombatCoop.local_ou(joueur))   # coop : la secousse va au joueur LOCAL, pas à un avatar distant
 	if reaction_os:
 		# réaction selon la zone, la direction de la lame et la puissance : léger = sursaut nerveux, lourd = le corps encaisse
 		var f := {"leger": 0.18, "moyen": 0.32, "lourd": 0.55, "recul": 0.7, "chute": 0.6, "etourdi": 0.6}
@@ -423,7 +423,7 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 		if c2 != null and c2.is_inside_tree():
 			RetourImpact.son_chute(c2, c2.global_position))
 	if not bool(i.get("rival", false)):
-		RetourImpact.jouer(corps, p, joueur)
+		RetourImpact.jouer(corps, p, CombatCoop.local_ou(joueur))   # coop : la secousse va au joueur LOCAL, pas à un avatar distant
 	if reaction_os:
 		reaction_os.active = false
 	if debug:

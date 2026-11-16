@@ -108,7 +108,7 @@ static func observer(obs: Node3D, j: Node3D, vigilance: float, dt: float, dist: 
 	var vers := j.global_position - obs.global_position
 	var dos := vers.length() > 0.1 and obs.global_transform.basis.z.dot(vers.normalized()) < -0.3
 	var v := progression(vigilance, dt, dist, portee * visibilite(j), voit, dos, bruit(j))
-	if v > 0.0 and j.has_method("signaler_vigilance"):
+	if v > 0.0 and j.has_method("signaler_vigilance") and j.get("est_local") != false:   # coop : pas d'œil de HUD sur un avatar distant
 		j.signaler_vigilance(v)
 	return v
 
