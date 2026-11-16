@@ -20,6 +20,7 @@ TESTS=(
 	"test_integration2|PORT=24606 bash outils/test_integration2.sh"
 	"test_pause_vote|PORT=24607 bash outils/test_pause_vote.sh"
 	"test_combat_coop|PORT=24811 GODOT_MAX=4 bash outils/test_combat_coop.sh"
+	"test_cadavres|PORT=24841 bash outils/test_cadavres.sh"
 	"test_villageois|SOLO --nouvelle"
 	"test_menu_personnage|SOLO --nouvelle"
 	"test_sommeil|SOLO --nouvelle --paisible"

@@ -1518,6 +1518,20 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 	var effet_sort := Demembrement.effet_sort(combat, r) if sorte != "finisher" and not decapiter and membre == "" else ""
 	if combat.profil.nom.begins_with("troll"):
 		modele.set_meta("gore_echelle", 2.0)
+	# coop (lot 4d, docs/reseau_lot4d.md) : l'hôte décide et diffuse, l'invité applique le plan reçu ; solo : `plan` == ses propres décisions
+	var plan := ReseauCorps.arbitrer_mort(self, {"membre": membre, "decapiter": decapiter, "effet_sort": effet_sort, "force": force, "montee": montee,
+		"os": os_touche, "point": point, "dir": dir, "vitesse": vitesse_avant, "sorte": sorte, "origine": origine_coup, "quantite": quantite,
+		"puissant": puissant, "info": {"point": point, "direction": Vector3(info.get("direction", dir)), "normale": Vector3(info.get("normale", -dir)),
+		"zone": String(info.get("zone", ""))}}, Callable(self, "_contenu_butin"))
+	membre = String(plan["membre"])
+	decapiter = bool(plan["decapiter"])
+	effet_sort = String(plan["effet_sort"])
+	force = float(plan["force"])
+	montee = float(plan["montee"])
+	os_touche = String(plan["os"])
+	point = plan["point"]
+	dir = plan["dir"]
+	vitesse_avant = plan["vitesse"]
 	# l'animation de l'encaissement d'abord (mort titubante), puis le ragdoll
 	var lancer := func() -> void:
 		if not is_instance_valid(self) or not is_inside_tree():
@@ -1527,6 +1541,7 @@ func _mourir(origine_coup := Vector3.ZERO, quantite := 20.0, puissant := false, 
 			if joueur:
 				_ragdoll.ignorer(joueur)
 			_ragdoll.endormir_apres(4.0)
+			ReseauCorps.suivre_ragdoll(ident, _ragdoll)
 			_ragdoll.declencher(dir * force + Vector3.UP * force * montee, point, os_touche, vitesse_avant)
 		else:
 			_jouer("Death01", 0.1, true)
@@ -1613,6 +1628,7 @@ func _laisser_butin() -> void:
 	b.hud = hud
 	b.nom_corps = nom_affiche       # L3 : titre de la fenêtre de butin (« Fouiller » le corps)
 	if ident != "":
+		b.cle_reseau = "corps:" + ident
 		b.cle_sauvegarde = "ennemi:" + ident      # objets laissés dans le corps : sauvegardés (ButinTables.restes / corps)
 	b.contenu = ButinTables.contenu(ButinTables.tirer_pour("ennemi:" + (ident if ident != "" else str(get_instance_id())), table_butin()))
 	var rng := RandomNumberGenerator.new()   # or des chefs : même graine que la bourse (même chef = même somme)

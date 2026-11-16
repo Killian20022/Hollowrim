@@ -43,6 +43,7 @@ static func equiper(ennemi: Node3D, mod: Node3D, p: ProfilCible) -> CombatEnnemi
 	return c
 
 func _installer() -> void:
+	ReseauCorps.assurer()   # coop (lot 4d) : abonnements mort / impact / butin des corps (inerte en solo)
 	RetourImpact.precharger()
 	if corps.is_inside_tree():   # pools des gerbes et des os créés à l'apparition, pas au premier coup
 		GerbePixels.obtenir(corps)
@@ -279,6 +280,7 @@ func reglage_mort_finisher(categorie: String, info: Dictionary) -> Dictionary:
 # ------------------------------------------------------------------ effets
 
 func effets_impact(r: Dictionary, joueur: Node) -> void:
+	ReseauCorps.diffuser_impact(self, r)   # coop (lot 4d) : les invités jouent aussi sang / étincelles / son (inerte en solo)
 	var i: Dictionary = r["info"]
 	var p := ProfilImpact.de(String(r["impact"]))
 	var point: Vector3 = i["point"]

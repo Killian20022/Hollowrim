@@ -36,6 +36,11 @@ var dialogue: Control
 var objets := {}
 ## Corps d'ennemi sauvegardé : clé de ButinTables.restes / corps (« ennemi:<ident> ») ; vide = non sauvegardé (coffres, bourses…).
 var cle_sauvegarde := ""
+## Coop (lot 4d) : « corps:<ident> » ; la fouille et les pièces sont « premier arrivé » arbitrées par l'hôte (ReseauCorps, ReseauLieux.reclamer). Vide = solo / pas un corps.
+var cle_reseau := ""
+## Coop : ce joueur a obtenu la fouille (il peut rouvrir la fenêtre) ; demande de pièces envoyée.
+var gagnant := false
+var or_demande := false
 
 static var _mesh: ArrayMesh
 static var _mats := {}
@@ -47,6 +52,8 @@ var _son_fait := false
 var _pret := false
 
 func _ready() -> void:
+	if cle_reseau != "":
+		ReseauCorps.enregistrer_butin(cle_reseau, self)
 	if cle_sauvegarde.begins_with("lache:"):      # objet lâché depuis l'inventaire (scripts/lacher.gd) : l'objet lui-même au sol (ObjetMonde)
 		Lacher.habiller(self, contenu)
 	var n_or := int(contenu.get("pieces", 0))
@@ -69,6 +76,10 @@ func _ready() -> void:
 	elif _inter == null:
 		_verser()                                   # rien à montrer : contenu versé tel quel (repli)
 		queue_free()
+
+func _exit_tree() -> void:
+	if cle_reseau != "":
+		ReseauCorps.retirer_butin(cle_reseau, self)
 
 ## Vrai tant que `b` (bourse laissée sur un cadavre) a encore une invite de fouille : le cadavre ne doit pas disparaître,
 ## sinon le joueur peut fouiller un corps qui n'a plus de modèle.
@@ -219,6 +230,39 @@ func _creer_fouille() -> void:
 func fouiller() -> bool:
 	if objets.is_empty():
 		return false
+	if cle_reseau != "" and not gagnant and ReseauCorps.en_ligne():
+		# coop : premier arrivé (l'hôte arbitre) ; l'invité attend la réponse, le perdant voit un corps déjà vidé
+		ReseauLieux.reclamer(cle_reseau, Callable(self, "_fouille_gagnee"), Callable(self, "perdre_fouille"), "corps")
+		return true
+	return _fouiller_local()
+
+func _fouille_gagnee() -> void:
+	gagnant = true
+	_fouiller_local()
+
+## Coop : un autre joueur a fouillé ce corps avant nous.
+func perdre_fouille(_qui := 0) -> void:
+	if gagnant or objets.is_empty():
+		return
+	objets.clear()
+	if hud != null and is_instance_valid(hud) and hud.has_method("avis"):
+		hud.avis("Ce corps a déjà été fouillé.")
+	_apres_fouille()
+
+## Coop : un autre joueur a ramassé les pièces de ce corps.
+func perdre_or() -> void:
+	if _verse:
+		return
+	_verse = true
+	or_demande = true
+	contenu["pieces"] = 0
+	for p in _pieces:
+		if is_instance_valid(p["noeud"]):
+			(p["noeud"] as Node).queue_free()
+	_pieces.clear()
+	_peut_partir()
+
+func _fouiller_local() -> bool:
 	var f := FenetreButin.trouver(self)
 	if f != null and f.ouvrir(nom_corps, objets, 0, _apres_fouille):
 		return true
@@ -385,7 +429,12 @@ func _process(dt: float) -> void:
 			tous_poses = false
 	# corps : versement UNE fois, quand le joueur s'approche des pièces retombées ; coffre : déjà versé, aspiration d'office
 	if not _verse and tous_poses and (deja_verse or proche) and not joueur.get("mort"):
-		_verser()
+		if cle_reseau != "" and not deja_verse and ReseauCorps.en_ligne():
+			if not or_demande:
+				or_demande = true      # coop : les pièces d'un corps ne sont versées qu'à UN joueur (premier arrivé)
+				ReseauLieux.reclamer(cle_reseau + ":or", Callable(self, "_verser"), Callable(self, "perdre_or"), "corps")
+		else:
+			_verser()
 	var i := 0
 	while i < _pieces.size():
 		var p: Dictionary = _pieces[i]
