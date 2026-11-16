@@ -162,7 +162,17 @@ func _remettre_registre() -> void:
 	registre.vider()
 	registre.ajouter(ID_HOTE, {"nom": _nom_valide(nom_joueur)} if _hote else {})   # l'id d'un invité est ajouté à la poignée de main
 
+## Chargement du monde = quelques secondes sans lire le réseau : on allonge le délai avant que ENet ne tienne un pair pour perdu
+## (limite de relances 32, minimum 15 s, maximum 90 s ; par défaut 5 s / 30 s).
+func _tolerer(id: int) -> void:
+	var pair := multiplayer.multiplayer_peer
+	if pair is ENetMultiplayerPeer:
+		var p := (pair as ENetMultiplayerPeer).get_peer(id)
+		if p != null:
+			p.set_timeout(32, 15000, 90000)
+
 func _pair_connecte(id: int) -> void:
+	_tolerer(id)
 	if _hote:
 		# l'invité n'existe pour le jeu qu'une fois la poignée de main acceptée (version, place libre)
 		_en_attente[id] = true
@@ -182,6 +192,7 @@ func _pair_deconnecte(id: int) -> void:
 	joueur_deconnecte.emit(id)
 
 func _connecte_au_serveur() -> void:
+	_tolerer(ID_HOTE)
 	_poignee_en_cours = true
 	envoyer_evenement("poignee", version_locale, {"nom": nom_joueur, "version": version_locale}, ID_HOTE)
 	get_tree().create_timer(DELAI_POIGNEE + 2.0).timeout.connect(func() -> void:
@@ -213,6 +224,8 @@ func _couper(id: int) -> void:
 	if not _en_ligne:
 		return
 	var pair := multiplayer.multiplayer_peer
+	if pair is ENetMultiplayerPeer and (pair as ENetMultiplayerPeer).get_peer(id) == null:
+		return   # déjà parti
 	if pair != null and not (pair is OfflineMultiplayerPeer):
 		pair.disconnect_peer(id)
 

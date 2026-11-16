@@ -873,8 +873,9 @@ func _test(etape: String) -> void:
 	elif etape.begins_with("options:"):
 		await _captures_options(etape.substr(8))
 		get_tree().quit()
-	elif etape.begins_with("multi:"):
-		await _captures_multi(etape.substr(6))
+	elif etape.begins_with("multi:"):   # multi:<port>:<dossier>
+		var reste := etape.substr(6)
+		await _captures_multi(reste.substr(reste.find(":") + 1), reste.get_slice(":", 0))
 		get_tree().quit()
 	elif etape == "nouvelle":
 		_lancer(true)
@@ -1134,12 +1135,9 @@ func _captures(dossier: String) -> void:
 		await capture(dossier.path_join("titre_%dx%d.png" % [int(reel.x), int(reel.y)]))
 
 ## Captures du panneau Multijoueur (outils/captures_ecran_multi.sh) : choix, Héberger, Rejoindre avec une adresse invalide, salon de l'hôte.
-## Le salon ouvre un vrai port local (--port-multi=<n>, 25031 par défaut) puis le referme.
-func _captures_multi(dossier: String) -> void:
-	var port := "25031"
-	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--port-multi="):
-			port = a.substr(13)
+## Le salon ouvre un vrai port local (<port>, 25035 par défaut) puis le referme. --test-titre=multi:<port>:<dossier>
+## (aucun autre argument : « mode outil » ferait quitter le titre).
+func _captures_multi(dossier: String, port := "25035") -> void:
 	_multi.persistance = false
 	await get_tree().create_timer(3.5).timeout   # fin de l'apparition du titre
 	_ouvrir_multi()

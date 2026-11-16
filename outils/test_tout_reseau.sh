@@ -19,6 +19,7 @@ TESTS=(
 	"test_monde_vivant|PORT=24605 bash outils/test_monde_vivant.sh"
 	"test_integration2|PORT=24606 bash outils/test_integration2.sh"
 	"test_pause_vote|PORT=24607 bash outils/test_pause_vote.sh"
+	"test_sauvegarde_multi|PORT=25033 bash outils/test_sauvegarde_multi.sh"
 	"test_villageois|SOLO --nouvelle"
 	"test_menu_personnage|SOLO --nouvelle"
 	"test_sommeil|SOLO --nouvelle --paisible"

@@ -100,6 +100,7 @@ func _sur_apport(expediteur: int, _id: Variant, d: Variant) -> void:
 	var r := _R()
 	if r == null or not bool(r.call("est_hote")) or monde == null:
 		return
+	print("APPORT : reçu de %d" % expediteur)
 	var recu := _deballer(d)
 	var v := SauvegardeMulti.valider(recu.get("perso", {}))
 	var rep := {"ok": bool(v["ok"]), "raison": String(v["raison"]), "corrections": v["corrections"], "perso": v["personnage"]}
