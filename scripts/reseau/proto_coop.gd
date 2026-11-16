@@ -27,6 +27,7 @@ var _t_envoi := 0.0
 var _t_etat := 0.0
 var _t_cible := 0.0
 var test: ProtoTest
+var captures: Node   # proto_captures.gd (preload : pas de class_name, le cache des classes n'a pas à être régénéré)
 
 ## Appelé par test_combat._ready (une fois tout créé). Renvoie null en solo.
 static func installer(sc: Node3D, args: Dictionary) -> ProtoCoop:
@@ -43,6 +44,10 @@ static func installer(sc: Node3D, args: Dictionary) -> ProtoCoop:
 	if args.has("coop-test"):
 		p.test = ProtoTest.new()
 		p.test.coop = p
+	if args.has("coop-captures"):   # outils/captures_coop.sh : scénario de captures (rendu réel)
+		p.captures = preload("res://scripts/reseau/proto_captures.gd").new()
+		p.captures.coop = p
+		p.captures.dossier = String(args["coop-captures"])
 	sc.add_child(p)
 	return p
 
@@ -67,6 +72,8 @@ func _ready() -> void:
 		draugr.mort.connect(func(_i: String) -> void: Reseau.emettre("draugr_mort", "draugr_test", null))
 	if test != null:
 		add_child(test)
+	if captures != null:
+		add_child(captures)
 
 func _sur_connecte(id: int) -> void:
 	print("COOP joueur connecté ", id)
