@@ -784,6 +784,7 @@ func guerre(pos: Vector3, proches: Array = []) -> void:
 		elif not _en_attente(g):
 			var k := clampf((d - R_VOIX) / 120.0, 0.0, 1.0)
 			_alertes.append({"t": _horloge + lerpf(DELAI_LOIN.x, DELAI_LOIN.y, k), "n": g, "peer": _ctx})
+	_miroir()
 
 func _en_attente(g: Node) -> bool:
 	for a: Dictionary in _alertes:

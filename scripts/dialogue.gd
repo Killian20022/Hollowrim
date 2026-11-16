@@ -61,6 +61,7 @@ var _options: Array = []
 var _lignes_forcees: Array = []   # répliques imposées à la prochaine conversation (réponse d'une option : Rangs)
 
 func _ready() -> void:
+	ConversationsCoop.brancher()      # coop (lot 5a) : verrous de conversation arbitrés par l'hôte (inerte hors ligne)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_police = Palette.police()

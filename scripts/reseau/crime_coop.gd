@@ -133,7 +133,8 @@ func _process(dt: float) -> void:
 				_accroches[id] = av
 				av.connect("deces", func() -> void: crime.dans_contexte(id, crime.apaiser_tous))
 	else:
-		if not _perso_envoye and r.mon_id() > 1:
+		if not _perso_envoye and r.mon_id() > 1 and r.multiplayer.multiplayer_peer != null \
+				and r.multiplayer.multiplayer_peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
 			_perso_envoye = true
 			envoyer("crime_perso", exporter_perso())
 		crime._ronde_monde()          # les PNJ tués par un autre joueur disparaissent aussi chez l'invité
