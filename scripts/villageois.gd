@@ -117,6 +117,7 @@ var _autour_lacet := 0.0
 var _autour_duree := 4.0
 var _parle := false  # conversation : Idle_Talking (vrai) ou Idle
 var _delai_parole := 0.0
+var marionnette := false         # multijoueur (reseau_monde_vivant.gd) : chez un invité l'IA est coupée, l'hôte envoie l'état
 var lod := 0                     # 0 complet ; 1 allégé (ni IK des pieds, ni suivi de tête, ni ombre) ; 2 endormi (caché, gelé) — réglé par Vie
 var _forme: CollisionShape3D
 var _route: Array = []           # RENTRE : points à suivre (le dernier est le but)
@@ -524,7 +525,13 @@ func finir_causerie() -> void:
 	if etat == POSTE and not _en_conversation:
 		_activite()
 
+## Joueur le plus proche (liste du registre réseau) : cible de la tête, du regard et des distances. Solo : `joueur`.
+func _cible_joueur() -> CharacterBody3D:
+	return ReseauMondeVivant.joueur_proche(global_position, joueur)
+
 func _physics_process(dt: float) -> void:
+	if marionnette:
+		return      # invité : l'état vient de l'hôte (ReseauMondeVivant), ni IA ni physique
 	if etat == DORT:
 		if seq != "":
 			_au_lit(dt)      # lot sommeil : s'asseoir, s'allonger, dormir, se lever (le corps ne bouge plus : pas de move_and_slide)
@@ -535,10 +542,11 @@ func _physics_process(dt: float) -> void:
 		_filtrer_points()   # la physique du village est en place
 	if not is_on_floor():
 		velocity.y -= GRAVITE * dt
-	if joueur == null or not is_instance_valid(joueur):
+	var cj := _cible_joueur()
+	if cj == null or not is_instance_valid(cj):
 		move_and_slide()
 		return
-	var vers := joueur.global_position - global_position
+	var vers := cj.global_position - global_position
 	vers.y = 0.0
 	var dist := vers.length()
 	var dir := vers / dist if dist > 0.01 else Vector3.ZERO
@@ -635,6 +643,9 @@ func _physics_process(dt: float) -> void:
 			elif not _avance:
 				_jouer("Idle", 0.3)
 	_regard_tete(dist)
+	if cj != joueur and joueur != null and is_instance_valid(joueur):
+		var vl := joueur.global_position - global_position
+		dist = Vector2(vl.x, vl.z).length()      # l'invite « E Parler » et l'interpellation concernent le joueur LOCAL
 	_interactions(dist, dt)
 
 ## Conversation : alterne Idle_Talking (2,5 à 5 s) et Idle (1 à 2,5 s).
@@ -769,9 +780,10 @@ func _regard_tete(dist: float) -> void:
 	if causerie != null and is_instance_valid(causerie) and not _en_conversation:
 		_tete.cible = causerie.global_position + Vector3.UP * (1.2 if causerie.get("_assis") != "" else 1.55)
 		_tete.voulu = true
-	elif joueur != null and (dist < DIST_TETE or _en_conversation):
-		var cam: Camera3D = joueur.camera if "camera" in joueur else null
-		_tete.cible = cam.global_position if cam != null else joueur.global_position + Vector3.UP * 1.6
+	elif _cible_joueur() != null and (dist < DIST_TETE or _en_conversation):
+		var cj := _cible_joueur()
+		var cam: Camera3D = cj.camera if "camera" in cj else null
+		_tete.cible = cam.global_position if cam != null else cj.global_position + Vector3.UP * 1.6
 		_tete.voulu = true
 	elif _autour > 0.0:
 		var moitie := _autour > _autour_duree * 0.5
@@ -1119,7 +1131,8 @@ func _refermer_porte() -> void:
 	var p := global_position
 	if Vector2(_porte_p.x - p.x, _porte_p.z - p.z).length() < 2.4:
 		return
-	if joueur != null and is_instance_valid(joueur) and Vector2(_porte_p.x - joueur.global_position.x, _porte_p.z - joueur.global_position.z).length() < 2.2:
+	var cp := ReseauMondeVivant.joueur_proche(_porte_p, joueur)
+	if cp != null and is_instance_valid(cp) and Vector2(_porte_p.x - cp.global_position.x, _porte_p.z - cp.global_position.z).length() < 2.2:
 		return
 	for v: Node in get_tree().get_nodes_in_group("villageois"):
 		var v3 := v as Node3D

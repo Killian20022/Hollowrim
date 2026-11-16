@@ -133,10 +133,10 @@ func tick() -> void:
 			continue
 		# niveau de détail (les dormeurs cachés le sont déjà ; ceux qui sont au lit, cachés au-delà de quelques mètres)
 		if not n.est_endormi():
-			var d := pj.distance_to(n.global_position)
+			var d := ReseauMondeVivant.distance_joueurs(n.global_position, pj)   # le plus proche de TOUS les joueurs
 			n.regler_lod(0 if d < GardesVillage.DIST_COMPLET else (1 if d < GardesVillage.DIST_ALLEGE else 2))
 		elif n.has_method("au_lit") and n.au_lit():
-			n.lod_lit(pj.distance_to(n.global_position))
+			n.lod_lit(ReseauMondeVivant.distance_joueurs(n.global_position, pj))
 		_evaluer(c, heure, menaces, saut)
 	_frapper(heure)
 	if conversations != null:
