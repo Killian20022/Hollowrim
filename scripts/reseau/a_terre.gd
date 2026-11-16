@@ -120,6 +120,10 @@ func _annoncer(t: bool) -> void:
 
 func _sur_etat(_exp: int, id: Variant, d: Variant) -> void:
 	etats[int(id)] = bool(d["t"])
+	if int(id) != PauseCoop.R().mon_id():
+		var av := noeud_de(int(id))   # avatar distant : l'état « à terre » suit le registre (cibles des PNJ / ennemis)
+		if av != null and "a_terre" in av:
+			av.a_terre = bool(d["t"])
 
 func _sur_releve(_exp: int, id: Variant, _d: Variant) -> void:
 	if int(id) == PauseCoop.R().mon_id():

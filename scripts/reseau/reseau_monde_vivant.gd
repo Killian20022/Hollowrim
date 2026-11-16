@@ -48,13 +48,13 @@ static func joueur_proche(pos: Vector3, local: CharacterBody3D) -> CharacterBody
 		return local
 	var meilleur := local
 	var dmin := INF
-	if local != null and is_instance_valid(local):
-		dmin = pos.distance_squared_to(local.global_position)
+	if local != null and is_instance_valid(local) and not ("a_terre" in local and local.a_terre):
+		dmin = pos.distance_squared_to(local.global_position)   # un joueur à terre n'est plus ciblé (sauf si tous le sont)
 	for id in _r().registre.ids():
 		var n := _r().registre.noeud(id) as CharacterBody3D
 		if n == null or n == local or not n.is_inside_tree():
 			continue
-		if "mort" in n and n.mort:
+		if ("mort" in n and n.mort) or ("a_terre" in n and n.a_terre):
 			continue
 		var d := pos.distance_squared_to(n.global_position)
 		if d < dmin:

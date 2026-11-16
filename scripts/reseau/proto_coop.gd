@@ -53,23 +53,23 @@ static func installer(sc: Node3D, args: Dictionary) -> ProtoCoop:
 
 func _ready() -> void:
 	Effets.coop = true
-	var err := Reseau.heberger(port) if est_hote else Reseau.rejoindre(mode, port)
+	var err := ReseauLieux.reseau().heberger(port) if est_hote else ReseauLieux.reseau().rejoindre(mode, port)
 	print("COOP ", "hote" if est_hote else "invite", " réseau: ", error_string(err))
 	if err != OK:
 		push_error("COOP : connexion impossible")
-	Reseau.joueur_connecte.connect(_sur_connecte)
-	Reseau.joueur_deconnecte.connect(_sur_deconnecte)
+	ReseauLieux.reseau().joueur_connecte.connect(_sur_connecte)
+	ReseauLieux.reseau().joueur_deconnecte.connect(_sur_deconnecte)
 	monde = ProtoMonde.new()
 	monde.joueur = joueur
 	scene.add_child(monde)
-	Reseau.abonner("coup", _sur_coup)
-	Reseau.abonner("draugr_mort", _sur_draugr_mort)
+	ReseauLieux.reseau().abonner("coup", _sur_coup)
+	ReseauLieux.reseau().abonner("draugr_mort", _sur_draugr_mort)
 	if not est_hote:
 		joueur.global_position = Vector3(-1.5, 0.0, 0.5)   # ne pas apparaître dans l'hôte
 		if draugr != null:
 			draugr.set_physics_process(false)   # marionnette : l'IA est chez l'hôte
 	elif draugr != null:
-		draugr.mort.connect(func(_i: String) -> void: Reseau.emettre("draugr_mort", "draugr_test", null))
+		draugr.mort.connect(func(_i: String) -> void: ReseauLieux.reseau().emettre("draugr_mort", "draugr_test", null))
 	if test != null:
 		add_child(test)
 	if captures != null:
@@ -85,7 +85,7 @@ func _sur_deconnecte(id: int) -> void:
 		avatars.erase(id)
 
 func _avatar(id: int) -> ProtoAvatar:
-	if id == Reseau.mon_id():
+	if id == ReseauLieux.reseau().mon_id():
 		return null
 	if not avatars.has(id):
 		var a := ProtoAvatar.creer(scene, id, Vector3(0, -100, 0))   # caché sous le sol jusqu au premier instantané
@@ -125,8 +125,10 @@ func _sur_draugr_mort(expediteur: int, _id: Variant, _d: Variant) -> void:
 ## Cible = le joueur (local ou avatar) le plus proche du draugr.
 func _retarget() -> void:
 	var meilleur: CharacterBody3D = joueur
-	var dmin := draugr.global_position.distance_squared_to(joueur.global_position)
+	var dmin := INF if joueur.get("a_terre") else draugr.global_position.distance_squared_to(joueur.global_position)
 	for a: ProtoAvatar in avatars.values():
+		if a.noeud.get("a_terre"):
+			continue
 		var d := draugr.global_position.distance_squared_to(a.noeud.global_position)
 		if d < dmin:
 			dmin = d
@@ -139,7 +141,7 @@ func _coup_vers(id: int, degats: float, origine: Vector3, options: Dictionary) -
 	for k in options:
 		if typeof(options[k]) in [TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING]:
 			propre[k] = options[k]
-	Reseau.emettre("coup", "draugr_test", {"degats": degats, "origine": origine, "options": propre}, id)
+	ReseauLieux.reseau().emettre("coup", "draugr_test", {"degats": degats, "origine": origine, "options": propre}, id)
 
 func _sur_coup(expediteur: int, _id: Variant, d: Variant) -> void:
 	if expediteur == 1 and not est_hote:
@@ -149,7 +151,7 @@ func _sur_coup(expediteur: int, _id: Variant, d: Variant) -> void:
 func _physics_process(dt: float) -> void:
 	for a: ProtoAvatar in avatars.values():
 		a.avancer()
-	if not Reseau.est_en_ligne() or Reseau.joueurs().size() < 2:
+	if not ReseauLieux.reseau().est_en_ligne() or ReseauLieux.reseau().joueurs().size() < 2:
 		return
 	_t_envoi += dt
 	if _t_envoi >= PERIODE_ENVOI:
