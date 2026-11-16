@@ -27,6 +27,9 @@ var actives := {}                       # id -> true
 var courante := ""
 var volume := AABB()                    # englobant des salles (repère local)
 var geler_ennemis := true
+## Coop : positions mondiales (Vector3) des AUTRES joueurs ; vide = Reseau.registre (avatars des pairs). Remplaçable (tests).
+## Simulation (ennemis gelés / dégelés) = UNION des salles de tous les joueurs ; rendu (décor caché) = salle du joueur LOCAL seulement.
+var positions_autres := Callable()
 var cacher_decor := true
 var nb_geles := 0
 var _t := PAS
@@ -34,6 +37,8 @@ var _dedans := true
 var _noeuds := {}                       # instance_id -> {"n": GeometryInstance3D, "s": Array[String]}
 var _a_classer: Array = []
 var _exclus: Array = []                 # sous-arbres à ignorer (portes mobiles)
+var _sig_autres := ""                   # signature des salles des autres joueurs (détecte un changement)
+var _autres_dedans := false             # au moins un autre joueur est dans le volume de ce donjon
 var _visibles := {}                     # salles dont la géométrie est actuellement visible (au départ : toutes)
 var _force := true
 
@@ -220,21 +225,49 @@ func pas(dt: float, dedans: bool) -> void:
 	_t = 0.0
 	rafraichir(dedans)
 
+## Salles (ids, triées) des autres joueurs qui sont dans le volume de ce donjon ("" = dans le volume mais hors de toute salle = tout actif).
+func _salles_autres() -> Array:
+	var res: Array = []
+	var pos: Array = []
+	if positions_autres.is_valid():
+		pos = positions_autres.call()
+	elif Reseau.est_en_ligne():
+		for id: int in Reseau.joueurs():
+			if id == Reseau.mon_id():
+				continue
+			var n := Reseau.registre.noeud(id) as Node3D
+			if n != null and n.is_inside_tree():
+				pos.append(n.global_position)
+	for p: Vector3 in pos:
+		var l := repere.to_local(p)
+		if volume.grow(2.0).has_point(l):
+			res.append(salle_de(l, 8.0))
+	res.sort()
+	return res
+
 ## Recalcule la salle courante, l'ensemble actif, la géométrie cachée et les ennemis gelés.
+## `actives` = union des salles actives de tous les joueurs (simulation) ; la géométrie ne suit que le joueur local.
 func rafraichir(dedans := true) -> void:
 	if joueur == null or not is_instance_valid(joueur):
 		return
 	var id := ""
 	if dedans:
 		id = salle_de(repere.to_local(joueur.global_position), 8.0)
-	if dedans != _dedans or id != courante or _force:
+	var autres := _salles_autres()
+	var sig := ",".join(autres) + ("#" if not autres.is_empty() else "")
+	if dedans != _dedans or id != courante or sig != _sig_autres or _force:
 		_force = false
 		_dedans = dedans
 		courante = id
-		actives = _calculer_actives(id) if dedans else {}
-		_appliquer_decor(actives if dedans else _calculer_actives(""))
+		_sig_autres = sig
+		_autres_dedans = not autres.is_empty()
+		var local := _calculer_actives(id) if dedans else {}
+		actives = local.duplicate()
+		for sid: String in autres:
+			actives.merge(_calculer_actives(sid))
+		_appliquer_decor(local if dedans else _calculer_actives(""))
 	if geler_ennemis:
-		_ennemis(dedans)
+		_ennemis()
 
 func _appliquer_decor(neuf: Dictionary) -> void:
 	if not cacher_decor:
@@ -258,8 +291,11 @@ func _voulu(n: GeometryInstance3D) -> bool:
 			return true
 	return false
 
-func _ennemis(dedans: bool) -> void:
+func _ennemis() -> void:
 	nb_geles = 0
+	# Invité en ligne : aucune simulation ici (les ennemis sont des marionnettes de l'hôte) : rien n'est gelé.
+	var marionnettes := Reseau.est_en_ligne() and not Reseau.est_hote()
+	var personne := actives.is_empty()
 	for e: Node in arbre.get_nodes_in_group("ennemis"):
 		if not is_instance_valid(e) or not e.has_method("peut_geler"):
 			continue
@@ -268,11 +304,13 @@ func _ennemis(dedans: bool) -> void:
 		if not volume.grow(2.0).has_point(pos):
 			continue
 		var veut_actif := true
-		if not dedans:
+		if personne:
 			veut_actif = false
-		elif courante != "":
+		else:
 			var sid := salle_de(pos)
 			veut_actif = sid == "" or actives.has(sid)
+		if marionnettes:
+			veut_actif = true
 		if veut_actif or not e.call("peut_geler"):
 			if e.call("est_gele"):
 				e.call("degeler")

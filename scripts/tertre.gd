@@ -360,6 +360,7 @@ func _plan_fin() -> Array:
 
 func _finir_donjon() -> void:
 	_installer_salles()
+	_brancher_reseau()
 	var t0 := _t_pose
 	_etat_donjon()
 	print("Donjon : intégré en %d ms (%d interactions, %d gardiens, %d mécanismes, %d lumières)" % [Time.get_ticks_msec() - t0, donjon.interactions.size(), donjon.gardiens.size(), donjon.meca.size(), d2.toutes.size()])
@@ -430,6 +431,8 @@ func _porte_haut(id: String, instant := false) -> void:
 		return
 	if instant or Mecanisme.restauration:
 		p.position.y = 3.2
+		return
+	if ReseauLieux.router_porte("haut:" + id):      # coop : l'hôte arbitre et diffuse (invité : demande envoyée)
 		return
 	if p.has_meta("en_ouverture"):
 		return       # déjà en train de monter (ex. « tue:svanhild » signalé deux fois) : pas de second tween ni de secousse
@@ -510,6 +513,8 @@ func _creer_interaction(it: Dictionary) -> void:
 			_couvercles[id] = c
 
 func _ouvrir_porte(id: String) -> Array:
+	if ReseauLieux.router_porte("crypte:" + id):      # coop : l'hôte arbitre et diffuse (invité : demande envoyée)
+		return []
 	quetes.signaler("crypte:" + id)
 	var p: Node3D = donjon.portes[id]
 	var t := create_tween()
@@ -520,6 +525,8 @@ func _ouvrir_porte(id: String) -> Array:
 
 ## Rappelé par les statues (aussi à la restauration) : le mur pivotant de la galerie des ancêtres s'ouvre sur le trésor.
 func _ouvrir_secret() -> Array:
+	if not Mecanisme.restauration and ReseauLieux.router_porte("crypte:secret"):
+		return []
 	quetes.signaler("crypte:secret")
 	var p: Node3D = donjon.portes["secret"]
 	if Mecanisme.restauration:
@@ -549,6 +556,37 @@ func _choisir(choix: String) -> Array:
 	return quetes.texte("choix_piller" if choix == "piller_offrandes" else "choix_respecter")
 
 func _ouvrir_coffre(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
+	var cle := "crypte:" + id
+	if Reseau.est_en_ligne() and not quetes.vus.has(cle):      # coop : « premier arrivé », l'hôte arbitre (l'invité attend sa réponse)
+		ReseauLieux.reclamer(cle, func() -> void: _coffre_ouvert(id, contenu, lieu))
+		return []
+	return _coffre_ouvert(id, contenu, lieu)
+
+## Un autre joueur a ouvert ce coffre en premier : il est vidé pour nous aussi (couvercle ouvert, plus d'interaction).
+func _coffre_pris_ailleurs(cle: String, _type: String, _qui: int) -> void:
+	if not cle.begins_with("crypte:"):
+		return
+	var id := cle.substr(7)
+	if not _inter.has(id) or _inter[id].get_meta("genre_donjon", "") != "coffre":
+		return
+	quetes.signaler(cle)
+	_inter[id].actif = false
+	if _couvercles.has(id):
+		(_couvercles[id] as CoffreCouvercle).ouvrir()
+
+## Coop : branche les portes / coffres du donjon sur ReseauLieux (effets rejoués quand l'hôte diffuse).
+func _brancher_reseau() -> void:
+	ReseauLieux.poser_quetes(quetes, ["crypte:", "meca:"])
+	ReseauLieux.sur_pris(_coffre_pris_ailleurs)
+	ReseauLieux.sur_etat(_etat_donjon)
+	for id: String in donjon.portes:
+		if id == "secret":
+			ReseauLieux.enregistrer_porte("crypte:secret", func() -> void: _ouvrir_secret())
+		else:
+			ReseauLieux.enregistrer_porte("crypte:" + id, func() -> void: _ouvrir_porte(id))
+			ReseauLieux.enregistrer_porte("haut:" + id, func() -> void: _porte_haut(id))
+
+func _coffre_ouvert(id: String, contenu: Dictionary, lieu: Vector3) -> Array:
 	var cle := "crypte:" + id
 	var n_or := 0
 	if not quetes.vus.has(cle):
