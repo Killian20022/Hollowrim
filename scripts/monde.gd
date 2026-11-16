@@ -257,6 +257,7 @@ func _ready() -> void:
 	await _attendre_prechauffes()
 	Chrono.total()
 	pret = true
+	_brancher_rejoindre()   # lot 2a : instantané pour un invité qui rejoint en cours de partie
 	if not _arguments().has("capture"):
 		_accueil()   # prologue (nouvelle partie), premier objectif, bulles d'aide ; sinon hud.demarrer() seul (lot L7)
 	_aller_crypte()
@@ -1755,6 +1756,23 @@ func charger() -> void:
 	for v in _tous_les_villageois():
 		if v.donnees.get("id", "") in parles:
 			v.deja_parle = true
+
+## Lot 2a (réseau) : contributeur d'instantané « monde » (heure, jour, butin/graine, morts). Inerte hors ligne.
+func _brancher_rejoindre() -> void:
+	Rejoindre.contributeur("monde", func() -> Dictionary:
+		var morts := []
+		for id in draugrs:
+			if not is_instance_valid(draugrs[id]) or not draugrs[id].vivant():
+				morts.append(id)
+		return {"heure": cycle.heure, "jour": cycle.jour, "butin": ButinTables.exporter(), "morts": morts},
+	func(d: Dictionary) -> void:
+		cycle.heure = float(d.get("heure", cycle.heure))
+		cycle.jour = maxi(1, int(d.get("jour", 1)))
+		ButinTables.importer(d.get("butin", {}))
+		for id in d.get("morts", []):
+			if draugrs.has(id):
+				draugrs[id].queue_free()
+				draugrs.erase(id))
 
 func _process(dt: float) -> void:
 	_t += dt
