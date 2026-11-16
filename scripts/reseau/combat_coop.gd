@@ -380,6 +380,7 @@ static func _sur_coup(exp: int, id: Variant, d: Variant) -> void:
 		return
 	_derniers[cle] = t
 	info["attaquant"] = exp
+	info["qui"] = exp   # lot 4d : pair de l attaquant (ReseauCorps ne rejoue pas chez lui l effet d impact)
 	noter_menace(e, exp, deg)
 	var res := String(e.call("recevoir_coup", deg, d.get("orig", e.global_position), bool(d.get("puis", false)), info))
 	journal.append({"type": "applique", "id": ident, "de": exp, "deg": deg, "res": res})
