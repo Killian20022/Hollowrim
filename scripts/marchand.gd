@@ -352,7 +352,7 @@ func ouvrir(id: String, nom := "") -> bool:
 	_remplir()
 	if hud != null and hud.get("panneau_ouvert"):
 		hud.panneau_ouvert = false
-	get_tree().paused = true
+	PauseCoop.demander_pause(self)
 	_souris = Input.mouse_mode
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -367,7 +367,7 @@ func fermer() -> void:
 		return
 	ouvert = false
 	_livre.visible = false
-	get_tree().paused = false
+	PauseCoop.liberer(self)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = _souris if _souris != Input.MOUSE_MODE_VISIBLE else Input.MOUSE_MODE_CAPTURED
 

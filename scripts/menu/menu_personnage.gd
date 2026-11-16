@@ -112,7 +112,7 @@ func onglet_courant() -> OngletMenu:
 func peut_ouvrir() -> bool:
 	if joueur == null or joueur.get("mort") or joueur.get("en_dialogue"):
 		return false
-	return not get_tree().paused or ouvert
+	return not PauseCoop.en_pause(get_tree()) or ouvert
 
 ## Ouvre le menu (jeu en pause) sur l'onglet `id` ("" = le dernier affiché).
 func ouvrir(id := "") -> void:
@@ -124,7 +124,7 @@ func ouvrir(id := "") -> void:
 	if ouvert or joueur == null:
 		return
 	ouvert = true
-	get_tree().paused = true
+	PauseCoop.demander_pause(self)
 	_souris = Input.mouse_mode
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -146,7 +146,7 @@ func fermer() -> void:
 		o.visible = false
 	ouvert = false
 	_vue.visible = false
-	get_tree().paused = false
+	PauseCoop.liberer(self)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = _souris if _souris != Input.MOUSE_MODE_VISIBLE else Input.MOUSE_MODE_CAPTURED
 	Sons.interface(self, ["ui_menu_ferme"], -13.0)

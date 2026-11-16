@@ -103,6 +103,7 @@ var _det_acc := 0.0
 var _forme: CollisionShape3D
 var _capsule: CapsuleShape3D
 var mort := false
+var a_terre := false      # coop (lot 3) : à terre, relevable par un allié (scripts/reseau/a_terre.gd) ; sinon toujours faux
 var en_dialogue := false  # posé par la boîte de dialogue : ni marche ni combat
 var secousse := 0.0
 ## Tassement de la caméra (coup 3, coup lourd : mains.gd) : 1 → 0 en ~0,18 s, la vue plonge un instant puis revient.
@@ -198,6 +199,8 @@ func _ready() -> void:
 			basculer_vue(true)
 	_bruit_secousse.frequency = 2.0
 	if est_local:
+		add_to_group("joueur_local")   # PauseCoop / ATerre retrouvent le joueur de CETTE machine
+		ATerre.installer(self)         # coop : état « à terre » (inerte en solo)
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	else:
 		basculer_vue(true)   # avatar distant : corps visible, jamais la caméra
@@ -369,7 +372,7 @@ func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 	if not est_local:
 		coup_distant.emit(degats, origine, options)
 		return "touche"
-	if mort:
+	if mort or a_terre:
 		return ""
 	if esquive_invulnerable():
 		esquives_evitees += 1
@@ -406,8 +409,7 @@ func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 				touche.emit(degats * imparable)
 				if vie <= 0.0:
 					vie = 0.0
-					mort = true
-					deces.emit()
+					_vaincu()
 					return "touche"
 			if options.has("ralenti"):
 				var rl: Vector2 = options["ralenti"]
@@ -429,9 +431,16 @@ func recevoir_coup(degats: float, origine: Vector3, options := {}) -> String:
 	Sons.jouer(self, ["impactPunch_heavy_000", "impactPunch_heavy_001", "impactPunch_heavy_002"], 0.0)
 	if vie <= 0.0:
 		vie = 0.0
-		mort = true
-		deces.emit()
+		_vaincu()
 	return "touche"
+
+## 0 PV : coop avec un allié debout = « à terre » (ATerre : 30 s, relevable) ; sinon (solo, ou personne pour relever) mort habituelle.
+func _vaincu() -> void:
+	if ATerre.peut_tomber(self):
+		ATerre.tomber(self)
+		return
+	mort = true
+	deces.emit()
 
 ## Ralentit le joueur `duree` s (vitesse × `facteur`) ; un ralentissement plus fort ou plus long remplace le précédent.
 func ralentir(duree: float, facteur: float) -> void:
@@ -475,6 +484,7 @@ func ressusciter(lieu: Vector3, lacet: float) -> void:
 	vigueur = vigueur_max
 	mana = mana_max
 	mort = false
+	a_terre = false
 	potions.vider()
 
 ## Surcharge (poids du sac > capacité) : avis au passage, et un rappel si on tente de courir.
@@ -573,7 +583,7 @@ func _physics_process(dt: float) -> void:
 	_repos_vigueur -= dt
 	if _repos_vigueur <= 0.0:
 		vigueur = minf(vigueur_max, vigueur + 22.0 * progression.facteur("regen_vigueur") * dt)
-	if not mort:
+	if not mort and not a_terre:
 		vie = minf(vie_max, vie + 0.8 * progression.facteur("regen_vie") * dt)
 	_repos_mana -= dt
 	_calme_mana += dt
@@ -612,7 +622,7 @@ func _physics_process(dt: float) -> void:
 		camera_corps.impact(secousse)
 	_secousse_prec = secousse
 	camera_corps.avancer(dt, vitesse_sol if not mort else 0.0, _pas, is_on_floor(), velocity.y, secousse, global_position.y)
-	if mort:
+	if mort or a_terre:
 		# on s'effondre
 		tete.rotation.z = lerpf(tete.rotation.z, 1.2, 1.0 - exp(-3.0 * dt))
 		camera.position = camera.position.lerp(Vector3(0, -1.2, 0), 1.0 - exp(-12.0 * dt))

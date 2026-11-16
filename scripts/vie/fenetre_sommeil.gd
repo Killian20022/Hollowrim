@@ -114,7 +114,7 @@ func ouvrir(mode_: String, sous_titre: String, heure_: float, defaut: int, lit_:
 	ouvert = true
 	_racine.visible = true
 	regler(defaut)
-	get_tree().paused = true
+	PauseCoop.demander_pause(self)
 	_souris = Input.mouse_mode
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -126,7 +126,7 @@ func fermer() -> void:
 		return
 	ouvert = false
 	_racine.visible = false
-	get_tree().paused = false
+	PauseCoop.liberer(self)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = _souris if _souris != Input.MOUSE_MODE_VISIBLE else Input.MOUSE_MODE_CAPTURED
 	annule.emit()
@@ -136,7 +136,7 @@ func valider() -> void:
 		return
 	ouvert = false
 	_racine.visible = false
-	get_tree().paused = false
+	PauseCoop.liberer(self)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = _souris if _souris != Input.MOUSE_MODE_VISIBLE else Input.MOUSE_MODE_CAPTURED
 	choisi.emit(heures, mode, lit)

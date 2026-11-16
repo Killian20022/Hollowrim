@@ -70,7 +70,7 @@ func bandes() -> Array:
 
 func _cache() -> bool:
 	var h := get_parent()
-	return get_tree().paused or (h != null and bool(h.get("panneau_ouvert")))
+	return PauseCoop.en_pause(get_tree()) or (h != null and bool(h.get("panneau_ouvert")))
 
 func _process(dt: float) -> void:
 	if _niveaux.is_empty() and _bandes.is_empty():

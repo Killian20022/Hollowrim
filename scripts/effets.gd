@@ -47,7 +47,7 @@ static func ralenti(arbre: SceneTree, echelle: float, duree: float) -> void:
 			await _echelle_temps(arbre, echelle, duree)
 
 static func _echelle_temps(arbre: SceneTree, echelle: float, duree: float) -> void:
-	if coop or arbre == null or duree <= 0.0:
+	if coop or PauseCoop.coop() or arbre == null or duree <= 0.0:   # coop : jamais d'échelle de temps (le temps est commun)
 		return
 	duree = minf(duree, DUREE_MAX)
 	var d := [echelle, Time.get_ticks_msec() + int(duree * 1000.0) + 250]
@@ -65,7 +65,7 @@ static func _maj_temps() -> void:
 			_demandes.erase(d)      # échue : on ne la laisse pas bloquer le temps
 			continue
 		e = minf(e, float(d[0]))
-	Engine.time_scale = e
+	Engine.time_scale = 1.0 if (coop or PauseCoop.coop()) else e
 
 ## Remet le temps à 1 et oublie toutes les demandes (mort du joueur, menu, changement de scène).
 static func reinitialiser_temps() -> void:

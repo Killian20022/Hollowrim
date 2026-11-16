@@ -81,7 +81,7 @@ func ouvrir(c: Node3D, niveau: int) -> bool:
 	if _page == null:
 		_page = ImageTexture.create_from_image(Parchemin.feuille(Vector2i(256, 176), 19))
 	_vue.visible = true
-	get_tree().paused = true
+	PauseCoop.demander_pause(self)
 	_souris = Input.mouse_mode
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -95,7 +95,7 @@ func fermer(res: String) -> void:
 	resultat = res
 	tourne = false
 	_vue.visible = false
-	get_tree().paused = false
+	PauseCoop.liberer(self)
 	if DisplayServer.get_name() != "headless":
 		Input.mouse_mode = _souris
 	var reussi := res == "ouvert"

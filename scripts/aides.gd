@@ -173,7 +173,7 @@ func cle_courante() -> String:
 	return _cle
 
 func _libre() -> bool:
-	if joueur == null or joueur.mort or bool(joueur.get("en_dialogue")) or get_tree().paused:
+	if joueur == null or joueur.mort or bool(joueur.get("en_dialogue")) or PauseCoop.en_pause(get_tree()):
 		return false
 	return hud == null or not bool(hud.get("panneau_ouvert"))
 
