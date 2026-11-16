@@ -10,13 +10,22 @@ extends Node
 ## Solo : ne fait rien (aucune marionnette, aucun envoi) et joueur_proche() renvoie le joueur local.
 ## À reporter au lot 5 : crime / prime par joueur (Crime : un seul dictionnaire), PnjCombat issu d'un villageois (remplace), conversations E des invités.
 
+## Autoload Reseau, résolu à l'exécution : villageois.gd / garde_village.gd / cycle.gd dépendent de cette classe et sont parfois compilés
+## (preload) par des tests en `-s` AVANT l'enregistrement des autoloads : un identifiant `Reseau` nu y serait une erreur de compilation.
+static func _r() -> Node:
+	return (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Reseau")
+
+static func en_ligne() -> bool:
+	var r := _r()
+	return r != null and r.est_en_ligne()
+
 const PERIODE_SCAN := 1.0
 const PERIODE_HEURE := 1.0
 const SEUIL_SAUT := 0.3     # h : au-delà, l'invité saute à l'heure de l'hôte ; en deçà, il rattrape la moitié de l'écart à chaque message
 const PERTINENCE := 120.0   # m : un PNJ plus loin d'un invité ne lui est pas envoyé (2a)
 
 var monde: Node
-var _stub: StubLot2a
+var _stub: RefCounted   # StubLot2a (chargé à la demande : dépend de l'autoload Reseau)
 var _entites := {}     # id (String) -> Node
 var _marionnettes := false
 var _en_ligne_prec := false
@@ -36,14 +45,14 @@ static func installer(monde_: Node) -> ReseauMondeVivant:
 
 ## Joueur (local ou avatar) le plus proche de `pos` ; `local` = le joueur local (renvoyé tel quel hors ligne).
 static func joueur_proche(pos: Vector3, local: CharacterBody3D) -> CharacterBody3D:
-	if not Reseau.est_en_ligne():
+	if not en_ligne():
 		return local
 	var meilleur := local
 	var dmin := INF
 	if local != null and is_instance_valid(local):
 		dmin = pos.distance_squared_to(local.global_position)
-	for id in Reseau.registre.ids():
-		var n := Reseau.registre.noeud(id) as CharacterBody3D
+	for id in _r().registre.ids():
+		var n := _r().registre.noeud(id) as CharacterBody3D
 		if n == null or n == local or not n.is_inside_tree():
 			continue
 		if "mort" in n and n.mort:
@@ -57,10 +66,10 @@ static func joueur_proche(pos: Vector3, local: CharacterBody3D) -> CharacterBody
 ## Distance de `pos` au joueur le plus proche (niveaux de détail : un PNJ proche d'un invité n'est pas gelé chez l'hôte). `pj_local` : position du joueur local.
 static func distance_joueurs(pos: Vector3, pj_local: Vector3) -> float:
 	var d := pos.distance_to(pj_local)
-	if not Reseau.est_en_ligne():
+	if not en_ligne():
 		return d
-	for id in Reseau.registre.ids():
-		var n := Reseau.registre.noeud(id) as Node3D
+	for id in _r().registre.ids():
+		var n := _r().registre.noeud(id) as Node3D
 		if n != null and n.is_inside_tree():
 			d = minf(d, pos.distance_to(n.global_position))
 	return d
@@ -72,7 +81,7 @@ func _replicateur() -> Object:
 	if r != null:
 		return r
 	if _stub == null:
-		_stub = StubLot2a.new()
+		_stub = load("res://scripts/reseau/stub_lot2a.gd").new()
 	return _stub
 
 func _rejoindre() -> Object:
@@ -82,35 +91,35 @@ func _rejoindre() -> Object:
 # ---------- cycle de vie ----------
 
 func _ready() -> void:
-	Reseau.abonner("mv_heure", _sur_heure)
+	_r().abonner("mv_heure", _sur_heure)
 	_rejoindre().call("contributeur", "monde_vivant", Callable(self, "exporter"), Callable(self, "importer"))
 	_scanner()
 
 func _exit_tree() -> void:
-	Reseau.desabonner("mv_heure", _sur_heure)
+	_r().desabonner("mv_heure", _sur_heure)
 
 func _cycle() -> Node:
 	return monde.get("cycle") as Node if monde != null else null
 
 func _process(dt: float) -> void:
-	var en_ligne := Reseau.est_en_ligne()
-	if en_ligne != _en_ligne_prec or Reseau.est_hote() != _hote_prec:
+	var en_ligne: bool = _r().est_en_ligne()
+	if en_ligne != _en_ligne_prec or _r().est_hote() != _hote_prec:
 		_en_ligne_prec = en_ligne
-		_hote_prec = Reseau.est_hote()
-		_basculer(en_ligne and not Reseau.est_hote())
+		_hote_prec = _r().est_hote()
+		_basculer(en_ligne and not _r().est_hote())
 	if _stub != null:
-		_stub.tick(dt)
+		_stub.call("tick", dt)
 	if not en_ligne:
 		return
 	_t_scan -= dt
 	if _t_scan <= 0.0:
 		_t_scan = PERIODE_SCAN
 		_scanner()
-	if Reseau.est_hote():
+	if _r().est_hote():
 		_t_heure -= dt
-		if _t_heure <= 0.0 and Reseau.joueurs().size() > 1:
+		if _t_heure <= 0.0 and _r().joueurs().size() > 1:
 			_t_heure = PERIODE_HEURE
-			Reseau.envoyer_evenement("mv_heure", 0, exporter())
+			_r().envoyer_evenement("mv_heure", 0, exporter())
 
 ## Passe tous les PNJ (et l'IA centrale : Vie, GardesVillage) en marionnettes (invité) ou les rend à l'IA (hôte / solo).
 func _basculer(marionnettes: bool) -> void:
@@ -198,7 +207,7 @@ func exporter() -> Dictionary:
 	return {"h": float(c.get("heure")), "j": int(c.get("jour")), "t": float(c.get("tempete"))}
 
 func importer(d: Dictionary) -> void:
-	if d.is_empty() or Reseau.est_hote():
+	if d.is_empty() or _r().est_hote():
 		return
 	var c := _cycle()
 	if c == null:
@@ -210,5 +219,5 @@ func importer(d: Dictionary) -> void:
 	c.set("tempete", float(d["t"]))
 
 func _sur_heure(expediteur: int, _id: Variant, d: Variant) -> void:
-	if expediteur == Reseau.ID_HOTE and d is Dictionary:
+	if expediteur == 1 and d is Dictionary:
 		importer(d)

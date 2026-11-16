@@ -126,7 +126,7 @@ func orienter_brume(avant: Vector3) -> void:
 # --- cycle ----------------------------------------------------------------------
 
 func _process(_dt: float) -> void:
-	if Reseau.est_en_ligne() and Engine.time_scale > 0.01:
+	if ReseauMondeVivant.en_ligne() and Engine.time_scale > 0.01:
 		_dt /= Engine.time_scale   # coop : l'heure est partagée, un ralenti LOCAL (Engine.time_scale) ne la ralentit pas
 	var avant := heure
 	heure = fmod(heure + _dt / SECONDES_PAR_HEURE, 24.0)

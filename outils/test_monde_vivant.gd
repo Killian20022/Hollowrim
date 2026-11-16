@@ -12,7 +12,7 @@ const VILLAGEOIS := preload("res://scripts/villageois.gd")
 const CYCLE := preload("res://scripts/cycle.gd")
 
 var role := "hote"
-var port := 24578
+var port := 24731
 var cycle: Node
 var joueur: FauxJoueur
 var pnjs := {}      # id -> villageois
@@ -64,9 +64,16 @@ func _ready() -> void:
 	mv = ReseauMondeVivant.installer(self)
 	Reseau.abonner("test_fin", _sur_fin)
 	Reseau.abonner("test_resultat", _sur_resultat)
-	Reseau.joueur_connecte.connect(_sur_connecte)
+	Reseau.connexion_reussie.connect(func() -> void: print("COOP connecté à l'hôte"))
+	Reseau.joueur_connecte.connect(func(i: int) -> void: print("COOP joueur connecté ", i))
+	Reseau.connexion_echouee.connect(func() -> void:
+		print("COOP connexion échouée, nouvel essai")
+		await get_tree().create_timer(1.0).timeout
+		Reseau.rejoindre("127.0.0.1", port))   # l'hôte n'écoute pas encore : on réessaie
 	var err := Reseau.heberger(port) if role == "hote" else Reseau.rejoindre("127.0.0.1", port)
 	print("COOP ", role, " réseau : ", error_string(err))
+	if role == "hote":
+		print("HOTE_PRET")
 	await get_tree().create_timer(0.5).timeout
 	for id in pnjs:
 		depart[id] = (pnjs[id] as Node3D).global_position
@@ -82,9 +89,8 @@ func _ready() -> void:
 		print("TEST ECHEC : délai dépassé")
 		get_tree().quit(1)
 
-func _sur_connecte(id: int) -> void:
-	print("COOP joueur connecté ", id)
-	if role == "hote":
+func _avatar_invite(id: int) -> void:
+	if true:
 		# avatar factice de l'invité, posé près du 3e villageois, enregistré dans le registre
 		var av := FauxJoueur.new()
 		av.name = "Joueur_%d" % id
@@ -99,13 +105,18 @@ func _boucle_hote() -> void:
 		await get_tree().create_timer(0.25).timeout
 		t += 0.25
 	_verifier("invité connecté", Reseau.joueurs().size() == 2)
+	if Reseau.joueurs().size() == 2:
+		_avatar_invite(Reseau.joueurs()[1])
 	await get_tree().create_timer(9.0).timeout
 	# cible = joueur le plus proche
 	var av: Node = Reseau.registre.noeud(Reseau.joueurs()[1])
 	var v2: Node3D = pnjs.values()[2]
-	var v0: Node3D = pnjs.values()[0]
 	_verifier("cible du 3e villageois = avatar de l'invité (le plus proche)", ReseauMondeVivant.joueur_proche(v2.global_position, joueur) == av)
-	_verifier("cible du 1er villageois = joueur local", ReseauMondeVivant.joueur_proche(v0.global_position, joueur) == joueur)
+	var tous_ok := true
+	for p in pnjs.values():
+		var voulu: Node = joueur if p.global_position.distance_to(joueur.global_position) <= p.global_position.distance_to(av.global_position) else av
+		tous_ok = tous_ok and ReseauMondeVivant.joueur_proche(p.global_position, joueur) == voulu
+	_verifier("cible de chaque villageois = joueur le plus proche (local ou avatar)", tous_ok)
 	_verifier("distance_joueurs prend l'avatar proche en compte", ReseauMondeVivant.distance_joueurs(v2.global_position, joueur.global_position) < 6.0)
 	var bouge := 0
 	var pos := {}
