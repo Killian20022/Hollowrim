@@ -80,6 +80,7 @@ func _arbitrer_ramasser(qui: int) -> void:
 		return   # déjà attribué : le second arrivé n'a rien
 	_pris = true
 	Reseau.emettre("ramasser_ok", OBJET_ID, qui)
+	_sur_ramasser_ok(1, OBJET_ID, qui)   # l'évènement ne revient pas à l'émetteur : l'hôte l'applique aussi
 
 func _sur_ramasser_ok(expediteur: int, id: Variant, qui: Variant) -> void:
 	if expediteur != 1:
@@ -97,13 +98,17 @@ func nb_objets_locaux() -> int:
 # --- porte ---------------------------------------------------------------------------------------------
 func demander_porte() -> void:
 	if Reseau.est_hote():
-		Reseau.emettre("porte_etat", "porte", not porte_ouverte)
+		_diffuser_porte(not porte_ouverte)
 	else:
 		Reseau.emettre("porte_demande", "porte", null, 1)
 
 func _sur_porte_demande(_exp: int, _id: Variant, _d: Variant) -> void:
 	if Reseau.est_hote():
-		Reseau.emettre("porte_etat", "porte", not porte_ouverte)
+		_diffuser_porte(not porte_ouverte)
+
+func _diffuser_porte(ouverte: bool) -> void:
+	Reseau.emettre("porte_etat", "porte", ouverte)
+	_sur_porte_etat(1, "porte", ouverte)
 
 func _sur_porte_etat(expediteur: int, _id: Variant, ouverte: Variant) -> void:
 	if expediteur != 1:

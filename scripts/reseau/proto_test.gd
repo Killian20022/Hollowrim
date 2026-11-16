@@ -65,6 +65,7 @@ func _changer_phase(n: int) -> void:
 	_phase = n
 	_t_phase = _t
 	Reseau.emettre("test_phase", n, null)
+	_sur_phase(Reseau.mon_id(), n, null)   # l'évènement ne revient pas à l'émetteur : l'hôte l'applique aussi pour lui
 
 func _sur_phase(expediteur: int, n: Variant, _d: Variant) -> void:
 	if expediteur != 1:
