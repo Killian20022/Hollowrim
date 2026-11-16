@@ -22,6 +22,7 @@ const RECHARGE := Vector2(1.3, 2.1)
 
 var pnj: Node3D                  # PNJ d'origine (en sommeil tant que ce combattant existe)
 var crime: Crime
+var peer := 0                    # lot 5a : joueur poursuivi / arrêté (contexte de Crime : 0 = joueur local, sinon identifiant réseau d'un invité)
 var mode := "hostile"
 var est_garde := false
 var rends_toi := false           # arrestation proposée par un garde hostile (« Rends-toi ! »)
@@ -47,6 +48,7 @@ static func convertir(p: Node3D, mode_: String, cr: Crime) -> PnjCombat:
 	c.crime = cr
 	c.mode = mode_
 	c.joueur = cr.joueur
+	c.peer = cr.contexte()
 	c.hud = cr.hud
 	c.est_garde = cr.est_garde(p)
 	c.nom_affiche = String(p.nom_affiche()) if p.has_method("nom_affiche") else "Villageois"
@@ -94,6 +96,12 @@ func _ready() -> void:
 func en_combat() -> bool:
 	return mode == "hostile" and not est_mort
 
+## Change de cible : le joueur (local ou avatar) du contexte `ctx` (crime par joueur : il poursuit celui qui a fait le crime).
+func cibler(ctx: int, noeud: CharacterBody3D) -> void:
+	peer = ctx
+	joueur = noeud
+	_propose = false
+
 func parler() -> Array:
 	return crime.lignes_arrestation(rends_toi)
 
@@ -103,8 +111,10 @@ func options_dialogue() -> Array:
 ## Le dialogue se ferme : un choix fait l'a déjà réglé ; sinon (Échap, joueur parti) c'est une résistance. Vérifié APRÈS l'action du choix.
 func fin_conversation() -> void:
 	(func() -> void:
-		if is_instance_valid(self) and crime != null and crime.arrestation == self:
-			crime.arrestation_interrompue(self)).call_deferred()
+		if is_instance_valid(self) and crime != null:
+			crime.dans_contexte(peer, func() -> void:
+				if crime.arrestation == self:
+					crime.arrestation_interrompue(self))).call_deferred()
 
 func changer_mode(m: String) -> void:
 	if est_mort or m == mode:
@@ -150,9 +160,26 @@ func pacifier() -> void:
 func _etat_coup() -> Dictionary:
 	return {"peut_bloquer": est_garde and etat != ATTAQUE, "en_attaque": etat == ATTAQUE, "coup_donne": _coup_donne}
 
-func _apres_degats(_r: Dictionary) -> void:
+func _apres_degats(r: Dictionary) -> void:
 	if crime != null:
-		crime.signaler_agression(self)
+		var ctx := _auteur(r)
+		_dernier_auteur = ctx
+		crime.dans_contexte(ctx, func() -> void: crime.signaler_agression(self))
+
+## Contexte du joueur qui vient de frapper : r["attaquant"] si connu, sinon le joueur le plus proche (coop), sinon le joueur local.
+var _dernier_auteur := 0
+func _auteur(r: Dictionary) -> int:
+	var att: Variant = r.get("attaquant")
+	if att is Node and is_instance_valid(att):
+		var c := crime.contexte_de(att as Node)
+		if c >= 0:
+			return c
+	if PauseCoop.coop():
+		var proche := ReseauMondeVivant.joueur_proche(global_position, crime.joueur)
+		var c2 := crime.contexte_de(proche)
+		if c2 >= 0:
+			return c2
+	return 0
 
 func _reagir(r: Dictionary, vers: Vector3) -> void:
 	var reaction := String(r.get("reaction", ""))
@@ -166,7 +193,7 @@ func _reagir(r: Dictionary, vers: Vector3) -> void:
 func _sur_mort() -> void:
 	if crime != null:
 		crime.retirer(self)
-		crime.signaler_meurtre(self)
+		crime.dans_contexte(_dernier_auteur, func() -> void: crime.signaler_meurtre(self))
 	if pnj != null and is_instance_valid(pnj):
 		if crime != null:
 			crime.oublier(pnj)
@@ -212,7 +239,7 @@ func _ia(dt: float) -> void:
 		if not _coup_donne and _t > duree * 0.42:
 			_coup_donne = true
 			var avant := global_transform.basis.z
-			if dist < _portee + 0.5 and avant.dot(dir) > 0.35 and not mort_j and not crime.treve:
+			if dist < _portee + 0.5 and avant.dot(dir) > 0.35 and not mort_j and not crime.treve_de(peer):
 				attaques += 1
 				joueur.recevoir_coup(degats, global_position, {"recul": 3.0, "secousse": 0.3, "type": "physique"})
 		if _t > duree:
@@ -223,7 +250,7 @@ func _ia(dt: float) -> void:
 		return
 	match mode:
 		"hostile":
-			if mort_j or (crime != null and crime.treve):
+			if mort_j or (crime != null and crime.treve_de(peer)):
 				face = dir
 			elif dist > _portee:
 				mv = dir
@@ -251,7 +278,7 @@ func _ia(dt: float) -> void:
 			else:
 				face = dir
 				if not _propose and crime != null and _t_mode > 0.4:
-					_propose = crime.proposer_arrestation(self)
+					_propose = bool(crime.dans_contexte(peer, func() -> Variant: return crime.proposer_arrestation(self)))
 		"fuite":
 			var loin := global_position - joueur.global_position
 			loin.y = 0.0

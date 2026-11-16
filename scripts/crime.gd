@@ -52,39 +52,170 @@ const COSTAUDS := ["forgeron", "garde", "chasseuse", "paysan", "chasseur", "chas
 const FRELES := ["volva", "ancienne", "paysanne"]
 
 var monde: Node3D
-var joueur: CharacterBody3D
+var _joueur_local: CharacterBody3D
+## Joueur « courant » : le joueur local (contexte 0) ou, chez l'hôte, l'avatar du joueur distant pour lequel on arbitre (en_tant_que).
+var joueur: CharacterBody3D:
+	get:
+		return _joueur_local if _ctx == 0 else _noeud_de(_ctx)
+	set(v):
+		_joueur_local = v
 var dialogue: Control
 var hud: Control
-var primes := {}                    # juridiction -> prime (pièces)
-var reputation := {}                # juridiction -> 0..100 (50 au départ)
-var hostile := {}                   # juridiction -> vrai : la garde attaque à vue
-var voles := {}                     # id d'objet -> nombre d'objets volés dans le sac (confisqués à l'arrestation)
+# ---- LOT 5a : état de justice PAR PERSONNAGE. Les anciennes variables (primes, reputation, hostile, voles, perdue, plaide, arrestation…)
+# deviennent des propriétés qui lisent l'état du joueur COURANT (_ctx : 0 = joueur local, sinon identifiant réseau d'un invité, chez l'hôte).
+# Tout le code existant (témoins, gardes, arrestation…) travaille donc « pour le joueur courant » sans changement ; l'hôte appelle
+# `en_tant_que(peer, callable)` pour arbitrer le crime d'un invité (docs/reseau_lot5a.md). Solo : un seul état (contexte 0).
+class Perso extends RefCounted:
+	var primes := {}                    # juridiction -> prime (pièces)
+	var reputation := {}                # juridiction -> 0..100 (50 au départ)
+	var hostile := {}                   # juridiction -> vrai : la garde attaque à vue
+	var voles := {}                     # id d'objet -> nombre d'objets volés dans le sac (confisqués à l'arrestation)
+	var dernier := {}                   # dernier crime ou avertissement (tests) : {type, temoins, prime}
+	var avertissements := 0
+	var crimes_vus := 0
+	var perdue := {}                    # juridiction -> réputation perdue depuis la dernière dette réglée (en partie rendue au règlement)
+	var perdue_factions := {}           # faction -> réputation de faction perdue par des crimes vus depuis la dernière dette
+	var plaide := false                 # plaidoyer déjà tenté pendant cette arrestation (une seule fois)
+	var ligne_plaidoyer := ""           # réplique du garde après un plaidoyer raté (en tête du dialogue rouvert)
+	var treve := false                  # dialogue d'arrestation ouvert : les combattants suspendent leurs coups
+	var arrestation: Node = null        # PnjCombat qui propose l'arrestation
+	var avert := {}                     # instance_id -> horloge du dernier coup isolé
+	var agresses := {}                  # instance_id -> horloge de l'agression comptée
+	var soupcon := {}                   # instance_id d'un PNJ -> jauge de soupçon 0..1 (joueur accroupi seulement)
+	var dernier_coup := -1.0e9          # horloge du dernier coup porté par ce joueur sur un PNJ
+	var derniere_resistance := -1.0e9
+	var loin_t := 0.0
+	var niveau := 1                     # invité : niveau du joueur (envoyé avec ses demandes : chance de plaider)
+var _persos := {}                       # contexte -> Perso
+var _ctx := 0
+func _p() -> Perso:
+	var p: Perso = _persos.get(_ctx)
+	if p == null:
+		p = Perso.new()
+		_persos[_ctx] = p
+	return p
+var primes: Dictionary:
+	get: return _p().primes
+	set(v): _p().primes = v
+var reputation: Dictionary:
+	get: return _p().reputation
+	set(v): _p().reputation = v
+var hostile: Dictionary:
+	get: return _p().hostile
+	set(v): _p().hostile = v
+var voles: Dictionary:
+	get: return _p().voles
+	set(v): _p().voles = v
+var dernier: Dictionary:
+	get: return _p().dernier
+	set(v): _p().dernier = v
+var avertissements: int:
+	get: return _p().avertissements
+	set(v): _p().avertissements = v
+var crimes_vus: int:
+	get: return _p().crimes_vus
+	set(v): _p().crimes_vus = v
+var perdue: Dictionary:
+	get: return _p().perdue
+	set(v): _p().perdue = v
+var perdue_factions: Dictionary:
+	get: return _p().perdue_factions
+	set(v): _p().perdue_factions = v
+var plaide: bool:
+	get: return _p().plaide
+	set(v): _p().plaide = v
+var _ligne_plaidoyer: String:
+	get: return _p().ligne_plaidoyer
+	set(v): _p().ligne_plaidoyer = v
+var treve: bool:
+	get: return _p().treve
+	set(v): _p().treve = v
+var arrestation: Node:
+	get: return _p().arrestation
+	set(v): _p().arrestation = v
+var _avert: Dictionary:
+	get: return _p().avert
+	set(v): _p().avert = v
+var _agresses: Dictionary:
+	get: return _p().agresses
+	set(v): _p().agresses = v
+var _soupcon: Dictionary:
+	get: return _p().soupcon
+	set(v): _p().soupcon = v
+var _dernier_coup: float:
+	get: return _p().dernier_coup
+	set(v): _p().dernier_coup = v
+var _derniere_resistance: float:
+	get: return _p().derniere_resistance
+	set(v): _p().derniere_resistance = v
+var _loin_t: float:
+	get: return _p().loin_t
+	set(v): _p().loin_t = v
+# ---- monde (commun à tous les joueurs)
 var morts: Array = []               # clés des PNJ tués (« garde:so », « pnj:forgeron ») : ils restent morts
 var combattants: Array = []         # PnjCombat actifs
-var dernier := {}                   # dernier crime ou avertissement (tests) : {type, temoins, prime}
-var avertissements := 0
-var crimes_vus := 0
 var derniere_vue_bloquee: Node = null   # ce qui a caché le joueur au dernier regard bloqué (débogage)
 var crochetage: Crochetage
 var disposition: Disposition
-var perdue := {}                    # juridiction -> réputation perdue depuis la dernière dette réglée (en partie rendue au règlement)
-var perdue_factions := {}           # faction -> réputation de faction perdue par des crimes vus depuis la dernière dette (rendue en partie aussi)
-var plaide := false                 # plaidoyer déjà tenté pendant cette arrestation (une seule fois)
-var _ligne_plaidoyer := ""          # réplique du garde après un plaidoyer raté (en tête du dialogue rouvert)
-var treve := false                  # dialogue d'arrestation ouvert : les combattants suspendent leurs coups
-var arrestation: Node = null        # PnjCombat qui propose l'arrestation
 var _textes := {}
-var _avert := {}                    # instance_id -> horloge du dernier coup isolé
-var _agresses := {}                 # instance_id -> horloge de l'agression comptée
-var _alertes: Array = []            # [{"t": horloge, "n": garde}] : gardes à prévenir plus tard
+var _alertes: Array = []            # [{"t": horloge, "n": garde, "peer": contexte}] : gardes à prévenir plus tard
 var _horloge := 0.0
-var _soupcon := {}                  # instance_id d'un PNJ -> jauge de soupçon 0..1 (joueur accroupi seulement)
 var _t_soupcon := 0.0
 var _heure_prec := -1.0
-var _dernier_coup := -1.0e9         # horloge du dernier coup porté par le joueur sur un PNJ
-var _derniere_resistance := -1.0e9
 var _t_ronde := 0.0
-var _loin_t := 0.0
+var coop: CrimeCoop = null          # réseau (lot 5a) : null hors ligne
+
+## Identifiant réseau du joueur courant (1 = hôte / solo ; invité : son peer id). Contexte 0 = joueur local.
+func peer_courant() -> int:
+	return _mon_id() if _ctx == 0 else _ctx
+
+func contexte() -> int:
+	return _ctx
+
+func _mon_id() -> int:
+	var r := PauseCoop.R()
+	return int(r.mon_id()) if r != null else 1
+
+func _en_ligne() -> bool:
+	return PauseCoop.coop()
+
+## Hôte ou solo : c'est cette machine qui arbitre témoins et gardes.
+func _arbitre() -> bool:
+	var r := PauseCoop.R()
+	return r == null or not r.est_en_ligne() or r.est_hote()
+
+## Le joueur courant est un invité distant (l'hôte arbitre pour lui) ?
+func est_distant() -> bool:
+	return _ctx != 0
+
+func _noeud_de(peer: int) -> CharacterBody3D:
+	var r := PauseCoop.R()
+	return r.registre.noeud(peer) as CharacterBody3D if r != null else null
+
+## Contexte (0 = local, sinon peer) du nœud joueur `n` (avatar d'un invité ou joueur local) ; -1 si inconnu.
+func contexte_de(n: Node) -> int:
+	if n == null or n == _joueur_local:
+		return 0
+	var r := PauseCoop.R()
+	if r != null:
+		for id: int in r.registre.ids():
+			if r.registre.noeud(id) == n:
+				return 0 if id == _mon_id() else id
+	return -1
+
+## Exécute `c` pour le joueur `peer` (identifiant réseau ; le sien = contexte local) : primes, réputation, hostilité, avatar. Faux (null) si son avatar manque.
+func en_tant_que(peer: int, c: Callable) -> Variant:
+	return dans_contexte(0 if peer == _mon_id() or peer == 0 else peer, c)
+
+## Comme en_tant_que, avec le contexte brut (0 = joueur local, sinon peer id d'un invité).
+func dans_contexte(ctx: int, c: Callable) -> Variant:
+	if ctx != 0 and _noeud_de(ctx) == null:
+		return null
+	var avant := _ctx
+	_ctx = ctx
+	var r: Variant = c.call()
+	_ctx = avant
+	return r
 
 static func trouver(n: Node) -> Crime:
 	if n == null or not n.is_inside_tree():
@@ -120,6 +251,7 @@ func _ready() -> void:
 	DemoCrime.poser(self)       # coffres verrouillés du village (et, avec --demo-crime, une porte verrouillée)
 	if joueur != null and joueur.has_signal("deces"):
 		joueur.deces.connect(apaiser_tous)    # mort du joueur : chacun retourne à sa place (la prime et l'hostilité restent)
+	coop = CrimeCoop.installer(self)           # lot 5a : crime par joueur en réseau (inerte hors ligne)
 
 # ======================================================================================================== API publique
 
@@ -133,7 +265,16 @@ func signaler_vol(objet: Node3D, proprietaire: String, position: Vector3) -> boo
 	elif objet != null and objet.has_meta("nombre"):
 		n = maxi(1, int(objet.get_meta("nombre")))
 	if id != "":
-		voles[id] = int(voles.get(id, 0)) + n
+		voles[id] = int(voles.get(id, 0)) + n          # la marque « volé » reste dans le sac de CE joueur (confisquée chez lui)
+	if not _arbitre():
+		coop.envoyer("crime_vol", {"id": id, "n": n, "proprietaire": proprietaire, "pos": position, "niveau": _niveau()})
+		return false                                    # invité : l'hôte arbitre témoins et gardes (la prime revient par le miroir)
+	return vol_arbitre(id, n, proprietaire, position)
+
+## Arbitrage du vol (hôte / solo) pour le joueur courant : témoins, prime, réactions. `id` : objet volé (« » inconnu).
+func vol_arbitre(id: String, n: int, proprietaire: String, position: Vector3) -> bool:
+	if joueur == null or not is_instance_valid(joueur):
+		return false
 	var temoins := temoins_de(joueur.global_position if joueur != null else position)
 	if temoins.is_empty():
 		_noter("vol", 0, 0.0)
@@ -218,6 +359,12 @@ func signaler_agression(victime: Node) -> String:
 ## Coup du joueur (lame, sort) reçu par un PNJ du village (garde_village / villageois.recevoir_coup) : avertissement sans dégâts (il
 ## bronche), sinon le coup passe au PnjCombat qui a pris son corps (dégâts, sang, mort).
 func coup_sur_pnj(p: Node3D, degats: float, origine: Vector3, puissant: bool, info: Dictionary) -> String:
+	# lot 5a : le crime est celui de l'ATTAQUANT (info["attaquant"] = nœud joueur ou avatar), pas du joueur local
+	var att: Variant = info.get("attaquant")
+	if att is Node and is_instance_valid(att):
+		var cx := contexte_de(att as Node)
+		if cx >= 0 and cx != _ctx:
+			return String(en_tant_que(_mon_id() if cx == 0 else cx, func() -> Variant: return coup_sur_pnj(p, degats, origine, puissant, info)))
 	if p.has_method("au_lit") and p.au_lit() and p.has_method("reveiller_en_sursaut"):
 		p.reveiller_en_sursaut()       # frappé dans son lit : il se lève (sinon l'avertissement jouerait « Hit_Chest » sur un corps allongé)
 	var r := signaler_agression(p)
@@ -243,6 +390,8 @@ func signaler_meurtre(victime: Node) -> bool:
 	if cle != "" and not morts.has(cle):
 		morts.append(cle)
 		_punir_membre_tue(cle)
+		if coop != null:
+			coop.diffuser_morts()
 	var pos: Vector3 = (victime as Node3D).global_position if victime is Node3D else joueur.global_position
 	var temoins := temoins_de(pos)
 	temoins.erase(victime)
@@ -291,6 +440,7 @@ func est_hostile(juridiction := JURIDICTION) -> bool:
 func ajouter_prime(p: float, juridiction := JURIDICTION) -> void:
 	primes[juridiction] = maxf(0.0, prime(juridiction) + p)
 	prime_change.emit(juridiction, prime(juridiction))
+	_miroir()
 
 ## Prime + réputation + compte rendu du crime (vu par `temoins`).
 func _commettre(type: String, p: float, temoins: Array) -> void:
@@ -304,12 +454,16 @@ func _commettre(type: String, p: float, temoins: Array) -> void:
 	_noter(type, temoins.size(), p)
 	_avis("%s vu : prime de %d pièces à %s" % [_nom_crime(type), roundi(prime()), NOM_JURIDICTION])
 	crime_commis.emit(type, JURIDICTION, temoins.size())
+	_miroir()
 	var v: Node = monde.get("vie") if monde != null else null
 	if v != null and v.has_method("emettre"):
 		v.emettre("crime", joueur.global_position, R_VOIX, joueur)     # bus de Vie (les gardes n'écoutent que danger / combat / alarme)
 
 ## Crime VU : la faction qui tient la juridiction (data/factions_joueur.json, « crime ») perd de la réputation, par type de crime.
 func _punir_faction(type: String) -> void:
+	if _ctx != 0:
+		coop.envoyer_a(_ctx, "crime_rangs", {"op": "punir", "type": type})     # les rangs sont ceux du personnage : ils vivent chez lui
+		return
 	var rg := Rangs.courant
 	if rg == null or not is_instance_valid(rg):
 		return
@@ -321,6 +475,9 @@ func _punir_faction(type: String) -> void:
 
 ## Meurtre d'un membre d'une faction (clé de cle_pnj) : sa faction perd de la réputation, que le meurtre ait été vu ou non.
 func _punir_membre_tue(cle: String) -> void:
+	if _ctx != 0:
+		coop.envoyer_a(_ctx, "crime_rangs", {"op": "membre_tue", "cle": cle})
+		return
 	var rg := Rangs.courant
 	if rg == null or not is_instance_valid(rg):
 		return
@@ -355,6 +512,10 @@ func _rendre_reputation(cle: String) -> void:
 	var p := float(perdue.get(JURIDICTION, 0.0))
 	reputation[JURIDICTION] = clampf(reputation_de() + p * part, 0.0, 100.0)
 	perdue[JURIDICTION] = 0.0
+	if _ctx != 0:
+		coop.envoyer_a(_ctx, "crime_rangs", {"op": "rendre", "part": part})
+		_miroir()
+		return
 	var rg := Rangs.courant
 	if rg != null and is_instance_valid(rg):
 		for f: String in perdue_factions:
@@ -373,6 +534,15 @@ func menace_persistante(g: Node3D) -> void:
 	convertir(g, "hostile")
 
 func _intrusion(lieu: Node3D, proprietaire: String, type: String) -> bool:
+	if not _arbitre():
+		coop.envoyer("crime_intrusion", {"type": type, "proprietaire": proprietaire, "pos": lieu.global_position if lieu != null else joueur.global_position})
+		return false
+	return intrusion_arbitree(lieu.global_position if lieu != null else joueur.global_position, proprietaire, type)
+
+## Arbitrage d'une intrusion / d'un crochetage vu (hôte / solo) pour le joueur courant.
+func intrusion_arbitree(pos_lieu: Vector3, proprietaire: String, type: String) -> bool:
+	if joueur == null or not is_instance_valid(joueur):
+		return false
 	var temoins := temoins_de(joueur.global_position)
 	if temoins.is_empty():
 		_noter(type, 0, 0.0)
@@ -387,7 +557,7 @@ func _intrusion(lieu: Node3D, proprietaire: String, type: String) -> bool:
 			_dire(t, "crochetage" if type == "crochetage" else "intrusion")
 			if t != proprio:
 				_fuir(t)
-	_poursuivre(gardes_vus, lieu.global_position if lieu != null else joueur.global_position)
+	_poursuivre(gardes_vus, pos_lieu)
 	return true
 
 # ======================================================================================================== témoins
@@ -551,6 +721,7 @@ func _poursuivre(gardes_vus: Array, pos: Vector3) -> void:
 	for g: Node3D in gardes_vus:
 		if g is PnjCombat:
 			if (g as PnjCombat).mode != "hostile":
+				_viser(g as PnjCombat)
 				(g as PnjCombat).changer_mode("arrete")
 		elif _peut_combattre(g):
 			convertir(g, "arrete")
@@ -599,6 +770,7 @@ func guerre(pos: Vector3, proches: Array = []) -> void:
 	treve = false
 	for g: Node3D in gardes():
 		if g is PnjCombat:
+			_viser(g as PnjCombat)
 			(g as PnjCombat).changer_mode("hostile")
 			continue
 		if g.get("service") == "vigie":
@@ -611,13 +783,18 @@ func guerre(pos: Vector3, proches: Array = []) -> void:
 			convertir(g, "hostile")
 		elif not _en_attente(g):
 			var k := clampf((d - R_VOIX) / 120.0, 0.0, 1.0)
-			_alertes.append({"t": _horloge + lerpf(DELAI_LOIN.x, DELAI_LOIN.y, k), "n": g})
+			_alertes.append({"t": _horloge + lerpf(DELAI_LOIN.x, DELAI_LOIN.y, k), "n": g, "peer": _ctx})
 
 func _en_attente(g: Node) -> bool:
 	for a: Dictionary in _alertes:
-		if a["n"] == g:
+		if a["n"] == g and int(a.get("peer", 0)) == _ctx:
 			return true
 	return false
+
+## Un combattant qui n'est pas déjà en train de se battre contre un AUTRE joueur prend pour cible le joueur courant (crime par joueur).
+func _viser(c: PnjCombat) -> void:
+	if c.peer != _ctx and c.mode != "hostile" and joueur != null:
+		c.cibler(_ctx, joueur)
 
 ## Le PnjCombat qui a pris le corps de `n` (ou `n` lui-même s'il en est un), sinon null.
 func combattant_de(n: Node) -> PnjCombat:
@@ -630,6 +807,7 @@ func combattant_de(n: Node) -> PnjCombat:
 func convertir(n: Node3D, mode: String) -> PnjCombat:
 	var c := combattant_de(n)
 	if c != null:
+		_viser(c)
 		c.changer_mode(mode)
 		return c
 	if not n.has_method("remplacer") or not n.is_inside_tree():
@@ -644,9 +822,11 @@ func convertir(n: Node3D, mode: String) -> PnjCombat:
 ## Tous les combattants rendent leur corps aux PNJ (amende payée, peine purgée, prime éteinte).
 func apaiser_tous() -> void:
 	for c: PnjCombat in combattants.duplicate():
-		if is_instance_valid(c) and not c.est_mort:
+		if is_instance_valid(c) and not c.est_mort and c.peer == _ctx:    # ceux qui poursuivent un AUTRE joueur continuent
 			c.pacifier()
-	_alertes.clear()
+	for a: Dictionary in _alertes.duplicate():
+		if int(a.get("peer", 0)) == _ctx:
+			_alertes.erase(a)
 
 ## Un PNJ du village est mort : retiré des listes des gardes et de Vie (leurs boucles typées ne tolèrent pas un nœud libéré).
 func oublier(p: Node) -> void:
@@ -661,14 +841,23 @@ func oublier(p: Node) -> void:
 
 func retirer(c: PnjCombat) -> void:
 	combattants.erase(c)
-	if arrestation == c:
-		arrestation = null
-		treve = false
+	for k in _persos:
+		var pp: Perso = _persos[k]
+		if pp.arrestation == c:
+			pp.arrestation = null
+			pp.treve = false
+
+## Trêve d'arrestation du joueur de contexte `ctx` (les combattants qui le poursuivent suspendent leurs coups).
+func treve_de(ctx: int) -> bool:
+	var pp: Perso = _persos.get(ctx)
+	return pp != null and pp.treve
 
 # ======================================================================================================== arrestation
 
 ## Un garde arrive au contact du joueur recherché : dialogue d'arrestation (amende / geôle / résister). Faux si un dialogue est ouvert.
 func proposer_arrestation(g: PnjCombat) -> bool:
+	if _ctx != 0:
+		return coop.proposer_arrestation_distante(g)       # invité : le dialogue s'ouvre chez lui (CrimeCoop)
 	if dialogue == null or not is_instance_valid(dialogue) or joueur.mort or joueur.en_dialogue:
 		return false
 	if prime() < 1.0:
@@ -727,6 +916,8 @@ func chance_plaider() -> float:
 	var c: Dictionary = disposition.d.get("plaider", {}) if disposition != null else {}
 	var prog: Progression = joueur.get("progression")
 	var niv := minf(float(prog.niveau) if prog != null else 1.0, float(c.get("niveau_max", 20.0)))
+	if _ctx != 0:
+		niv = minf(float(_p().niveau), float(c.get("niveau_max", 20.0)))     # invité : son niveau est dans sa demande
 	var ch := (reputation_de() - 50.0) + float(c.get("base", 40.0)) + niv - prime() / maxf(1.0, float(c.get("prime_div", 10.0)))
 	return clampf(ch, 5.0, 95.0)
 
@@ -739,7 +930,7 @@ func plaider(jet := -1.0) -> bool:
 	var de := jet if jet >= 0.0 else randf_range(0.0, 100.0)
 	var c: Dictionary = disposition.d.get("plaider", {})
 	if de < chance_plaider():
-		if g != null and is_instance_valid(g):
+		if g != null and is_instance_valid(g) and _ctx == 0:
 			disposition._dire(g, "plaider_reussi")
 		_gracier()
 		_avis("Ta plaidoirie a convaincu le garde : prime levée.")
@@ -749,6 +940,9 @@ func plaider(jet := -1.0) -> bool:
 	prime_change.emit(JURIDICTION, prime())
 	_ligne_plaidoyer = disposition.texte("plaider_echec")
 	_avis("Plaidoirie rejetée : prime de %d pièces." % roundi(prime()))
+	_miroir()
+	if _ctx != 0:
+		return false          # invité : la réponse (CrimeCoop) rouvre le dialogue chez lui
 	if g != null and is_instance_valid(g) and dialogue != null and not dialogue.engager(g):
 		resister()
 	return false
@@ -770,6 +964,16 @@ func payer_amende() -> bool:
 func aller_en_prison() -> float:
 	var p := prime()
 	var heures := clampf(12.0 + p / 100.0 * 24.0, 12.0, 96.0)
+	if _ctx != 0:
+		# invité : l'hôte avance l'heure du monde et lève la prime ; la peine (objets saisis, XP perdue, sortie) se purge chez lui
+		_dire(arrestation, "prison")
+		_rendre_reputation("geole")
+		_gracier()
+		var cy: Node = monde.get("cycle")
+		if cy != null:
+			cy.avancer_a(float(cy.heure) + heures)
+		coop.envoyer_a(_ctx, "crime_prison", {"heures": heures, "sortie": sortie_geole()})
+		return heures
 	var n := _confisquer()
 	var prog: Progression = joueur.get("progression")
 	if prog != null:
@@ -808,6 +1012,7 @@ func resister() -> void:
 	if g != null and is_instance_valid(g):
 		_dire(g, "resister")
 	guerre(joueur.global_position, [g] if g != null else [])
+	_miroir()
 
 func _gracier() -> void:
 	primes[JURIDICTION] = 0.0
@@ -816,6 +1021,7 @@ func _gracier() -> void:
 	treve = false
 	prime_change.emit(JURIDICTION, 0.0)
 	apaiser_tous()
+	_miroir()
 
 ## Objets volés retirés du sac ; renvoie leur nombre.
 func _confisquer() -> int:
@@ -832,26 +1038,44 @@ func _confisquer() -> int:
 
 func _process(dt: float) -> void:
 	_horloge += dt
-	if monde == null or joueur == null or not is_instance_valid(joueur):
+	if monde == null or _joueur_local == null or not is_instance_valid(_joueur_local):
 		return
+	if not _arbitre():
+		return          # invité : témoins, gardes et primes sont arbitrés par l'hôte (état reçu par le miroir)
 	_temps_de_jeu()
 	_t_soupcon -= dt
 	if _t_soupcon <= 0.0:
 		_t_soupcon = 0.25
-		_surveiller(0.25)
-	# gardes prévenus en retard (hors de portée de voix)
+		var c0 := _ctx
+		_ctx = 0
+		_surveiller(0.25)         # jauge de soupçon : seulement pour le joueur local (l'œil du HUD)
+		_ctx = c0
+	# gardes prévenus en retard (hors de portée de voix), chacun pour le joueur qui a commis le crime
 	if not _alertes.is_empty():
 		for a: Dictionary in _alertes.duplicate():
 			if _horloge >= float(a["t"]):
 				_alertes.erase(a)
 				var g: Node3D = a["n"] as Node3D if is_instance_valid(a["n"]) else null
-				if g != null and est_hostile() and _peut_combattre(g):
-					convertir(g, "hostile")
+				var cx := int(a.get("peer", 0))
+				if g != null:
+					en_tant_que(_mon_id() if cx == 0 else cx, func() -> void:
+						if est_hostile() and _peut_combattre(g):
+							convertir(g, "hostile"))
 	_t_ronde -= dt
 	if _t_ronde > 0.0:
 		return
 	_t_ronde = 0.5
-	_ronde()
+	_ronde_monde()
+	for k in _persos.keys():
+		en_tant_que(_mon_id() if int(k) == 0 else int(k), _ronde)
+
+## Exécute `c` sous le contexte de chaque joueur connu de la justice (sans exiger son avatar : le temps passe pour tous).
+func _pour_tous(c: Callable) -> void:
+	var avant := _ctx
+	for k in _persos.keys():
+		_ctx = int(k)
+		c.call()
+	_ctx = avant
 
 ## Prime qui baisse avec les heures de jeu (sommeil, geôle, attente compris).
 func _temps_de_jeu() -> void:
@@ -866,8 +1090,9 @@ func _temps_de_jeu() -> void:
 	_heure_prec = h
 	if ecart <= 0.0 or ecart > 23.0:
 		return
-	baisser_prime(ecart)
-	normaliser_reputation(ecart)
+	_pour_tous(func() -> void:
+		baisser_prime(ecart)
+		normaliser_reputation(ecart))
 
 ## La réputation basse remonte lentement vers 50 (Daggerfall Unity, PlayerEntity.NormalizeReputations ; MIT) : `par_jour` points par
 ## jour de jeu. Une bonne réputation ne s'use pas.
@@ -892,15 +1117,19 @@ func baisser_prime(heures: float) -> void:
 			if j == JURIDICTION and arrestation == null:
 				apaiser_tous()
 		prime_change.emit(j, float(primes[j]))
+	_miroir()
 
 ## Toutes les 0,5 s : PNJ tués qui renaissent (sauvegarde, naissances différées), gardes qui reconnaissent un joueur recherché, garde
 ## hostile qui propose de se rendre, combattants trop loin qui se calment.
-func _ronde() -> void:
+func _ronde_monde() -> void:
 	for n in get_tree().get_nodes_in_group("villageois"):
 		if morts.has(cle_pnj(n)) and n.get("remplace") == null:
 			oublier(n)
 			n.queue_free()
-	if joueur.mort:
+
+## La ronde du joueur courant (même corps que l'ancienne _ronde, par joueur).
+func _ronde() -> void:
+	if joueur == null or not is_instance_valid(joueur) or joueur.mort:
 		return
 	var pj := joueur.global_position
 	# loin du village (≈ 250 m du centre) : les combattants rentrent chez eux (la prime et l'hostilité restent)
@@ -922,7 +1151,7 @@ func _ronde() -> void:
 		var best: PnjCombat = null
 		var dmin := 3.2
 		for c: PnjCombat in combattants:
-			if is_instance_valid(c) and c.est_garde and not c.est_mort and c.mode == "hostile":
+			if is_instance_valid(c) and c.peer == _ctx and c.est_garde and not c.est_mort and c.mode == "hostile":
 				var d := c.global_position.distance_to(pj)
 				if d < dmin:
 					dmin = d
@@ -976,12 +1205,16 @@ func _id_objet(o: Node) -> String:
 	return ""
 
 func _dire(n: Node, cle: String) -> void:
-	if n == null or not is_instance_valid(n) or dialogue == null or not is_instance_valid(dialogue):
+	if n == null or not is_instance_valid(n) or ((dialogue == null or not is_instance_valid(dialogue)) and _ctx == 0):
 		return
 	var l: Array = _textes.get(cle, [])
 	if l.is_empty():
 		return
-	dialogue.dire_au_passage(nom_de(n), String(l.pick_random()).replace("%p", str(roundi(prime()))))
+	var texte := String(l.pick_random()).replace("%p", str(roundi(prime())))
+	if _ctx != 0:
+		coop.envoyer_a(_ctx, "crime_dire", [nom_de(n), texte])
+		return
+	dialogue.dire_au_passage(nom_de(n), texte)
 
 ## Nom affiché d'un PNJ (méthode des villageois et gardes, propriété des combattants).
 static func nom_de(n: Node) -> String:
@@ -995,8 +1228,21 @@ func replique(cle: String) -> String:
 	return String(l.pick_random()) if not l.is_empty() else ""
 
 func _avis(t: String) -> void:
+	if _ctx != 0:
+		coop.envoyer_a(_ctx, "crime_avis", t)       # l'avis s'affiche chez le joueur concerné
+		return
 	if hud != null and hud.has_method("avis"):
 		hud.avis(t)
+
+## Niveau du joueur local (envoyé à l'hôte avec ses demandes : chance de plaider).
+func _niveau() -> int:
+	var prog: Variant = _joueur_local.get("progression") if _joueur_local != null else null
+	return int(prog.niveau) if prog != null else 1
+
+## Hôte : renvoie à l'invité courant son état de justice (primes, réputation, hostilité) : il l'affiche et le sauvegarde dans SON personnage.
+func _miroir() -> void:
+	if _ctx != 0 and coop != null:
+		coop.miroir(_ctx)
 
 # ======================================================================================================== sauvegarde
 

@@ -58,6 +58,7 @@ var _var := 1.0
 var _tete: Node                 # villageois.gd SuiviTete
 var _pieds: PiedsAuSol
 var _en_conversation := false
+var _conv_distante := false      # coop : un autre joueur (invité) parle à ce garde
 var _debut_conversation := 0.0
 var _invite := false
 var _delai_interpelle := 0.0
@@ -233,6 +234,7 @@ var _images_idle := 0
 
 func _physics_process(dt: float) -> void:
 	if marionnette:
+		_interactions(_dist_locale(), dt)      # invité : seulement « E Parler » et les interpellations
 		return
 	_t += dt
 	if service == "vigie":
@@ -249,7 +251,7 @@ func _physics_process(dt: float) -> void:
 		dist = vers.length()
 	if _en_conversation:
 		_debut_conversation += dt
-		if joueur != null and not joueur.en_dialogue and _debut_conversation > 0.3:
+		if joueur != null and not joueur.en_dialogue and _debut_conversation > 0.3 and not _conv_distante:
 			fin_conversation()
 	var dir_cap := Vector3.ZERO      # direction de marche
 	var vise := Vector3.ZERO         # direction où tourner le corps
@@ -480,9 +482,16 @@ func _regard_tete(dist: float) -> void:
 	else:
 		_tete.voulu = false
 
+## Distance horizontale au joueur LOCAL (le « E Parler » est celui de CE joueur, pas du plus proche en coop).
+func _dist_locale() -> float:
+	if joueur == null or not is_instance_valid(joueur):
+		return INF
+	return Vector2(global_position.x - joueur.global_position.x, global_position.z - joueur.global_position.z).length()
+
 func _interactions(dist: float, dt: float) -> void:
 	if dialogue == null or not is_instance_valid(dialogue) or joueur == null:
 		return
+	dist = _dist_locale()
 	_delai_interpelle -= dt
 	if dist < DIST_INTERPELLE and _delai_interpelle <= 0.0 and not _en_conversation and etat != ALERTE \
 			and gestion != null and gestion.peut_interpeller():

@@ -24,6 +24,10 @@ var _sac := {}  # état du sac au dernier changement : sert à détecter « rama
 
 var joueur: CharacterBody3D
 var hud: Control
+## LOT 5a : quêtes PARTAGÉES. L'hôte détient l'état (index, événements vus, dates, échecs) ; un invité ROUTE ses signalements vers lui et reçoit l'état
+## en retour (scripts/reseau/quetes_coop.gd). Chacun reçoit la récompense de fin de quête dans son propre sac. Hors ligne : `_coop` ne fait rien.
+var _coop: QuetesCoop = null
+var _objets_test: Dictionary = {}     # inventaire de l'invité dont l'hôte traite l'évènement (vide : celui de l'hôte)
 
 var donnees := {}
 ## JOURNAL À INDEX ENTIER (idée OpenMW) : `etat[quête]` EST l'index de la quête = nombre d'étapes faites. 0 / absent = pas commencée,
@@ -67,15 +71,20 @@ func index(id: String) -> int:
 
 ## Une quête échoue : drapeau posé, elle n'est plus « en cours ».
 func echouer(id: String) -> void:
+	if _coop != null and _coop.router("echouer", [id]):
+		return
 	if not echecs.has(id) and not fini(id):
 		echecs[id] = true
 		change.emit()
+		_partager()
 
 func echouee(id: String) -> bool:
 	return echecs.has(id)
 
 ## Avance l'index d'une quête jusqu'à `i` (jamais en arrière), en jouant les étapes intermédiaires (récompenses comprises).
 func avancer_index(id: String, i: int) -> void:
+	if _coop != null and _coop.router("avancer", [id, i]):
+		return
 	var q := _quete(id)
 	if q.is_empty():
 		return
@@ -92,6 +101,7 @@ func _ready() -> void:
 		donnees = {"quetes": [], "dialogues": {}, "textes": {}}
 	_sac = joueur.inventaire.objets.duplicate()
 	joueur.inventaire.change.connect(_sac_change)
+	_coop = QuetesCoop.installer(self)
 
 ## Tout objet dont le nombre augmente signale « ramasse:<id> » (en plus des signaux explicites du jeu : idempotent).
 func _sac_change() -> void:
@@ -100,7 +110,9 @@ func _sac_change() -> void:
 	for id in _sac:
 		if _sac[id] > avant.get(id, 0):
 			signaler("ramasse:" + id)
-	signaler("")
+	# invité : « objet:x>=n » se juge sur son sac ; on ne dérange l'hôte que si une étape en attente vient d'être remplie
+	if _coop == null or not _coop.invite() or _objet_pret():
+		signaler("")
 
 func texte(cle: String) -> Array:
 	return donnees.get("textes", {}).get(cle, [])
@@ -147,10 +159,30 @@ func _satisfait(declencheur: String, evt: String) -> bool:
 		return true
 	if declencheur.begins_with("objet:"):
 		var parts := declencheur.substr(6).split(">=")
-		return joueur.inventaire.objets.get(parts[0], 0) >= int(parts[1])
+		return (_objets_test if not _objets_test.is_empty() else joueur.inventaire.objets).get(parts[0], 0) >= int(parts[1])
 	return vus.has(declencheur) and not declencheur.begins_with("parle:")
 
 func signaler(evt: String) -> void:
+	if _coop != null and _coop.router("signaler", [evt]):
+		return
+	_signaler(evt)
+	_partager()
+
+## Une étape en attente dont la condition « objet:… » est déjà remplie par le sac local ?
+func _objet_pret() -> bool:
+	for q in donnees["quetes"]:
+		var etapes: Array = q["etapes"]
+		var n := index(q["id"])
+		if n >= 1 and n < etapes.size() and String(etapes[n]["declencheur"]).contains("objet:") and _satisfait(etapes[n]["declencheur"], ""):
+			return true
+	return false
+
+## Signale l'état aux invités (coalescé à l'image suivante) ; sans effet hors ligne ou chez un invité.
+func _partager() -> void:
+	if _coop != null:
+		_coop.marquer()
+
+func _signaler(evt: String) -> void:
 	if evt != "":
 		vus[evt] = true
 		evenement.emit(evt)
@@ -182,6 +214,7 @@ func _completer(q: Dictionary, i: int) -> void:
 	var etapes: Array = q["etapes"]
 	etat[q["id"]] = i + 1
 	dates["%s:%d" % [q["id"], i]] = _maintenant()
+	_partager()
 	if i == 0 and not q.get("discrete", false):
 		hud.avis("Nouvelle quête : " + q["titre"])
 		if etapes.size() > 1:
@@ -189,19 +222,7 @@ func _completer(q: Dictionary, i: int) -> void:
 	if i + 1 >= etapes.size():
 		if not q.get("discrete", false):
 			hud.avis("Quête terminée : " + q["titre"])
-		var remis: Dictionary = REMIS.get(q["id"], q.get("remis", {}))
-		for id in remis:
-			joueur.inventaire.retirer(id, remis[id])
-		var r: Dictionary = recompense_de(String(q["id"]))
-		joueur.progression.gagner_xp(float(r.get("xp", Progression.XP_QUETE_DEFAUT)))   # RPG : XP de niveau (lot B : recompense.xp)
-		if int(r.get("pieces", 0)) > 0:
-			joueur.inventaire.ajouter("pieces", int(r["pieces"]))
-			hud.avis("+ %d pièces" % int(r["pieces"]))
-		for id in r.get("objets", {}):
-			joueur.inventaire.ajouter(id, int(r["objets"][id]))
-			hud.avis("+ " + joueur.inventaire.nom(id))
-		if r.get("reputation") is Dictionary and Rangs.courant != null:
-			Rangs.courant.recompenser(r["reputation"])   # réputation de faction (data/quetes.json : recompense.reputation)
+		_donner_recompense(q)
 		if not q.get("discrete", false):
 			Sons.interface(self, ["ui_quete_fin"], -6.0)
 		quete_terminee.emit(String(q["id"]))   # autosauvegarde de fin de quête (Sauvegardes)
@@ -213,6 +234,23 @@ func _completer(q: Dictionary, i: int) -> void:
 	else:
 		hud.avis(etapes[i]["objectif"])
 	change.emit()
+
+## Récompense de fin de quête DANS LE SAC LOCAL : objets remis au donneur, XP, pièces, objets, réputation de faction. En coop chaque joueur
+## la reçoit chez lui (l'hôte à la fin de la quête, les invités quand l'état partagé leur arrive : QuetesCoop).
+func _donner_recompense(q: Dictionary) -> void:
+	var remis: Dictionary = REMIS.get(q["id"], q.get("remis", {}))
+	for id in remis:
+		joueur.inventaire.retirer(id, mini(int(remis[id]), joueur.inventaire.nombre(id)) if _coop != null and _coop.invite() else remis[id])
+	var r: Dictionary = recompense_de(String(q["id"]))
+	joueur.progression.gagner_xp(float(r.get("xp", Progression.XP_QUETE_DEFAUT)))   # RPG : XP de niveau (lot B : recompense.xp)
+	if int(r.get("pieces", 0)) > 0:
+		joueur.inventaire.ajouter("pieces", int(r["pieces"]))
+		hud.avis("+ %d pièces" % int(r["pieces"]))
+	for id in r.get("objets", {}):
+		joueur.inventaire.ajouter(id, int(r["objets"][id]))
+		hud.avis("+ " + joueur.inventaire.nom(id))
+	if r.get("reputation") is Dictionary and Rangs.courant != null:
+		Rangs.courant.recompenser(r["reputation"])   # réputation de faction (data/quetes.json : recompense.reputation)
 
 ## Un événement fait-il avancer au moins une quête ? (la prochaine étape d'une quête non terminée l'attend)
 func _attend(evt: String) -> bool:
@@ -439,3 +477,62 @@ func importer(d: Dictionary) -> void:
 	joueur.regler_benediction(benediction())  # ancienne sauvegarde : pas de choix → 100 de vie max
 	_rattraper()
 	change.emit()
+	_partager()
+
+
+# ------------------------------------------------------------------------------------------- coop (lot 5a) : état partagé
+## Partie PARTAGÉE de l'état (envoyée par l'hôte à chaque changement) : index, événements vus, dates, échecs.
+func exporter_partage() -> Dictionary:
+	return exporter()
+
+## Invité : adopte l'état de l'hôte. `notifier` (message en direct, pas l'instantané de connexion) : annonces et RÉCOMPENSES des étapes
+## franchies depuis le dernier état connu (nouvelle quête, objectif, fin de quête = récompense dans MON sac).
+func appliquer_partage(d: Dictionary, notifier: bool) -> void:
+	var avant := etat.duplicate()
+	var benie := benediction()
+	etat = {}
+	for id in d.get("etat", {}):
+		etat[id] = int(d["etat"][id])
+	for evt in d.get("vus", []):
+		vus[evt] = true
+	dates = {}
+	var dd: Variant = d.get("dates", {})
+	if dd is Dictionary:
+		for k in dd:
+			if dd[k] is Array and (dd[k] as Array).size() == 2:
+				dates[String(k)] = [int(dd[k][0]), float(dd[k][1])]
+	echecs = {}
+	for id in d.get("echecs", []):
+		echecs[String(id)] = true
+	if not notifier:
+		_sac = joueur.inventaire.objets.duplicate()
+	for id: String in etat:
+		var q := _quete(id)
+		if q.is_empty():
+			continue
+		var fin := mini(int(etat[id]), (q["etapes"] as Array).size())
+		if notifier:
+			for i in range(int(avant.get(id, 0)), fin):
+				_notifier_distant(q, i)
+	if benediction() != benie:
+		joueur.regler_benediction(benediction())
+	change.emit()
+
+## Retour d'une étape franchie PAR UN AUTRE JOUEUR (ou par l'hôte) : mêmes annonces et sons que _completer, récompense de fin chez moi.
+func _notifier_distant(q: Dictionary, i: int) -> void:
+	var etapes: Array = q["etapes"]
+	if i == 0 and not q.get("discrete", false):
+		hud.avis("Nouvelle quête : " + q["titre"])
+		if etapes.size() > 1:
+			Sons.interface(self, ["ui_quete_debut"], -7.0)
+	if i + 1 >= etapes.size():
+		if not q.get("discrete", false):
+			hud.avis("Quête terminée : " + q["titre"])
+		_donner_recompense(q)
+		if not q.get("discrete", false):
+			Sons.interface(self, ["ui_quete_fin"], -6.0)
+		quete_terminee.emit(String(q["id"]))
+	elif hud.has_method("objectif_change"):
+		hud.objectif_change()
+	else:
+		hud.avis(etapes[i]["objectif"])
