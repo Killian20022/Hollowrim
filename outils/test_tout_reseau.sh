@@ -33,7 +33,7 @@ for t in "${TESTS[@]}"; do
 	d0=$SECONDS; sortie="$LOGS/$nom.log"
 	if [[ "$cmd" == SOLO* ]]; then   # test solo (--script) : le code de sortie de Godot est trompeur (rc=5 avec RESULTAT OK) -> verdict d'après le journal
 		timeout 300 "$G" --headless --fixed-fps 60 --path "$P" --script "res://outils/$nom.gd" -- ${cmd#SOLO } > "$sortie" 2>&1
-		grep -qaE "^RESULTAT : OK|^ECHECS : 0|^OK +test" "$sortie" && rc=0 || rc=1
+		grep -qaE "^RESULTAT : OK|^ECHECS : 0|^OK +test|^OK fin" "$sortie" && rc=0 || rc=1
 	else
 		bash -c "$cmd" > "$sortie" 2>&1; rc=$?
 	fi
