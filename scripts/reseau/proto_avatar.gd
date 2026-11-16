@@ -18,6 +18,9 @@ static func creer(parent: Node, peer_id: int, pos: Vector3) -> ProtoAvatar:
 	a.noeud.name = "Joueur_%d" % peer_id
 	a.noeud.position = pos
 	parent.add_child(a.noeud)
+	var r := (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Reseau")
+	if r != null:
+		r.registre.definir_noeud(peer_id, a.noeud)   # pertinence par distance, « joueur le plus proche »
 	return a
 
 ## Instantané reçu : position, lacet, tangage de la tête, vitesse, accroupi.

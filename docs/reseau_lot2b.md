@@ -1,6 +1,6 @@
 # Réseau — lot 2b : monde vivant (villageois, gardes, heure, météo)
 
-Code : `scripts/reseau/reseau_monde_vivant.gd` (classe `ReseauMondeVivant`, installée par `monde.gd` après `Vie.peupler`), stub temporaire `stub_lot2a.gd`.
+Code : `scripts/reseau/reseau_monde_vivant.gd` (classe `ReseauMondeVivant`, installée par `monde.gd` après `Vie.peupler`).
 Test : `bash outils/test_monde_vivant.sh` (2 Godot headless, GODOT_MAX=2, port 24731 ; scène `scenes/test_monde_vivant.tscn`).
 
 ## Principe
@@ -12,7 +12,7 @@ Test : `bash outils/test_monde_vivant.sh` (2 Godot headless, GODOT_MAX=2, port 2
 - `Reseau` est résolu dynamiquement dans `ReseauMondeVivant` : villageois.gd/cycle.gd en dépendent et certains tests `-s` les compilent avant l'enregistrement des autoloads.
 
 ## À la fusion avec 2a
-- Les vrais autoloads `Replicateur` / `Rejoindre` sont utilisés d'office (`/root/Replicateur`) ; supprimer `stub_lot2a.gd`.
+- Les vrais autoloads `Replicateur` / `Rejoindre` sont utilisés d'office (`/root/Replicateur`) .
 - 2a interpole elle-même (`a_` = angle). Le stub applique le dernier état sans interpolation.
 - Les avatars distants doivent être inscrits : `Reseau.registre.definir_noeud(id, noeud)` (ProtoAvatar.creer ne le fait pas dans la base lot 1).
 

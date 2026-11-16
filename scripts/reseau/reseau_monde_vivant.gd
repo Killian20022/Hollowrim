@@ -6,7 +6,7 @@ extends Node
 ##  - Les plannings (Vie / EmploiDuTemps) ne tournent que chez l'hôte, depuis l'heure du cycle ; l'hôte est le maître de l'heure : il la diffuse
 ##    chaque seconde (évènement « mv_heure » : heure, jour, tempête) et l'invité corrige sa dérive (Cycle compense Engine.time_scale en ligne).
 ##  - Cible des PNJ = joueur le plus proche (joueur_proche / distance_joueurs) via Reseau.registre.noeud(id) + le joueur local.
-## Adaptateurs fins vers lot 2a : `Replicateur` et `Rejoindre` (autoloads) si présents, sinon StubLot2a (stub_lot2a.gd).
+## Utilise les autoloads du lot 2a : `Replicateur` (enregistrer) et `Rejoindre` (contributeur), résolus à l'exécution.
 ## Solo : ne fait rien (aucune marionnette, aucun envoi) et joueur_proche() renvoie le joueur local.
 ## À reporter au lot 5 : crime / prime par joueur (Crime : un seul dictionnaire), PnjCombat issu d'un villageois (remplace), conversations E des invités.
 
@@ -25,7 +25,6 @@ const SEUIL_SAUT := 0.3     # h : au-delà, l'invité saute à l'heure de l'hôt
 const PERTINENCE := 120.0   # m : un PNJ plus loin d'un invité ne lui est pas envoyé (2a)
 
 var monde: Node
-var _stub: RefCounted   # StubLot2a (chargé à la demande : dépend de l'autoload Reseau)
 var _entites := {}     # id (String) -> Node
 var _marionnettes := false
 var _en_ligne_prec := false
@@ -74,19 +73,13 @@ static func distance_joueurs(pos: Vector3, pj_local: Vector3) -> float:
 			d = minf(d, pos.distance_to(n.global_position))
 	return d
 
-# ---------- adaptateurs vers le lot 2a ----------
+# ---------- autoloads du lot 2a (résolus à l'exécution : voir _r()) ----------
 
-func _replicateur() -> Object:
-	var r := get_node_or_null("/root/Replicateur")
-	if r != null:
-		return r
-	if _stub == null:
-		_stub = load("res://scripts/reseau/stub_lot2a.gd").new()
-	return _stub
+func _replicateur() -> Node:
+	return get_node("/root/Replicateur")
 
-func _rejoindre() -> Object:
-	var r := get_node_or_null("/root/Rejoindre")
-	return r if r != null else _replicateur()   # le stub porte aussi contributeur()
+func _rejoindre() -> Node:
+	return get_node("/root/Rejoindre")
 
 # ---------- cycle de vie ----------
 
@@ -107,8 +100,6 @@ func _process(dt: float) -> void:
 		_en_ligne_prec = en_ligne
 		_hote_prec = _r().est_hote()
 		_basculer(en_ligne and not _r().est_hote())
-	if _stub != null:
-		_stub.call("tick", dt)
 	if not en_ligne:
 		return
 	_t_scan -= dt

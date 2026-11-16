@@ -8,7 +8,7 @@ mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd)
 W=$(wslpath -m "$(pwd)")
 G=${GODOT:-/mnt/c/Users/lopezk19/Outils/godot/Godot_v4.7.2-stable_win64_console.exe}
 SLOT=${SLOT:-/mnt/c/Users/lopezk19/Jeux/godot_slot.sh}
-PORT=${PORT:-24578}
+PORT=${PORT:-24580}
 ARGS=(--sans-zone --sans-aide --coop-port=$PORT --coop-captures="$(wslpath -m "$OUT")")
 export GODOT_MAX=2 GODOT_TIMEOUT=150
 bash $SLOT $G --path "$W" --resolution 960x540 res://scenes/test_combat.tscn -- --coop=hote "${ARGS[@]}" > /tmp/coopcap_hote.log 2>&1 &
