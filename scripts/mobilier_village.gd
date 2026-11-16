@@ -273,6 +273,15 @@ static func substitut(mod: String) -> Array:
 
 var monde: Node
 var _corps: StaticBody3D
+var _alea_tissu := RandomNumberGenerator.new()   # phases des tissus : graine fixe (identiques chez tous les joueurs)
+var _alea_tissu_ok := false
+
+func _phase_tissu() -> float:
+	if not _alea_tissu_ok:
+		_alea_tissu.seed = 8801
+		_alea_tissu_ok = true
+	return _alea_tissu.randf() * TAU
+
 var _tissus: Array = []      # [Node3D, phase]
 var _lumieres: Array = []    # [OmniLight3D, énergie, phase]
 var _t := 0.0
@@ -604,7 +613,7 @@ func _construire() -> void:
 					mq.visibility_range_end = PORTEE - 2.0
 					piv.add_child(mq)
 					tris += (t[1] as PackedVector3Array).size() / 3
-				_tissus.append([piv, randf() * TAU, piv.rotation])
+				_tissus.append([piv, _phase_tissu(), piv.rotation])
 			for nom: String in donnees:
 				if sub.is_empty() and nom.begins_with("banniere_tissu/"):
 					var st := SurfaceTool.new()
@@ -618,7 +627,7 @@ func _construire() -> void:
 					piv.add_child(mi)
 					tris += (donnees[nom][0] as PackedVector3Array).size() / 3
 			if sub.is_empty():
-				_tissus.append([piv, randf() * TAU, piv.rotation])
+				_tissus.append([piv, _phase_tissu(), piv.rotation])
 		if mod == "brasero":
 			var haut := xf * Vector3(0, BRAISES_Y, 0)
 			Torche.flamme_fixe(self, haut, 2.4, x * 0.37)

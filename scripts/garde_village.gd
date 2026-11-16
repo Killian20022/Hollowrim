@@ -103,9 +103,11 @@ func _ready() -> void:
 	add_child(modele)
 	anim = modele.get_node("Animations")
 	rotation.y = cap
-	_var = randf_range(0.93, 1.07)
-	_delai_interpelle = randf_range(5.0, 30.0)
-	_delai_autour = randf_range(5.0, 15.0)
+	var alea := RandomNumberGenerator.new()   # graine fixe : identique chez tous les joueurs (multijoueur)
+	alea.seed = hash(str(name)) ^ hash(Vector3(snappedf(global_position.x, 0.01), 0.0, snappedf(global_position.z, 0.01)))
+	_var = alea.randf_range(0.93, 1.07)
+	_delai_interpelle = alea.randf_range(5.0, 30.0)
+	_delai_autour = alea.randf_range(5.0, 15.0)
 	var sq: Skeleton3D = modele.find_child("Skeleton3D", true, false)
 	if sq != null:
 		_tete = SuiviTete.new()
@@ -114,12 +116,12 @@ func _ready() -> void:
 			_pieds = PiedsAuSol.equiper(modele, self) as PiedsAuSol
 	_jouer("Idle", 0.0)
 	if anim != null:
-		anim.seek(randf() * 2.0)
+		anim.seek(alea.randf() * 2.0)
 	AnimLod.inscrire(self, anim)
 	_pos_prec = global_position
 	if service == "ronde" and route.size() > 1:
 		etat = HALTE
-		_halte = randf_range(0.5, 4.0)
+		_halte = alea.randf_range(0.5, 4.0)
 		_i = 1
 	_lignes_perso = donnees.get("lignes", [])
 

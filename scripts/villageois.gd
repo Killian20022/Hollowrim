@@ -255,12 +255,15 @@ func _ready() -> void:
 	anim = modele.get_node("Animations")
 	if points.is_empty():
 		points.append(global_position)
-	rotation.y = deg_to_rad(float(donnees["cap"])) if donnees.has("cap") else randf() * TAU     # "cap" (degrés, 0 = vers +Z) : le forgeron fait face à son enclume
-	_prochaine_promenade = randf_range(8.0, 40.0)
-	_delai_interpelle = randf_range(0.0, 15.0)
-	_var = randf_range(0.93, 1.07)
-	_marche = MARCHE * randf_range(0.92, 1.08)
-	_delai_variete = randf_range(8.0, 20.0)
+	# RNG à graine fixe (identifiant + position) : même habitant, mêmes valeurs chez tous les joueurs (multijoueur)
+	var alea := RandomNumberGenerator.new()
+	alea.seed = hash(str(donnees.get("id", name))) ^ hash(Vector3(snappedf(global_position.x, 0.01), 0.0, snappedf(global_position.z, 0.01)))
+	rotation.y = deg_to_rad(float(donnees["cap"])) if donnees.has("cap") else alea.randf() * TAU     # "cap" (degrés, 0 = vers +Z) : le forgeron fait face à son enclume
+	_prochaine_promenade = alea.randf_range(8.0, 40.0)
+	_delai_interpelle = alea.randf_range(0.0, 15.0)
+	_var = alea.randf_range(0.93, 1.07)
+	_marche = MARCHE * alea.randf_range(0.92, 1.08)
+	_delai_variete = alea.randf_range(8.0, 20.0)
 	var squelette: Skeleton3D = modele.find_child("Skeleton3D", true, false)
 	if squelette != null:
 		_tete = SuiviTete.new()
@@ -271,13 +274,13 @@ func _ready() -> void:
 	metier = Metiers.metier(Metiers.nom_pour(donnees))
 	if not metier.is_empty():
 		var et: Array = metier["etapes"]
-		_m_i = randi() % et.size()
-		_m_t = Metiers.duree(et[_m_i], anim) * randf_range(0.2, 1.0)    # pas tous à la même étape au même instant
+		_m_i = alea.randi() % et.size()
+		_m_t = Metiers.duree(et[_m_i], anim, alea) * alea.randf_range(0.2, 1.0)    # pas tous à la même étape au même instant
 	_instant = true      # né assis sur son banc (pas de Sitting_Enter)
 	_activite(true)
 	_instant = false
 	if anim != null and _assis == "":
-		anim.seek(randf() * 2.0)
+		anim.seek(alea.randf() * 2.0)
 
 ## Allure de chaque habitant (corps Humain : couleurs de la tenue, étoffes, cheveux) ; aussi la galerie du monde (monde.gd, scénario « galerie »).
 ## Avec --persos-kit, les villageois utilisent PersoDefs.villageois() à la place.

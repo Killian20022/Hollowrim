@@ -71,8 +71,10 @@ static func cap_vers(de: Vector2, vers: Vector2) -> float:
 	return rad_to_deg(atan2(v.x, v.y))
 
 ## Durée d'une étape (s) : min..max tiré au sort, sinon la longueur du clip (joué une fois).
-static func duree(etape: Dictionary, anim: AnimationPlayer) -> float:
+static func duree(etape: Dictionary, anim: AnimationPlayer, alea: RandomNumberGenerator = null) -> float:
 	if etape.has("min"):
+		if alea != null:   # RNG à graine fixe fourni (génération identique chez tous les joueurs)
+			return alea.randf_range(float(etape["min"]), float(etape.get("max", etape["min"])))
 		return randf_range(float(etape["min"]), float(etape.get("max", etape["min"])))
 	var c := String(etape.get("clip", "Idle"))
 	return anim.get_animation(c).length if anim != null and anim.has_animation(c) else 2.0
