@@ -156,7 +156,8 @@ var est_local := true
 func _ready() -> void:
 	_actions()
 	progression.equipement_corps = equipement_corps
-	progression.activer()   # ReglagesCombat.competence() lit les perks de ce joueur
+	if est_local:   # coop : un avatar distant ne doit pas devenir la progression « courante » (perks, compétences) du joueur de cette machine
+		progression.activer()   # ReglagesCombat.competence() lit les perks de ce joueur
 	progression.change.connect(recalculer_stats)
 	equipement_corps.change.connect(func(_e: String) -> void: recalculer_stats())
 	floor_snap_length = 0.4
