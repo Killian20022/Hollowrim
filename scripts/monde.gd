@@ -258,6 +258,7 @@ func _ready() -> void:
 	Chrono.total()
 	pret = true
 	_brancher_rejoindre()   # lot 2a : instantané pour un invité qui rejoint en cours de partie
+	ApportPersonnage.installer(self)   # lot 5b : l'invité apporte SON personnage à l'hôte (inerte hors ligne)
 	if not _arguments().has("capture"):
 		_accueil()   # prologue (nouvelle partie), premier objectif, bulles d'aide ; sinon hud.demarrer() seul (lot L7)
 	_aller_crypte()
@@ -1607,6 +1608,21 @@ func sauvegarder(emplacement := -1) -> bool:
 		return false
 	if emplacement < 0:
 		emplacement = Sauvegardes.actif
+	if _invite_coop():   # coop, invité : le monde n'est pas à lui ; seul SON personnage est sauvegardé (chez lui)
+		return sauvegarder_personnage()
+	var donnees := SauvegardeMulti.fusionner(exporter_monde(), exporter_personnage())
+	var chemin := Sauvegardes.fichier(emplacement)
+	var err := Sauvegardes.ecrire(chemin, JSON.stringify(donnees, "\t"))
+	if err != OK:
+		push_warning("Sauvegarde impossible (%s) : %s" % [error_string(err), chemin])
+		return false
+	if emplacement != Sauvegardes.AUTO:
+		Sauvegardes.actif = emplacement
+		Jeu.copie_secours(chemin)   # copie de secours (dossier choisi dans les options ; échec = simple avertissement)
+	return true
+
+## Le MONDE : tout ce qui appartient à la partie et non à un joueur (voir SauvegardeMulti.CLES_PERSONNAGE pour le partage des clés).
+func exporter_monde() -> Dictionary:
 	var morts := []
 	for id in draugrs:
 		if not is_instance_valid(draugrs[id]) or not draugrs[id].vivant():
@@ -1617,50 +1633,62 @@ func sauvegarder(emplacement := -1) -> bool:
 	for id in grotte_acces.morts_charges:  # idem pour les bandits de la grotte
 		if not morts.has(id):
 			morts.append(id)
-	var parles := []
-	for v in _tous_les_villageois():
-		if v.get("deja_parle"):
-			parles.append(v.donnees.get("id", ""))
-	var donnees := {
+	return {
 		"version": Migration.VERSION,   # 2 : RPG (docs/RPG.md §7) ; les v1 sont migrées à la lecture (Migration)
-		"joueur": {
-			"position": [joueur.position.x, joueur.position.y, joueur.position.z],
-			"lacet": joueur.rotation.y, "vie": joueur.vie, "vigueur": joueur.vigueur,
-		},
 		"heure": cycle.heure,
 		"jour": cycle.jour,
-		"progression": joueur.progression.exporter(),   # niveau, points, attributs, perks, compétences (noms canoniques)
-		"equipement_corps": joueur.equipement_corps.exporter(),
-		"stockage": Stockage.exporter(),   # coffres sûrs (Grima, maison) : lot E
 		"quetes": quetes.exporter(),
-		"aides_vues": aides.exporter(),   # bulles d'aide déjà montrées (absent des anciennes sauvegardes : tout est considéré vu)
 		"herse": tertre._herse_ouverte,
 		"dragon_vaincu": dragon_vaincu,
-		"inventaire": joueur.inventaire.exporter(),
-		"test_butin_fait": _test_butin_fait,   # --test-butin : le sac n'est rempli qu'une fois par partie
-		"magie": joueur.mains.magie.exporter() if joueur.mains.get("magie") != null else {},   # mains, sorts connus, mana (docs/MAGIE.md)
 		"draugrs_morts": morts,
-		"villageois_parles": parles,
 		"vie": vie.exporter() if vie != null else {},
-		"crime": crime.exporter() if crime != null else {},   # primes, réputation, hostilité de la garde, objets volés, PNJ tués   # lot vie_pnj : l'emploi du temps recalcule tout depuis l'heure ; seul le compteur d'alarmes est gardé
-		"rangs": rangs.exporter() if rangs != null else {},   # réputation et rang par faction jouable (absent des anciennes parties : non membre partout)
 		"sommeil": sommeil.exporter() if sommeil != null else {},   # bonus « reposé » en cours, lits loués   # lot vie_pnj : l'emploi du temps recalcule tout depuis l'heure ; seul le compteur d'alarmes est gardé
 		"faune": faune.exporter() if faune != null else {},   # heures de jeu et territoires dépeuplés (Faune : repeuplement lent)
 		"butin": ButinTables.exporter(),   # graine du monde, contenants pillés, uniques pris (docs/BUTIN.md)
 		"marchands": Marchand.exporter(),  # lot L8 : heures de jeu écoulées, stock et bourse de chaque marchand (docs/BUTIN.md §9)
 		"objets_vivants": ObjetsVivants.exporter(),   # petits objets de décor : pris (heure de jeu) et déplacés (position)
+	}
+
+## Le PERSONNAGE du joueur local (lot 5b) : tout ce qui le suit d'une partie à l'autre.
+func exporter_personnage() -> Dictionary:
+	var parles := []
+	for v in _tous_les_villageois():
+		if v.get("deja_parle"):
+			parles.append(v.donnees.get("id", ""))
+	return {
+		"joueur": {
+			"position": [joueur.position.x, joueur.position.y, joueur.position.z],   # position de retour
+			"lacet": joueur.rotation.y, "vie": joueur.vie, "vigueur": joueur.vigueur,
+		},
+		"progression": joueur.progression.exporter(),   # niveau, points, attributs, perks, compétences (noms canoniques)
+		"equipement_corps": joueur.equipement_corps.exporter(),
+		"stockage": Stockage.exporter(),   # coffres sûrs (Grima, maison) : lot E
+		"aides_vues": aides.exporter(),   # bulles d'aide déjà montrées (absent des anciennes sauvegardes : tout est considéré vu)
+		"inventaire": joueur.inventaire.exporter(),
+		"test_butin_fait": _test_butin_fait,   # --test-butin : le sac n'est rempli qu'une fois par partie
+		"magie": joueur.mains.magie.exporter() if joueur.mains.get("magie") != null else {},   # mains, sorts connus, mana (docs/MAGIE.md)
+		"villageois_parles": parles,
+		"crime": crime.exporter() if crime != null else {},   # primes, réputation, hostilité de la garde, objets volés, PNJ tués
+		"rangs": rangs.exporter() if rangs != null else {},   # réputation et rang par faction jouable (absent des anciennes parties : non membre partout)
 		"lieux_vus": hud.lieux_vus.keys(),   # lot L7 : lieux déjà annoncés (« Lieu découvert »)
 		"menu": inventaire_ui.exporter_menu() if inventaire_ui != null else {},   # favoris du Sac (menu du personnage)
 	}
-	var chemin := Sauvegardes.fichier(emplacement)
-	var err := Sauvegardes.ecrire(chemin, JSON.stringify(donnees, "\t"))
-	if err != OK:
-		push_warning("Sauvegarde impossible (%s) : %s" % [error_string(err), chemin])
+
+## Coop, invité : écrit SON personnage (user://personnages/<nom>.json). Renvoie vrai si le fichier est écrit.
+func sauvegarder_personnage() -> bool:
+	if joueur == null or joueur.mort or not pret:
 		return false
-	if emplacement != Sauvegardes.AUTO:
-		Sauvegardes.actif = emplacement
-		Jeu.copie_secours(chemin)   # copie de secours (dossier choisi dans les options ; échec = simple avertissement)
-	return true
+	var r := get_node_or_null("/root/Reseau")
+	var nom := String(r.get("nom_joueur")) if r != null else "Joueur"
+	var err := SauvegardeMulti.ecrire_personnage(nom, exporter_personnage())
+	if err != OK:
+		push_warning("Sauvegarde du personnage impossible (%s)" % error_string(err))
+	return err == OK
+
+## Vrai si cette machine est un INVITÉ d'une partie coop en cours (le monde et son fichier appartiennent à l'hôte).
+func _invite_coop() -> bool:
+	var r := get_node_or_null("/root/Reseau")   # résolu à l'exécution : monde.gd est préchargé par des tests en `-s`
+	return r != null and bool(r.call("est_en_ligne")) and not bool(r.call("est_hote"))
 
 ## --test-butin (ou Jeu.PERIODE_TEST_EQUIPEMENT sur une NOUVELLE partie) : remplit le sac (pièces, toutes les armes, armures et bijoux
 ## du registre, flèches, tous les tomes de sorts) et apprend tous les sorts.
@@ -1694,6 +1722,8 @@ func _test_butin() -> void:
 		hud.avis("Mode test : toutes les armes et armures sont dans le sac (I)")
 
 func charger() -> void:
+	if _invite_coop():
+		return   # invité : pas de fichier de partie ; son personnage vient de son fichier personnage (ApportPersonnage)
 	if not FileAccess.file_exists(fichier_sauvegarde()):
 		return
 	var d = JSON.parse_string(FileAccess.get_file_as_string(fichier_sauvegarde()))
@@ -1701,37 +1731,22 @@ func charger() -> void:
 		push_warning("Sauvegarde illisible, nouvelle partie.")
 		return
 	d = Migration.migrer(d)   # v1 -> v2 (niveau recalculé, points à dépenser) avant tout importer()
-	var j: Dictionary = d.get("joueur", {})
-	var p: Array = j.get("position", [])
-	if p.size() == 3:
-		joueur.position = Vector3(p[0], p[1] + 0.2, p[2])
-		joueur.position = village.position_sure(joueur.position)   # C7b : sauvé dans l'ancien village (bâtiment, rivière, sous le sol) → point sûr
-	joueur.rotation.y = float(j.get("lacet", joueur.rotation.y))
-	joueur.vie = float(j.get("vie", joueur.vie_max))
-	joueur.vigueur = float(j.get("vigueur", joueur.vigueur_max))
+	_importer_personnage_corps(d)    # d'abord le personnage (position, sac…), dont dépendent la grotte et le butin
+	importer_monde(d)
+	_importer_personnage_social(d)   # puis ce qui parle aux PNJ restaurés (prime, rangs, dialogues vus)
+
+## Relit le MONDE d'un dictionnaire de sauvegarde (déjà migré). Idempotent ; ignore les clés du personnage.
+func importer_monde(d: Dictionary) -> void:
 	cycle.heure = float(d.get("heure", cycle.heure))
 	cycle.jour = maxi(1, int(d.get("jour", 1)))   # ancienne sauvegarde : jour 1
-	joueur.progression.importer(d.get("progression", {}))
-	joueur.inventaire.importer(d.get("inventaire", {}))
-	_test_butin_fait = bool(d.get("test_butin_fait", false))
-	joueur.equipement_corps.importer(d.get("equipement_corps", {}))   # après le sac (objets portés = objets du sac)
-	Stockage.importer(d.get("stockage", {}))
-	if inventaire_ui != null:
-		inventaire_ui.importer_menu(d.get("menu", {}))   # favoris du Sac (absents des anciennes sauvegardes : aucun)
 	ButinTables.importer(d.get("butin", {}))
 	preload("res://scripts/butin.gd").restaurer(self, joueur, hud)      # corps fouillables d'ennemis tués (objets laissés)
 	Marchand.importer(d.get("marchands", {}))
 	ObjetsVivants.importer(d.get("objets_vivants", {}))   # après l'horloge des marchands (réassort des étals)
 	if marchand != null:
 		marchand.recaler_horloge()
-	if joueur.mains.get("magie") != null:
-		joueur.mains.magie.importer(d.get("magie", {}))
 	dragon_vaincu = bool(d.get("dragon_vaincu", false))
 	quetes.importer(d.get("quetes", {}))
-	if d.has("aides_vues"):
-		aides.importer(d["aides_vues"])
-	else:
-		aides.tout_vu()
 	_actualiser_uniques_village()      # L9 : épée de la forge selon la quête et le butin relus
 	tertre.restaurer(bool(d.get("herse", false)))
 	grotte_acces.morts_charges = d.get("draugrs_morts", [])
@@ -1743,16 +1758,48 @@ func charger() -> void:
 			draugrs.erase(id)
 	if faune != null:
 		faune.importer(d.get("faune", {}))
-	for nom in d.get("lieux_vus", []):
-		hud.lieux_vus[String(nom)] = true
 	if vie != null and d.get("vie") is Dictionary:
 		vie.restaurer(d["vie"])
+	if sommeil != null:
+		sommeil.restaurer(d.get("sommeil", {}) if d.get("sommeil") is Dictionary else {})
+
+## Relit le PERSONNAGE du joueur local (dictionnaire de sauvegarde, ou dictionnaire de personnage seul). `position` : faux pour un
+## invité, qui apparaît près de l'hôte au lieu de sa position de retour.
+func importer_personnage(d: Dictionary, position := true) -> void:
+	_importer_personnage_corps(d, position)
+	_importer_personnage_social(d)
+
+func _importer_personnage_corps(d: Dictionary, position := true) -> void:
+	var j: Dictionary = d.get("joueur", {})
+	var p: Array = j.get("position", [])
+	if position and p.size() == 3:
+		joueur.position = Vector3(p[0], p[1] + 0.2, p[2])
+		joueur.position = village.position_sure(joueur.position)   # C7b : sauvé dans l'ancien village (bâtiment, rivière, sous le sol) → point sûr
+	if position:
+		joueur.rotation.y = float(j.get("lacet", joueur.rotation.y))
+	joueur.vie = float(j.get("vie", joueur.vie_max))
+	joueur.vigueur = float(j.get("vigueur", joueur.vigueur_max))
+	joueur.progression.importer(d.get("progression", {}))
+	joueur.inventaire.importer(d.get("inventaire", {}))
+	_test_butin_fait = bool(d.get("test_butin_fait", false))
+	joueur.equipement_corps.importer(d.get("equipement_corps", {}))   # après le sac (objets portés = objets du sac)
+	Stockage.importer(d.get("stockage", {}))
+	if inventaire_ui != null:
+		inventaire_ui.importer_menu(d.get("menu", {}))   # favoris du Sac (absents des anciennes sauvegardes : aucun)
+	if joueur.mains.get("magie") != null:
+		joueur.mains.magie.importer(d.get("magie", {}))
+	if d.has("aides_vues"):
+		aides.importer(d["aides_vues"])
+	else:
+		aides.tout_vu()
+	for nom in d.get("lieux_vus", []):
+		hud.lieux_vus[String(nom)] = true
+
+func _importer_personnage_social(d: Dictionary) -> void:
 	if crime != null:
 		crime.restaurer(d["crime"] if d.get("crime") is Dictionary else {})
 	if rangs != null:
 		rangs.restaurer(d["rangs"] if d.get("rangs") is Dictionary else {})
-	if sommeil != null:
-		sommeil.restaurer(d.get("sommeil", {}) if d.get("sommeil") is Dictionary else {})
 	var parles: Array = d.get("villageois_parles", [])
 	for v in _tous_les_villageois():
 		if v.donnees.get("id", "") in parles:
