@@ -217,12 +217,16 @@ class Base extends Node3D:
 	var _vus_local := {}
 	var _mats := {}
 	var _inters: Array = []
+	## Coop (lot 4c) : `_distant` = on applique l'évènement d'un autre joueur (pas de routage, pas d'inventaire) ; `_qui` = le pair qui a agi.
+	var _distant := false
+	var _qui := 1
 
 	func construire() -> void:
 		pass
 
 	func _ready() -> void:
 		add_to_group("mecanismes")
+		ReseauProjectiles.enregistrer_meca(ident, self)   # coop : l'hôte arbitre, les évènements retrouvent le mécanisme par son identifiant
 		joueur = ctx.get("joueur", _chercher("joueur"))
 		dialogue = ctx.get("dialogue", _chercher("dialogue"))
 		quetes = ctx.get("quetes", _chercher("quetes"))
@@ -281,9 +285,27 @@ class Base extends Node3D:
 		return it
 
 	func fin(lignes: Array) -> Array:
-		if on_fini.is_valid():
+		if on_fini.is_valid() and _consequences():
 			on_fini.call()
 		return lignes
+
+	## Les conséquences (portes, quêtes) ne tournent pas chez un invité qui rejoue l'évènement d'un autre : l'hôte les arbitre et les diffuse.
+	func _consequences() -> bool:
+		return not _distant or ReseauProjectiles.est_hote()
+
+	## Coop, hôte : la demande d'un invité est-elle recevable dans l'état actuel ? (redéfini par chaque mécanisme)
+	func accepter_demande(_action: String, _arg: Variant, _pair: int) -> bool:
+		return false
+
+	## Coop : rejoue l'action d'un autre joueur (diffusée par l'hôte, ou demandée à l'hôte par un invité).
+	func appliquer_distant(action: String, arg: Variant, qui: int) -> void:
+		_distant = true
+		_qui = qui
+		_appliquer(action, arg)
+		_distant = false
+
+	func _appliquer(_action: String, _arg: Variant) -> void:
+		pass
 
 	func fin_restauree() -> void:
 		Mecanisme.restauration = true
@@ -379,6 +401,8 @@ class Statues extends Base:
 	func tourner(i: int) -> bool:
 		if resolu:
 			return false
+		if ReseauProjectiles.router_meca(self, "tourner", i):
+			return false   # coop, invité : demandé à l'hôte, l'effet arrive par diffusion
 		etat[i] = (int(etat[i]) + 1) % 4
 		_angles[i] -= PI / 2.0
 		var piv: Node3D = _pivots[i]
@@ -393,10 +417,17 @@ class Statues extends Base:
 			signaler("meca:%s:resolu" % ident)
 			son(["doorOpen_1"], positions[i], 2.0)
 			secousse(0.4)
-			if on_fini.is_valid():
+			if on_fini.is_valid() and _consequences():
 				on_fini.call()
 			return true
 		return false
+
+	func accepter_demande(action: String, arg: Variant, _pair: int) -> bool:
+		return action == "tourner" and not resolu and int(arg) >= 0 and int(arg) < positions.size()
+
+	func _appliquer(action: String, arg: Variant) -> void:
+		if action == "tourner":
+			tourner(int(arg))
 
 	func _juste() -> bool:
 		for i in positions.size():
@@ -485,6 +516,8 @@ class Braseros extends Base:
 	func activer(i: int) -> Array:
 		if resolu:
 			return []
+		if ReseauProjectiles.router_meca(self, "activer", i):
+			return []   # coop, invité : demandé à l'hôte, l'effet arrive par diffusion
 		if allumes.has(i):
 			# éteindre : ce brasero et tous ceux allumés après lui
 			allumes = allumes.slice(0, allumes.find(i))
@@ -508,6 +541,13 @@ class Braseros extends Base:
 		son(["impactPlate_medium_001"], positions[i] + Vector3(0, 1, 0), 0.0)
 		secousse(0.2)
 		return ["Le brasero prend… puis toutes les flammes s’éteignent d’un souffle glacé. Ce n’était pas le bon ordre."]
+
+	func accepter_demande(action: String, arg: Variant, _pair: int) -> bool:
+		return action == "activer" and not resolu and int(arg) >= 0 and int(arg) < positions.size()
+
+	func _appliquer(action: String, arg: Variant) -> void:
+		if action == "activer":
+			activer(int(arg))
 
 	func _maj() -> void:
 		for i in positions.size():
@@ -591,9 +631,14 @@ class Socles extends Base:
 		if poses[i]:
 			return []
 		var id: String = objets[i]
-		if joueur == null or not joueur.inventaire.a(id):
-			return ["Un creux à la forme d’un éclat de sceau. Il y manque : %s." % Inventaire.OBJETS[id]["nom"]]
-		joueur.inventaire.retirer(id)
+		if not _distant:
+			if joueur == null or not joueur.inventaire.a(id):
+				return ["Un creux à la forme d’un éclat de sceau. Il y manque : %s." % Inventaire.OBJETS[id]["nom"]]
+			if ReseauProjectiles.router_meca(self, "poser", i):
+				return []   # coop, invité : demandé à l'hôte ; l'objet est consommé à sa confirmation
+			joueur.inventaire.retirer(id)
+		elif _qui == ReseauProjectiles.mon_id() and joueur != null and joueur.inventaire.a(id):
+			joueur.inventaire.retirer(id)   # confirmation de l'hôte : consommé chez celui qui l'a posé
 		_garnir(i)
 		signaler("meca:%s:s%d" % [ident, i])
 		son(["impactPlate_medium_000", "sword-unsheathe"], positions[i] + Vector3(0, 1, 0), -2.0)
@@ -605,6 +650,13 @@ class Socles extends Base:
 			secousse(0.45)
 			return fin(["Le dernier fragment se scelle. Les trois sceaux sont rétablis, la porte de pierre s’ébranle."])
 		return []
+
+	func accepter_demande(action: String, arg: Variant, _pair: int) -> bool:
+		return action == "poser" and int(arg) >= 0 and int(arg) < positions.size() and not poses[int(arg)]
+
+	func _appliquer(action: String, arg: Variant) -> void:
+		if action == "poser":
+			poser(int(arg))
 
 	func _garnir(i: int) -> void:
 		poses[i] = true
@@ -681,8 +733,17 @@ class Mur extends Base:
 				_indice_t = t
 				dialogue.dire_au_passage("Vous", "Ça sonne creux… Il faudrait un coup plus puissant pour le faire céder.")
 			return false
+		if ReseauProjectiles.router_meca(self, "casser", null):
+			return false   # coop, invité : demandé à l'hôte, le mur cède chez tous par diffusion
 		casser(true)
 		return true
+
+	func accepter_demande(action: String, _arg: Variant, _pair: int) -> bool:
+		return action == "casser" and not casse
+
+	func _appliquer(action: String, _arg: Variant) -> void:
+		if action == "casser":
+			casser(true)
 
 	func casser(avec_effets := true) -> void:
 		if casse:

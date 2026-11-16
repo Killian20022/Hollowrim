@@ -173,6 +173,7 @@ func fleches() -> int:
 
 func _ready() -> void:
 	name = "ArcJoueur"
+	ReseauProjectiles.installer()   # coop : abonnements (flèches, sorts, soins…) dès l'arrivée du joueur
 	_rig = Node3D.new()
 	_rig.name = "ArcVueFps"
 	_rig.visible = false
@@ -1003,6 +1004,7 @@ func _tirer() -> void:
 	var p := Projectile.tirer_joueur(joueur.get_parent(), depart, dir, joueur, reglage("degats_max", 36.0), vit, recup)
 	p.vitesse_reference = reglage("vitesse_max", 46.0)
 	p.degats_min = reglage("degats_min", 3.0)
+	ReseauProjectiles.annoncer_fleche_joueur(p, vit)   # coop : la flèche vole aussi chez les autres (copie visuelle) ; solo : sans effet
 	var degats := p.degats_pour(vit)
 	dernier_tir = {"tension": t, "degats": degats, "vitesse": vit, "projectile": p, "depart": depart, "direction": dir, "cible": cible}
 	tirs += 1
