@@ -76,7 +76,7 @@ func _ready() -> void:
 		print("HOTE_PRET")
 	await get_tree().create_timer(0.5).timeout
 	for id in pnjs:
-		depart[id] = (pnjs[id] as Node3D).global_position
+		depart[id] = (pnjs[id].points[0] as Vector3)   # point d'apparition (l'invité a déjà reçu l'état de l'hôte à ce stade)
 	if role == "hote":
 		for p in pnjs.values():
 			p._prochaine_promenade = 0.1
