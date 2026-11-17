@@ -24,7 +24,7 @@ signal rtt_mis_a_jour(pair: int, ms: float)
 
 # ------------------------------------------------------------------------------------------------ réglages (modifiables par les tests)
 const ESSAIS_MAX := 3
-const SCENE_TITRE := "res://scenes/ecran_titre.tscn"
+const FICHIER_MESSAGE := "user://reseau_message.txt"   # message laissé à l'écran titre après un retour forcé (la relance perd les variables statiques)
 const SURCOUT_PAQUET := 40          # o : IP/UDP (28) + en-têtes ENet (~12), pour estimer le débit « sur le fil »
 const VITESSE_JOUEUR := 7.0         # m/s : course + élan
 const VITESSE_ENNEMI := 6.0         # m/s
@@ -32,7 +32,7 @@ const TOLERANCE_MAX_M := 5.0
 
 static var geler_ennemis := true     # hôte perdu : les marionnettes sont figées pendant la reconnexion (sinon l'IA locale reprend un état à moitié répliqué)
 static var compensation := true     # compensation de latence de CombatCoop (portée / cadence)
-static var message_en_attente := "" # lu par l'écran titre après un retour forcé
+static var message_en_attente := ""  # dernier message de retour forcé (dans le processus ; entre deux relances : message_titre())
 static var derniere_raison := ""
 
 var periode_ping := 1.0             # s ; les tests passent à 0,25
@@ -385,10 +385,22 @@ func _abandonner(texte: String) -> void:
 	message.emit(texte)
 	reconnexion_abandonnee.emit(texte)
 	retour_titre_demande.emit(texte)
-	if retour_titre_auto and ResourceLoader.exists(SCENE_TITRE):
-		var a := _arbre()
-		if a != null:
-			a.change_scene_to_file.call_deferred(SCENE_TITRE)
+	# Retour au titre = relance du processus (Jeu.relancer : le monde ne peut pas être recréé dans le même processus). Jamais en mode outil :
+	# un test ou une capture (arguments utilisateur / --script) garde sa scène et lit le signal.
+	if retour_titre_auto and not Jeu.mode_outil():
+		var f := FileAccess.open(FICHIER_MESSAGE, FileAccess.WRITE)
+		if f != null:
+			f.store_string(texte)
+			f.close()
+		Jeu.relancer()
+
+## À appeler par l'écran titre au démarrage : renvoie (et efface) le message laissé par un retour forcé (« Impossible de rejoindre l'hôte… »), "" sinon.
+static func message_titre() -> String:
+	if not FileAccess.file_exists(FICHIER_MESSAGE):
+		return ""
+	var t := FileAccess.get_file_as_string(FICHIER_MESSAGE)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(FICHIER_MESSAGE))
+	return t
 
 ## HÔTE : un invité reconnecté annonce qui il était. L'ancien avatar (peut-être encore là si ENet n'a pas encore expiré) est débranché,
 ## les infos du registre (nom…) sont reportées sur le nouvel identifiant.
