@@ -102,6 +102,10 @@ func _adopter(p: Crime.Perso, d: Dictionary, avec_factions: bool) -> void:
 	if d.has("niveau"):
 		p.niveau = int(d["niveau"])
 
+## Invité : le personnage sauvegardé vient d'être appliqué (apport 5b) : l'hôte doit adopter SA prime, pas l'état neuf déjà envoyé à la connexion.
+func renvoyer_perso() -> void:
+	_perso_envoye = false
+
 ## Instantané « rejoindre en cours de partie » : les PNJ tués (le reste de la justice est PAR personnage, il n'est pas partagé).
 func exporter_monde() -> Dictionary:
 	return {"morts": crime.morts.duplicate()}

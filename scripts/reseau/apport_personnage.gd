@@ -76,6 +76,9 @@ func _sur_resultat(expediteur: int, _id: Variant, d: Variant) -> void:
 	var perso: Dictionary = r.get("perso", {}) if r.get("perso") is Dictionary else {}
 	if not perso.is_empty() and monde != null:
 		monde.call("importer_personnage", perso, false)
+		var cr: Variant = monde.get("crime")   # la prime restaurée repart vers l'hôte (crime_perso envoyé trop tôt avec l'état neuf)
+		if cr != null and cr.get("coop") != null:
+			cr.coop.renvoyer_perso()
 	var p: Variant = r.get("position")
 	if p is Array and (p as Array).size() == 3 and monde != null and monde.get("joueur") != null:
 		var j: Node3D = monde.joueur

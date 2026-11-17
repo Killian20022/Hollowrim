@@ -27,6 +27,8 @@ TESTS=(
 	"test_integration4|PORT=$((PORT_BASE+46)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_integration4.sh"
 	"test_economie_quetes|PORT=$((PORT_BASE+50)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_economie_quetes.sh"
 	"test_sauvegarde_multi|PORT=$((PORT_BASE+54)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_sauvegarde_multi.sh"
+	"test_integration5|PORT=$((PORT_BASE+58)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_integration5.sh"
+	"test_transport_choix|SOLO"
 	"test_villageois|SOLO --nouvelle"
 	"test_menu_personnage|SOLO --nouvelle"
 	"test_sommeil|SOLO --nouvelle --paisible"
@@ -43,7 +45,7 @@ for t in "${TESTS[@]}"; do
 		timeout 300 "$G" --headless --fixed-fps 60 --path "$P" --script "res://outils/$nom.gd" -- ${cmd#SOLO } > "$sortie" 2>&1
 		grep -qaE "^RESULTAT : OK|^ECHECS : 0|^OK +test|^OK fin|^TEST_TRANSPORT OK" "$sortie" && rc=0 || rc=1
 	else
-		bash -c "$cmd" > "$sortie" 2>&1; rc=$?
+		JOURNAUX="$LOGS/$nom.d" bash -c "$cmd" > "$sortie" 2>&1; rc=$?
 	fi
 	ok=1
 	if [[ "$nom" == "test_combat_solo" ]]; then rc=0   # la scène ne se termine pas seule : on ne juge que les erreurs de script
