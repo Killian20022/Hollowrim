@@ -197,6 +197,7 @@ func _invite() -> void:
 		var att: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(chemin_hote_attendu))
 		_v(j.inventaire.pieces == int(att["pieces"]) and int(j.inventaire.objets.get("os_draugr", 0)) == int(att["os"]) and j.progression.niveau == int(att["niveau"]),
 			"SON personnage est restauré après la relance : %d pièces, %d os, niveau %d" % [j.inventaire.pieces, int(j.inventaire.objets.get("os_draugr", 0)), j.progression.niveau])
+		await create_timer(2.5).timeout   # laisse l'hôte relever le niveau restauré avant la triche (qui réécrit l'info du registre)
 		# triche : l'hôte plafonne
 		var recu := {}
 		_R.abonner("apport_resultat", func(_e: int, _i: Variant, d: Variant) -> void: recu["d"] = d)
