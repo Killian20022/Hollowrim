@@ -23,7 +23,8 @@ lance() {  # role scn port idx nb_inv délai [options sim]
 # scénario : nom port nb_invités délai [options sim...]
 scenario() {
 	local nom="$1" scn="$2" port="$3" nb="$4" delai="$5"; shift 5
-	[[ -n "$MOTIF" && "$nom" != *"$MOTIF"* ]] && return 0
+	[[ -n "$MOTIF" && "$MOTIF" == =* && "$nom" != "${MOTIF#=}" ]] && return 0   # motif « =debit4 » : nom exact
+	[[ -n "$MOTIF" && "$MOTIF" != =* && "$nom" != *"$MOTIF"* ]] && return 0
 	[[ "$nom" == *sansgel* && "$MOTIF" != *sansgel* ]] && return 0   # contre-épreuve : ÉCHOUE exprès (erreurs de draugr.gd sans gel des ennemis)
 	echo "=== $nom ($scn, $nb invité(s), port $port) $* ==="
 	rm -f "$LOG/$scn.$port".*.log

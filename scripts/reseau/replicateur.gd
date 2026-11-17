@@ -7,7 +7,7 @@ const PERIODE := 1.0 / 15.0
 const PERTINENCE_DEFAUT := 90.0
 const DELAI_INTERP := 0.1
 const RAPPEL := 1.0            # un état inchangé est renvoyé au plus toutes les RAPPEL s
-const PAQUET_MAX := 1000       # octets (approx.) par RPC
+const PAQUET_MAX := 3000       # octets (approx.) par RPC AVANT compression ZSTD (≈ 1000 après) : de gros lots se compriment mieux (clés répétées)
 const TAMPON_MAX := 30
 
 var _ent := {}      # id -> {noeud, four, appl, pert}
