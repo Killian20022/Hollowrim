@@ -64,9 +64,40 @@ La parade/esquive de la victime n'a rien à compenser : la décision est prise c
 
 ## 6. Résultats mesurés
 
-(chiffres de la dernière exécution complète, voir le rapport de fin de lot)
+Dernière exécution complète (1 hôte + 1 invité, localhost, Godot 4.7.2 headless) ; tous les scénarios au vert (cond_250 relancé une fois après correction d'une course de fin de test : l'hôte partait avant le dernier « go » fiable).
 
-RÉSULTATS_A_COMPLETER
+| Mesure | 0 ms | 100 ms / 5 % | 250 ms / 10 % |
+|---|---|---|---|
+| RTT mesuré (ping RPC), hôte / invité | 11 / 8 ms | 114 / 110 ms | 265 / 255 ms |
+| RTT min – max | 3 – 324 | 90 – 435 | 226 – 484 |
+| perte de pings en fin de partie (aller+retour ; attendu 9,75 % / 19 %) | 6 % (démarrage) | 12 – 14 % | 15 – 21 % |
+| paquets non fiables jetés / fiables retransmis (hôte, invité) | 0 / 0 | 100,88 / 11,3 | 201,197 / 24,17 |
+| 8 coups espacés de l'invité | 8/8 acceptés | 8/8 | 8/8 |
+| salves 3 coups / 150 ms (12 coups) : AVEC compensation | 12/12 | 12/12 | 12/12 |
+| même salves SANS compensation (comportement d'avant) | 12/12 | 12/12 | **11/12** (1 faux rejet de cadence ; 2/12 sur une exécution précédente) |
+| course + frappe à 5,5 m, AVEC compensation | 5/5 | 5/5 | 5/5 |
+| même course SANS compensation (validation d'avant) | **0/5** | **0/5** | **0/5** |
+| esquive / sans défense / garde de la victime (6 coups chacun) | 6/6 6/6 6/6 | 6/6 6/6 6/6 | 6/6 6/6 6/6 |
+| coffre pris une fois, porte, heure (< 1 h), PV ennemi identiques, avatar à < 0,6 m | OK | OK | OK |
+
+Lecture : à 250 ms / 10 %, tous les verrous d'état tiennent (les évènements d'état sont fiables : la perte ne fait que les retarder, d'environ 0,6 s par essai perdu). La validation d'AVANT le lot rejetait à tort tout coup porté en courant à plus de ~4,7 m de l'ennemi (0/5 même à 0 ms : l'avatar vu par l'hôte est en retard d'environ 0,1 s d'interpolation, soit ~1 m à 7 m/s) ; la portée de mêlée réelle des armes étant plus courte (2-3 m), l'effet réel est rare, mais la marge est nécessaire dès qu'on joue à plus de 100 ms.
+
+Déconnexions (1 hôte + 1 invité, processus tué net par `OS.kill`, aucun paquet d'adieu) :
+
+| Cas | Détection | Vérifié |
+|---|---|---|
+| invité tué en plein combat (surveillance applicative à 3,5 s dans le test) | 3,5 s | avatar retiré de la scène, de `AvatarsCoop` et du registre ; signal `joueur_parti` ; menace du parti retirée du guerrier qui le combattait, cible reprise par l'hôte ; corps non fouillé toujours fouillable (par l'hôte) ; corps déjà fouillé par le parti reste attribué (pas de doublon) ; le monde continue |
+| idem, ENet seul (timeouts 3 s / 10 s de production) | 4,2 s | idem |
+| hôte tué (surveillance 3,5 s) | 4,6 s | `Reseau.hote_perdu` émis avant le solo (en ligne, inventaire intact) ; retour solo propre ; 3 essais ; abandon avec message ; retour au titre demandé ; aucun `SCRIPT ERROR` (ennemis gelés) |
+| idem, ENet seul | 5,2 s (dont 1 s de pause avant la mort de l'hôte) | idem |
+| coupure réseau simulée de 3,5 s côté invité | détection 3,5 s | reconnexion automatique réussie au 1er essai (~3 s) ; nouvel id ; personnage inchangé (position, inventaire) ; hôte : ancien avatar remplacé par le nouveau, nom repris |
+| coupure durable | 3 essais (~25 s au total) | abandon avec message ; l'hôte retire l'invité muet |
+
+Reconnexion : ces délais sont ceux des tests (surveillance 3,5 s, pause 1 s). En production `silence_max` = 12 s, ENet 3-10 s, pause 2 s.
+
+Rien n'a été mesuré sur Internet (localhost seulement) ; la simulation ne retarde que l'envoi.
+
+Régressions : `banc_reseau`, `test_coop_proto`, `test_rejoindre`, `test_monde_vivant`, `test_integration2`, `test_pause_vote`, `test_projectiles`, `test_cadavres`, `test_avatars`, `test_integration4` verts avec les crochets ; `test_combat_coop` est instable sous charge (échec 1 fois sur 3 dans le worktree de base `integ5` ET dans le mien, mêmes 2 assertions « la victime a bien perdu des PV » + erreurs `draugr.gd:562/782` chez l'invité : problème préexistant, sensible à la charge CPU des autres agents) ; `test_lieux.sh` écrit dans des journaux fixes `/tmp/lieux_*.log` partagés entre agents (verdict de l'invité illisible quand deux lancements se chevauchent).
 
 ## 7. Budget de bande passante : DÉPASSEMENT
 
@@ -74,8 +105,8 @@ Plan : ~15 Ko/s par invité, ~50 Ko/s d'envoi pour l'hôte. Mesuré (charge util
 
 | | par invité (hôte→invité) | hôte total (envoi) | invité (envoi) |
 |---|---|---|---|
-| 2 joueurs | 51,7 Ko/s | 51,7 Ko/s | 2,8 Ko/s |
-| 4 joueurs (hôte + 3) | 55,6 Ko/s | 166,7 Ko/s (pic 207) | 7,0 Ko/s |
+| 2 joueurs | 53,1 Ko/s | 53,1 Ko/s (pic 63) | 2,9 Ko/s |
+| 4 joueurs (hôte + 3) | 56 Ko/s | 167,9 Ko/s (pic ~207) | 7,1 Ko/s |
 
-Profil (2 joueurs) : avatars seuls 2,2 Ko/s ; + 12 villageois qui marchent : 34,3 Ko/s (≈ 2,7 Ko/s par PNJ en mouvement) ; + 6 ennemis éveillés : 21,2 Ko/s (≈ 3,2 Ko/s par ennemi). Cause : le `Replicateur` envoie un `Dictionary` encodé par `var_to_bytes` (clés en chaînes de caractères, ≈ 180 o par état) à 15 Hz par entité en mouvement : le budget de 15 Ko/s ne tient que pour ~5 entités mobiles dans la zone de pertinence (90-120 m) ; un village animé le dépasse d'un facteur 3 à 4. Le débit hôte (≈ 3 x 56) dépasse aussi 50 Ko/s dès 3 joueurs.
+Profil (2 joueurs) : avatars seuls 2,2 Ko/s ; + 12 villageois qui marchent : 34,6 Ko/s (≈ 2,7 Ko/s par PNJ en mouvement) ; + 6 ennemis éveillés : 20,6 Ko/s (≈ 3,2 Ko/s par ennemi). Cause : le `Replicateur` envoie un `Dictionary` encodé par `var_to_bytes` (clés en chaînes de caractères, ≈ 180 o par état) à 15 Hz par entité en mouvement : le budget de 15 Ko/s ne tient que pour ~5 entités mobiles dans la zone de pertinence (90-120 m) ; un village animé le dépasse d'un facteur 3 à 4. Le débit hôte (≈ 3 x 56) dépasse aussi 50 Ko/s dès 3 joueurs.
 **Remède mesuré** (non appliqué : fichier du lot 2a) : compresser chaque lot du `Replicateur` en ZSTD avant l'envoi (`docs/lot7_replicateur_compression.patch`, 8 lignes) : 34,3 → 10,6 Ko/s pour les 12 villageois (÷ 3,2), les clés répétées se compriment très bien. Autres pistes : 15 → 8 Hz au-delà de 40 m, clés numériques, positions quantifiées, rayon de pertinence plus court pour les PNJ.

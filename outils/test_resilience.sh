@@ -13,7 +13,7 @@ SLOT=/tmp/godot_slot.sh
 [[ -f "$SLOT" ]] || cp "$ICI/../godot_slot.sh" "$SLOT" 2>/dev/null
 LOG="${TMPDIR:-/tmp}/test_resilience"; mkdir -p "$LOG"
 MOTIF="${1:-}"
-: > "$LOG/metriques.txt"
+[[ -z "$MOTIF" ]] && : > "$LOG/metriques.txt"
 
 lance() {  # role scn port idx nb_inv délai [options sim]
 	local role="$1" scn="$2" port="$3" idx="$4" nb="$5" delai="$6"; shift 6

@@ -88,7 +88,7 @@ func _pause(s: float) -> void:
 
 func _fin() -> void:
 	print("TEST_RESILIENCE %s %s" % [_etiq(), "OK" if _ok else "ECHEC"])
-	await _pause(0.5)
+	await _pause(0.5 + _sim.x * 0.012 * (2.0 if _role == "hote" else 1.0))   # sous latence, le dernier « go » fiable doit avoir le temps d'arriver avant que l'hôte parte
 	get_tree().quit(0 if _ok else 1)
 
 # barrière à N invités : les invités signalent à l'hôte (renvoi toutes les s tant qu'ils n'ont pas de « go »), l'hôte répond « go » quand tous sont arrivés
