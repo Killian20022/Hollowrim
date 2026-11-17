@@ -7,12 +7,12 @@ const MAX_JOUEURS := 4
 func creer_hote(port: int) -> MultiplayerPeer:
 	var pair := ENetMultiplayerPeer.new()
 	erreur = pair.create_server(port, MAX_JOUEURS - 1)
-	return pair if erreur == OK else null
+	return Resilience.preparer(pair, true, "", port) if erreur == OK else null   # lot 7 : enveloppe (simulateur + mesures)
 
 func creer_client(ip: String, port: int) -> MultiplayerPeer:
 	var pair := ENetMultiplayerPeer.new()
 	erreur = pair.create_client(ip, port)
-	return pair if erreur == OK else null
+	return Resilience.preparer(pair, false, ip, port) if erreur == OK else null   # lot 7
 
 func nom() -> String:
 	return "ENet"
