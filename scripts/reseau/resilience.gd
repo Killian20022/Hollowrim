@@ -34,7 +34,7 @@ static var compensation := true     # compensation de latence de CombatCoop (por
 static var message_en_attente := "" # lu par l'écran titre après un retour forcé
 static var derniere_raison := ""
 
-var periode_ping := 1.0
+var periode_ping := 1.0             # s ; les tests passent à 0,25
 var silence_max := 8.0              # s sans aucune réponse d'un pair -> liaison déclarée morte (ENet détecte la vraie coupure plus vite)
 var timeout_enet := Vector3i(16, 2500, 6000)   # limite, minimum ms, maximum ms (ENet par défaut : 32, 5000, 30000)
 var pause_essais := 2.0             # s avant chaque essai de reconnexion
@@ -48,6 +48,7 @@ var rtt_min := {}
 var rtt_max := {}
 var pings_envoyes := {}             # pair -> n
 var pongs_recus := {}
+var pings_base := {}                # pair -> nb de pings déjà envoyés au premier pong (la mesure de perte démarre là)
 var derniere_reponse := {}          # pair -> s (ticks)
 var rtt_enet := {}                  # pair -> ms vu par ENet (sans le retard simulé)
 var perte_enet := {}                # pair -> fraction vue par ENet
@@ -121,6 +122,7 @@ func _pair_pret(id: int, w: SimulateurReseau) -> void:
 	derniere_reponse[id] = _maintenant()
 	pings_envoyes[id] = 0
 	pongs_recus[id] = 0
+	pings_base.erase(id)
 	var p: Object = w.pair_enet(id)
 	if p != null and p.has_method("set_timeout"):
 		p.call("set_timeout", timeout_enet.x, timeout_enet.y, timeout_enet.z)
@@ -167,6 +169,9 @@ func _pong(_seq_: int, t_usec: int) -> void:
 	var de := multiplayer.get_remote_sender_id()
 	derniere_reponse[de] = _maintenant()
 	pongs_recus[de] = int(pongs_recus.get(de, 0)) + 1
+	if not pings_base.has(de):
+		pings_base[de] = int(pings_envoyes.get(de, 1))
+		pongs_recus[de] = 1
 	var ms := (Time.get_ticks_usec() - t_usec) / 1000.0
 	rtt[de] = ms if not rtt.has(de) else lerpf(float(rtt[de]), ms, 0.25)
 	rtt_min[de] = minf(float(rtt_min.get(de, 1.0e9)), ms)
@@ -240,10 +245,10 @@ func bilan() -> Dictionary:
 
 ## Perte mesurée par les pings (aller + retour) d'un pair : 1 - pongs / pings (le dernier ping, encore en vol, est ignoré).
 func perte_mesuree(pair: int) -> float:
-	var n := int(pings_envoyes.get(pair, 0)) - 1
+	var n := int(pings_envoyes.get(pair, 0)) - int(pings_base.get(pair, 0)) - 1   # pings postérieurs au 1er pong, hors le dernier encore en vol
 	if n <= 0:
 		return 0.0
-	return clampf(1.0 - float(int(pongs_recus.get(pair, 0))) / float(n), 0.0, 1.0)
+	return clampf(1.0 - float(int(pongs_recus.get(pair, 0)) - 1) / float(n), 0.0, 1.0)
 
 func resume() -> String:
 	var s := "[RESEAU] "
