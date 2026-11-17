@@ -9,23 +9,24 @@ ICI="$(cd "$(dirname "$0")/.." && pwd)"
 P="$(wslpath -w "$ICI")"
 LOGS="${JOURNAUX:-/tmp/tout_reseau}"; mkdir -p "$LOGS"
 MOTIF="${1:-}"
+PORT_BASE="${PORT_BASE:-25100}"   # base des ports : chaque test prend 4 ports (base+4i+2 ...) ; plage par défaut 25101-25199
 [[ -f /tmp/godot_slot.sh ]] || cp "$ICI/../godot_slot.sh" /tmp/godot_slot.sh 2>/dev/null
 # nom|commande (exécutée depuis la racine du projet)
 TESTS=(
-	"banc_reseau|PORT=24901 GODOT_MAX=${GODOT_MAX:-4} bash outils/banc_reseau.sh"
-	"test_coop_proto|PORT=24902 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_coop_proto.sh"
-	"test_rejoindre|PORT=24903 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_rejoindre.sh"
-	"test_lieux|PORT=24904 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_lieux.sh"
-	"test_monde_vivant|PORT=24905 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_monde_vivant.sh"
-	"test_integration2|PORT=24906 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_integration2.sh"
-	"test_pause_vote|PORT=24907 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_pause_vote.sh"
-	"test_combat_coop|PORT=24908 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_combat_coop.sh"
-	"test_projectiles|PORT=24909 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_projectiles.sh"
-	"test_cadavres|PORT=24910 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_cadavres.sh"
-	"test_avatars|PORT=24911 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_avatars.sh"
-	"test_integration4|PORT=24912 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_integration4.sh"
-	"test_economie_quetes|PORT=24913 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_economie_quetes.sh"
-	"test_sauvegarde_multi|PORT=24914 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_sauvegarde_multi.sh"
+	"banc_reseau|PORT=$((PORT_BASE+2)) GODOT_MAX=${GODOT_MAX:-4} bash outils/banc_reseau.sh"
+	"test_coop_proto|PORT=$((PORT_BASE+6)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_coop_proto.sh"
+	"test_rejoindre|PORT=$((PORT_BASE+10)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_rejoindre.sh"
+	"test_lieux|PORT=$((PORT_BASE+14)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_lieux.sh"
+	"test_monde_vivant|PORT=$((PORT_BASE+18)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_monde_vivant.sh"
+	"test_integration2|PORT=$((PORT_BASE+22)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_integration2.sh"
+	"test_pause_vote|PORT=$((PORT_BASE+26)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_pause_vote.sh"
+	"test_combat_coop|PORT=$((PORT_BASE+30)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_combat_coop.sh"
+	"test_projectiles|PORT=$((PORT_BASE+34)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_projectiles.sh"
+	"test_cadavres|PORT=$((PORT_BASE+38)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_cadavres.sh"
+	"test_avatars|PORT=$((PORT_BASE+42)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_avatars.sh"
+	"test_integration4|PORT=$((PORT_BASE+46)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_integration4.sh"
+	"test_economie_quetes|PORT=$((PORT_BASE+50)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_economie_quetes.sh"
+	"test_sauvegarde_multi|PORT=$((PORT_BASE+54)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_sauvegarde_multi.sh"
 	"test_villageois|SOLO --nouvelle"
 	"test_menu_personnage|SOLO --nouvelle"
 	"test_sommeil|SOLO --nouvelle --paisible"
@@ -40,7 +41,7 @@ for t in "${TESTS[@]}"; do
 	d0=$SECONDS; sortie="$LOGS/$nom.log"
 	if [[ "$cmd" == SOLO* ]]; then   # test solo (--script) : le code de sortie de Godot est trompeur (rc=5 avec RESULTAT OK) -> verdict d'après le journal
 		timeout 300 "$G" --headless --fixed-fps 60 --path "$P" --script "res://outils/$nom.gd" -- ${cmd#SOLO } > "$sortie" 2>&1
-		grep -qaE "^RESULTAT : OK|^ECHECS : 0|^OK +test|^OK fin" "$sortie" && rc=0 || rc=1
+		grep -qaE "^RESULTAT : OK|^ECHECS : 0|^OK +test|^OK fin|^TEST_TRANSPORT OK" "$sortie" && rc=0 || rc=1
 	else
 		bash -c "$cmd" > "$sortie" 2>&1; rc=$?
 	fi

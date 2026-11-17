@@ -12,7 +12,7 @@ SLOT=/tmp/godot_slot.sh
 LOG="${TMPDIR:-/tmp}/banc_reseau"; mkdir -p "$LOG"
 lance() {  # role
 	if [[ -f "$SLOT" ]]; then
-		GODOT_MAX="${GODOT_MAX:-2}" GODOT_TIMEOUT=90 bash "$SLOT" "$G" --headless --path "$P" --script res://outils/banc_reseau.gd -- --role="$1" --port="$PORT" > "$LOG/$1.log" 2>&1
+		GODOT_MAX="${GODOT_MAX:-4}" GODOT_TIMEOUT=90 bash "$SLOT" "$G" --headless --path "$P" --script res://outils/banc_reseau.gd -- --role="$1" --port="$PORT" > "$LOG/$1.log" 2>&1
 	else
 		timeout 90 "$G" --headless --path "$P" --script res://outils/banc_reseau.gd -- --role="$1" --port="$PORT" > "$LOG/$1.log" 2>&1
 	fi

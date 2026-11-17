@@ -13,7 +13,7 @@ SLOT=${SLOT:-/tmp/godot_slot.sh}
 [[ -f "$SLOT" ]] || cp ../godot_slot.sh "$SLOT" 2>/dev/null
 PORT=${PORT:-24826}
 LOG=${TMPDIR:-/tmp}/captures_avatars; mkdir -p "$LOG"; rm -f "$LOG"/*.log
-export GODOT_MAX=${GODOT_MAX:-2} GODOT_TIMEOUT=${GODOT_TIMEOUT:-600}
+export GODOT_MAX=${GODOT_MAX:-4} GODOT_TIMEOUT=${GODOT_TIMEOUT:-600}
 lance() {  # role
 	bash $SLOT $G --path "$W" --resolution 960x540 res://outils/test_avatars.tscn -- --role="$1" --port=$PORT --captures="$(wslpath -m "$OUT")" > "$LOG/$1.log" 2>&1
 }

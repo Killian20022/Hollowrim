@@ -10,7 +10,7 @@ G=${GODOT:-/mnt/c/Users/lopezk19/Outils/godot/Godot_v4.7.2-stable_win64_console.
 SLOT=${SLOT:-/mnt/c/Users/lopezk19/Jeux/godot_slot.sh}
 PORT=${PORT:-24580}
 ARGS=(--sans-zone --sans-aide --coop-port=$PORT --coop-captures="$(wslpath -m "$OUT")")
-export GODOT_MAX=2 GODOT_TIMEOUT=150
+export GODOT_MAX=${GODOT_MAX:-4} GODOT_TIMEOUT=150
 bash $SLOT $G --path "$W" --resolution 960x540 res://scenes/test_combat.tscn -- --coop=hote "${ARGS[@]}" > /tmp/coopcap_hote.log 2>&1 &
 H=$!
 sleep 6
