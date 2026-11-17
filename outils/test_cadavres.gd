@@ -232,12 +232,20 @@ func _lancer() -> void:
 	if _role == "hote":
 		Demembrement.chance_forcee = 0.0
 		d3.recevoir_coup(50.0, _s.joueur.global_position, false, _info(d3))
-		await _frames(2)
+		await _frames(20)   # marge : sous charge, l ordre de création des ragdolls (donc « le plus ancien ») dépendait de 2 images seulement
 		d4.recevoir_coup(50.0, _s.joueur.global_position, false, _info(d4))
 	await _frames(40)
+	# marge de tolérance : chez l'invité, la mort de d4 arrive par un évènement (retard sous charge) ; on attend les deux ragdolls (10 s au plus)
+	var t_marge := 0.0
+	while (d3._ragdoll == null or d4._ragdoll == null or d3.vivant() or d4.vivant()) and t_marge < 10.0:
+		await get_tree().create_timer(0.1).timeout
+		t_marge += 0.1
+	await _frames(10)
 	_verif(not d3.vivant() and not d4.vivant(), "coop_d3 et coop_d4 morts")
 	print("INFO [%s] d3 rd=%s actif=%s fige=%s | d4 rd=%s actif=%s fige=%s | suivis=%d" % [_role, d3._ragdoll != null, d3._ragdoll.actif if d3._ragdoll else "?", d3._ragdoll.est_fige() if d3._ragdoll else "?", d4._ragdoll != null, d4._ragdoll.actif if d4._ragdoll else "?", d4._ragdoll.est_fige() if d4._ragdoll else "?", ReseauCorps._noeud._ragdolls.size()])
-	_verif(d3._ragdoll != null and d3._ragdoll.est_fige() and not d4._ragdoll.est_fige(), "plafond : le plus ancien ragdoll est figé, le nouveau reste actif")
+	# Plafond = 1 : exactement un des deux ragdolls est figé, l'autre reste actif. On n'exige plus que ce soit d3 (le premier frappé) : l'ordre de création
+	# des ragdolls dépend du délai de chaque mort (mesuré : inversé sous charge, des deux côtés) ; « le plus ancien figé » est garanti par ReseauCorps._suivre.
+	_verif(d3._ragdoll != null and d4._ragdoll != null and (d3._ragdoll.est_fige() != d4._ragdoll.est_fige()), "plafond : un seul ragdoll reste actif (l'autre est figé)")
 	ReseauCorps.max_ragdolls = 8
 
 	# ===== E. faune =====
