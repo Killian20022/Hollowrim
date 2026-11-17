@@ -105,12 +105,41 @@ func _ready() -> void:
 		return
 	_menu_principal()
 	_intro()
+	_afficher_message_reseau(Resilience.message_titre())   # lot 7 : retour forcé au titre (hôte perdu, reconnexion échouée…)
 	var test := Jeu.test_titre()
 	if test != "" and not mode_test:
 		_test.call_deferred(test)
 
 func _exit_tree() -> void:
 	MenuStyle.vider_titre()
+
+## Bandeau en haut de l'écran titre (message réseau laissé par un retour forcé). `message_reseau` : texte affiché ("" si aucun).
+var message_reseau := ""
+func _afficher_message_reseau(texte: String) -> void:
+	message_reseau = texte.strip_edges()
+	if message_reseau == "":
+		return
+	var l := Label.new()
+	l.name = "MessageReseau"
+	l.text = message_reseau
+	l.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	l.anchor_left = 0.15
+	l.anchor_right = 0.85
+	l.offset_left = 0
+	l.offset_right = 0
+	l.offset_top = 28
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_size_override("font_size", 26)
+	l.add_theme_color_override("font_color", Color(MenuStyle.ARGENT, 0.95))
+	l.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	l.add_theme_constant_override("outline_size", 8)
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(l)
+	var tw := create_tween()
+	tw.tween_interval(10.0)
+	tw.tween_property(l, "modulate:a", 0.0, 1.5)
+	tw.tween_callback(l.queue_free)
 
 ## La fenêtre du jeu rend en 640x360 agrandi d'un facteur entier (project.godot) : le menu, lui, est dessiné en résolution native.
 ## Les réglages du jeu sont gardés pour l'écran de chargement, qui les rétablit avant de montrer le monde.

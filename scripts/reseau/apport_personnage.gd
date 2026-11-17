@@ -37,6 +37,8 @@ func _ready() -> void:
 	r.call("abonner", "apport_perso", _sur_apport)
 	r.call("abonner", "apport_resultat", _sur_resultat)
 	r.connect("joueur_deconnecte", _sur_deconnecte)
+	if r.has_signal("hote_perdu"):
+		r.connect("hote_perdu", _sur_hote_perdu)   # lot 7 : émis AVANT le retour en solo / au titre : l'état du personnage est intact
 	if bool(r.call("est_en_ligne")) and not bool(r.call("est_hote")):
 		_envoyer.call_deferred()
 
@@ -91,6 +93,11 @@ func _sur_resultat(expediteur: int, _id: Variant, d: Variant) -> void:
 	if not corr.is_empty():
 		_avis("L'hôte a corrigé : " + ", ".join(corr))
 	resultat.emit(r)
+
+var hote_perdu_sauvegarde := false   # vrai si la sauvegarde a été faite à l'annonce « hôte perdu » (test)
+func _sur_hote_perdu(_raison: String) -> void:
+	if monde != null and etat in ["ok", "sans_reponse", "refuse"] and monde.has_method("sauvegarder_personnage"):
+		hote_perdu_sauvegarde = bool(monde.call("sauvegarder_personnage"))
 
 func _sur_deconnecte(id: int) -> void:
 	# l'hôte est parti : l'invité garde son personnage chez lui
