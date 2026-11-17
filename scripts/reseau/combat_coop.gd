@@ -349,7 +349,7 @@ static func envoyer_coup(e: Node3D, quantite: float, origine: Vector3, puissant:
 		return "touche"   # tics de statuts nés en local : non synchronisés (voir docs)
 	var l := joueur_local()
 	R().envoyer_evenement(EV_COUP, String(e.get_meta("coop_id")), {"deg": quantite, "orig": origine, "puis": puissant, "info": _propre(info),
-		"pos": l.global_position if l != null else origine})
+		"pos": l.global_position if l != null else origine, "t": Time.get_ticks_msec()})
 	journal.append({"type": "envoye", "id": e.get_meta("coop_id"), "deg": quantite})
 	return "touche"
 
@@ -377,12 +377,12 @@ static func _sur_coup(exp: int, id: Variant, d: Variant) -> void:
 	var taille := float(e.get("taille")) if e.get("taille") != null else 1.0
 	var portee := _val("validation", "portee_distance_m", 90.0) if distant else \
 		_val("validation", "portee_melee_m", 6.0) + _val("validation", "portee_melee_par_taille_m", 1.5) * maxf(taille - 1.0, 0.0) + (3.0 if e.has_method("altitude") else 0.0)
-	if (av as Node3D).global_position.distance_to(e.global_position) > portee:
+	if (av as Node3D).global_position.distance_to(e.global_position) > portee + Resilience.tolerance_portee(exp):   # lot 7 : compensation de latence
 		_refus("portee", exp, ident)
 		return
 	var cle := "%d|%s" % [exp, ident]
 	var t := Time.get_ticks_msec()
-	if t - int(_derniers.get(cle, -100000)) < int(_val("validation", "cadence_min_s", 0.1) * 1000.0):
+	if Resilience.cadence_trop_rapide(cle, d, t, int(_val("validation", "cadence_min_s", 0.1) * 1000.0)):   # lot 7 : horodatage de l'émetteur
 		_refus("cadence", exp, ident)
 		return
 	_derniers[cle] = t

@@ -1,0 +1,34 @@
+diff --git a/scripts/reseau/replicateur.gd b/scripts/reseau/replicateur.gd
+index 958f13a7..101c6daa 100644
+--- a/scripts/reseau/replicateur.gd
++++ b/scripts/reseau/replicateur.gd
+@@ -96,17 +96,18 @@ func _physics_process(dt: float) -> void:
+ 			lot.append([id, b])
+ 			taille += b.size() + 12
+ 			if taille >= PAQUET_MAX:
+-				_recevoir_etats.rpc_id(pair, var_to_bytes(lot))
++				_recevoir_etats.rpc_id(pair, _emballer(lot))
+ 				lot = []
+ 				taille = 0
+ 		if not lot.is_empty():
+-			_recevoir_etats.rpc_id(pair, var_to_bytes(lot))
++			_recevoir_etats.rpc_id(pair, _emballer(lot))
+ 
+ # ---------- invité : réception et application ----------
+ 
+ @rpc("authority", "call_remote", "unreliable_ordered", 1)
+ func _recevoir_etats(donnees: PackedByteArray) -> void:
+-	var lot: Variant = bytes_to_var(donnees)
++	var w: Variant = bytes_to_var(donnees)
++	var lot: Variant = bytes_to_var((w[1] as PackedByteArray).decompress(int(w[0]), FileAccess.COMPRESSION_ZSTD)) if w is Array else null
+ 	if not (lot is Array):
+ 		return
+ 	var t := Time.get_ticks_msec() / 1000.0
+@@ -160,3 +161,7 @@ func _melanger(a: Variant, b: Variant, k: float, angle := false) -> Variant:
+ 			TYPE_VECTOR2, TYPE_VECTOR3:
+ 				return a.lerp(b, k)
+ 	return b
++
++func _emballer(lot: Array) -> PackedByteArray:
++	var b := var_to_bytes(lot)
++	return var_to_bytes([b.size(), b.compress(FileAccess.COMPRESSION_ZSTD)])

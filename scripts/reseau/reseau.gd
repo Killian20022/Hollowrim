@@ -10,6 +10,7 @@ signal joueur_connecte(id: int)
 signal joueur_deconnecte(id: int)
 signal connexion_reussie
 signal connexion_echouee
+signal hote_perdu(raison: String)   # lot 7 : l'hôte a disparu ; émis AVANT le retour en solo (l'état du joueur est encore intact : sauvegarder ici)
 
 const PORT_DEFAUT := 24565
 const ID_HOTE := 1
@@ -205,6 +206,7 @@ func _connexion_ratee() -> void:
 	_echec("Impossible de joindre l'hôte : vérifier l'adresse, le port et le pare-feu.")
 
 func _serveur_perdu() -> void:
+	hote_perdu.emit("serveur_deconnecte")   # lot 7
 	var anciens := registre.ids()
 	deconnecter()
 	derniere_erreur = "Connexion à l'hôte perdue."
