@@ -246,6 +246,78 @@ static func acheter(id: String, inv: Inventaire, oid: String, n := 1) -> String:
 	e["or"] = int(e["or"]) + k * prix
 	return ""
 
+## Coop (lot 5a) : achète pour le joueur LOCAL. Hôte / solo : acheter() tout de suite, puis le stock est diffusé aux invités. Invité : contrôles
+## locaux (pièces, place), puis l'hôte (seul maître du stock : un objet unique n'a qu'un acheteur) accorde la quantité ; `rappel.call(raison)` à la
+## fin ("" = fait).
+static func acheter_coop(id: String, inv: Inventaire, oid: String, n: int, rappel: Callable) -> void:
+	if not MarchandCoop.invite():
+		var r := acheter(id, inv, oid, n)
+		if r == "":
+			MarchandCoop.diffuser(id)
+		rappel.call(r)
+		return
+	var dispo := int((etat(id)["stock"] as Dictionary).get(oid, 0))
+	if dispo <= 0:
+		rappel.call("Plus en stock.")
+		return
+	var prix := prix_achat(id, oid)
+	var k := mini(mini(n, dispo), inv.pieces / prix)
+	if k <= 0:
+		rappel.call("Pas assez de pièces (%d)." % prix)
+		return
+	var place: int = inv.place_pour(oid)
+	if place <= 0:
+		rappel.call("Trop lourd : sac %d / %d." % [roundi(inv.poids()), roundi(inv.capacite())])
+		return
+	k = mini(k, place)
+	MarchandCoop.demander("acheter", id, oid, k, prix, func(accorde: int) -> void:
+		if accorde <= 0:
+			rappel.call("Plus en stock.")
+			return
+		if inv.pieces < accorde * prix:       # dépensé entre-temps : le stock est rendu à l'hôte
+			MarchandCoop.demander("rendre_achat", id, oid, accorde, prix, func(_k: int) -> void: pass)
+			rappel.call("Pas assez de pièces (%d)." % prix)
+			return
+		inv.pieces -= accorde * prix
+		_oter_voles(oid, 0, inv.nombre(oid), inv)
+		inv.ajouter(oid, accorde)
+		rappel.call(""))
+
+## Coop (lot 5a) : vend pour le joueur LOCAL (voir acheter_coop). La bourse du marchand est celle de l'hôte.
+static func vendre_coop(id: String, inv: Inventaire, oid: String, n: int, quetes: Node, rappel: Callable) -> void:
+	if not MarchandCoop.invite():
+		var r := vendre(id, inv, oid, n, quetes)
+		if r == "":
+			MarchandCoop.diffuser(id)
+		rappel.call(r)
+		return
+	var refus := refus_vente(id, oid, quetes, inv)
+	if refus != "":
+		rappel.call(refus)
+		return
+	if inv.nombre(oid) <= 0:
+		rappel.call("Plus dans le sac.")
+		return
+	var prix := prix_vente(id, oid)
+	var bourse := int(etat(id).get("or", 0))
+	var k := mini(mini(n, vendables(id, inv, oid)), bourse / prix)
+	if k <= 0:
+		rappel.call("Sa bourse est vide (%d pièces)." % bourse)
+		return
+	MarchandCoop.demander("vendre", id, oid, k, prix, func(accorde: int) -> void:
+		if accorde <= 0:
+			rappel.call("Sa bourse est vide.")
+			return
+		var marques := voles_de(inv, oid)
+		var a := mini(accorde, inv.nombre(oid))
+		inv.retirer(oid, a)
+		if est_receleur(id):
+			_oter_voles(oid, a, -1, inv)
+		else:
+			_oter_voles(oid, 0, mini(marques, inv.nombre(oid)), inv)
+		inv.ajouter("pieces", a * prix)
+		rappel.call(""))
+
 ## Vend `n` objets du sac (ou moins si la bourse du marchand manque). Ce qui est vendu rejoint son stock jusqu'au réassort.
 static func vendre(id: String, inv: Inventaire, oid: String, n := 1, quetes: Node = null) -> String:
 	var r := refus_vente(id, oid, quetes, inv)
@@ -333,6 +405,7 @@ func _ready() -> void:
 	_livre.visible = false
 	_livre.dessin = _dessiner
 	add_child(_livre)
+	MarchandCoop.brancher()
 
 func _quetes() -> Node:
 	return monde.get("quetes") if monde != null and is_instance_valid(monde) else null
@@ -463,7 +536,18 @@ func traiter(i := -1, tout := false) -> String:
 	var n := int(l["n"]) if tout else 1
 	var inv: Inventaire = joueur.inventaire
 	var avant := inv.pieces
+	if MarchandCoop.invite():
+		# invité : l'hôte arbitre le stock, la réponse arrive plus tard (_conclure règle l'annonce)
+		var achat := onglet == 0
+		var cb := func(raison: String) -> void: _conclure(raison, oid, i, avant, achat, int(l["prix"]))
+		if achat:
+			acheter_coop(id_marchand, inv, oid, n, cb)
+		else:
+			vendre_coop(id_marchand, inv, oid, n, _quetes(), cb)
+		return ""
 	var r := acheter(id_marchand, inv, oid, n) if onglet == 0 else vendre(id_marchand, inv, oid, n, _quetes())
+	if r == "":
+		MarchandCoop.diffuser(id_marchand)       # coop (hôte) : le nouveau stock part chez les invités ; solo : sans effet
 	if r != "":
 		_annoncer(r, LivreParchemin.RUBRIQUE)
 		Sons.jouer(self, ["cloth1"], -14.0)
@@ -474,6 +558,21 @@ func traiter(i := -1, tout := false) -> String:
 		choix = i
 		_remplir()
 	return r
+
+## Fin d'un échange arbitré par l'hôte (invité) : même annonce que traiter() en solo.
+func _conclure(r: String, oid: String, i: int, avant: int, achat: bool, prix: int) -> void:
+	if not ouvert:
+		return
+	var inv: Inventaire = joueur.inventaire
+	if r != "":
+		_annoncer(r, LivreParchemin.RUBRIQUE)
+		Sons.jouer(self, ["cloth1"], -14.0)
+	else:
+		var k := absi(inv.pieces - avant) / maxi(1, prix)
+		_annoncer(("%s x%d : -%d pièces" if achat else "%s x%d : +%d pièces") % [inv.nom(oid), k, absi(inv.pieces - avant)], LivreParchemin.VERT)
+		Sons.jouer(self, ["handleCoins", "handleCoins2"], -6.0)
+		choix = i
+	_remplir()
 
 func _annoncer(t: String, c: Color) -> void:
 	_avis = t

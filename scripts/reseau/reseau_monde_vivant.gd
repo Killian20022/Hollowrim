@@ -159,6 +159,18 @@ func noeud(id: String) -> Node:
 
 ## État envoyé par l'hôte (petit : nombres, Vector3, String courte). `a_` = angle (interpolé en angle par 2a).
 func _etat_pnj(n: Node3D) -> Dictionary:
+	# lot 5a : un PnjCombat (crime.gd) a pris le corps du PNJ : c'est LUI qu'on montre chez l'invité (le PNJ d'origine y reste visible et le suit)
+	var rem: Variant = n.get("remplace")
+	if rem is Node3D and is_instance_valid(rem):
+		var ec := {"pos": (rem as Node3D).global_position, "a_lacet": (rem as Node3D).rotation.y, "vis": true}
+		if n.get("anim") != null:
+			ec["anim"] = String(rem.get("_anim"))
+			ec["vit"] = 1.0
+		var mc: Variant = rem.get("modele")
+		if mc is Node3D:
+			ec["mo"] = (mc as Node3D).position
+			ec["mq"] = (mc as Node3D).quaternion
+		return ec
 	var e := {"pos": n.global_position, "a_lacet": n.rotation.y, "vis": n.visible}
 	var anim: AnimationPlayer = n.get("anim")
 	if anim != null:

@@ -24,6 +24,7 @@ TESTS=(
 	"test_cadavres|PORT=24910 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_cadavres.sh"
 	"test_avatars|PORT=24911 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_avatars.sh"
 	"test_integration4|PORT=24912 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_integration4.sh"
+	"test_economie_quetes|PORT=24913 GODOT_MAX=${GODOT_MAX:-4} bash outils/test_economie_quetes.sh"
 	"test_villageois|SOLO --nouvelle"
 	"test_menu_personnage|SOLO --nouvelle"
 	"test_sommeil|SOLO --nouvelle --paisible"

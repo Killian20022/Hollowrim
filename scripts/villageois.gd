@@ -100,6 +100,7 @@ var _prochaine_promenade := 20.0
 var _delai_interpelle := 0.0
 var _delai_activite := 0.0
 var _en_conversation := false
+var _conv_distante := false      # coop : un autre joueur (invité) parle à ce PNJ ; la fin de dialogue du joueur local ne la termine pas
 var _debut_conversation := 0.0
 var _bloque := 0.0
 var _prog_t := 0.0               # RENTRE : temps depuis la dernière mesure d'approche
@@ -531,6 +532,7 @@ func _cible_joueur() -> CharacterBody3D:
 
 func _physics_process(dt: float) -> void:
 	if marionnette:
+		_interactions(_dist_locale(), dt)      # invité : seulement « E Parler » et les interpellations (le corps vient de l'hôte)
 		return      # invité : l'état vient de l'hôte (ReseauMondeVivant), ni IA ni physique
 	if etat == DORT:
 		if seq != "":
@@ -554,7 +556,7 @@ func _physics_process(dt: float) -> void:
 	# la conversation se termine d'elle-même quand le dialogue rend la main au joueur
 	if _en_conversation:
 		_debut_conversation += dt
-		if not joueur.en_dialogue and _debut_conversation > 0.3:
+		if not joueur.en_dialogue and _debut_conversation > 0.3 and not _conv_distante:
 			fin_conversation()
 
 	var cap := Vector3.ZERO  # direction de marche
@@ -793,9 +795,16 @@ func _regard_tete(dist: float) -> void:
 	else:
 		_tete.voulu = false
 
+## Distance horizontale au joueur LOCAL (le « E Parler » et les interpellations sont ceux de CE joueur, pas du plus proche en coop).
+func _dist_locale() -> float:
+	if joueur == null or not is_instance_valid(joueur):
+		return INF
+	return Vector2(global_position.x - joueur.global_position.x, global_position.z - joueur.global_position.z).length()
+
 func _interactions(dist: float, dt: float) -> void:
-	if dialogue == null or not is_instance_valid(dialogue):
+	if dialogue == null or not is_instance_valid(dialogue) or joueur == null:
 		return
+	dist = _dist_locale()
 	# interpellation au passage
 	_delai_interpelle -= dt
 	var phrases: Array = donnees.get("interpellations", [])

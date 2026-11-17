@@ -61,6 +61,7 @@ var _options: Array = []
 var _lignes_forcees: Array = []   # répliques imposées à la prochaine conversation (réponse d'une option : Rangs)
 
 func _ready() -> void:
+	ConversationsCoop.brancher()      # coop (lot 5a) : verrous de conversation arbitrés par l'hôte (inerte hors ligne)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_police = Palette.police()
@@ -329,6 +330,11 @@ func engager(pnj: Node3D) -> bool:
 	return _ouvert
 
 func _ouvrir(pnj: Node3D) -> void:
+	# coop (lot 5a) : un PNJ ne parle qu'à un joueur à la fois (verrou arbitré par l'hôte) ; solo : toujours libre
+	if not ConversationsCoop.prendre(pnj, _occupe_apres_coup):
+		var nom_pnj := String(pnj.nom_affiche()) if pnj.has_method("nom_affiche") else "Il"
+		dire_au_passage(nom_pnj, "Un instant, je parle déjà à quelqu'un.")
+		return
 	# disposition (scripts/disposition.gd) : un PNJ hostile au joueur (prime forte, réputation ruinée) refuse de parler ; froid ou
 	# chaleureux, il salue en conséquence avant ses répliques habituelles (neutre : rien d'ajouté)
 	var accueil := Disposition.accueil_de(pnj)
@@ -343,6 +349,7 @@ func _ouvrir(pnj: Node3D) -> void:
 		if not _lignes.is_empty() and String(accueil.get("salut", "")) != "":
 			_lignes = [String(accueil["salut"])] + _lignes
 	if _lignes.is_empty():
+		ConversationsCoop.liberer(pnj)
 		return
 	_pnj = pnj
 	_ouvert = true
@@ -403,6 +410,17 @@ func _suite() -> void:
 	else:
 		_afficher_ligne()
 
+## L'hôte a donné le PNJ à un autre joueur pendant que la boîte s'ouvrait chez l'invité (course) : elle se referme.
+func _occupe_apres_coup() -> void:
+	if _ouvert and _pnj != null and is_instance_valid(_pnj):
+		var nom_pnj := String(_pnj.nom_affiche()) if _pnj.has_method("nom_affiche") else "Il"
+		var p := _pnj
+		_pnj = null          # le verrou n'est pas à nous : pas de libération
+		_fermer()
+		if p.has_method("fin_conversation"):
+			p.fin_conversation()
+		dire_au_passage(nom_pnj, "Un instant, je parle déjà à quelqu'un.")
+
 func _fermer() -> void:
 	_ouvert = false
 	_boite.visible = false
@@ -411,6 +429,8 @@ func _fermer() -> void:
 	joueur.en_dialogue = false
 	if _pnj != null and is_instance_valid(_pnj) and _pnj.has_method("fin_conversation"):
 		_pnj.fin_conversation()
+	if _pnj != null:
+		ConversationsCoop.liberer(_pnj)
 	_pnj = null
 
 func _process(dt: float) -> void:
