@@ -19,7 +19,7 @@ const VERSION_PROTOCOLE := 1
 const MAX_JOUEURS := 4
 const DELAI_POIGNEE := 6.0   # secondes : un pair qui ne se présente pas est coupé
 
-var transport: ReseauTransport = ReseauTransportENet.new()   # interchangeable (EOS / Steam plus tard)
+var transport: ReseauTransport = ReseauTransportENet.new()   # interchangeable ; choisi au démarrage dans _ready (--transport=enet|eos)
 var registre := RegistreJoueurs.new()
 
 ## Version envoyée à l'hôte (modifiable par les tests pour simuler un jeu d'une autre version).
@@ -40,6 +40,7 @@ var _en_attente := {}   # hôte : pairs connectés qui n'ont pas encore fini la 
 var _poignee_en_cours := false   # invité : poignée envoyée, réponse attendue
 
 func _ready() -> void:
+	transport = ReseauTransportChoix.depuis_arguments()   # ENet par défaut ; EOS seulement si demandé ET disponible
 	registre.ajouter(ID_HOTE)   # solo : l'hôte local est déjà là
 	multiplayer.peer_connected.connect(_pair_connecte)
 	multiplayer.peer_disconnected.connect(_pair_deconnecte)
