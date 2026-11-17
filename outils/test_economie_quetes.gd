@@ -193,9 +193,10 @@ func _lancer() -> void:
 	await _barriere("c1")
 	await get_tree().create_timer(0.4).timeout
 	if _role == "hote":
-		_verif(_prime_de(_autre) == 0.0 and not _hostile_de(_autre), "hôte : l'invité n'a ni prime ni hostilité du fait de l'hôte")
+		_verif(_prime_de(_autre) == 0.0 and not _hostile_de(_autre), "hôte : l'invité n'a ni prime ni hostilité du fait de l'hôte (prime %.0f, avatar %s)" % [_prime_de(_autre), str(_res.registre.noeud(_autre))])
 	else:
 		_verif(_crime.prime() == 0.0 and not _crime.est_hostile(), "invité : aucune prime pour un crime de l'hôte")
+	await _barriere("c1b")
 	# le vol de l'invité : arbitré par l'hôte (témoin B voit SON avatar), prime renvoyée à l'invité
 	if _role != "hote":
 		_crime.signaler_vol(_objet_vole(), "personne", _joueur.global_position)
