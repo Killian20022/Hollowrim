@@ -38,7 +38,7 @@ const RAIL_X := 101.0
 const LOGO := Rect2(430, 0, 840, 340)     # recadrage du logo peint (avec marge de brume)
 const CRISTAL := Vector2(842, 148)
 const ZONE_PANNEAUX := Rect2(560, 300, 1040, 600)
-const LIBELLES := ["Continuer", "Nouvelle partie", "Charger", "Options", "Quitter"]
+const LIBELLES := ["Continuer", "Nouvelle partie", "Charger", "Multijoueur", "Options", "Quitter"]
 
 ## Mode test (outils/test_menu_titre.gd) : le menu s'affiche même en mode outil, sans relance ni chargement du monde.
 var mode_test := false
@@ -54,6 +54,7 @@ var _boutons: Array[BoutonRunique] = []
 var _b_continuer: BoutonRunique
 var _b_nouvelle: BoutonRunique
 var _b_charger: BoutonRunique
+var _b_multi: BoutonRunique
 var _b_options: BoutonRunique
 var _b_quitter: BoutonRunique
 var _b_credits: Button
@@ -63,6 +64,7 @@ var _options: PanelContainer
 var _credits: PanelContainer
 var _confirmation: PanelContainer
 var _charger: PanelContainer
+var _multi: EcranMulti   # panneau Multijoueur (lot 5b : scripts/reseau/ecran_multi.gd)
 var _liste_copies: VBoxContainer
 var _resume: Label
 var _b_charger_partie: Button
@@ -168,7 +170,7 @@ func _construire() -> void:
 	_rail.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rail.draw.connect(_dessiner_rail)
 	_plan.add_child(_rail)
-	var actions: Array[Callable] = [func() -> void: _lancer(false), _nouvelle, _ouvrir_charger, _ouvrir_options, _quitter]
+	var actions: Array[Callable] = [func() -> void: _lancer(false), _nouvelle, _ouvrir_charger, _ouvrir_multi, _ouvrir_options, _quitter]
 	for i in LIBELLES.size():
 		var b := BoutonRunique.new()
 		b.text = LIBELLES[i]
@@ -188,8 +190,9 @@ func _construire() -> void:
 	_b_continuer = _boutons[0]
 	_b_nouvelle = _boutons[1]
 	_b_charger = _boutons[2]
-	_b_options = _boutons[3]
-	_b_quitter = _boutons[4]
+	_b_multi = _boutons[3]
+	_b_options = _boutons[4]
+	_b_quitter = _boutons[5]
 
 	# pied : version et lien « Crédits » (discrets, en bas à droite de la partie visible)
 	_pied = Label.new()
@@ -243,6 +246,11 @@ func _construire() -> void:
 	_panneaux.add_child(_charger)
 	_credits = _panneau_credits()
 	_panneaux.add_child(_credits)
+	_multi = EcranMulti.new()
+	_multi.ferme.connect(_menu_principal)
+	_multi.son.connect(func(nom: String) -> void: _audio.jouer(nom))
+	_multi.lancer_partie.connect(_lancer_multi)
+	_panneaux.add_child(_multi)
 	_confirmation = _panneau_confirmation()
 	_panneaux.add_child(_confirmation)
 
@@ -495,7 +503,7 @@ func _process(dt: float) -> void:
 # --- menu -----------------------------------------------------------------------------------
 
 func _menu_principal() -> void:
-	for p in [_options, _credits, _confirmation, _charger]:
+	for p in [_options, _credits, _confirmation, _charger, _multi]:
 		p.visible = false
 	_menu_ouvert = true
 	_b_continuer.activer(Jeu.sauvegarde_valide())
@@ -524,7 +532,7 @@ func _ouvrir_panneau(p: Control) -> void:
 		create_tween().tween_property(b, "self_modulate", Color(0.5, 0.52, 0.58), 0.2)
 	_b_credits.focus_mode = Control.FOCUS_NONE
 	_b_credits.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for autre in [_options, _credits, _confirmation, _charger]:
+	for autre in [_options, _credits, _confirmation, _charger, _multi]:
 		autre.visible = autre == p
 	p.modulate.a = 0.0
 	create_tween().tween_property(p, "modulate:a", 1.0, 0.18)
@@ -559,6 +567,16 @@ func _ouvrir_charger() -> void:
 	_maj_charger()
 	_ouvrir_panneau(_charger)
 	(_b_charger_partie if not _b_charger_partie.disabled else _charger.get_meta("retour")).grab_focus.call_deferred()
+
+func _ouvrir_multi() -> void:
+	_ouvrir_panneau(_multi)
+	_multi.ouvrir()
+
+## Multijoueur : l'hôte charge le monde choisi (ou un nouveau), un invité entre dans le monde de l'hôte avec son propre personnage.
+func _lancer_multi(role: String, nouveau: bool, emplacement: int) -> void:
+	if role == "hote" and not nouveau and emplacement >= 0:
+		Sauvegardes.actif = emplacement
+	_lancer(nouveau and role == "hote")
 
 func _quitter() -> void:
 	_demarre = true
@@ -855,6 +873,10 @@ func _test(etape: String) -> void:
 	elif etape.begins_with("options:"):
 		await _captures_options(etape.substr(8))
 		get_tree().quit()
+	elif etape.begins_with("multi:"):   # multi:<port>:<dossier>
+		var reste := etape.substr(6)
+		await _captures_multi(reste.substr(reste.find(":") + 1), reste.get_slice(":", 0))
+		get_tree().quit()
 	elif etape == "nouvelle":
 		_lancer(true)
 	elif etape == "relance":
@@ -919,7 +941,7 @@ func verifier_clavier() -> bool:
 		echecs.append("Continuer actif sans sauvegarde")
 	if _b_continuer.focus_mode != Control.FOCUS_NONE:
 		echecs.append("Continuer sélectionnable")
-	var attendu := ["Nouvelle partie", "Charger", "Options", "Quitter", "Crédits", "Nouvelle partie"]
+	var attendu := ["Nouvelle partie", "Charger", "Multijoueur", "Options", "Quitter", "Crédits", "Nouvelle partie"]
 	var vus := [_focus_texte()]
 	for i in attendu.size() - 1:
 		await _touche("ui_down")
@@ -1111,6 +1133,32 @@ func _captures(dossier: String) -> void:
 		await get_tree().create_timer(0.6).timeout
 		var reel := get_viewport().get_visible_rect().size
 		await capture(dossier.path_join("titre_%dx%d.png" % [int(reel.x), int(reel.y)]))
+
+## Captures du panneau Multijoueur (outils/captures_ecran_multi.sh) : choix, Héberger, Rejoindre avec une adresse invalide, salon de l'hôte.
+## Le salon ouvre un vrai port local (<port>, 25035 par défaut) puis le referme. --test-titre=multi:<port>:<dossier>
+## (aucun autre argument : « mode outil » ferait quitter le titre).
+func _captures_multi(dossier: String, port := "25035") -> void:
+	_multi.persistance = false
+	await get_tree().create_timer(3.5).timeout   # fin de l'apparition du titre
+	_ouvrir_multi()
+	await get_tree().create_timer(0.7).timeout
+	await capture(dossier.path_join("ecran_multi_choix.png"))
+	_multi._aller("heberger")
+	_multi._champ_nom_h.text = "Killian"
+	await get_tree().create_timer(0.7).timeout
+	await capture(dossier.path_join("ecran_multi_heberger.png"))
+	_multi._aller("rejoindre")
+	_multi._champ_adresse.text = "192.168.1.300:24565"
+	_multi._champ_nom_r.text = "Astrid"
+	_multi._connecter()
+	await get_tree().create_timer(0.7).timeout
+	await capture(dossier.path_join("ecran_multi_rejoindre_erreur.png"))
+	_multi._aller("heberger")
+	_multi._champ_port_h.text = port
+	_multi._ouvrir_partie()
+	await get_tree().create_timer(0.7).timeout
+	await capture(dossier.path_join("ecran_multi_salon.png"))
+	_multi.retour()
 
 func capture(chemin: String) -> void:
 	await RenderingServer.frame_post_draw

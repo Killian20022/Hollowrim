@@ -6,7 +6,7 @@ const MAX_JOUEURS := 4
 
 func creer_hote(port: int) -> MultiplayerPeer:
 	var pair := ENetMultiplayerPeer.new()
-	erreur = pair.create_server(port, MAX_JOUEURS - 1)
+	erreur = pair.create_server(port, MAX_JOUEURS + 3)   # places de poignée en plus : « partie pleine » est refusée avec un message (Reseau._sur_poignee)
 	return pair if erreur == OK else null
 
 func creer_client(ip: String, port: int) -> MultiplayerPeer:
