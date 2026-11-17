@@ -56,10 +56,14 @@ func _ready() -> void:
 			_n_pnj = int(a.substr(6))
 		elif a.begins_with("--ennemis="):
 			_n_ennemis = int(a.substr(10))
+		elif a == "--sans-gel":
+			Resilience.geler_ennemis = false
 		elif a.begins_with("--silence="):
 			_silence = float(a.substr(10))
 		elif a.begins_with("--invites="):
 			_nb_inv = int(a.substr(10))
+	if _scn == "debit":
+		_silence = 12.0   # N processus chargés : une image longue ne doit pas faire expulser un invité
 	var p := SimulateurReseau.parametres()
 	_sim = Vector3(float(p["latence"]), float(p["gigue"]), float(p["perte"]))
 	_lancer.call_deferred()
@@ -531,6 +535,7 @@ var _rs_parti := false
 
 # ================================================================================================ 3. l'hôte part (tué net)
 func _sc_hote_perdu() -> void:
+	var g := _ennemi("h_guerrier", "guerrier", Vector3(3, 0, -2), 5000.0, false)
 	await _connecter()
 	_j.inventaire.ajouter("os_draugr", 3)
 	await _barriere("connectes")

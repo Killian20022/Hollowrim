@@ -24,6 +24,7 @@ lance() {  # role scn port idx nb_inv délai [options sim]
 scenario() {
 	local nom="$1" scn="$2" port="$3" nb="$4" delai="$5"; shift 5
 	[[ -n "$MOTIF" && "$nom" != *"$MOTIF"* ]] && return 0
+	[[ "$nom" == *sansgel* && "$MOTIF" != *sansgel* ]] && return 0   # contre-épreuve : ÉCHOUE exprès (erreurs de draugr.gd sans gel des ennemis)
 	echo "=== $nom ($scn, $nb invité(s), port $port) $* ==="
 	rm -f "$LOG/$scn.$port".*.log
 	lance hote "$scn" "$port" 0 "$nb" "$delai" "$@" & local H=$!
@@ -51,6 +52,7 @@ scenario depart      depart      $((PORT0+3)) 1 200
 scenario hote_perdu  hote_perdu  $((PORT0+4)) 1 200
 scenario reconnexion reconnexion $((PORT0+5)) 1 300
 scenario depart_enet     depart      $((PORT0+8)) 1 200 --silence=999
+scenario hote_perdu_sansgel hote_perdu $((PORT0+13)) 1 260 --sans-gel
 scenario hote_perdu_enet hote_perdu  $((PORT0+9)) 1 260 --silence=999
 scenario debit2_nu       debit       $((PORT0+10)) 1 200 --pnj=0 --ennemis=0
 scenario debit2_pnj      debit       $((PORT0+11)) 1 200 --pnj=12 --ennemis=0

@@ -30,13 +30,14 @@ const VITESSE_JOUEUR := 7.0         # m/s : course + élan
 const VITESSE_ENNEMI := 6.0         # m/s
 const TOLERANCE_MAX_M := 5.0
 
+static var geler_ennemis := true     # hôte perdu : les marionnettes sont figées pendant la reconnexion (sinon l'IA locale reprend un état à moitié répliqué)
 static var compensation := true     # compensation de latence de CombatCoop (portée / cadence)
 static var message_en_attente := "" # lu par l'écran titre après un retour forcé
 static var derniere_raison := ""
 
 var periode_ping := 1.0             # s ; les tests passent à 0,25
-var silence_max := 8.0              # s sans aucune réponse d'un pair -> liaison déclarée morte (ENet détecte la vraie coupure plus vite)
-var timeout_enet := Vector3i(16, 2500, 6000)   # limite, minimum ms, maximum ms (ENet par défaut : 32, 5000, 30000)
+var silence_max := 12.0             # s sans aucune réponse d'un pair -> liaison déclarée morte (un écran de chargement ne doit pas faire expulser un joueur)
+var timeout_enet := Vector3i(16, 3000, 10000)  # limite, minimum ms, maximum ms (ENet par défaut : 32, 5000, 30000)
 var pause_essais := 2.0             # s avant chaque essai de reconnexion
 var delai_confirmation := 4.0       # s pour recevoir un pong après la reconnexion
 var auto_reconnexion := true
@@ -322,11 +323,21 @@ func _sur_hote_perdu(raison: String) -> void:
 	var r := R()
 	if r == null or reconnexion_en_cours:
 		return
+	if geler_ennemis:
+		_geler_ennemis(true)
 	nom_joueur_local = String(r.registre.infos(id_avant_perte).get("nom", nom_joueur_local))
 	if not auto_reconnexion or cible_ip == "" or est_hote_enveloppe:
 		_abandonner.call_deferred("Connexion à l'hôte perdue.")
 		return
 	_reconnecter.call_deferred(id_avant_perte)
+
+## Fige (ou libère) l'IA des ennemis enregistrés chez cet invité. Hôte perdu = Reseau repasse en solo : sans cela chaque marionnette redevient une IA locale
+## au milieu d'un état répliqué (ex. draugr en ATTAQUE sans `_attaque` : erreurs de script à chaque image).
+func _geler_ennemis(geler: bool) -> void:
+	for ident in CombatCoop.ids():
+		var e := CombatCoop.ennemi(String(ident))
+		if e != null and is_instance_valid(e):
+			e.set_physics_process(not geler)
 
 func _reconnecter(ancien_id: int) -> void:
 	var r := R()
@@ -358,6 +369,8 @@ func _reconnecter(ancien_id: int) -> void:
 		if ok:
 			reconnexion_en_cours = false
 			derniere_raison = ""
+			if geler_ennemis:
+				_geler_ennemis(false)   # marionnettes de nouveau (elles ne simulent rien : voir CombatCoop)
 			var nouvel := int(r.call("mon_id"))
 			r.envoyer_evenement("res_reprise", nouvel, {"ancien": ancien_id, "nom": nom_joueur_local})
 			message.emit("Reconnecté à l'hôte.")
