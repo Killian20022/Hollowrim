@@ -9,11 +9,16 @@ const DELAI_INTERP := 0.1
 const RAPPEL := 1.0            # un état inchangé est renvoyé au plus toutes les RAPPEL s
 const PAQUET_MAX := 3000       # octets (approx.) par RPC AVANT compression ZSTD (≈ 1000 après) : de gros lots se compriment mieux (clés répétées)
 const TAMPON_MAX := 30
+const DIST_MI := 40.0          # au-delà : un état sur 2 (7,5 Hz) ; au-delà de DIST_BAS : un sur 4 (le tampon d'interpolation lisse ces entités lointaines)
+const DIST_BAS := 70.0
+const PAS_POS := 1.0 / 64.0    # quantification des positions et des réels (multiples de 2^-n : exacts en float32, 4 octets, états inchangés détectés)
+const PAS_REEL := 1.0 / 128.0
 
 var _ent := {}      # id -> {noeud, four, appl, pert}
 var _tampons := {}  # id -> Array [t, etat]   (invité)
 var _envoye := {}   # pair -> {id: [octets, t]}   (hôte)
 var _acc := 0.0
+var _tick := 0
 
 func _ready() -> void:
 	Reseau.joueur_connecte.connect(func(_id: int) -> void: _envoye.erase(_id))
@@ -70,6 +75,7 @@ func _physics_process(dt: float) -> void:
 	if _acc < PERIODE:
 		return
 	_acc = 0.0
+	_tick += 1
 	var maintenant := Time.get_ticks_msec() / 1000.0
 	var octets := {}   # id -> PackedByteArray (encodé une fois par tick)
 	for id in _ent.keys():
@@ -77,7 +83,7 @@ func _physics_process(dt: float) -> void:
 		if not is_instance_valid(e["noeud"]) or not (e["four"] as Callable).is_valid():
 			retirer(id)
 			continue
-		octets[id] = var_to_bytes((e["four"] as Callable).call())
+		octets[id] = var_to_bytes(_quantifier((e["four"] as Callable).call()))
 	for pair in pairs:
 		var pos: Variant = _pos_pair(pair)
 		var vus: Dictionary = _envoye.get(pair, {})
@@ -87,6 +93,9 @@ func _physics_process(dt: float) -> void:
 		for id in octets:
 			if not _pertinent(_ent[id], pos):
 				vus.erase(id)
+				continue
+			var cadence := _cadence(_ent[id], pos)
+			if cadence > 1 and (_tick + int(hash(id))) % cadence != 0:
 				continue
 			var b: PackedByteArray = octets[id]
 			var v: Array = vus.get(id, [])
@@ -165,3 +174,24 @@ func _melanger(a: Variant, b: Variant, k: float, angle := false) -> Variant:
 func _emballer(lot: Array) -> PackedByteArray:
 	var b := var_to_bytes(lot)
 	return var_to_bytes([b.size(), b.compress(FileAccess.COMPRESSION_ZSTD)])
+
+## Réduit la précision (sans effet visible) : positions au 1/64 m, réels au 1/128. Les valeurs restent exactes en float32 (4 octets au lieu de 8)
+## et l'état d'une entité qui ne bouge plus est identique d'un tick à l'autre (donc non renvoyé avant RAPPEL).
+func _quantifier(v: Variant) -> Variant:
+	if v is Dictionary:
+		var d: Dictionary = (v as Dictionary).duplicate()
+		for k in d:
+			var x: Variant = d[k]
+			if x is Vector3:
+				d[k] = (x as Vector3).snappedf(PAS_POS)
+			elif x is float:
+				d[k] = snappedf(x, PAS_REEL)
+		return d
+	return v
+
+## Un état sur `cadence` pour les entités lointaines du pair.
+func _cadence(e: Dictionary, pos: Variant) -> int:
+	if pos == null or not (e["noeud"] is Node3D):
+		return 1
+	var dist := ((e["noeud"] as Node3D).global_position - (pos as Vector3)).length()
+	return 4 if dist > DIST_BAS else (2 if dist > DIST_MI else 1)
