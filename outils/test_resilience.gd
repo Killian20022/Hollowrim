@@ -38,6 +38,7 @@ var _recu := {}      # cle -> {expediteur: valeur}
 var _gagnes := {}
 var _perdus := {}
 var _sim := Vector3.ZERO
+var _silence := 3.5
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -49,6 +50,8 @@ func _ready() -> void:
 			_port = int(a.substr(7))
 		elif a.begins_with("--idx="):
 			_idx = int(a.substr(6))
+		elif a.begins_with("--silence="):
+			_silence = float(a.substr(10))
 		elif a.begins_with("--invites="):
 			_nb_inv = int(a.substr(10))
 	var p := SimulateurReseau.parametres()
@@ -204,7 +207,7 @@ func _connecter() -> void:
 		_rs.retour_titre_auto = false
 		_rs.pause_essais = 1.0
 		_rs.delai_confirmation = 3.0
-		_rs.silence_max = 3.5
+		_rs.silence_max = _silence
 		_rs.periode_ping = 0.25
 
 func _lancer() -> void:
@@ -450,8 +453,8 @@ func _boucler_defense() -> void:
 # ================================================================================================ 2. départ brutal d'un invité en plein combat
 func _sc_depart() -> void:
 	var d_menace := _ennemi("d_menace", "guerrier", Vector3(3, 0, -2), 3000.0, false)
-	var d_mort1 := _ennemi("d_mort1", "sbire", Vector3(-3, 0, -2), 20.0)
-	var d_mort2 := _ennemi("d_mort2", "sbire", Vector3(-3, 0, -6), 20.0)
+	var d_mort1 := _ennemi("d_mort1", "guerrier", Vector3(-3, 0, -2), 30.0)
+	var d_mort2 := _ennemi("d_mort2", "guerrier", Vector3(-2, 0, 3), 30.0)
 	await _connecter()
 	await _barriere("connectes")
 	var inv := int(_autres()[0]) if _role == "hote" else 1
@@ -461,7 +464,7 @@ func _sc_depart() -> void:
 			d_menace.recevoir_coup(40.0, _j.global_position, false, _info_coup(Vector3(3, 0, -2)))
 			await _pause(0.3)
 		d_mort1.recevoir_coup(100.0, _j.global_position, false, _info_coup(Vector3(-3, 0, -2)))
-		d_mort2.recevoir_coup(100.0, _j.global_position, false, _info_coup(Vector3(-3, 0, -6)))
+		d_mort2.recevoir_coup(100.0, _j.global_position, false, _info_coup(Vector3(-2, 0, 3)))
 	await _attendre(func() -> bool: return not d_mort1.vivant() and not d_mort2.vivant(), 30.0)
 	await _attendre(func() -> bool: return d_mort1._butin != null and d_mort2._butin != null, 30.0)
 	_verif(d_mort1._butin != null and d_mort2._butin != null, "[%s] deux corps fouillables existent" % _etiq())

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # LOT 7 : tests de latence / perte / déconnexion, N processus Godot HEADLESS sur localhost (ports 25201-25299).
-#   bash outils/test_resilience.sh [motif]     motifs : controle, cond_100, cond_250, depart, hote_perdu, reconnexion, debit2, debit4
+#   bash outils/test_resilience.sh [motif]     motifs : controle, cond_100, cond_250, depart, hote_perdu, reconnexion, depart_enet, hote_perdu_enet (détection par ENet seul), debit2, debit4
 # Variables : GODOT, PORT0 (25210), GODOT_MAX (créneaux godot_slot, 4 : l'hôte + 3 invités tournent ensemble ; 2 suffit sauf debit4).
 # Verdict lu dans les journaux (rc Godot non fiable) : « TEST_RESILIENCE <role> OK » sur chaque processus ET aucun « TEST ECHEC » / « SCRIPT ERROR ».
 # Les lignes « METRIQUE » sont recopiées dans $LOG/metriques.txt (voir docs/reseau_lot7.md).
@@ -50,6 +50,8 @@ scenario cond_250    conditions  $((PORT0+2)) 1 360 --sim-latence=250 --sim-gigu
 scenario depart      depart      $((PORT0+3)) 1 200
 scenario hote_perdu  hote_perdu  $((PORT0+4)) 1 200
 scenario reconnexion reconnexion $((PORT0+5)) 1 300
+scenario depart_enet     depart      $((PORT0+8)) 1 200 --silence=999
+scenario hote_perdu_enet hote_perdu  $((PORT0+9)) 1 260 --silence=999
 scenario debit2      debit       $((PORT0+6)) 1 200
 scenario debit4      debit       $((PORT0+7)) 3 240
 echo "--- métriques ---"; cat "$LOG/metriques.txt"

@@ -48,7 +48,8 @@ var rtt_min := {}
 var rtt_max := {}
 var pings_envoyes := {}             # pair -> n
 var pongs_recus := {}
-var pings_base := {}                # pair -> nb de pings déjà envoyés au premier pong (la mesure de perte démarre là)
+var pings_vol := {}                 # pair -> {seq: instant d'envoi} (pings sans réponse encore)
+var pings_expires := {}             # pair -> n pings restés sans réponse plus de 2 s (= perdus, aller ou retour)
 var derniere_reponse := {}          # pair -> s (ticks)
 var rtt_enet := {}                  # pair -> ms vu par ENet (sans le retard simulé)
 var perte_enet := {}                # pair -> fraction vue par ENet
@@ -122,7 +123,8 @@ func _pair_pret(id: int, w: SimulateurReseau) -> void:
 	derniere_reponse[id] = _maintenant()
 	pings_envoyes[id] = 0
 	pongs_recus[id] = 0
-	pings_base.erase(id)
+	pings_vol.erase(id)
+	pings_expires.erase(id)
 	var p: Object = w.pair_enet(id)
 	if p != null and p.has_method("set_timeout"):
 		p.call("set_timeout", timeout_enet.x, timeout_enet.y, timeout_enet.z)
@@ -146,6 +148,9 @@ func _process(dt: float) -> void:
 		_seq += 1
 		for p in multiplayer.get_peers():
 			pings_envoyes[p] = int(pings_envoyes.get(p, 0)) + 1
+			if not pings_vol.has(p):
+				pings_vol[p] = {}
+			(pings_vol[p] as Dictionary)[_seq] = _maintenant()
 			_ping.rpc_id(p, _seq, Time.get_ticks_usec())
 	_t_mesure += dt
 	if _t_mesure >= 1.0:
@@ -165,13 +170,12 @@ func _ping(seq: int, t_usec: int) -> void:
 	_pong.rpc_id(de, seq, t_usec)
 
 @rpc("any_peer", "call_remote", "unreliable")
-func _pong(_seq_: int, t_usec: int) -> void:
+func _pong(seq: int, t_usec: int) -> void:
 	var de := multiplayer.get_remote_sender_id()
+	if pings_vol.has(de):
+		(pings_vol[de] as Dictionary).erase(seq)
 	derniere_reponse[de] = _maintenant()
 	pongs_recus[de] = int(pongs_recus.get(de, 0)) + 1
-	if not pings_base.has(de):
-		pings_base[de] = int(pings_envoyes.get(de, 1))
-		pongs_recus[de] = 1
 	var ms := (Time.get_ticks_usec() - t_usec) / 1000.0
 	rtt[de] = ms if not rtt.has(de) else lerpf(float(rtt[de]), ms, 0.25)
 	rtt_min[de] = minf(float(rtt_min.get(de, 1.0e9)), ms)
@@ -179,6 +183,13 @@ func _pong(_seq_: int, t_usec: int) -> void:
 	rtt_mis_a_jour.emit(de, float(rtt[de]))
 
 func _mesurer(dt: float) -> void:
+	var t := _maintenant()
+	for p in pings_vol:
+		var d: Dictionary = pings_vol[p]
+		for q in d.keys():
+			if t - float(d[q]) > 2.0:
+				d.erase(q)
+				pings_expires[p] = int(pings_expires.get(p, 0)) + 1
 	if wrapper == null:
 		return
 	var c := wrapper.compteurs()
@@ -243,12 +254,14 @@ func bilan() -> Dictionary:
 		"rec_filaire_o_s": (rec + pk_rec * SURCOUT_PAQUET) / dt, "pk_env_s": pk_env / dt, "pk_rec_s": pk_rec / dt, "env_par_pair_o_s": par_pair,
 		"perdus_sim": int(c1["perdus_sim"]) - int(c0["perdus_sim"]), "retransmis_sim": int(c1["retransmis_sim"]) - int(c0["retransmis_sim"])}
 
-## Perte mesurée par les pings (aller + retour) d'un pair : 1 - pongs / pings (le dernier ping, encore en vol, est ignoré).
+## Perte mesurée par les pings (aller + retour) d'un pair : pings restés sans réponse plus de 2 s / pings jugés (réponses + expirés).
+## Un aller-retour sur un lien à p % de perte par sens perd 1 - (1 - p)² des pings.
 func perte_mesuree(pair: int) -> float:
-	var n := int(pings_envoyes.get(pair, 0)) - int(pings_base.get(pair, 0)) - 1   # pings postérieurs au 1er pong, hors le dernier encore en vol
-	if n <= 0:
+	var perdus := int(pings_expires.get(pair, 0))
+	var repondus := int(pongs_recus.get(pair, 0))
+	if perdus + repondus <= 0:
 		return 0.0
-	return clampf(1.0 - float(int(pongs_recus.get(pair, 0)) - 1) / float(n), 0.0, 1.0)
+	return float(perdus) / float(perdus + repondus)
 
 func resume() -> String:
 	var s := "[RESEAU] "

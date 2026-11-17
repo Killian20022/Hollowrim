@@ -105,6 +105,8 @@ func _pair_connecte(id: int) -> void:
 	peer_connected.emit(id)
 
 func _pair_deconnecte(id: int) -> void:
+	if not pairs.has(id):
+		return   # déjà annoncé (voir _disconnect_peer) : pas de doublon
 	pairs.erase(id)
 	peer_disconnected.emit(id)
 
@@ -239,6 +241,10 @@ func _close() -> void:
 func _disconnect_peer(p_peer: int, p_force: bool) -> void:
 	_vider(true)
 	interne.disconnect_peer(p_peer, p_force)
+	# ENet n'émet PAS peer_disconnected pour une déconnexion décidée localement : sans cela SceneMultiplayer garde le pair (« Invalid target peer »,
+	# fantôme chez les autres invités). On l'annonce ici ; le garde de _pair_deconnecte évite le doublon si ENet l'émet aussi.
+	if pairs.has(p_peer):
+		_pair_deconnecte.call_deferred(p_peer)
 
 func _get_unique_id() -> int:
 	return interne.get_unique_id()
