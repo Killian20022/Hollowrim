@@ -39,6 +39,8 @@ var _gagnes := {}
 var _perdus := {}
 var _sim := Vector3.ZERO
 var _silence := 3.5
+var _n_pnj := 12
+var _n_ennemis := 6
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -50,6 +52,10 @@ func _ready() -> void:
 			_port = int(a.substr(7))
 		elif a.begins_with("--idx="):
 			_idx = int(a.substr(6))
+		elif a.begins_with("--pnj="):
+			_n_pnj = int(a.substr(6))
+		elif a.begins_with("--ennemis="):
+			_n_ennemis = int(a.substr(10))
 		elif a.begins_with("--silence="):
 			_silence = float(a.substr(10))
 		elif a.begins_with("--invites="):
@@ -197,7 +203,7 @@ func _connecter() -> void:
 		await _attendre(func() -> bool: return _res.joueurs().size() > _nb_inv, 240.0)
 	else:
 		_verif(_res.rejoindre("127.0.0.1", _port) == OK, "rejoindre() OK")
-		await _attendre(func() -> bool: return _res.joueurs().size() > 1 and _res.mon_id() > 1, 90.0)
+		await _attendre(func() -> bool: return _res.joueurs().size() > _nb_inv and _res.mon_id() > 1, 90.0)
 	_verif(_res.joueurs().size() == 1 + _nb_inv, "%d joueurs en ligne (%s)" % [1 + _nb_inv, str(_res.joueurs())])
 	_ac = AvatarsCoop.installer(_monde, _j, "Joueur-" + _etiq())
 	ReseauProjectiles.installer()
@@ -224,7 +230,7 @@ func _lancer() -> void:
 			_recu[String(id)] = {}
 		_recu[String(id)][e] = d)
 	_res.abonner("comp", func(_e: int, _id: Variant, d: Variant) -> void: Resilience.compensation = bool(d))
-	await _monter_monde(12 if _scn == "debit" else 0)
+	await _monter_monde(_n_pnj if _scn == "debit" else 0)
 	await _pause(0.5)
 	_j.set("est_local", true)
 	_j.vie = 1.0e6
@@ -627,12 +633,14 @@ func _sc_reconnexion() -> void:
 # ================================================================================================ 5. débit (N invités)
 func _sc_debit() -> void:
 	var autour: Array = []
-	for i in 6:
+	for i in _n_ennemis:
 		autour.append(_ennemi("b_%d" % i, "guerrier" if i % 2 == 0 else "sbire", Vector3(cos(i) * 12.0, 0, sin(i) * 12.0 - 10.0), 5000.0, false))
 	await _connecter()
 	await _barriere("connectes")
 	await _pause(6.0)
 	await _barriere("echauffe")
+	if autour.is_empty():
+		autour.append(null)
 	var rs := _rs
 	rs.marquer()
 	var t_fin := Time.get_ticks_msec() + 30000
@@ -651,7 +659,7 @@ func _sc_debit() -> void:
 			if dt_coup > 0.5:
 				dt_coup = 0.0
 				var e: Node3D = autour[n_coups % autour.size()]
-				if is_instance_valid(e) and e.vivant():
+				if e != null and is_instance_valid(e) and e.vivant():
 					e.recevoir_coup(5.0, _j.global_position, false, _info_coup(e.global_position))
 					n_coups += 1
 		else:

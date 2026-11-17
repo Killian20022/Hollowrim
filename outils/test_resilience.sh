@@ -52,6 +52,9 @@ scenario hote_perdu  hote_perdu  $((PORT0+4)) 1 200
 scenario reconnexion reconnexion $((PORT0+5)) 1 300
 scenario depart_enet     depart      $((PORT0+8)) 1 200 --silence=999
 scenario hote_perdu_enet hote_perdu  $((PORT0+9)) 1 260 --silence=999
+scenario debit2_nu       debit       $((PORT0+10)) 1 200 --pnj=0 --ennemis=0
+scenario debit2_pnj      debit       $((PORT0+11)) 1 200 --pnj=12 --ennemis=0
+scenario debit2_ennemis  debit       $((PORT0+12)) 1 200 --pnj=0 --ennemis=6
 scenario debit2      debit       $((PORT0+6)) 1 200
 scenario debit4      debit       $((PORT0+7)) 3 240
 echo "--- métriques ---"; cat "$LOG/metriques.txt"
