@@ -58,15 +58,17 @@ func _attendre(cond: Callable, delai: float) -> bool:
 
 func _barriere(nom: String) -> void:
 	var t := 0.0
-	while not _vus.has(nom) and t < 60.0:   # renvoi toutes les s (le pair peut ne pas encore écouter)
+	while not _vus.has(nom) and t < 60.0:   # renvoi toutes les 0,5 s (le pair peut ne pas encore écouter)
 		_res.envoyer_evenement("sync", nom, null)
-		await get_tree().create_timer(1.0).timeout
-		t += 1.0
-		if _vus.has(nom):
-			break
+		var u := 0.0
+		while not _vus.has(nom) and u < 0.5:
+			await get_tree().create_timer(0.05).timeout
+			u += 0.05
+		t += u
 	if not _vus.has(nom):
 		_verif(false, "barrière « %s » jamais atteinte" % nom)
 		get_tree().quit(1)
+	_res.envoyer_evenement("sync", nom, null)   # dernier envoi : le pair peut ne pas avoir vu le nôtre (on a pu le voir avant d'avoir émis)
 
 func _info_coup(pt: Vector3) -> Dictionary:
 	return {"attaque": "legere", "type": "tranchant", "point": pt + Vector3(0, 1.1, 0), "direction": Vector3(1, -0.4, 0).normalized(), "normale": Vector3(0, 0, 1), "zone": "torse"}
@@ -152,8 +154,11 @@ func _lancer() -> void:
 	_rs.silence_max = 5.0
 	_rs.periode_ping = 0.25
 	await _barriere("connectes")
+	await get_tree().create_timer(3.0).timeout   # avatars installés des deux côtés (position de l'invité connue de l'hôte)
 	if _role == "invite":
 		await _attendre(func() -> bool: return app.etat != "attente" and app.etat != "", 30.0)
+		_j.global_position = Vector3(2, 0.1, 0)   # l'apport place l'invité près de l'hôte : on le ramène près de l'ennemi
+		await get_tree().create_timer(2.0).timeout   # position répliquée vers l'hôte (sous 100 ms / 5 %)
 
 	# ===== coup + coffre sous latence/perte =====
 	if _role == "invite":

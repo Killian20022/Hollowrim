@@ -9,7 +9,7 @@ ICI="$(cd "$(dirname "$0")/.." && pwd)"
 P="$(wslpath -w "$ICI")"
 LOGS="${JOURNAUX:-/tmp/tout_reseau}"; mkdir -p "$LOGS"
 MOTIF="${1:-}"
-PORT_BASE="${PORT_BASE:-25100}"   # base des ports : chaque test prend 4 ports (base+4i+2 ...) ; plage par défaut 25101-25199
+PORT_BASE="${PORT_BASE:-25300}"   # base des ports : chaque test prend 4 ports (base+4i+2 ...) ; plage par défaut 25301-25399
 [[ -f /tmp/godot_slot.sh ]] || cp "$ICI/../godot_slot.sh" /tmp/godot_slot.sh 2>/dev/null
 # nom|commande (exécutée depuis la racine du projet)
 TESTS=(
@@ -28,6 +28,8 @@ TESTS=(
 	"test_economie_quetes|PORT=$((PORT_BASE+50)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_economie_quetes.sh"
 	"test_sauvegarde_multi|PORT=$((PORT_BASE+54)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_sauvegarde_multi.sh"
 	"test_integration5|PORT=$((PORT_BASE+58)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_integration5.sh"
+	"test_integration6|PORT=$((PORT_BASE+62)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_integration6.sh"
+	"test_resilience|PORT0=$((PORT_BASE+70)) GODOT_MAX=${GODOT_MAX:-4} bash outils/test_resilience.sh"   # ~15 min (13 scénarios, dont 2 à 4 joueurs) ; ports PORT_BASE+70..+83
 	"test_transport_choix|SOLO"
 	"test_villageois|SOLO --nouvelle"
 	"test_menu_personnage|SOLO --nouvelle"
