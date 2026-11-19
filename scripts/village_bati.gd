@@ -208,7 +208,8 @@ static func tas_de_bois(v, p: Node3D, c: Vector3, lacet: float, longueur := 2.0)
 		var x := -longueur * 0.5 + 0.14 + (rang % 2) * 0.13
 		while x < longueur * 0.5 - 0.1:
 			if PropsQuaternius.remplace and PropsQuaternius.existe("q_buche"):      # props/remplacement : bûche Quaternius/kitbash
-				PropsQuaternius.village(v, p, "q_buche", Transform3D(b * Basis(Vector3.UP, PI * 0.5) * Basis.from_scale(Vector3(1.03, 1.2, 1.2)), c + b * Vector3(x, 0.13 + rang * 0.24, 0)))
+				var bv := PropsQuaternius.buche_v5("q_buche")      # v5 : rondin Quaternius (Survival) à la place de la bûche kitbash maison
+				PropsQuaternius.village(v, p, bv[0], Transform3D(b * Basis(Vector3.UP, PI * 0.5) * Basis.from_scale(Vector3(1.03, 1.2, 1.2)), c + b * Vector3(x, 0.13 + rang * 0.24, 0)) * (bv[1] as Transform3D))
 			else:
 				v._cylindre(p, 0.12, 0.12, 0.62, Transform3D(b * Basis(Vector3.RIGHT, PI * 0.5), c + b * Vector3(x, 0.13 + rang * 0.24, 0)), v.m_ecorce, 6)
 			x += 0.26
@@ -707,8 +708,11 @@ static func tour(v, g: Node3D, x: float, z: float) -> void:
 		v._boite(p, Vector3(sb, 0.55, 0.45), Transform3D(bb, bb * Vector3(0, yb + hb - 0.27, sb * 0.5 - 0.22)), v.m_roche)
 	v._boite(p, Vector3(sb - 0.4, 0.15, sb - 0.4), Transform3D(Basis(), Vector3(0, yb + 0.05, 0)), v.m_poutres_h)
 	v._boite(p, Vector3(sb - 0.3, 0.22, 0.24), Transform3D(Basis(), Vector3(0, yb + 2.7, 0)), v.m_poutres_h)
-	v._cylindre(p, 0.3, 0.58, 0.8, Transform3D(Basis(), Vector3(0, yb + 2.12, 0)), v.m_fer, 10)
-	v._cylindre(p, 0.12, 0.3, 0.16, Transform3D(Basis(), Vector3(0, yb + 2.6, 0)), v.m_fer, 10)
+	if PropsQuaternius.v5 and PropsQuaternius.existe("pq_cloche"):      # v5 : cloche de bronze terni Quaternius (Bell) pendue sous le mouton
+		PropsQuaternius.village(v, p, "pq_cloche", Transform3D(Basis.from_scale(Vector3.ONE * 1.9), Vector3(0, yb + 2.59 - 0.6 * 1.9, 0)))
+	else:
+		v._cylindre(p, 0.3, 0.58, 0.8, Transform3D(Basis(), Vector3(0, yb + 2.12, 0)), v.m_fer, 10)
+		v._cylindre(p, 0.12, 0.3, 0.16, Transform3D(Basis(), Vector3(0, yb + 2.6, 0)), v.m_fer, 10)
 	v._cylindre(p, 0.62, 0.62, 0.07, Transform3D(Basis(), Vector3(0, yb + 1.73, 0)), v.m_fer, 10)
 	v._boite(p, Vector3(sb + 0.4, 0.26, sb + 0.4), Transform3D(Basis(), Vector3(0, yb + hb + 0.1, 0)), v.m_brute)
 	# flèche : pyramide d'essentes (bois sombre), arêtes et pied enneigés, épi de fer

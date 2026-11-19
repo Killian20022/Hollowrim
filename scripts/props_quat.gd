@@ -82,6 +82,25 @@ static func materiau(atlas: String, contexte := "exterieur") -> Material:
 	_verrou.unlock()
 	return m
 
+static var _neige_tex: Texture2D = null
+static var _neige_nb := -1
+
+## props/exterieurs_v5 : les matériaux « exterieur » créés AVANT la texture de neige du monde (Palette.tex_neige, posée par
+## monde.gd ; préchargement) avaient tex_neige = l'atlas : la neige peinte (alpha 0) et la neige qui tient prenaient la couleur
+## du bois. Recâble la vraie neige (appelé par la v5 seulement : `--sans-props-v5` garde l'état d'avant).
+static func neige_exterieur() -> void:
+	var tn: Texture2D = Palette.tex_neige
+	if tn == null:
+		return
+	_verrou.lock()
+	if tn != _neige_tex or _mats.size() != _neige_nb:
+		for cle: String in _mats:
+			if cle.ends_with(":exterieur"):
+				(_mats[cle] as ShaderMaterial).set_shader_parameter("tex_neige", tn)
+		_neige_tex = tn
+		_neige_nb = _mats.size()
+	_verrou.unlock()
+
 static func _fichier(id: String) -> String:
 	var e := infos(id)
 	return String(e.get("fichier", "")) if not e.is_empty() else ""

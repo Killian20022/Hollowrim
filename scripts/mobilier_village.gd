@@ -195,7 +195,8 @@ static func substitut(mod: String) -> Array:
 			for rg in 4:
 				for c in 8 - (rg % 2):
 					var x := -0.88 + c * 0.25 + (rg % 2) * 0.125
-					r.append(["q_buche", Transform3D(Basis(Vector3.UP, PI * 0.5 + 0.04 * ((c + rg) % 3)) * Basis.from_scale(Vector3(1.7, 1.15, 1.15)), Vector3(x, 0.12 + rg * 0.22, 0.0)), {}])
+					var bv := PropsQuaternius.buche_v5("q_buche")      # v5 : rondin Quaternius (Survival) à la place de la bûche kitbash maison
+					r.append([bv[0], Transform3D(Basis(Vector3.UP, PI * 0.5 + 0.04 * ((c + rg) % 3)) * Basis.from_scale(Vector3(1.7, 1.15, 1.15)), Vector3(x, 0.12 + rg * 0.22, 0.0)) * (bv[1] as Transform3D), {}])
 		"etal":      # deux étals Quaternius côte à côte (3,1 m de comptoir), clients côté -Z
 			for sx in [-0.78, 0.78]:
 				r.append(["q_etal", _fit("q_etal", Vector3(sx, 0, -0.45), 0.0, Vector3(1.55, 2.4, 1.1)), {"bois": "planches_l4", "lin": "lin_l4"} if PropsQuaternius.lot4 else {}])
@@ -231,6 +232,9 @@ static func substitut(mod: String) -> Array:
 		"enclos_lisse":
 			r = [["", Transform3D.IDENTITY, {}]]
 		"meule_foin":      # KITBASH : pile de sacs de foin (sac Quaternius, jute -> foin), 3 + 2 + 1
+			if PropsQuaternius.v5 and PropsQuaternius.existe("pq_gerbe"):      # v5 : trois gerbes de paille liées (Hay, Medieval Village Pack)
+				return [["pq_gerbe", Transform3D(Basis(Vector3.UP, 0.3), Vector3(-0.45, 0, 0.05)), {}], ["pq_gerbe", Transform3D(Basis(Vector3.UP, 1.9), Vector3(0.42, 0, -0.1)), {}],
+					["pq_gerbe", Transform3D(Basis(Vector3.UP, 0.9) * Basis(Vector3.BACK, 1.45), Vector3(0.0, 0.36, 0.62)), {}]]
 			for k in 6:
 				var rang := 0 if k < 3 else (1 if k < 5 else 2)
 				var idx := k if k < 3 else (k - 3 if k < 5 else 0)
@@ -244,11 +248,17 @@ static func substitut(mod: String) -> Array:
 			for k in 3:
 				r.append(["q_banniere_toile", Transform3D(Basis(Vector3.UP, 0.15 * (k - 1)) * Basis.from_scale(Vector3(0.7, 0.45, 1.0)), Vector3(-0.8 + k * 0.8, 0.7, 0.04)), {"toile": "jute"}, Vector3(1, 1, -1)])
 		"feu_camp":      # KITBASH : couronne de briques Quaternius (9) + bûcher Woodfire ; braises de l'ancien module gardées
-			for i in 9:
+			# v5 : essai du foyer d'un seul tenant (pq_foyer_pierres, Bonfire du Medieval Village Pack) ABANDONNÉ (retour « effet jouet »,
+			# 2026-11-19) : sa couronne basse ne se lisait pas sous les bûches ; l'ancienne couronne de 9 briques, plus lisible, revient.
+			var foyer_q := false
+			if foyer_q:
+				r.append(["pq_foyer_pierres", _fit("pq_foyer_pierres", Vector3.ZERO, 0.4, Vector3(2.0, 0.0, 0.0)), {}])
+			for i in (0 if foyer_q else 9):
 				var a := i * TAU / 9.0
 				r.append(["q_brique_" + str(1 + i % 4), Transform3D(Basis(Vector3.UP, -a) * Basis.from_scale(Vector3(1.5, 1.2, 1.3)), Vector3(cos(a), 0, sin(a)) * 0.85), {}])
 			if PropsQuaternius.lot4 and PropsQuaternius.existe("q_feu_bois"):      # lot 4 : bûches de feu de camp Quaternius (Survival) à la place du bûcher
-				r.append(["q_feu_bois", _fit("q_feu_bois", Vector3.ZERO, 0.6, Vector3(0.95, 0.5, 0.95)), {}])
+				if not foyer_q:
+					r.append(["q_feu_bois", _fit("q_feu_bois", Vector3.ZERO, 0.6, Vector3(0.95, 0.5, 0.95)), {}])
 				# marmite de camp posée contre la couronne, tas de rondins et hache plantée dans un rondin (sobre : 3 pièces + la tente un peu plus loin)
 				r.append(["q_marmite_camp", Transform3D(Basis(Vector3.UP, 2.2), Vector3(-1.35, 0, 0.55)), {}])
 				r.append(["q_rondin", Transform3D(Basis(Vector3.UP, 0.5), Vector3(1.35, 0, 1.15)), {}])
@@ -453,7 +463,7 @@ static func poser_dans(v, parent: Node3D, mod: String, xf: Transform3D, mats := 
 		if e[0] == "" or not PropsQuaternius.existe(e[0]):
 			continue
 		var mv := PropsQuaternius.mats_village(v)
-		for m: Array in PropsQuaternius.morceaux(e[0], e[2]):
+		for m: Array in PropsQuaternius.morceaux(PropsQuaternius.ext_v5(e[0], e[2]), e[2]):
 			var cible: String = (e[2] as Dictionary).get(m[0], MATS_Q_V.get(m[0], m[0]))
 			v._ajouter(parent, m[1], xf * (e[1] as Transform3D), mv[cible] if mv.has(cible) else mv["bois"])
 			if e.size() > 3:      # pièce plane : seconde face (même plan, orientation inverse)
@@ -482,15 +492,16 @@ static func noeud_modules(poses: Array, nom_noeud: String) -> Node3D:
 		for e: Array in sub:
 			if e[0] == "" or not PropsQuaternius.existe(e[0]):
 				continue
-			for t: Array in PropsQuaternius.triangles(e[0], e[2]):
+			var nq := PropsQuaternius.ext_v5(e[0], e[2])      # v5 : pq_* texturé du même modèle (dehors)
+			for t: Array in PropsQuaternius.triangles(nq, e[2]):
 				var mq: String = (e[2] as Dictionary).get(t[0], MATS_Q.get(t[0], "planches_h"))
 				if not st_par.has(mq):
 					var stq := SurfaceTool.new()
 					stq.begin(Mesh.PRIMITIVE_TRIANGLES)
 					st_par[mq] = stq
-				(st_par[mq] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(e[0], t[0]), 0, (p[1] as Transform3D) * (e[1] as Transform3D))
+				(st_par[mq] as SurfaceTool).append_from(PropsQuaternius.brut_v5(nq, t[0], (p[1] as Transform3D) * (e[1] as Transform3D)), 0, (p[1] as Transform3D) * (e[1] as Transform3D))
 				if e.size() > 3:
-					(st_par[mq] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(e[0], t[0]), 0, (p[1] as Transform3D) * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO))
+					(st_par[mq] as SurfaceTool).append_from(PropsQuaternius.brut_v5(nq, t[0], (p[1] as Transform3D) * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO)), 0, (p[1] as Transform3D) * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO))
 		for nom: String in donnees:
 			if not nom.begins_with(pre):
 				continue
@@ -694,7 +705,8 @@ func _poser_sub(fusion: Dictionary, sub: Array, xf: Transform3D, _mod: String) -
 		if e[0] == "" or not PropsQuaternius.existe(e[0]):
 			continue
 		PropsQuaternius.compter("village_marche")
-		for t: Array in PropsQuaternius.triangles(e[0], e[2]):
+		var nom := PropsQuaternius.ext_v5(e[0], e[2])      # v5 : pq_* texturé du même modèle (dehors)
+		for t: Array in PropsQuaternius.triangles(nom, e[2]):
 			var mat: String = (e[2] as Dictionary).get(t[0], MATS_Q.get(t[0], "planches_h"))
 			if mat == "":
 				continue      # matière retirée de ce substitut
@@ -702,9 +714,9 @@ func _poser_sub(fusion: Dictionary, sub: Array, xf: Transform3D, _mod: String) -
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
 				fusion[mat] = st
-			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(e[0], t[0]), 0, xf * (e[1] as Transform3D))
+			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.brut_v5(nom, t[0], xf * (e[1] as Transform3D)), 0, xf * (e[1] as Transform3D))
 			if e.size() > 3:
-				(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(e[0], t[0]), 0, xf * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO))
+				(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.brut_v5(nom, t[0], xf * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO)), 0, xf * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO))
 			tris += (t[1] as PackedVector3Array).size() / 3
 	return tris
 
@@ -761,7 +773,7 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
 				fusion[mat] = st
-			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(nom, t[0]), 0, xf)
+			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.brut_v5(nom, t[0], xf), 0, xf)
 			tris += (t[1] as PackedVector3Array).size() / 3
 		if e[4]:
 			var bb := PropsQuaternius.boite(nom, e[5] if e.size() > 5 else {})
