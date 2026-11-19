@@ -1551,6 +1551,14 @@ func _exit_tree() -> void:
 	TexturesBati.vider()
 	Humain.vider()
 	Sons.vider()
+	# rappels réseau (lambdas du monde, du tertre…) gardés en statique ou dans les autoloads : lâchés tant que leurs scripts vivent,
+	# sinon le nettoyage du moteur après quit() plante (code de sortie 5 = 0xC0000005, depuis le multijoueur lots 0-2)
+	ReseauLieux.vider()
+	ConversationsCoop.vider_rappels()
+	MarchandCoop.vider_rappels()
+	var rejoindre := get_node_or_null("/root/Rejoindre")
+	if rejoindre != null:
+		rejoindre.call("retirer_contributeur", "monde")
 
 func _notification(quoi: int) -> void:
 	if quoi == NOTIFICATION_WM_CLOSE_REQUEST and not _arguments().has("capture"):

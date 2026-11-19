@@ -63,6 +63,15 @@ static func reinitialiser() -> void:
 	_portes.clear()
 	_distant = false
 
+## Monde quitté : lâche les rappels (lambdas de tertre.gd, grotte…) et les quêtes. Gardés dans des variables STATIQUES, ils
+## n'étaient libérés qu'au déchargement des scripts, APRÈS celui des scripts qui les ont créés : plantage à la sortie (code 5).
+static func vider() -> void:
+	reinitialiser()
+	_portes_appliquer.clear()
+	_rappels_pris.clear()
+	_rappels_etat.clear()
+	_quetes = null
+
 static func poser_quetes(q: Object, prefixes: Array = []) -> void:
 	_quetes = q
 	for p in prefixes:

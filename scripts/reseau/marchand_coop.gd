@@ -151,3 +151,7 @@ static func importer(d: Dictionary) -> void:
 	for id: String in d:
 		if d[id] is Dictionary:
 			_adopter(id, d[id])
+
+## Monde quitté : lâche les rappels statiques (lambdas du monde), libérés sinon après leur script à la sortie (plantage).
+static func vider_rappels() -> void:
+	_attente.clear()

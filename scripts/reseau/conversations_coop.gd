@@ -174,3 +174,7 @@ static func importer(d: Dictionary) -> void:
 	_verrous = {}
 	for k in d.get("verrous", {}):
 		_verrous[String(k)] = int(d["verrous"][k])
+
+## Monde quitté : lâche le rappel statique (lambda du monde), libéré sinon après son script à la sortie (plantage).
+static func vider_rappels() -> void:
+	_refuse = Callable()
