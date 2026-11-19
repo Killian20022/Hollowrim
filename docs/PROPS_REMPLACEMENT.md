@@ -364,7 +364,7 @@ Demande : « remplace un maximum de props maison par des Quaternius, notamment l
 
 | Module maison | Remplaçant | Endroit | Notes |
 |---|---|---|---|
-| table_a/b/c (tables de 1,10 x 0,65 m) | q_table_petite_2 (Table_Small, Modular Dungeon), couchée sur le grand axe | crypte (archives, quartiers, salle de garde, chapelle, lb2b, Eirik…), grotte (mine, camp) | échelles 0,56 / 0,50 / 0,95 (presque uniformes en plan) ; plateau baissé de 3 % pour les garnitures C6 ; la grande table du MegaKit restait écrasée (x 0,4) |
+| table_a/b/c (tables de 1,10 x 0,65 m) | pq_table_ovale (Table_RoundLarge, tréteaux tournés massifs), sans quart de tour | crypte (archives, quartiers, salle de garde, chapelle, lb2b, Eirik…), grotte (mine, camp) | échelles 0,43 / 1,0 / 0,48 ; plateau baissé de 6 % pour les garnitures C6 ; rejetées : pq_table_petite_2 et pq_table_grande_2 (tréteaux en T trop fins à cette emprise). Toutes les tables ont la même emprise (pas de « grande » table souterraine). Planches : crypte_tables_coffre_bouclier_v2.png, crypte_vues_generales_v2.png |
 | coffre_a/b/c (coffre de décor d'une pièce) | pq_coffre_ferme (MegaKit, x 1,32 / 1,44 / 1,48) | niche d'Eirik (tertre) | seul coffre de décor d'une pièce |
 | bouclier_a/b/c (boucliers muraux peints) | pq_bouclier_bois (rond, cerclé, umbo) | crypte (salle de garde, quartiers…) | la teinte peinte est perdue (le bouclier du pack se lit mieux à 480x270) |
 | toile() (triangle peint) | q_toile_araignee_1/2 (Cobweb, fils en volume), coin d'accroche au coin du mur | crypte, tertre, grotte (7 toiles rares) | variante tirée de la position, aucun tirage de rng |
@@ -405,7 +405,7 @@ statue, le candélabre et les gravats du semis posés après) ; ossements de lb2
 ### Catalogue props/sources_v5 (autre agent) : intégré
 
 Cherry-pick de fa026490, a8c19c55, 799ff092 (props_quat.dat régénéré, 254 props) : les alias `PropsQuaternius.ALIAS_PQ` de la v5
-(q_table_petite_2, q_toile_araignee_1/2, q_os_tas(_2), q_coffre_d -> pq_*) sont ACTIFS : tables, toiles, os et coffre du butin sont
+(q_table_petite_2, q_toile_araignee_1/2, q_os_tas(_2), q_coffre_d -> pq_*) sont ACTIFS : toiles, os et coffre du butin sont
 texturés (même modèle, même échelle). Posés en direct dans la crypte : pq_brique_1..4 (gravats ; pas d'alias car q_brique sert aussi au
 village), pq_coffre_or (trésor), pq_bougie_d (dépôt). Captures après catalogue : `rendus/props_v5/brut/apres_cat`.
 

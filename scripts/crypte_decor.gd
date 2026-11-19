@@ -2488,15 +2488,15 @@ const SUBST_GARDE_PQ := ["table_a", "table_b", "table_c", "ratelier_cadre_a", "r
 
 ## props/crypte_v5 : remplaçants des souterrains AVEC les props texturés (PropsQuaternius.v5), prioritaires sur SUBST / SUBST_GARDE_PQ ;
 ## même forme que SUBST, quart de tour 1 = +90°, 3 = −90° (avant du prop tourné vers +Z local du module).
-##   - tables : petite table du Modular Dungeon (Table_Small, 1,30 x 1,97 m) couchée sur le grand axe : ajustée à 1,10 x 0,65 x 0,81 m,
-##     échelles 0,56 / 0,50 / 0,95 (presque uniformes en plan), plateau baissé de 3 % (4e champ : facteur de hauteur) pour que les
-##     garnitures C6 (parchemin, bol) posées à 0,81 m ne s'enfoncent pas dans ses planches ; la grande table du MegaKit (x 0,4 / 0,62)
-##     restait écrasée ;
+##   - tables : table ovale à tréteaux tournés (Table_RoundLarge, 2,58 x 0,78 x 1,35 m) SANS quart de tour (grand axe = grand axe) :
+##     échelles 0,43 / 1,0 / 0,48 (presque uniformes en plan : plateau épais, pieds massifs), plateau baissé de 6 % (4e champ) pour que
+##     les garnitures C6 posées à 0,81 m ne s'enfoncent pas. Rejetées sur planches (2026-11-19) : Table_Small (pq_table_petite_2) et
+##     Table_Big (pq_table_grande_2), tréteaux en T trop fins une fois ramenés à 1,10 x 0,65 m (« chétives ») ;
 ##   - coffre de décor d'une pièce (coffre_a/b/c, PAS les coffres qui s'ouvrent : cuve + couvercle L1) : coffre fermé texturé du MegaKit
 ##     (0,71 x 0,40 x 0,42 m -> 0,93 x 0,57 x 0,62 : x 1,32 / 1,44 / 1,48) ;
 ##   - boucliers muraux (bouclier_a/b/c) : bouclier rond de bois cerclé du MegaKit, à plat contre le mur.
 const SUBST_V5 := {
-	"table_a": ["q_table_petite_2", 1, {}, 0.97], "table_b": ["q_table_petite_2", 1, {}, 0.97], "table_c": ["q_table_petite_2", 1, {}, 0.97],
+	"table_a": ["pq_table_ovale", 0, {}, 0.94], "table_b": ["pq_table_ovale", 0, {}, 0.94], "table_c": ["pq_table_ovale", 0, {}, 0.94],
 	"coffre_a": ["pq_coffre_ferme", 0], "coffre_b": ["pq_coffre_ferme", 0], "coffre_c": ["pq_coffre_ferme", 0],
 	"bouclier_a": ["pq_bouclier_bois", 0], "bouclier_b": ["pq_bouclier_bois", 0], "bouclier_c": ["pq_bouclier_bois", 0],
 }
