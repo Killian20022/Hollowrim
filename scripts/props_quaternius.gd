@@ -34,6 +34,9 @@ static var lot4 := remplace and not ("--sans-lot4" in OS.get_cmdline_user_args()
 static var pq := actif and not ("--props-quat-ancien" in OS.get_cmdline_user_args())
 ## props/maximum v3 (abords, replis de la grotte et de la crypte, coins de métier) ; `-- --sans-props-v3` rend la v2 (A/B des mesures).
 static var v3 := pq and not ("--sans-props-v3" in OS.get_cmdline_user_args())
+## props/crypte_v5 (2026-11-19) : souterrains (crypte, tertre, grotte) : tables, coffres de décor, boucliers muraux, toiles, coffres
+## forcés, gravats en briques et compositions de donjon ; `-- --sans-props-v5` rend EXACTEMENT la v3 (captures « avant », mesures A/B).
+static var v5 := v3 and not ("--sans-props-v5" in OS.get_cmdline_user_args())
 const DAT_PQ := "res://assets/modeles/props_quat/props_quat.dat"
 const ATLAS_PQ := ["pq_bois", "pq_fer", "pq_fer_v", "pq_tissu", "pq_tissu_v", "pq_props", "pq_props_v", "pq_page"]
 ## Kitbash : ces q_* servent aussi de PIÈCES RETEINTES (carotte retournée = saucisson, bourse = jambon, toile de bannière = peau ou tapis,
@@ -50,7 +53,13 @@ const PQ_EXCLUS := ["q_pieces", "q_tas_pieces", "q_tas_pieces_2"]
 ## ordinaire de 0,95 m ; les poses ajustées à une taille cible (SUBST de la crypte, SUBST_FIT du village) ne changent pas.
 const ALIAS_PQ := {"q_tonneau_2": "pq_tonneau", "q_caisse_2": "pq_caisse_fer", "q_sac_debout": "pq_sac", "q_vase_5": "pq_vase_4",
 	"q_coffre_2": "pq_coffre_ferme", "q_seau_2": "pq_seau_bois", "q_chaise_2": "pq_chaise",
-	"q_bouteille_1": "pq_bouteille", "q_bouteille_2": "pq_bouteille"}
+	"q_bouteille_1": "pq_bouteille", "q_bouteille_2": "pq_bouteille",
+	# props/crypte_v5 : pièces de donjon posées par la v5 (tables, toiles, os, coffre de crypte) -> leurs pq_* texturés de props/sources_v5
+	# (même modèle source, même échelle : docs/PROPS_SOURCES_V5.md, « equivalent_q ») ; la boucle de _charger_pq ne pose un alias que si
+	# son pq_* est dans props_quat.dat. Pièces de DONJON seulement (briques et rochers servent aussi au village : la crypte pose
+	# directement pq_brique_*, pq_coffre_or, pq_bougie_d).
+	"q_table_petite_2": "pq_table_petite_2", "q_toile_araignee_1": "pq_toile_araignee_1", "q_toile_araignee_2": "pq_toile_araignee_2",
+	"q_os_tas": "pq_os_tas", "q_os_tas_2": "pq_os_tas_2", "q_coffre_d": "pq_coffre_d"}
 static var _pq_de := {}       # nom q_* (ou pq_* posé directement) -> id pq_*
 static var _pq_mods := {}     # id pq_* -> [[atlas, arrays indexés (UV, normales, couleurs)], …], déjà à l'encombrement du q_*
 static var _pq_boites := {}   # id pq_* -> AABB
