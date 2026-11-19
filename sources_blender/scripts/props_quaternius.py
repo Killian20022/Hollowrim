@@ -571,4 +571,5 @@ def main():
     print("FINI", len(res), "props ;", sum(r["tris"] for r in res), "tris ;", sum(r["octets"] for r in res), "octets")
 
 
-main()
+if __name__ == "__main__":      # importable (props_sources_v5.py reprend ses fonctions)
+    main()

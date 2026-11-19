@@ -1,5 +1,5 @@
 {
- "_doc": "Props TEXTURÉS du Fantasy Props MegaKit (Quaternius, CC0, version Standard gratuite, License_Standard.txt) convertis par sources_blender/scripts/props_quaternius.py (props/quaternius, 2026-11-10). Chargement : scripts/props_quat.gd (PropsQuat.instancier / maillage / corps / materiau). Repère Godot : origine au pied au centre de l'emprise, dimensions_m = [X largeur, Y hauteur, Z profondeur]. collision : boite (taille XYZ, centre_y) / cylindre (rayon, hauteur) / aucune (petits objets). atlas = matériaux partagés (assets/modeles/props_quat/textures/pq_*.png : 128 px, tissu 256, page 32 ; filtre plus proche). texels_m = densité réelle par atlas. remplace : prop(s) actuel(s) du jeu que ce prop peut remplacer, avec les lignes de code qui les posent ; « prop_actuel » q_* = la version .dat à couleurs de face DÉJÀ posée par les lots 2-3 (même modèle source, sans texture).",
+ "_doc": "Props TEXTURÉS du Fantasy Props MegaKit (Quaternius, CC0, version Standard gratuite, License_Standard.txt) convertis par sources_blender/scripts/props_quaternius.py (props/quaternius, 2026-11-10). Chargement : scripts/props_quat.gd (PropsQuat.instancier / maillage / corps / materiau). Repère Godot : origine au pied au centre de l'emprise, dimensions_m = [X largeur, Y hauteur, Z profondeur]. collision : boite (taille XYZ, centre_y) / cylindre (rayon, hauteur) / aucune (petits objets). atlas = matériaux partagés (assets/modeles/props_quat/textures/pq_*.png : 128 px, tissu 256, page 32 ; filtre plus proche). texels_m = densité réelle par atlas. remplace : prop(s) actuel(s) du jeu que ce prop peut remplacer, avec les lignes de code qui les posent ; « prop_actuel » q_* = la version .dat à couleurs de face DÉJÀ posée par les lots 2-3 (même modèle source, sans texture). | Lot v5 (props/sources_v5, 2026-11-19, champ lot = \"v5\") : packs Quaternius à couleurs unies (Ultimate Home Interior, Medieval Dungeon, Modular Dungeon, Survival, Ultimate Food) et Medieval Village, RE-PROJETÉS sur les mêmes atlas (sources_blender/scripts/props_sources_v5.py) ; champs nom, matiere, usage, equivalent_q ; liste et rejets : docs/PROPS_SOURCES_V5.md.",
  "categories": [
   "armes_outils",
   "cuisine_table",
@@ -4932,6 +4932,6680 @@
        "ou": "1"
       }
      ]
+    }
+   ]
+  },
+  {
+   "id": "pq_table_ovale",
+   "source": "Table_RoundLarge",
+   "pack": "Ultimate Home Interior",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_table_ovale.glb",
+   "dimensions_m": [
+    2.583,
+    0.78,
+    1.35
+   ],
+   "tris": 592,
+   "tris_source": 592,
+   "reduction": null,
+   "budget": 9250,
+   "echelle": 0.6957,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 64.3
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     2.583,
+     0.78,
+     1.35
+    ],
+    "centre_y": 0.39
+   },
+   "octets": 35968,
+   "ilots_uv": 74,
+   "nom": "grande table ovale à tréteaux",
+   "matiere": "bois",
+   "usage": "tables de la halle / des maisons (table à tréteaux maison, pq_grande_table), tables de la crypte (table_a/b/c gardées : 2,7 m)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "tables de la halle / des maisons (table à tréteaux maison, pq_grande_table), tables de la crypte (table_a/b/c gardées : 2,7 m)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_table_ronde",
+   "source": "Table_RoundSmall",
+   "pack": "Ultimate Home Interior",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_table_ronde.glb",
+   "dimensions_m": [
+    1.32,
+    0.78,
+    1.32
+   ],
+   "tris": 592,
+   "tris_source": 592,
+   "reduction": null,
+   "budget": 5458,
+   "echelle": 0.6798,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 63.4
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.66,
+    "hauteur": 0.78
+   },
+   "octets": 32528,
+   "ilots_uv": 42,
+   "nom": "table ronde à pied central",
+   "matiere": "bois",
+   "usage": "table de taverne / d'auberge, table de jeu des quartiers, table de Grima ou de Sigrun",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "table de taverne / d'auberge, table de jeu des quartiers, table de Grima ou de Sigrun",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_chaise_echelle",
+   "source": "Chair_1",
+   "pack": "Ultimate Home Interior",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_chaise_echelle.glb",
+   "dimensions_m": [
+    0.431,
+    1.0,
+    0.467
+   ],
+   "tris": 216,
+   "tris_source": 216,
+   "reduction": null,
+   "budget": 4500,
+   "echelle": 0.5657,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 80.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.431,
+     1.0,
+     0.467
+    ],
+    "centre_y": 0.5
+   },
+   "octets": 18804,
+   "ilots_uv": 60,
+   "nom": "chaise à dossier à barreaux",
+   "matiere": "bois",
+   "usage": "chaises autour des tables (pq_chaise, banc maison), halle, maisons",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "chaises autour des tables (pq_chaise, banc maison), halle, maisons",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_chaise_coussin",
+   "source": "Chair_2",
+   "pack": "Ultimate Home Interior",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_chaise_coussin.glb",
+   "dimensions_m": [
+    0.451,
+    1.0,
+    0.489
+   ],
+   "tris": 352,
+   "tris_source": 352,
+   "reduction": null,
+   "budget": 4500,
+   "echelle": 0.5919,
+   "atlas": [
+    "pq_bois",
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "bois": 79.9,
+    "tissu_v": 77.2
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.451,
+     1.0,
+     0.489
+    ],
+    "centre_y": 0.5
+   },
+   "octets": 26252,
+   "ilots_uv": 77,
+   "nom": "chaise à coussin de laine",
+   "matiere": "bois sombre + laine rouge",
+   "usage": "chaise du jarl / de maître de maison, halle",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "chaise du jarl / de maître de maison, halle",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_chaise_fuseaux",
+   "source": "Chair_4",
+   "pack": "Ultimate Home Interior",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_chaise_fuseaux.glb",
+   "dimensions_m": [
+    0.431,
+    1.0,
+    0.467
+   ],
+   "tris": 264,
+   "tris_source": 264,
+   "reduction": null,
+   "budget": 4500,
+   "echelle": 0.5657,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 80.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.431,
+     1.0,
+     0.467
+    ],
+    "centre_y": 0.5
+   },
+   "octets": 20212,
+   "ilots_uv": 84,
+   "nom": "chaise à dossier à fuseaux",
+   "matiere": "bois",
+   "usage": "chaises de maisons et d'auberge (variante de pq_chaise_echelle)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "chaises de maisons et d'auberge (variante de pq_chaise_echelle)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_chevet_tiroir",
+   "source": "NightStand_1",
+   "pack": "Ultimate Home Interior",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_chevet_tiroir.glb",
+   "dimensions_m": [
+    0.693,
+    0.6,
+    0.693
+   ],
+   "tris": 172,
+   "tris_source": 172,
+   "reduction": null,
+   "budget": 3577,
+   "echelle": 0.7273,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 78.9,
+    "fer": 75.7
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.693,
+     0.6,
+     0.693
+    ],
+    "centre_y": 0.3
+   },
+   "octets": 14660,
+   "ilots_uv": 49,
+   "nom": "table de chevet à tiroir",
+   "matiere": "bois + bouton de fer",
+   "usage": "à côté des lits (lit maison, pq_lit), chambres de Sigrun, des chasseurs",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "à côté des lits (lit maison, pq_lit), chambres de Sigrun, des chasseurs",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_chevet_etagere_2",
+   "source": "NightStand_2",
+   "pack": "Ultimate Home Interior",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_chevet_etagere_2.glb",
+   "dimensions_m": [
+    0.625,
+    0.62,
+    0.625
+   ],
+   "tris": 184,
+   "tris_source": 184,
+   "reduction": null,
+   "budget": 3373,
+   "echelle": 0.6559,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 79.8,
+    "fer": 75.7
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.625,
+     0.62,
+     0.625
+    ],
+    "centre_y": 0.31
+   },
+   "octets": 15700,
+   "ilots_uv": 55,
+   "nom": "petite table à tiroir et tablette",
+   "matiere": "bois + fer",
+   "usage": "petite table d'appoint, chevet, guéridon de la halle",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "petite table d'appoint, chevet, guéridon de la halle",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_coffre_tiroirs",
+   "source": "NightStand_3",
+   "pack": "Ultimate Home Interior",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_coffre_tiroirs.glb",
+   "dimensions_m": [
+    0.691,
+    0.6,
+    0.691
+   ],
+   "tris": 272,
+   "tris_source": 272,
+   "reduction": null,
+   "budget": 3572,
+   "echelle": 0.7255,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 79.1,
+    "fer": 75.7
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.691,
+     0.6,
+     0.691
+    ],
+    "centre_y": 0.3
+   },
+   "octets": 20712,
+   "ilots_uv": 62,
+   "nom": "petit meuble à deux tiroirs",
+   "matiere": "bois + fer",
+   "usage": "rangement bas des maisons (coffre maison), forge, archives",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "rangement bas des maisons (coffre maison), forge, archives",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_commode",
+   "source": "Drawer_5",
+   "pack": "Ultimate Home Interior",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_commode.glb",
+   "dimensions_m": [
+    1.783,
+    0.85,
+    0.736
+   ],
+   "tris": 352,
+   "tris_source": 352,
+   "reduction": null,
+   "budget": 6848,
+   "echelle": 0.6381,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 79.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.783,
+     0.85,
+     0.736
+    ],
+    "centre_y": 0.425
+   },
+   "octets": 24320,
+   "ilots_uv": 95,
+   "nom": "commode basse à tiroirs",
+   "matiere": "bois (trois tons)",
+   "usage": "dressoir maison, commode des chambres, buffet (pq_buffet en variante)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "dressoir maison, commode des chambres, buffet (pq_buffet en variante)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_etagere_haute",
+   "source": "Bookshelf",
+   "pack": "Ultimate Home Interior",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_etagere_haute.glb",
+   "dimensions_m": [
+    1.045,
+    2.0,
+    0.341
+   ],
+   "tris": 120,
+   "tris_source": 120,
+   "reduction": null,
+   "budget": 7500,
+   "echelle": 0.4506,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 80.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.045,
+     2.0,
+     0.341
+    ],
+    "centre_y": 1.0
+   },
+   "octets": 11664,
+   "ilots_uv": 60,
+   "nom": "grande étagère ouverte",
+   "matiere": "bois",
+   "usage": "étagère 4 niveaux maison (pq_etagere_arche), archives de la crypte (etagere_cadre_a/b gardées)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "étagère 4 niveaux maison (pq_etagere_arche), archives de la crypte (etagere_cadre_a/b gardées)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_etagere_etroite",
+   "source": "Shelf_1",
+   "pack": "Ultimate Home Interior",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_etagere_etroite.glb",
+   "dimensions_m": [
+    0.402,
+    1.8,
+    0.371
+   ],
+   "tris": 96,
+   "tris_source": 96,
+   "reduction": null,
+   "budget": 6899,
+   "echelle": 0.5684,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 80.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.402,
+     1.8,
+     0.371
+    ],
+    "centre_y": 0.9
+   },
+   "octets": 9616,
+   "ilots_uv": 48,
+   "nom": "étagère étroite",
+   "matiere": "bois",
+   "usage": "étagère d'angle, réserve, garde-manger",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "étagère d'angle, réserve, garde-manger",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_tapis_rect",
+   "source": "Carpet_1",
+   "pack": "Ultimate Home Interior",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_tapis_rect.glb",
+   "dimensions_m": [
+    1.654,
+    0.028,
+    2.4
+   ],
+   "tris": 108,
+   "tris_source": 108,
+   "reduction": null,
+   "budget": 8700,
+   "echelle": 0.7759,
+   "atlas": [
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "tissu_v": 53.8
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.654,
+     0.028,
+     2.4
+    ],
+    "centre_y": 0.014
+   },
+   "octets": 6412,
+   "ilots_uv": 1,
+   "nom": "tapis tissé rectangulaire",
+   "matiere": "laine rouge, bordure ocre",
+   "usage": "tapis / peaux au sol maison (peau_sol = toile de bannière couchée), halle",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "tapis / peaux au sol maison (peau_sol = toile de bannière couchée), halle",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_tapis_carre",
+   "source": "Carpet_2",
+   "pack": "Ultimate Home Interior",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_tapis_carre.glb",
+   "dimensions_m": [
+    2.528,
+    0.03,
+    2.6
+   ],
+   "tris": 98,
+   "tris_source": 98,
+   "reduction": null,
+   "budget": 9299,
+   "echelle": 0.8172,
+   "atlas": [
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "tissu_v": 43.5
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     2.528,
+     0.03,
+     2.6
+    ],
+    "centre_y": 0.015
+   },
+   "octets": 5948,
+   "ilots_uv": 1,
+   "nom": "grand tapis tissé",
+   "matiere": "laine rouge, bordure ocre",
+   "usage": "sol de la halle du jarl, devant le trône",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "sol de la halle du jarl, devant le trône",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_tapis_rond",
+   "source": "Carpet_Round",
+   "pack": "Ultimate Home Interior",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_tapis_rond.glb",
+   "dimensions_m": [
+    1.97,
+    0.012,
+    2.0
+   ],
+   "tris": 128,
+   "tris_source": 128,
+   "reduction": null,
+   "budget": 7500,
+   "echelle": 0.7901,
+   "atlas": [
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "tissu_v": 49.3
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 1.0,
+    "hauteur": 0.012
+   },
+   "octets": 7340,
+   "ilots_uv": 1,
+   "nom": "tapis tissé rond",
+   "matiere": "laine rouge, bordure ocre",
+   "usage": "devant un foyer, chambre, q_tapis de la crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "devant un foyer, chambre, q_tapis de la crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_piedestal_rond",
+   "source": "Column_Round1",
+   "pack": "Ultimate Home Interior",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_piedestal_rond.glb",
+   "dimensions_m": [
+    0.869,
+    1.1,
+    0.913
+   ],
+   "tris": 332,
+   "tris_source": 332,
+   "reduction": null,
+   "budget": 4800,
+   "echelle": 0.6205,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 77.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.869,
+     1.1,
+     0.913
+    ],
+    "centre_y": 0.55
+   },
+   "octets": 18968,
+   "ilots_uv": 36,
+   "nom": "piédestal de pierre rond",
+   "matiere": "pierre",
+   "usage": "présentoirs, reliquaires de la crypte (piédestaux maison), offrandes",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "présentoirs, reliquaires de la crypte (piédestaux maison), offrandes",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_colonne_ronde",
+   "source": "Column_Round2",
+   "pack": "Ultimate Home Interior",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_colonne_ronde.glb",
+   "dimensions_m": [
+    1.12,
+    3.2,
+    1.177
+   ],
+   "tris": 556,
+   "tris_source": 556,
+   "reduction": null,
+   "budget": 10000,
+   "echelle": 0.7999,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 76.0
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.589,
+    "hauteur": 3.2
+   },
+   "octets": 29188,
+   "ilots_uv": 46,
+   "nom": "colonne de pierre ronde",
+   "matiere": "pierre",
+   "usage": "colonnes de la crypte (q_colonne_1/2), salle du trône g4",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "colonnes de la crypte (q_colonne_1/2), salle du trône g4",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_pilier_carre",
+   "source": "Column_SquareBig",
+   "pack": "Ultimate Home Interior",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_pilier_carre.glb",
+   "dimensions_m": [
+    0.698,
+    3.2,
+    0.698
+   ],
+   "tris": 180,
+   "tris_source": 180,
+   "reduction": null,
+   "budget": 10000,
+   "echelle": 0.7695,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.6
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.698,
+     3.2,
+     0.698
+    ],
+    "centre_y": 1.6
+   },
+   "octets": 13972,
+   "ilots_uv": 51,
+   "nom": "pilier de pierre carré",
+   "matiere": "pierre",
+   "usage": "piliers de la crypte, entrée du tumulus",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "piliers de la crypte, entrée du tumulus",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_piedestal_carre",
+   "source": "Column_SquareSmall",
+   "pack": "Ultimate Home Interior",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_piedestal_carre.glb",
+   "dimensions_m": [
+    0.482,
+    1.3,
+    0.482
+   ],
+   "tris": 148,
+   "tris_source": 148,
+   "reduction": null,
+   "budget": 5399,
+   "echelle": 0.5313,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.3
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.482,
+     1.3,
+     0.482
+    ],
+    "centre_y": 0.65
+   },
+   "octets": 12184,
+   "ilots_uv": 41,
+   "nom": "piédestal de pierre carré",
+   "matiere": "pierre",
+   "usage": "présentoir de l'Épée, socle de statue, autel",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "présentoir de l'Épée, socle de statue, autel",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_ecuelle_creuse",
+   "source": "Plate_3",
+   "pack": "Ultimate Home Interior",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_ecuelle_creuse.glb",
+   "dimensions_m": [
+    0.228,
+    0.021,
+    0.24
+   ],
+   "tris": 136,
+   "tris_source": 136,
+   "reduction": null,
+   "budget": 2219,
+   "echelle": 0.611,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 77.9
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 7380,
+   "ilots_uv": 6,
+   "nom": "écuelle creuse en bois",
+   "matiere": "bois",
+   "usage": "vaisselle des tables (assiette / bol maison, q_ecuelle)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "vaisselle des tables (assiette / bol maison, q_ecuelle)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_cuillere_bois",
+   "source": "Spoon",
+   "pack": "Ultimate Home Interior",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_cuillere_bois.glb",
+   "dimensions_m": [
+    0.042,
+    0.009,
+    0.2
+   ],
+   "tris": 128,
+   "tris_source": 128,
+   "reduction": null,
+   "budget": 2099,
+   "echelle": 0.4934,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 77.7
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 8612,
+   "ilots_uv": 24,
+   "nom": "cuillère de bois",
+   "matiere": "bois",
+   "usage": "q_cuillere_bois (gardé : pq_cuillere est en métal), tables, marmites",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_cuillere_bois (gardé : pq_cuillere est en métal), tables, marmites",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_chariot",
+   "source": "Prop_Wagon",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_chariot.glb",
+   "dimensions_m": [
+    1.212,
+    0.95,
+    2.5
+   ],
+   "tris": 1672,
+   "tris_source": 1672,
+   "reduction": null,
+   "budget": 8999,
+   "echelle": 0.6212,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 136.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.212,
+     0.95,
+     2.5
+    ],
+    "centre_y": 0.475
+   },
+   "octets": 155604,
+   "ilots_uv": 276,
+   "nom": "chariot de ferme",
+   "matiere": "bois",
+   "equivalent_q": "q_chariot",
+   "usage": "charrette abandonnée des abords, marché (q_chariot gardé)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_chariot",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "charrette abandonnée des abords, marché (q_chariot gardé)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_caisse_village",
+   "source": "Prop_Crate",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_caisse_village.glb",
+   "dimensions_m": [
+    0.818,
+    0.8,
+    0.818
+   ],
+   "tris": 230,
+   "tris_source": 230,
+   "reduction": null,
+   "budget": 3954,
+   "echelle": 0.755,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 77.4
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.818,
+     0.8,
+     0.818
+    ],
+    "centre_y": 0.4
+   },
+   "octets": 19464,
+   "ilots_uv": 92,
+   "nom": "caisse en planches du village",
+   "matiere": "bois",
+   "equivalent_q": "q_caisse_village",
+   "usage": "caisses du marché et des ruelles",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_caisse_village",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "caisses du marché et des ruelles",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_barriere_bois",
+   "source": "Prop_WoodenFence_Single",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_barriere_bois.glb",
+   "dimensions_m": [
+    2.064,
+    0.838,
+    0.12
+   ],
+   "tris": 40,
+   "tris_source": 40,
+   "reduction": null,
+   "budget": 7692,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 79.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     2.064,
+     0.838,
+     0.12
+    ],
+    "centre_y": 0.419
+   },
+   "octets": 5128,
+   "ilots_uv": 20,
+   "nom": "barrière de bois (poteau)",
+   "matiere": "bois",
+   "equivalent_q": "q_barriere_bois",
+   "usage": "enclos d'Ylva, abords (q_barriere_bois gardé)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_barriere_bois",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "enclos d'Ylva, abords (q_barriere_bois gardé)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_barriere_ext_1",
+   "source": "Prop_WoodenFence_Extension1",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_barriere_ext_1.glb",
+   "dimensions_m": [
+    2.045,
+    0.838,
+    0.11
+   ],
+   "tris": 32,
+   "tris_source": 32,
+   "reduction": null,
+   "budget": 7635,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 79.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     2.045,
+     0.838,
+     0.11
+    ],
+    "centre_y": 0.419
+   },
+   "octets": 4440,
+   "ilots_uv": 16,
+   "nom": "barrière de bois (travée)",
+   "matiere": "bois",
+   "equivalent_q": "q_barriere_ext_1",
+   "usage": "enclos, abords",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_barriere_ext_1",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "enclos, abords",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_barriere_ext_2",
+   "source": "Prop_WoodenFence_Extension2",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_barriere_ext_2.glb",
+   "dimensions_m": [
+    2.027,
+    0.838,
+    0.11
+   ],
+   "tris": 28,
+   "tris_source": 28,
+   "reduction": null,
+   "budget": 7581,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 79.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     2.027,
+     0.838,
+     0.11
+    ],
+    "centre_y": 0.419
+   },
+   "octets": 4096,
+   "ilots_uv": 14,
+   "nom": "barrière de bois (travée longue)",
+   "matiere": "bois",
+   "equivalent_q": "q_barriere_ext_2",
+   "usage": "enclos, abords",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_barriere_ext_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "enclos, abords",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_support_bois",
+   "source": "Prop_Support",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_support_bois.glb",
+   "dimensions_m": [
+    0.199,
+    1.709,
+    2.036
+   ],
+   "tris": 16,
+   "tris_source": 16,
+   "reduction": null,
+   "budget": 7608,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 64.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.199,
+     1.709,
+     2.036
+    ],
+    "centre_y": 0.854
+   },
+   "octets": 2724,
+   "ilots_uv": 8,
+   "nom": "jambe de force en bois",
+   "matiere": "bois",
+   "equivalent_q": "q_support_bois",
+   "usage": "auvents, séchoirs, étais",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_support_bois",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "auvents, séchoirs, étais",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_grille_fer",
+   "source": "Prop_MetalFence_Simple",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_grille_fer.glb",
+   "dimensions_m": [
+    1.223,
+    1.8,
+    0.098
+   ],
+   "tris": 2744,
+   "tris_source": 2744,
+   "reduction": null,
+   "budget": 6900,
+   "echelle": 0.6275,
+   "atlas": [
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 75.4
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.223,
+     1.8,
+     0.098
+    ],
+    "centre_y": 0.9
+   },
+   "octets": 165536,
+   "ilots_uv": 245,
+   "nom": "grille de fer simple",
+   "matiere": "fer",
+   "equivalent_q": "q_grille_fer",
+   "usage": "grilles de la crypte, clôture du tumulus",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_grille_fer",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "grilles de la crypte, clôture du tumulus",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_grille_fer_ornee",
+   "source": "Prop_MetalFence_Ornament",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_grille_fer_ornee.glb",
+   "dimensions_m": [
+    1.232,
+    1.8,
+    0.098
+   ],
+   "tris": 3988,
+   "tris_source": 3988,
+   "reduction": null,
+   "budget": 6899,
+   "echelle": 0.6311,
+   "atlas": [
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 75.2
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.232,
+     1.8,
+     0.098
+    ],
+    "centre_y": 0.9
+   },
+   "octets": 284324,
+   "ilots_uv": 348,
+   "nom": "grille de fer ouvragée",
+   "matiere": "fer",
+   "equivalent_q": "q_grille_fer_ornee",
+   "usage": "grille de la halle, enclos du cimetière",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_grille_fer_ornee",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "grille de la halle, enclos du cimetière",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_brique_1",
+   "source": "Prop_Brick1",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_brique_1.glb",
+   "dimensions_m": [
+    0.346,
+    0.208,
+    0.25
+   ],
+   "tris": 108,
+   "tris_source": 108,
+   "reduction": null,
+   "budget": 2536,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.3
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.346,
+     0.208,
+     0.25
+    ],
+    "centre_y": 0.104
+   },
+   "octets": 6748,
+   "ilots_uv": 6,
+   "nom": "moellon 1",
+   "matiere": "pierre",
+   "equivalent_q": "q_brique_1",
+   "usage": "kitbash puits / foyers / couronne du feu de camp",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_brique_1",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "kitbash puits / foyers / couronne du feu de camp",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_brique_2",
+   "source": "Prop_Brick2",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_brique_2.glb",
+   "dimensions_m": [
+    0.395,
+    0.245,
+    0.217
+   ],
+   "tris": 94,
+   "tris_source": 94,
+   "reduction": null,
+   "budget": 2686,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.2
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.395,
+     0.245,
+     0.217
+    ],
+    "centre_y": 0.122
+   },
+   "octets": 6864,
+   "ilots_uv": 9,
+   "nom": "moellon 2",
+   "matiere": "pierre",
+   "equivalent_q": "q_brique_2",
+   "usage": "kitbash puits / foyers",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_brique_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "kitbash puits / foyers",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_brique_3",
+   "source": "Prop_Brick3",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_brique_3.glb",
+   "dimensions_m": [
+    0.381,
+    0.25,
+    0.216
+   ],
+   "tris": 126,
+   "tris_source": 126,
+   "reduction": null,
+   "budget": 2644,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.381,
+     0.25,
+     0.216
+    ],
+    "centre_y": 0.125
+   },
+   "octets": 7416,
+   "ilots_uv": 10,
+   "nom": "moellon 3",
+   "matiere": "pierre",
+   "equivalent_q": "q_brique_3",
+   "usage": "kitbash puits / foyers",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_brique_3",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "kitbash puits / foyers",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_brique_4",
+   "source": "Prop_Brick4",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_brique_4.glb",
+   "dimensions_m": [
+    0.257,
+    0.25,
+    0.216
+   ],
+   "tris": 126,
+   "tris_source": 126,
+   "reduction": null,
+   "budget": 2270,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.1
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.257,
+     0.25,
+     0.216
+    ],
+    "centre_y": 0.125
+   },
+   "octets": 7540,
+   "ilots_uv": 11,
+   "nom": "moellon 4",
+   "matiere": "pierre",
+   "equivalent_q": "q_brique_4",
+   "usage": "kitbash puits / foyers",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_brique_4",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "kitbash puits / foyers",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_bordure_1",
+   "source": "Prop_ExteriorBorder_Straight1",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_bordure_1.glb",
+   "dimensions_m": [
+    2.0,
+    0.134,
+    0.7
+   ],
+   "tris": 16,
+   "tris_source": 16,
+   "reduction": null,
+   "budget": 7500,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     2.0,
+     0.134,
+     0.7
+    ],
+    "centre_y": 0.067
+   },
+   "octets": 2744,
+   "ilots_uv": 6,
+   "nom": "dalle de bordure",
+   "matiere": "pierre",
+   "equivalent_q": "q_bordure_1",
+   "usage": "margelle du puits, bordures",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_bordure_1",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "margelle du puits, bordures",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_bordure_2",
+   "source": "Prop_ExteriorBorder_Straight2",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_bordure_2.glb",
+   "dimensions_m": [
+    2.0,
+    0.134,
+    0.7
+   ],
+   "tris": 16,
+   "tris_source": 16,
+   "reduction": null,
+   "budget": 7500,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     2.0,
+     0.134,
+     0.7
+    ],
+    "centre_y": 0.067
+   },
+   "octets": 2744,
+   "ilots_uv": 6,
+   "nom": "dalle de bordure 2",
+   "matiere": "pierre",
+   "equivalent_q": "q_bordure_2",
+   "usage": "bordures, offrandes (dalle basse)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_bordure_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "bordures, offrandes (dalle basse)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_bordure_angle",
+   "source": "Prop_ExteriorBorder_Corner",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_bordure_angle.glb",
+   "dimensions_m": [
+    0.7,
+    0.134,
+    0.7
+   ],
+   "tris": 18,
+   "tris_source": 18,
+   "reduction": null,
+   "budget": 3600,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.8
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.7,
+     0.134,
+     0.7
+    ],
+    "centre_y": 0.067
+   },
+   "octets": 2876,
+   "ilots_uv": 6,
+   "nom": "dalle de bordure d'angle",
+   "matiere": "pierre",
+   "equivalent_q": "q_bordure_angle",
+   "usage": "bordures",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_bordure_angle",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "bordures",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_planches_sol",
+   "source": "Floor_WoodDark_Half1",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_planches_sol.glb",
+   "dimensions_m": [
+    1.0,
+    0.02,
+    2.0
+   ],
+   "tris": 32,
+   "tris_source": 32,
+   "reduction": null,
+   "budget": 7500,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 64.5
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.0,
+     0.02,
+     2.0
+    ],
+    "centre_y": 0.01
+   },
+   "octets": 2928,
+   "ilots_uv": 2,
+   "nom": "plancher de planches",
+   "matiere": "bois",
+   "equivalent_q": "q_planches_sol",
+   "usage": "estrade de la halle, toit du puits, soufflet (kitbash)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_planches_sol",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "estrade de la halle, toit du puits, soufflet (kitbash)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_porte_1_plate",
+   "source": "Door_1_Flat",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_porte_1_plate.glb",
+   "dimensions_m": [
+    1.171,
+    2.2,
+    0.126
+   ],
+   "tris": 314,
+   "tris_source": 314,
+   "reduction": null,
+   "budget": 8099,
+   "echelle": 1.0478,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 40.9,
+    "fer": 0.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.171,
+     2.2,
+     0.126
+    ],
+    "centre_y": 1.1
+   },
+   "octets": 28076,
+   "ilots_uv": 74,
+   "nom": "porte de planches 1",
+   "matiere": "bois",
+   "equivalent_q": "q_porte_1_plate",
+   "usage": "portes des maisons closes (q_porte_*)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_porte_1_plate",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "portes des maisons closes (q_porte_*)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_porte_1_ronde",
+   "source": "Door_1_Round",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_porte_1_ronde.glb",
+   "dimensions_m": [
+    1.063,
+    2.2,
+    0.115
+   ],
+   "tris": 470,
+   "tris_source": 470,
+   "reduction": null,
+   "budget": 8100,
+   "echelle": 0.949,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 43.4,
+    "fer": 0.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.063,
+     2.2,
+     0.115
+    ],
+    "centre_y": 1.1
+   },
+   "octets": 39864,
+   "ilots_uv": 80,
+   "nom": "porte de planches 1 cintrée",
+   "matiere": "bois",
+   "equivalent_q": "q_porte_1_ronde",
+   "usage": "portes des maisons closes",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_porte_1_ronde",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "portes des maisons closes",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_porte_2_plate",
+   "source": "Door_2_Flat",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_porte_2_plate.glb",
+   "dimensions_m": [
+    1.167,
+    2.2,
+    0.273
+   ],
+   "tris": 6032,
+   "tris_source": 6032,
+   "reduction": null,
+   "budget": 8100,
+   "echelle": 1.0474,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 77.1,
+    "fer": 0.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.167,
+     2.2,
+     0.273
+    ],
+    "centre_y": 1.1
+   },
+   "octets": 325648,
+   "ilots_uv": 436,
+   "nom": "porte de planches 2",
+   "matiere": "bois",
+   "equivalent_q": "q_porte_2_plate",
+   "usage": "portes des maisons closes",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_porte_2_plate",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "portes des maisons closes",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_porte_2_ronde",
+   "source": "Door_2_Round",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_porte_2_ronde.glb",
+   "dimensions_m": [
+    1.054,
+    2.2,
+    0.247
+   ],
+   "tris": 6188,
+   "tris_source": 6188,
+   "reduction": null,
+   "budget": 8100,
+   "echelle": 0.9452,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 81.2,
+    "fer": 0.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.054,
+     2.2,
+     0.247
+    ],
+    "centre_y": 1.1
+   },
+   "octets": 329224,
+   "ilots_uv": 435,
+   "nom": "porte de planches 2 cintrée",
+   "matiere": "bois",
+   "equivalent_q": "q_porte_2_ronde",
+   "usage": "portes des maisons closes",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_porte_2_ronde",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "portes des maisons closes",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_porte_4_plate",
+   "source": "Door_4_Flat",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_porte_4_plate.glb",
+   "dimensions_m": [
+    1.176,
+    2.2,
+    0.22
+   ],
+   "tris": 1034,
+   "tris_source": 1034,
+   "reduction": null,
+   "budget": 8100,
+   "echelle": 1.0517,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 65.5,
+    "fer": 0.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.176,
+     2.2,
+     0.22
+    ],
+    "centre_y": 1.1
+   },
+   "octets": 69608,
+   "ilots_uv": 141,
+   "nom": "porte de planches 4",
+   "matiere": "bois",
+   "equivalent_q": "q_porte_4_plate",
+   "usage": "portes des maisons closes",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_porte_4_plate",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "portes des maisons closes",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_porte_4_ronde",
+   "source": "Door_4_Round",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_porte_4_ronde.glb",
+   "dimensions_m": [
+    1.056,
+    2.2,
+    0.198
+   ],
+   "tris": 1218,
+   "tris_source": 1218,
+   "reduction": null,
+   "budget": 8100,
+   "echelle": 0.9471,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 72.6,
+    "fer": 0.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.056,
+     2.2,
+     0.198
+    ],
+    "centre_y": 1.1
+   },
+   "octets": 81708,
+   "ilots_uv": 141,
+   "nom": "porte de planches 4 cintrée",
+   "matiere": "bois",
+   "equivalent_q": "q_porte_4_ronde",
+   "usage": "portes des maisons closes",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_porte_4_ronde",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "portes des maisons closes",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_porte_8_plate",
+   "source": "Door_8_Flat",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_porte_8_plate.glb",
+   "dimensions_m": [
+    1.171,
+    2.2,
+    0.209
+   ],
+   "tris": 986,
+   "tris_source": 986,
+   "reduction": null,
+   "budget": 8100,
+   "echelle": 1.048,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 59.8,
+    "fer": 0.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.171,
+     2.2,
+     0.209
+    ],
+    "centre_y": 1.1
+   },
+   "octets": 75560,
+   "ilots_uv": 161,
+   "nom": "porte ferrée 8",
+   "matiere": "bois + fer",
+   "equivalent_q": "q_porte_8_plate",
+   "usage": "portes des maisons closes, halle",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_porte_8_plate",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "portes des maisons closes, halle",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_porte_8_ronde",
+   "source": "Door_8_Round",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_porte_8_ronde.glb",
+   "dimensions_m": [
+    1.09,
+    2.2,
+    0.189
+   ],
+   "tris": 1142,
+   "tris_source": 1142,
+   "reduction": null,
+   "budget": 8100,
+   "echelle": 0.9466,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 71.0,
+    "fer": 0.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.09,
+     2.2,
+     0.189
+    ],
+    "centre_y": 1.1
+   },
+   "octets": 84136,
+   "ilots_uv": 171,
+   "nom": "porte ferrée 8 cintrée",
+   "matiere": "bois + fer",
+   "equivalent_q": "q_porte_8_ronde",
+   "usage": "portes des maisons closes, halle",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_porte_8_ronde",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "portes des maisons closes, halle",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_volets_etroits_fermes",
+   "source": "WindowShutters_Thin_Flat_Closed",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_volets_etroits_fermes.glb",
+   "dimensions_m": [
+    0.852,
+    1.424,
+    0.136
+   ],
+   "tris": 96,
+   "tris_source": 96,
+   "reduction": null,
+   "budget": 5772,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 67.7
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.852,
+     1.424,
+     0.136
+    ],
+    "centre_y": 0.712
+   },
+   "octets": 11320,
+   "ilots_uv": 48,
+   "nom": "volets étroits fermés",
+   "matiere": "bois",
+   "equivalent_q": "q_volets_thin_flat_closed",
+   "usage": "volets des fenêtres (q_volets_*)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_volets_thin_flat_closed",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "volets des fenêtres (q_volets_*)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_volets_etroits_ouverts",
+   "source": "WindowShutters_Thin_Flat_Open",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_volets_etroits_ouverts.glb",
+   "dimensions_m": [
+    1.354,
+    1.424,
+    0.377
+   ],
+   "tris": 96,
+   "tris_source": 96,
+   "reduction": null,
+   "budget": 5772,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 69.8
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.354,
+     1.424,
+     0.377
+    ],
+    "centre_y": 0.712
+   },
+   "octets": 11312,
+   "ilots_uv": 48,
+   "nom": "volets étroits ouverts",
+   "matiere": "bois",
+   "equivalent_q": "q_volets_thin_flat_open",
+   "usage": "volets des fenêtres",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_volets_thin_flat_open",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "volets des fenêtres",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_volets_larges_fermes",
+   "source": "WindowShutters_Wide_Flat_Closed",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_volets_larges_fermes.glb",
+   "dimensions_m": [
+    1.347,
+    1.424,
+    0.136
+   ],
+   "tris": 120,
+   "tris_source": 120,
+   "reduction": null,
+   "budget": 5772,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 66.5
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.347,
+     1.424,
+     0.136
+    ],
+    "centre_y": 0.712
+   },
+   "octets": 13768,
+   "ilots_uv": 60,
+   "nom": "volets larges fermés",
+   "matiere": "bois",
+   "equivalent_q": "q_volets_wide_flat_closed",
+   "usage": "volets des fenêtres",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_volets_wide_flat_closed",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "volets des fenêtres",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_volets_larges_ouverts",
+   "source": "WindowShutters_Wide_Flat_Open",
+   "pack": "Medieval Village MegaKit",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_volets_larges_ouverts.glb",
+   "dimensions_m": [
+    2.481,
+    1.424,
+    0.457
+   ],
+   "tris": 120,
+   "tris_source": 120,
+   "reduction": null,
+   "budget": 8941,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 66.5
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     2.481,
+     1.424,
+     0.457
+    ],
+    "centre_y": 0.712
+   },
+   "octets": 13860,
+   "ilots_uv": 60,
+   "nom": "volets larges ouverts",
+   "matiere": "bois",
+   "equivalent_q": "q_volets_wide_flat_open",
+   "usage": "volets des fenêtres",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_volets_wide_flat_open",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "volets des fenêtres",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_sac_pieces",
+   "source": "Bag_Coins",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_sac_pieces.glb",
+   "dimensions_m": [
+    0.442,
+    0.115,
+    0.222
+   ],
+   "tris": 976,
+   "tris_source": 976,
+   "reduction": null,
+   "budget": 2825,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v",
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "tissu_v": 74.0,
+    "fer_v": 79.1
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.442,
+     0.115,
+     0.222
+    ],
+    "centre_y": 0.057
+   },
+   "octets": 76796,
+   "ilots_uv": 112,
+   "nom": "sac de pièces couché",
+   "matiere": "toile de jute + or",
+   "equivalent_q": "q_sac_pieces",
+   "usage": "trésor de la crypte (sac_a/b)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_sac_pieces",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "trésor de la crypte (sac_a/b)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_sac_debout",
+   "source": "Bag_Standing",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "exterieur_marche",
+   "fichier": "res://assets/modeles/props_quat/exterieur_marche/pq_sac_debout.glb",
+   "dimensions_m": [
+    0.218,
+    0.253,
+    0.21
+   ],
+   "tris": 456,
+   "tris_source": 456,
+   "reduction": null,
+   "budget": 2258,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v",
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "tissu_v": 73.7,
+    "fer_v": 76.3
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.109,
+    "hauteur": 0.253
+   },
+   "octets": 41664,
+   "ilots_uv": 7,
+   "nom": "sac debout ficelé",
+   "matiere": "toile de jute",
+   "equivalent_q": "q_sac_debout",
+   "usage": "sacs du marché, réserves (alias pq_sac aujourd'hui)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_sac_debout",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "sacs du marché, réserves (alias pq_sac aujourd'hui)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_banniere_mur",
+   "source": "Banner_wall",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_banniere_mur.glb",
+   "dimensions_m": [
+    1.64,
+    2.847,
+    0.593
+   ],
+   "tris": 440,
+   "tris_source": 440,
+   "reduction": null,
+   "budget": 10000,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois",
+    "pq_fer",
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "fer": 78.1,
+    "bois": 77.7,
+    "tissu_v": 80.1
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.64,
+     2.847,
+     0.593
+    ],
+    "centre_y": 1.423
+   },
+   "octets": 35992,
+   "ilots_uv": 61,
+   "nom": "bannière murale",
+   "matiere": "laine rouge, bois, fer",
+   "equivalent_q": "q_banniere_mur",
+   "usage": "halle, salle du trône, crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_banniere_mur",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "halle, salle du trône, crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_tonneau_2",
+   "source": "Barrel2",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_tonneau_2.glb",
+   "dimensions_m": [
+    1.028,
+    1.347,
+    1.016
+   ],
+   "tris": 1088,
+   "tris_source": 1088,
+   "reduction": null,
+   "budget": 5539,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 76.2
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.514,
+    "hauteur": 1.347
+   },
+   "octets": 90624,
+   "ilots_uv": 95,
+   "nom": "tonneau cerclé de bois",
+   "matiere": "bois",
+   "equivalent_q": "q_tonneau_2",
+   "usage": "tonneau_b / tonneau_c (alias pq_tonneau aujourd'hui)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_tonneau_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "tonneau_b / tonneau_c (alias pq_tonneau aujourd'hui)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_seau_2",
+   "source": "Bucket",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_seau_2.glb",
+   "dimensions_m": [
+    0.378,
+    0.529,
+    0.404
+   ],
+   "tris": 360,
+   "tris_source": 360,
+   "reduction": null,
+   "budget": 3088,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 76.6,
+    "fer": 77.5
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.202,
+    "hauteur": 0.529
+   },
+   "octets": 32680,
+   "ilots_uv": 51,
+   "nom": "seau de bois cerclé de fer",
+   "matiere": "bois + fer",
+   "equivalent_q": "q_seau_2",
+   "usage": "seaux (alias pq_seau_bois aujourd'hui)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_seau_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "seaux (alias pq_seau_bois aujourd'hui)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_chaise_2",
+   "source": "Chair",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_chaise_2.glb",
+   "dimensions_m": [
+    0.627,
+    1.159,
+    0.702
+   ],
+   "tris": 1298,
+   "tris_source": 1298,
+   "reduction": null,
+   "budget": 4976,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois",
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "bois": 79.1,
+    "tissu_v": 77.8
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.627,
+     1.159,
+     0.702
+    ],
+    "centre_y": 0.579
+   },
+   "octets": 91984,
+   "ilots_uv": 205,
+   "nom": "chaise à assise de laine",
+   "matiere": "bois + laine rouge",
+   "equivalent_q": "q_chaise_2",
+   "usage": "chaises de la crypte (alias pq_chaise aujourd'hui)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_chaise_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "chaises de la crypte (alias pq_chaise aujourd'hui)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_coffre_2",
+   "source": "Chest",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_coffre_2.glb",
+   "dimensions_m": [
+    1.179,
+    0.898,
+    0.824
+   ],
+   "tris": 1676,
+   "tris_source": 1676,
+   "reduction": null,
+   "budget": 5037,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 77.5,
+    "fer": 79.2
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.179,
+     0.898,
+     0.824
+    ],
+    "centre_y": 0.449
+   },
+   "octets": 116628,
+   "ilots_uv": 174,
+   "nom": "coffre ferré bombé",
+   "matiere": "bois + fer",
+   "equivalent_q": "q_coffre_2",
+   "usage": "coffres décor (alias pq_coffre_ferme aujourd'hui)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_coffre_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "coffres décor (alias pq_coffre_ferme aujourd'hui)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_toile_araignee_1",
+   "source": "Cobweb",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_toile_araignee_1.glb",
+   "dimensions_m": [
+    1.206,
+    0.755,
+    0.911
+   ],
+   "tris": 1108,
+   "tris_source": 1108,
+   "reduction": null,
+   "budget": 5117,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "tissu_v": 72.8
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.206,
+     0.755,
+     0.911
+    ],
+    "centre_y": 0.377
+   },
+   "octets": 96668,
+   "ilots_uv": 321,
+   "nom": "toile d'araignée",
+   "matiere": "écru",
+   "equivalent_q": "q_toile_araignee_1",
+   "usage": "angles de la crypte et de la grotte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_toile_araignee_1",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "angles de la crypte et de la grotte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_toile_araignee_2",
+   "source": "Cobweb2",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_toile_araignee_2.glb",
+   "dimensions_m": [
+    1.339,
+    0.845,
+    1.03
+   ],
+   "tris": 868,
+   "tris_source": 868,
+   "reduction": null,
+   "budget": 5517,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "tissu_v": 72.6
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.339,
+     0.845,
+     1.03
+    ],
+    "centre_y": 0.423
+   },
+   "octets": 76028,
+   "ilots_uv": 254,
+   "nom": "toile d'araignée 2",
+   "matiere": "écru",
+   "equivalent_q": "q_toile_araignee_2",
+   "usage": "angles de la crypte et de la grotte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_toile_araignee_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "angles de la crypte et de la grotte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_colonne_donjon",
+   "source": "Column",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_colonne_donjon.glb",
+   "dimensions_m": [
+    1.304,
+    4.065,
+    1.304
+   ],
+   "tris": 440,
+   "tris_source": 440,
+   "reduction": null,
+   "budget": 10000,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 78.5
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.304,
+     4.065,
+     1.304
+    ],
+    "centre_y": 2.033
+   },
+   "octets": 34564,
+   "ilots_uv": 49,
+   "nom": "colonne de crypte",
+   "matiere": "pierre",
+   "equivalent_q": "q_colonne_1",
+   "usage": "colonnes de la crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_colonne_1",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "colonnes de la crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_colonne_donjon_2",
+   "source": "Column2",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_colonne_donjon_2.glb",
+   "dimensions_m": [
+    1.304,
+    4.072,
+    1.304
+   ],
+   "tris": 548,
+   "tris_source": 548,
+   "reduction": null,
+   "budget": 10000,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 78.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.304,
+     4.072,
+     1.304
+    ],
+    "centre_y": 2.036
+   },
+   "octets": 40336,
+   "ilots_uv": 100,
+   "nom": "colonne de crypte 2",
+   "matiere": "pierre",
+   "equivalent_q": "q_colonne_2",
+   "usage": "colonnes de la crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_colonne_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "colonnes de la crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_caisse_2",
+   "source": "Crate",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_caisse_2.glb",
+   "dimensions_m": [
+    1.38,
+    1.308,
+    1.311
+   ],
+   "tris": 2502,
+   "tris_source": 2502,
+   "reduction": null,
+   "budget": 5639,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 76.7
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.38,
+     1.308,
+     1.311
+    ],
+    "centre_y": 0.654
+   },
+   "octets": 153468,
+   "ilots_uv": 222,
+   "nom": "caisse de planches cerclée",
+   "matiere": "bois",
+   "equivalent_q": "q_caisse_2",
+   "usage": "g_caisse_a (alias pq_caisse_fer aujourd'hui)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_caisse_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "g_caisse_a (alias pq_caisse_fer aujourd'hui)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_muret",
+   "source": "Fence_Straight_Modular",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_muret.glb",
+   "dimensions_m": [
+    2.0,
+    1.294,
+    0.781
+   ],
+   "tris": 104,
+   "tris_source": 104,
+   "reduction": null,
+   "budget": 7500,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.2
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     2.0,
+     1.294,
+     0.781
+    ],
+    "centre_y": 0.647
+   },
+   "octets": 9644,
+   "ilots_uv": 32,
+   "nom": "muret de pierre",
+   "matiere": "pierre",
+   "equivalent_q": "q_palissade",
+   "usage": "murets de la crypte, enclos",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_palissade",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "murets de la crypte, enclos",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_muret_bout",
+   "source": "Fence_End_Modular",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_muret_bout.glb",
+   "dimensions_m": [
+    1.391,
+    1.294,
+    0.781
+   ],
+   "tris": 102,
+   "tris_source": 102,
+   "reduction": null,
+   "budget": 5671,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.1
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.391,
+     1.294,
+     0.781
+    ],
+    "centre_y": 0.647
+   },
+   "octets": 9500,
+   "ilots_uv": 31,
+   "nom": "muret de pierre (bout)",
+   "matiere": "pierre",
+   "equivalent_q": "q_palissade_bout",
+   "usage": "murets",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_palissade_bout",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "murets",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_muret_angle",
+   "source": "Fence_90_Modular",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_muret_angle.glb",
+   "dimensions_m": [
+    1.391,
+    1.294,
+    1.391
+   ],
+   "tris": 112,
+   "tris_source": 112,
+   "reduction": null,
+   "budget": 5671,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.2
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.695,
+    "hauteur": 1.294
+   },
+   "octets": 10360,
+   "ilots_uv": 36,
+   "nom": "muret de pierre (angle)",
+   "matiere": "pierre",
+   "equivalent_q": "q_palissade_angle",
+   "usage": "murets",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_palissade_angle",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "murets",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_piedestal_1",
+   "source": "Pedestal",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_piedestal_1.glb",
+   "dimensions_m": [
+    1.947,
+    2.193,
+    1.959
+   ],
+   "tris": 1844,
+   "tris_source": 1844,
+   "reduction": null,
+   "budget": 8079,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 78.0
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.98,
+    "hauteur": 2.193
+   },
+   "octets": 135644,
+   "ilots_uv": 341,
+   "nom": "piédestal",
+   "matiere": "pierre",
+   "equivalent_q": "q_piedestal_1",
+   "usage": "présentoirs, reliquaires",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_piedestal_1",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "présentoirs, reliquaires",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_piedestal_2",
+   "source": "Pedestal2",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_piedestal_2.glb",
+   "dimensions_m": [
+    1.743,
+    2.315,
+    1.743
+   ],
+   "tris": 1182,
+   "tris_source": 1182,
+   "reduction": null,
+   "budget": 8444,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 97.1
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.743,
+     2.315,
+     1.743
+    ],
+    "centre_y": 1.157
+   },
+   "octets": 84384,
+   "ilots_uv": 221,
+   "nom": "piédestal 2",
+   "matiere": "pierre",
+   "equivalent_q": "q_piedestal_2",
+   "usage": "présentoirs, reliquaires",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_piedestal_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "présentoirs, reliquaires",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_crane",
+   "source": "Skull",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_crane.glb",
+   "dimensions_m": [
+    0.601,
+    0.461,
+    0.438
+   ],
+   "tris": 1392,
+   "tris_source": 1392,
+   "reduction": null,
+   "budget": 3301,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 73.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.601,
+     0.461,
+     0.438
+    ],
+    "centre_y": 0.231
+   },
+   "octets": 120376,
+   "ilots_uv": 26,
+   "nom": "crâne",
+   "matiere": "os",
+   "equivalent_q": "q_crane",
+   "usage": "crane_a/b de la crypte et de la grotte (gardés : aucun pq_*)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_crane",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "crane_a/b de la crypte et de la grotte (gardés : aucun pq_*)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_pieux",
+   "source": "Spikes",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_pieux.glb",
+   "dimensions_m": [
+    1.765,
+    1.175,
+    1.765
+   ],
+   "tris": 504,
+   "tris_source": 504,
+   "reduction": null,
+   "budget": 6793,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 73.7
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.765,
+     1.175,
+     1.765
+    ],
+    "centre_y": 0.588
+   },
+   "octets": 50472,
+   "ilots_uv": 180,
+   "nom": "pointes de fer",
+   "matiere": "fer",
+   "equivalent_q": "q_pieux",
+   "usage": "pièges, défenses",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_pieux",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "pièges, défenses",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_epee_support",
+   "source": "Sword_WallMount",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "armes_outils",
+   "fichier": "res://assets/modeles/props_quat/armes_outils/pq_epee_support.glb",
+   "dimensions_m": [
+    1.066,
+    0.847,
+    0.212
+   ],
+   "tris": 2382,
+   "tris_source": 2382,
+   "reduction": null,
+   "budget": 4697,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois",
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "bois": 79.4,
+    "fer": 72.3
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.066,
+     0.847,
+     0.212
+    ],
+    "centre_y": 0.424
+   },
+   "octets": 166400,
+   "ilots_uv": 193,
+   "nom": "épée sur support mural",
+   "matiere": "fer + bois",
+   "equivalent_q": "q_epee_support",
+   "usage": "trophée mural de la halle, armurerie",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_epee_support",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "trophée mural de la halle, armurerie",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_table_grande_2",
+   "source": "Table_Big",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_table_grande_2.glb",
+   "dimensions_m": [
+    1.584,
+    0.854,
+    3.303
+   ],
+   "tris": 916,
+   "tris_source": 916,
+   "reduction": null,
+   "budget": 10000,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 78.8,
+    "fer": 79.7
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.584,
+     0.854,
+     3.303
+    ],
+    "centre_y": 0.427
+   },
+   "octets": 70212,
+   "ilots_uv": 141,
+   "nom": "grande table de planches ferrée",
+   "matiere": "bois + fer",
+   "equivalent_q": "q_table_grande_2",
+   "usage": "tables de la crypte (table_a/b/c), réfectoire",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_table_grande_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "tables de la crypte (table_a/b/c), réfectoire",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_table_petite_2",
+   "source": "Table_Small",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_table_petite_2.glb",
+   "dimensions_m": [
+    1.305,
+    0.854,
+    1.979
+   ],
+   "tris": 804,
+   "tris_source": 804,
+   "reduction": null,
+   "budget": 7437,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 79.0,
+    "fer": 79.6
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.305,
+     0.854,
+     1.979
+    ],
+    "centre_y": 0.427
+   },
+   "octets": 61220,
+   "ilots_uv": 126,
+   "nom": "petite table de planches ferrée",
+   "matiere": "bois + fer",
+   "equivalent_q": "q_table_petite_2",
+   "usage": "tables de la crypte, camp",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_table_petite_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "tables de la crypte, camp",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_piege_pieux",
+   "source": "Trap_spikes",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_piege_pieux.glb",
+   "dimensions_m": [
+    1.989,
+    1.173,
+    1.989
+   ],
+   "tris": 2032,
+   "tris_source": 2032,
+   "reduction": null,
+   "budget": 7467,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 77.8
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.989,
+     1.173,
+     1.989
+    ],
+    "centre_y": 0.586
+   },
+   "octets": 137012,
+   "ilots_uv": 330,
+   "nom": "dalle à pointes (piège)",
+   "matiere": "fer",
+   "equivalent_q": "q_piege_pieux",
+   "usage": "pièges de la crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_piege_pieux",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "pièges de la crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_vase_5",
+   "source": "Vase",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_vase_5.glb",
+   "dimensions_m": [
+    0.311,
+    0.361,
+    0.311
+   ],
+   "tris": 220,
+   "tris_source": 220,
+   "reduction": null,
+   "budget": 2583,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 73.4
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.155,
+    "hauteur": 0.361
+   },
+   "octets": 19964,
+   "ilots_uv": 11,
+   "nom": "urne de terre cuite",
+   "matiere": "argile",
+   "equivalent_q": "q_vase_5",
+   "usage": "urne_b (alias pq_vase_4 aujourd'hui)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_vase_5",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "urne_b (alias pq_vase_4 aujourd'hui)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_bucher",
+   "source": "Woodfire",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_bucher.glb",
+   "dimensions_m": [
+    0.776,
+    0.448,
+    0.827
+   ],
+   "tris": 144,
+   "tris_source": 144,
+   "reduction": null,
+   "budget": 3979,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 71.3
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.413,
+    "hauteur": 0.448
+   },
+   "octets": 12312,
+   "ilots_uv": 30,
+   "nom": "bûcher (sans flamme)",
+   "matiere": "bois",
+   "equivalent_q": "q_bucher",
+   "usage": "foyers, feu de camp, forge de plein air (q_bucher gardé)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_bucher",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "foyers, feu de camp, forge de plein air (q_bucher gardé)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_os_tas",
+   "source": "Bones",
+   "pack": "Medieval Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_os_tas.glb",
+   "dimensions_m": [
+    0.43,
+    0.215,
+    0.371
+   ],
+   "tris": 788,
+   "tris_source": 788,
+   "reduction": null,
+   "budget": 2789,
+   "echelle": 0.2,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 76.3
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.215,
+    "hauteur": 0.215
+   },
+   "octets": 65552,
+   "ilots_uv": 113,
+   "nom": "tas d'os",
+   "matiere": "os",
+   "equivalent_q": "q_os_tas",
+   "usage": "ossuaire, monticules d'os de la crypte (gardés)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_os_tas",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "ossuaire, monticules d'os de la crypte (gardés)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_os_tas_2",
+   "source": "Bones2",
+   "pack": "Medieval Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_os_tas_2.glb",
+   "dimensions_m": [
+    0.294,
+    0.137,
+    0.37
+   ],
+   "tris": 576,
+   "tris_source": 576,
+   "reduction": null,
+   "budget": 2610,
+   "echelle": 0.2,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 74.8
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.294,
+     0.137,
+     0.37
+    ],
+    "centre_y": 0.069
+   },
+   "octets": 49640,
+   "ilots_uv": 54,
+   "nom": "tas d'os 2",
+   "matiere": "os",
+   "equivalent_q": "q_os_tas_2",
+   "usage": "ossuaire, crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_os_tas_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "ossuaire, crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_roc_1",
+   "source": "Rock1",
+   "pack": "Medieval Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_roc_1.glb",
+   "dimensions_m": [
+    0.43,
+    0.208,
+    0.58
+   ],
+   "tris": 24,
+   "tris_source": 24,
+   "reduction": null,
+   "budget": 3238,
+   "echelle": 0.5,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 75.6
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.43,
+     0.208,
+     0.58
+    ],
+    "centre_y": 0.104
+   },
+   "octets": 4216,
+   "ilots_uv": 9,
+   "nom": "gravats 1",
+   "matiere": "pierre",
+   "equivalent_q": "q_roc_1",
+   "usage": "gravats de la crypte et de la mine",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_roc_1",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "gravats de la crypte et de la mine",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_roc_2",
+   "source": "Rock2",
+   "pack": "Medieval Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_roc_2.glb",
+   "dimensions_m": [
+    0.542,
+    0.213,
+    0.533
+   ],
+   "tris": 20,
+   "tris_source": 20,
+   "reduction": null,
+   "budget": 3126,
+   "echelle": 0.5,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 73.9
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.271,
+    "hauteur": 0.213
+   },
+   "octets": 3716,
+   "ilots_uv": 10,
+   "nom": "gravats 2",
+   "matiere": "pierre",
+   "equivalent_q": "q_roc_2",
+   "usage": "gravats",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_roc_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "gravats",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_roc_3",
+   "source": "Rock3",
+   "pack": "Medieval Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_roc_3.glb",
+   "dimensions_m": [
+    0.415,
+    0.208,
+    0.533
+   ],
+   "tris": 28,
+   "tris_source": 28,
+   "reduction": null,
+   "budget": 3098,
+   "echelle": 0.5,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 74.8
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.415,
+     0.208,
+     0.533
+    ],
+    "centre_y": 0.104
+   },
+   "octets": 4316,
+   "ilots_uv": 7,
+   "nom": "gravats 3",
+   "matiere": "pierre",
+   "equivalent_q": "q_roc_3",
+   "usage": "gravats",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_roc_3",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "gravats",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_colonne_brisee",
+   "source": "Column_Broken",
+   "pack": "Medieval Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_colonne_brisee.glb",
+   "dimensions_m": [
+    0.613,
+    0.624,
+    1.112
+   ],
+   "tris": 140,
+   "tris_source": 140,
+   "reduction": null,
+   "budget": 4835,
+   "echelle": 0.45,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 75.4
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.613,
+     0.624,
+     1.112
+    ],
+    "centre_y": 0.312
+   },
+   "octets": 11408,
+   "ilots_uv": 21,
+   "nom": "colonne brisée",
+   "matiere": "pierre",
+   "equivalent_q": "q_colonne_brisee",
+   "usage": "crypte en ruine, tumulus",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_colonne_brisee",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "crypte en ruine, tumulus",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_colonne_brisee_2",
+   "source": "Column_Broken2",
+   "pack": "Medieval Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_colonne_brisee_2.glb",
+   "dimensions_m": [
+    0.9,
+    1.282,
+    0.9
+   ],
+   "tris": 172,
+   "tris_source": 172,
+   "reduction": null,
+   "budget": 5345,
+   "echelle": 0.45,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 78.0
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.45,
+    "hauteur": 1.282
+   },
+   "octets": 13688,
+   "ilots_uv": 26,
+   "nom": "colonne brisée 2",
+   "matiere": "pierre",
+   "equivalent_q": "q_colonne_brisee_2",
+   "usage": "crypte en ruine",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_colonne_brisee_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "crypte en ruine",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_fiole_1",
+   "source": "Potion",
+   "pack": "Medieval Dungeon",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_fiole_1.glb",
+   "dimensions_m": [
+    0.086,
+    0.175,
+    0.086
+   ],
+   "tris": 444,
+   "tris_source": 444,
+   "reduction": null,
+   "budget": 2024,
+   "echelle": 0.15,
+   "atlas": [
+    "pq_bois",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 74.4,
+    "bois": 77.8
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 31356,
+   "ilots_uv": 29,
+   "nom": "fiole 1",
+   "matiere": "verre sombre",
+   "equivalent_q": "q_fiole_1",
+   "usage": "groupes de fioles (archives, alchimie)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_fiole_1",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "groupes de fioles (archives, alchimie)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_fiole_2",
+   "source": "Potion2",
+   "pack": "Medieval Dungeon",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_fiole_2.glb",
+   "dimensions_m": [
+    0.072,
+    0.16,
+    0.072
+   ],
+   "tris": 248,
+   "tris_source": 248,
+   "reduction": null,
+   "budget": 1980,
+   "echelle": 0.15,
+   "atlas": [
+    "pq_bois",
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer": 74.6,
+    "bois": 77.8,
+    "fer_v": 80.0
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 21636,
+   "ilots_uv": 27,
+   "nom": "fiole 2",
+   "matiere": "verre sombre",
+   "equivalent_q": "q_fiole_2",
+   "usage": "groupes de fioles",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_fiole_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "groupes de fioles",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_fiole_3",
+   "source": "Potion3",
+   "pack": "Medieval Dungeon",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_fiole_3.glb",
+   "dimensions_m": [
+    0.074,
+    0.162,
+    0.084
+   ],
+   "tris": 478,
+   "tris_source": 478,
+   "reduction": null,
+   "budget": 1986,
+   "echelle": 0.15,
+   "atlas": [
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer": 75.4,
+    "fer_v": 73.6
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 37952,
+   "ilots_uv": 17,
+   "nom": "fiole 3",
+   "matiere": "verre sombre",
+   "equivalent_q": "q_fiole_3",
+   "usage": "groupes de fioles",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_fiole_3",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "groupes de fioles",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_livre_d1",
+   "source": "Book2",
+   "pack": "Medieval Dungeon",
+   "categorie": "livres",
+   "fichier": "res://assets/modeles/props_quat/livres/pq_livre_d1.glb",
+   "dimensions_m": [
+    0.239,
+    0.103,
+    0.254
+   ],
+   "tris": 888,
+   "tris_source": 888,
+   "reduction": null,
+   "budget": 2262,
+   "echelle": 0.2,
+   "atlas": [
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 76.1,
+    "fer": 74.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.239,
+     0.103,
+     0.254
+    ],
+    "centre_y": 0.051
+   },
+   "octets": 45116,
+   "ilots_uv": 36,
+   "nom": "gros livre relié",
+   "matiere": "laine rouge + écru",
+   "equivalent_q": "q_livre_d1",
+   "usage": "piles de livres de la crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_livre_d1",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "piles de livres de la crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_livre_d2",
+   "source": "Book3",
+   "pack": "Medieval Dungeon",
+   "categorie": "livres",
+   "fichier": "res://assets/modeles/props_quat/livres/pq_livre_d2.glb",
+   "dimensions_m": [
+    0.239,
+    0.128,
+    0.201
+   ],
+   "tris": 888,
+   "tris_source": 888,
+   "reduction": null,
+   "budget": 2216,
+   "echelle": 0.2,
+   "atlas": [
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 73.8,
+    "fer": 73.1
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 46408,
+   "ilots_uv": 40,
+   "nom": "gros livre relié 2",
+   "matiere": "laine rouge + écru",
+   "equivalent_q": "q_livre_d2",
+   "usage": "piles de livres",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_livre_d2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "piles de livres",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_livre_ouvert",
+   "source": "Book_Open",
+   "pack": "Medieval Dungeon",
+   "categorie": "livres",
+   "fichier": "res://assets/modeles/props_quat/livres/pq_livre_ouvert.glb",
+   "dimensions_m": [
+    0.239,
+    0.033,
+    0.274
+   ],
+   "tris": 888,
+   "tris_source": 888,
+   "reduction": null,
+   "budget": 2323,
+   "echelle": 0.2,
+   "atlas": [
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.6,
+    "fer": 79.6
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.239,
+     0.033,
+     0.274
+    ],
+    "centre_y": 0.017
+   },
+   "octets": 43132,
+   "ilots_uv": 23,
+   "nom": "livre ouvert",
+   "matiere": "laine rouge + écru",
+   "equivalent_q": "q_livre_ouvert",
+   "usage": "lutrin, livre ouvert de la crypte (gardé : aucun pq_*)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_livre_ouvert",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "lutrin, livre ouvert de la crypte (gardé : aucun pq_*)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_tapis_crypte",
+   "source": "Carpet",
+   "pack": "Medieval Dungeon",
+   "categorie": "mobilier",
+   "fichier": "res://assets/modeles/props_quat/mobilier/pq_tapis_crypte.glb",
+   "dimensions_m": [
+    1.266,
+    0.155,
+    3.21
+   ],
+   "tris": 158,
+   "tris_source": 158,
+   "reduction": null,
+   "budget": 10000,
+   "echelle": 0.6,
+   "atlas": [
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "tissu_v": 66.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.266,
+     0.155,
+     3.21
+    ],
+    "centre_y": 0.077
+   },
+   "octets": 12948,
+   "ilots_uv": 11,
+   "nom": "tapis long à franges",
+   "matiere": "laine rouge + or terni",
+   "equivalent_q": "q_tapis",
+   "usage": "q_tapis de la crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_tapis",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "q_tapis de la crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_coffre_d",
+   "source": "Chest",
+   "pack": "Medieval Dungeon",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_coffre_d.glb",
+   "dimensions_m": [
+    0.448,
+    0.567,
+    0.673
+   ],
+   "tris": 336,
+   "tris_source": 336,
+   "reduction": null,
+   "budget": 3517,
+   "echelle": 0.6,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 78.4,
+    "bois": 78.1
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.448,
+     0.567,
+     0.673
+    ],
+    "centre_y": 0.283
+   },
+   "octets": 27236,
+   "ilots_uv": 61,
+   "nom": "coffre ferré de crypte",
+   "matiere": "bois + fer",
+   "equivalent_q": "q_coffre_d",
+   "usage": "q_coffre_d (quartiers de la crypte)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_coffre_d",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "q_coffre_d (quartiers de la crypte)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_coffre_or",
+   "source": "Chest_gold",
+   "pack": "Medieval Dungeon",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_coffre_or.glb",
+   "dimensions_m": [
+    0.47,
+    0.687,
+    0.673
+   ],
+   "tris": 436,
+   "tris_source": 436,
+   "reduction": null,
+   "budget": 3561,
+   "echelle": 0.6,
+   "atlas": [
+    "pq_bois",
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 78.3,
+    "fer": 78.3,
+    "bois": 77.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.47,
+     0.687,
+     0.673
+    ],
+    "centre_y": 0.344
+   },
+   "octets": 36924,
+   "ilots_uv": 54,
+   "nom": "coffre au trésor",
+   "matiere": "bois + fer + or",
+   "equivalent_q": "q_coffre_or",
+   "usage": "q_coffre_or (trésor)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_coffre_or",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "q_coffre_or (trésor)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_candelabre_d",
+   "source": "Candelabrum_tall",
+   "pack": "Medieval Dungeon",
+   "categorie": "eclairage",
+   "fichier": "res://assets/modeles/props_quat/eclairage/pq_candelabre_d.glb",
+   "dimensions_m": [
+    0.841,
+    1.652,
+    0.813
+   ],
+   "tris": 988,
+   "tris_source": 988,
+   "reduction": null,
+   "budget": 6456,
+   "echelle": 0.9,
+   "atlas": [
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer": 76.6,
+    "fer_v": 76.3
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.421,
+    "hauteur": 1.652
+   },
+   "octets": 81024,
+   "ilots_uv": 122,
+   "nom": "candélabre haut de fer (éteint)",
+   "matiere": "fer + cire",
+   "equivalent_q": "q_candelabre_d",
+   "usage": "compositions éteintes de la crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_candelabre_d",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "compositions éteintes de la crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_bougie_d",
+   "source": "Candle",
+   "pack": "Medieval Dungeon",
+   "categorie": "eclairage",
+   "fichier": "res://assets/modeles/props_quat/eclairage/pq_bougie_d.glb",
+   "dimensions_m": [
+    0.093,
+    0.27,
+    0.107
+   ],
+   "tris": 272,
+   "tris_source": 272,
+   "reduction": null,
+   "budget": 2311,
+   "echelle": 0.35,
+   "atlas": [
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer": 75.6,
+    "fer_v": 76.3
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.054,
+    "hauteur": 0.27
+   },
+   "octets": 24708,
+   "ilots_uv": 40,
+   "nom": "bougie sur bougeoir de fer",
+   "matiere": "fer + cire",
+   "equivalent_q": "q_bougie_d",
+   "usage": "autels, tables de la crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_bougie_d",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "autels, tables de la crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_tente",
+   "source": "Tent",
+   "pack": "Survival",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_tente.glb",
+   "dimensions_m": [
+    2.916,
+    2.065,
+    4.974
+   ],
+   "tris": 788,
+   "tris_source": 788,
+   "reduction": null,
+   "budget": 10000,
+   "echelle": 0.2,
+   "atlas": [
+    "pq_bois",
+    "pq_fer",
+    "pq_tissu_v"
+   ],
+   "texels_m": {
+    "bois": 76.6,
+    "fer": 75.0,
+    "tissu_v": 59.7
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     2.916,
+     2.065,
+     4.974
+    ],
+    "centre_y": 1.032
+   },
+   "octets": 60748,
+   "ilots_uv": 115,
+   "nom": "tente de toile",
+   "matiere": "toile de jute + bois",
+   "equivalent_q": "q_tente",
+   "usage": "camp de chasseur, camp des bandits (q_tente gardé)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_tente",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "camp de chasseur, camp des bandits (q_tente gardé)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_feu_bois",
+   "source": "Bonfire",
+   "pack": "Survival",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_feu_bois.glb",
+   "dimensions_m": [
+    0.979,
+    0.304,
+    0.893
+   ],
+   "tris": 616,
+   "tris_source": 616,
+   "reduction": null,
+   "budget": 4437,
+   "echelle": 0.45,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 72.4
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.49,
+    "hauteur": 0.304
+   },
+   "octets": 52996,
+   "ilots_uv": 56,
+   "nom": "feu de bois (bûches)",
+   "matiere": "bois",
+   "equivalent_q": "q_feu_bois",
+   "usage": "feu de camp, foyers (q_feu_bois gardé)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_feu_bois",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "feu de camp, foyers (q_feu_bois gardé)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_piege_ours",
+   "source": "BearTrap_Open",
+   "pack": "Survival",
+   "categorie": "armes_outils",
+   "fichier": "res://assets/modeles/props_quat/armes_outils/pq_piege_ours.glb",
+   "dimensions_m": [
+    0.389,
+    0.088,
+    0.461
+   ],
+   "tris": 608,
+   "tris_source": 608,
+   "reduction": null,
+   "budget": 2882,
+   "echelle": 0.13,
+   "atlas": [
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 78.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.389,
+     0.088,
+     0.461
+    ],
+    "centre_y": 0.044
+   },
+   "octets": 50708,
+   "ilots_uv": 122,
+   "nom": "piège à mâchoires ouvert",
+   "matiere": "fer",
+   "equivalent_q": "q_piege_ours",
+   "usage": "camp de chasseur, enclos (q_piege_ours gardé)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_piege_ours",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "camp de chasseur, enclos (q_piege_ours gardé)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_piege_ours_ferme",
+   "source": "BearTrap_Closed",
+   "pack": "Survival",
+   "categorie": "armes_outils",
+   "fichier": "res://assets/modeles/props_quat/armes_outils/pq_piege_ours_ferme.glb",
+   "dimensions_m": [
+    0.366,
+    0.22,
+    0.461
+   ],
+   "tris": 608,
+   "tris_source": 608,
+   "reduction": null,
+   "budget": 2882,
+   "echelle": 0.13,
+   "atlas": [
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 76.7
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.366,
+     0.22,
+     0.461
+    ],
+    "centre_y": 0.11
+   },
+   "octets": 50708,
+   "ilots_uv": 122,
+   "nom": "piège à mâchoires fermé",
+   "matiere": "fer",
+   "equivalent_q": "q_piege_ours_ferme",
+   "usage": "coins de chasseurs",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_piege_ours_ferme",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "coins de chasseurs",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_marmite_camp",
+   "source": "Pot",
+   "pack": "Survival",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_marmite_camp.glb",
+   "dimensions_m": [
+    0.379,
+    0.229,
+    0.447
+   ],
+   "tris": 326,
+   "tris_source": 326,
+   "reduction": null,
+   "budget": 2840,
+   "echelle": 0.22,
+   "atlas": [
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 75.6
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.379,
+     0.229,
+     0.447
+    ],
+    "centre_y": 0.114
+   },
+   "octets": 28284,
+   "ilots_uv": 41,
+   "nom": "marmite de camp",
+   "matiere": "fer",
+   "equivalent_q": "q_marmite_camp",
+   "usage": "camp, foyer éteint (q_marmite_camp gardé)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_marmite_camp",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "camp, foyer éteint (q_marmite_camp gardé)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_marmite_camp_petite",
+   "source": "Pot_Small",
+   "pack": "Survival",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_marmite_camp_petite.glb",
+   "dimensions_m": [
+    0.263,
+    0.092,
+    0.31
+   ],
+   "tris": 326,
+   "tris_source": 326,
+   "reduction": null,
+   "budget": 2428,
+   "echelle": 0.22,
+   "atlas": [
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 75.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.263,
+     0.092,
+     0.31
+    ],
+    "centre_y": 0.046
+   },
+   "octets": 28288,
+   "ilots_uv": 41,
+   "nom": "petite marmite de camp",
+   "matiere": "fer",
+   "equivalent_q": "q_marmite_camp_petite",
+   "usage": "camp",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_marmite_camp_petite",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "camp",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_poele",
+   "source": "Pan",
+   "pack": "Survival",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_poele.glb",
+   "dimensions_m": [
+    0.276,
+    0.055,
+    0.452
+   ],
+   "tris": 246,
+   "tris_source": 246,
+   "reduction": null,
+   "budget": 2855,
+   "echelle": 0.16,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 76.2,
+    "bois": 77.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.276,
+     0.055,
+     0.452
+    ],
+    "centre_y": 0.027
+   },
+   "octets": 22708,
+   "ilots_uv": 22,
+   "nom": "poêle à manche de bois",
+   "matiere": "fer + bois",
+   "equivalent_q": "q_poele",
+   "usage": "camp, cuisine",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_poele",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "camp, cuisine",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_hache_camp",
+   "source": "Axe",
+   "pack": "Survival",
+   "categorie": "armes_outils",
+   "fichier": "res://assets/modeles/props_quat/armes_outils/pq_hache_camp.glb",
+   "dimensions_m": [
+    0.316,
+    0.814,
+    0.048
+   ],
+   "tris": 236,
+   "tris_source": 236,
+   "reduction": null,
+   "budget": 3942,
+   "echelle": 0.25,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 76.6,
+    "fer": 78.7
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.316,
+     0.814,
+     0.048
+    ],
+    "centre_y": 0.407
+   },
+   "octets": 20008,
+   "ilots_uv": 20,
+   "nom": "hache de bûcheron",
+   "matiere": "fer + bois",
+   "equivalent_q": "q_hache_camp",
+   "usage": "billots, tas de bois (q_hache_camp gardé)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_hache_camp",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "billots, tas de bois (q_hache_camp gardé)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_hachette",
+   "source": "Axe_Small",
+   "pack": "Survival",
+   "categorie": "armes_outils",
+   "fichier": "res://assets/modeles/props_quat/armes_outils/pq_hachette.glb",
+   "dimensions_m": [
+    0.198,
+    0.542,
+    0.031
+   ],
+   "tris": 176,
+   "tris_source": 176,
+   "reduction": null,
+   "budget": 3125,
+   "echelle": 0.22,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 76.6,
+    "fer": 79.1
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.198,
+     0.542,
+     0.031
+    ],
+    "centre_y": 0.271
+   },
+   "octets": 15732,
+   "ilots_uv": 10,
+   "nom": "hachette",
+   "matiere": "fer + bois",
+   "equivalent_q": "q_hachette",
+   "usage": "coins de chasseurs, camp",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_hachette",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "coins de chasseurs, camp",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_pelle",
+   "source": "Shovel",
+   "pack": "Survival",
+   "categorie": "armes_outils",
+   "fichier": "res://assets/modeles/props_quat/armes_outils/pq_pelle.glb",
+   "dimensions_m": [
+    0.225,
+    1.085,
+    0.051
+   ],
+   "tris": 322,
+   "tris_source": 322,
+   "reduction": null,
+   "budget": 4753,
+   "echelle": 0.28,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 79.1,
+    "fer": 77.8
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.225,
+     1.085,
+     0.051
+    ],
+    "centre_y": 0.542
+   },
+   "octets": 29884,
+   "ilots_uv": 25,
+   "nom": "pelle",
+   "matiere": "fer + bois",
+   "equivalent_q": "q_pelle",
+   "usage": "forge (caisse à charbon), mine, grange",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_pelle",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "forge (caisse à charbon), mine, grange",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_couteau_camp",
+   "source": "Knife",
+   "pack": "Survival",
+   "categorie": "armes_outils",
+   "fichier": "res://assets/modeles/props_quat/armes_outils/pq_couteau_camp.glb",
+   "dimensions_m": [
+    0.042,
+    0.25,
+    0.012
+   ],
+   "tris": 450,
+   "tris_source": 450,
+   "reduction": null,
+   "budget": 2250,
+   "echelle": 0.16,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 78.3,
+    "fer": 79.8
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.042,
+     0.25,
+     0.012
+    ],
+    "centre_y": 0.125
+   },
+   "octets": 31300,
+   "ilots_uv": 39,
+   "nom": "couteau de chasse",
+   "matiere": "fer + bois",
+   "equivalent_q": "q_couteau_camp",
+   "usage": "camp, boucher",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_couteau_camp",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "camp, boucher",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_rondin",
+   "source": "WoodLog",
+   "pack": "Survival",
+   "categorie": "exterieur_ferme",
+   "fichier": "res://assets/modeles/props_quat/exterieur_ferme/pq_rondin.glb",
+   "dimensions_m": [
+    1.394,
+    0.405,
+    0.41
+   ],
+   "tris": 202,
+   "tris_source": 202,
+   "reduction": null,
+   "budget": 5683,
+   "echelle": 0.37,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 75.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.394,
+     0.405,
+     0.41
+    ],
+    "centre_y": 0.202
+   },
+   "octets": 18900,
+   "ilots_uv": 14,
+   "nom": "rondin",
+   "matiere": "bois",
+   "equivalent_q": "q_rondin",
+   "usage": "bûchers des abords, bancs du camp (q_rondin gardé)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_rondin",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "bûchers des abords, bancs du camp (q_rondin gardé)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_pomme",
+   "source": "Apple",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_pomme.glb",
+   "dimensions_m": [
+    0.08,
+    0.085,
+    0.08
+   ],
+   "tris": 440,
+   "tris_source": 440,
+   "reduction": null,
+   "budget": 1755,
+   "echelle": 0.1,
+   "atlas": [
+    "pq_bois",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 74.3,
+    "bois": 76.7
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 39484,
+   "ilots_uv": 23,
+   "nom": "pomme",
+   "matiere": "rouge",
+   "equivalent_q": "q_pomme",
+   "usage": "étals, tables (nourriture gardée)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_pomme",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "étals, tables (nourriture gardée)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_pomme_verte",
+   "source": "Apple_Green",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_pomme_verte.glb",
+   "dimensions_m": [
+    0.08,
+    0.085,
+    0.08
+   ],
+   "tris": 440,
+   "tris_source": 440,
+   "reduction": null,
+   "budget": 1755,
+   "echelle": 0.1,
+   "atlas": [
+    "pq_bois",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 74.3,
+    "bois": 76.7
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 39492,
+   "ilots_uv": 23,
+   "nom": "pomme verte",
+   "matiere": "vert",
+   "equivalent_q": "q_pomme_verte",
+   "usage": "étals, tables",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_pomme_verte",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "étals, tables",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_pain",
+   "source": "Bread",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_pain.glb",
+   "dimensions_m": [
+    0.173,
+    0.212,
+    0.3
+   ],
+   "tris": 412,
+   "tris_source": 412,
+   "reduction": null,
+   "budget": 2399,
+   "echelle": 0.25,
+   "atlas": [
+    "pq_bois",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 80.0,
+    "bois": 78.4
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.173,
+     0.212,
+     0.3
+    ],
+    "centre_y": 0.106
+   },
+   "octets": 23472,
+   "ilots_uv": 8,
+   "nom": "miche de pain",
+   "matiere": "croûte brune",
+   "equivalent_q": "q_pain",
+   "usage": "étals, tables",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_pain",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "étals, tables",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_tranche_pain",
+   "source": "Bread_Slice",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_tranche_pain.glb",
+   "dimensions_m": [
+    0.173,
+    0.212,
+    0.027
+   ],
+   "tris": 368,
+   "tris_source": 368,
+   "reduction": null,
+   "budget": 2135,
+   "echelle": 0.25,
+   "atlas": [
+    "pq_bois",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 80.0,
+    "bois": 78.8
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 20016,
+   "ilots_uv": 8,
+   "nom": "tranche de pain",
+   "matiere": "brun + mie",
+   "equivalent_q": "q_tranche_pain",
+   "usage": "tables",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_tranche_pain",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "tables",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_carotte_f",
+   "source": "Carrot",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_carotte_f.glb",
+   "dimensions_m": [
+    0.068,
+    0.2,
+    0.067
+   ],
+   "tris": 864,
+   "tris_source": 864,
+   "reduction": null,
+   "budget": 2100,
+   "echelle": 0.072,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 74.3
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 70884,
+   "ilots_uv": 23,
+   "nom": "carotte",
+   "matiere": "orange terni",
+   "equivalent_q": "q_carotte_f",
+   "usage": "étals, cageots",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_carotte_f",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "étals, cageots",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_cuisse",
+   "source": "ChickenLeg",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_cuisse.glb",
+   "dimensions_m": [
+    0.182,
+    0.076,
+    0.08
+   ],
+   "tris": 288,
+   "tris_source": 288,
+   "reduction": null,
+   "budget": 2045,
+   "echelle": 0.13,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 75.4
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 25500,
+   "ilots_uv": 14,
+   "nom": "cuisse rôtie",
+   "matiere": "brun",
+   "equivalent_q": "q_cuisse",
+   "usage": "tables du festin",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_cuisse",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "tables du festin",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_marmite_soupe",
+   "source": "CookingPot_Soup",
+   "pack": "Ultimate Food",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_marmite_soupe.glb",
+   "dimensions_m": [
+    0.508,
+    0.226,
+    0.418
+   ],
+   "tris": 260,
+   "tris_source": 260,
+   "reduction": null,
+   "budget": 3023,
+   "echelle": 0.21,
+   "atlas": [
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer": 76.7,
+    "fer_v": 80.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.508,
+     0.226,
+     0.418
+    ],
+    "centre_y": 0.113
+   },
+   "octets": 22880,
+   "ilots_uv": 31,
+   "nom": "marmite de soupe",
+   "matiere": "fer + soupe",
+   "equivalent_q": "q_marmite_soupe",
+   "usage": "foyers des maisons, camp",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_marmite_soupe",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "foyers des maisons, camp",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_marmite_soupe_2",
+   "source": "CookingPot2_Soup",
+   "pack": "Ultimate Food",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_marmite_soupe_2.glb",
+   "dimensions_m": [
+    0.481,
+    0.131,
+    0.418
+   ],
+   "tris": 260,
+   "tris_source": 260,
+   "reduction": null,
+   "budget": 2943,
+   "echelle": 0.21,
+   "atlas": [
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer": 75.7,
+    "fer_v": 80.0
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.241,
+    "hauteur": 0.131
+   },
+   "octets": 22880,
+   "ilots_uv": 31,
+   "nom": "chaudron de soupe",
+   "matiere": "fer + soupe",
+   "equivalent_q": "q_marmite_soupe_2",
+   "usage": "foyers",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_marmite_soupe_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "foyers",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_oeuf",
+   "source": "Egg_Whole",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_oeuf.glb",
+   "dimensions_m": [
+    0.047,
+    0.061,
+    0.047
+   ],
+   "tris": 288,
+   "tris_source": 288,
+   "reduction": null,
+   "budget": 1681,
+   "echelle": 0.13,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 74.5
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 26144,
+   "ilots_uv": 6,
+   "nom": "œuf",
+   "matiere": "écru",
+   "equivalent_q": "q_oeuf",
+   "usage": "cuisine, garde-manger",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_oeuf",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "cuisine, garde-manger",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_poisson",
+   "source": "Fish",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_poisson.glb",
+   "dimensions_m": [
+    0.4,
+    0.038,
+    0.132
+   ],
+   "tris": 438,
+   "tris_source": 438,
+   "reduction": null,
+   "budget": 2700,
+   "echelle": 0.125,
+   "atlas": [
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 77.9,
+    "fer": 79.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.4,
+     0.038,
+     0.132
+    ],
+    "centre_y": 0.019
+   },
+   "octets": 37388,
+   "ilots_uv": 37,
+   "nom": "poisson",
+   "matiere": "gris-fer",
+   "equivalent_q": "q_poisson",
+   "usage": "quai (matériel de pêche), étal, séchoir",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_poisson",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "quai (matériel de pêche), étal, séchoir",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_aretes",
+   "source": "FishBone",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_aretes.glb",
+   "dimensions_m": [
+    0.254,
+    0.043,
+    0.108
+   ],
+   "tris": 588,
+   "tris_source": 588,
+   "reduction": null,
+   "budget": 2262,
+   "echelle": 0.13,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 77.1
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.254,
+     0.043,
+     0.108
+    ],
+    "centre_y": 0.022
+   },
+   "octets": 48180,
+   "ilots_uv": 44,
+   "nom": "arêtes de poisson",
+   "matiere": "os",
+   "equivalent_q": "q_aretes",
+   "usage": "restes du camp",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_aretes",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "restes du camp",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_jarre",
+   "source": "Jar_Large",
+   "pack": "Ultimate Food",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_jarre.glb",
+   "dimensions_m": [
+    0.298,
+    0.3,
+    0.283
+   ],
+   "tris": 216,
+   "tris_source": 216,
+   "reduction": null,
+   "budget": 2400,
+   "echelle": 0.47,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 76.5
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.149,
+    "hauteur": 0.3
+   },
+   "octets": 18668,
+   "ilots_uv": 26,
+   "nom": "grande jarre",
+   "matiere": "terre cuite",
+   "equivalent_q": "q_jarre",
+   "usage": "garde-manger, réserves",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_jarre",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "garde-manger, réserves",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_champignon",
+   "source": "Mushroom",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_champignon.glb",
+   "dimensions_m": [
+    0.054,
+    0.061,
+    0.062
+   ],
+   "tris": 92,
+   "tris_source": 92,
+   "reduction": null,
+   "budget": 1686,
+   "echelle": 0.15,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 75.7
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 9124,
+   "ilots_uv": 11,
+   "nom": "champignon",
+   "matiere": "brun clair",
+   "equivalent_q": "q_champignon",
+   "usage": "cuisine, grotte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_champignon",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "cuisine, grotte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_citrouille",
+   "source": "Pumpkin",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_citrouille.glb",
+   "dimensions_m": [
+    0.344,
+    0.214,
+    0.348
+   ],
+   "tris": 644,
+   "tris_source": 644,
+   "reduction": null,
+   "budget": 2543,
+   "echelle": 0.23,
+   "atlas": [
+    "pq_bois",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "bois": 75.2,
+    "fer_v": 74.6
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.174,
+    "hauteur": 0.214
+   },
+   "octets": 57428,
+   "ilots_uv": 22,
+   "nom": "courge",
+   "matiere": "orange sombre",
+   "equivalent_q": "q_citrouille",
+   "usage": "étals, grenier",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_citrouille",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "étals, grenier",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_saucisse",
+   "source": "Sausage_Cooked",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_saucisse.glb",
+   "dimensions_m": [
+    0.026,
+    0.027,
+    0.182
+   ],
+   "tris": 140,
+   "tris_source": 140,
+   "reduction": null,
+   "budget": 2046,
+   "echelle": 0.11,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 73.7
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 13740,
+   "ilots_uv": 6,
+   "nom": "saucisse",
+   "matiere": "brun",
+   "equivalent_q": "q_saucisse",
+   "usage": "viande séchée pendue (kitbash maison)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_saucisse",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "viande séchée pendue (kitbash maison)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_viande",
+   "source": "Steak",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_viande.glb",
+   "dimensions_m": [
+    0.152,
+    0.039,
+    0.22
+   ],
+   "tris": 412,
+   "tris_source": 412,
+   "reduction": null,
+   "budget": 2159,
+   "echelle": 0.115,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 78.2
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 35760,
+   "ilots_uv": 63,
+   "nom": "pièce de viande",
+   "matiere": "rouge sombre",
+   "equivalent_q": "q_viande",
+   "usage": "étal du boucher, séchoir",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_viande",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "étal du boucher, séchoir",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_navet",
+   "source": "Turnip",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_navet.glb",
+   "dimensions_m": [
+    0.112,
+    0.215,
+    0.111
+   ],
+   "tris": 976,
+   "tris_source": 976,
+   "reduction": null,
+   "budget": 2145,
+   "echelle": 0.09,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 72.7
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 76992,
+   "ilots_uv": 65,
+   "nom": "navet",
+   "matiere": "écru + vert",
+   "equivalent_q": "q_navet",
+   "usage": "étals, cageots",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_navet",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "étals, cageots",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_chou",
+   "source": "Lettuce_Whole",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_chou.glb",
+   "dimensions_m": [
+    0.199,
+    0.164,
+    0.199
+   ],
+   "tris": 592,
+   "tris_source": 592,
+   "reduction": null,
+   "budget": 2098,
+   "echelle": 0.12,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 75.7
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 51016,
+   "ilots_uv": 90,
+   "nom": "chou",
+   "matiere": "vert",
+   "equivalent_q": "q_chou",
+   "usage": "étals de la place",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_chou",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "étals de la place",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_lard",
+   "source": "Bacon_Uncooked",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_lard.glb",
+   "dimensions_m": [
+    0.197,
+    0.004,
+    0.05
+   ],
+   "tris": 564,
+   "tris_source": 564,
+   "reduction": null,
+   "budget": 2090,
+   "echelle": 0.17,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.8
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 50052,
+   "ilots_uv": 6,
+   "nom": "lard",
+   "matiere": "écru + rouge",
+   "equivalent_q": "q_lard",
+   "usage": "boucher, garde-manger",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_lard",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "boucher, garde-manger",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_bouteille_verte",
+   "source": "Bottle1",
+   "pack": "Ultimate Food",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_bouteille_verte.glb",
+   "dimensions_m": [
+    0.086,
+    0.297,
+    0.086
+   ],
+   "tris": 220,
+   "tris_source": 220,
+   "reduction": null,
+   "budget": 2391,
+   "echelle": 0.19,
+   "atlas": [
+    "pq_bois",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 76.3,
+    "bois": 76.7
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.043,
+    "hauteur": 0.297
+   },
+   "octets": 20396,
+   "ilots_uv": 11,
+   "nom": "bouteille de verre vert",
+   "matiere": "verre vert + bouchon",
+   "equivalent_q": "q_bouteille_1",
+   "usage": "tables, étagères (alias pq_bouteille aujourd'hui)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_bouteille_1",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "tables, étagères (alias pq_bouteille aujourd'hui)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_bouteille_vin",
+   "source": "Bottle2",
+   "pack": "Ultimate Food",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_bouteille_vin.glb",
+   "dimensions_m": [
+    0.086,
+    0.308,
+    0.086
+   ],
+   "tris": 220,
+   "tris_source": 220,
+   "reduction": null,
+   "budget": 2425,
+   "echelle": 0.19,
+   "atlas": [
+    "pq_bois",
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer": 75.7,
+    "fer_v": 76.7,
+    "bois": 75.3
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.043,
+    "hauteur": 0.308
+   },
+   "octets": 21156,
+   "ilots_uv": 22,
+   "nom": "bouteille de vin",
+   "matiere": "verre sombre",
+   "equivalent_q": "q_bouteille_2",
+   "usage": "tables, cave",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_bouteille_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "tables, cave",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_ecuelle",
+   "source": "Plate",
+   "pack": "Ultimate Food",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_ecuelle.glb",
+   "dimensions_m": [
+    0.226,
+    0.033,
+    0.237
+   ],
+   "tris": 156,
+   "tris_source": 156,
+   "reduction": null,
+   "budget": 2212,
+   "echelle": 0.13,
+   "atlas": [
+    "pq_bois"
+   ],
+   "texels_m": {
+    "bois": 76.2
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 14304,
+   "ilots_uv": 6,
+   "nom": "écuelle de bois",
+   "matiere": "bois",
+   "equivalent_q": "q_ecuelle",
+   "usage": "tables (bol maison)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_ecuelle",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "tables (bol maison)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_ecuelle_2",
+   "source": "Plate2",
+   "pack": "Ultimate Food",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_ecuelle_2.glb",
+   "dimensions_m": [
+    0.266,
+    0.03,
+    0.28
+   ],
+   "tris": 196,
+   "tris_source": 196,
+   "reduction": null,
+   "budget": 2340,
+   "echelle": 0.135,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 77.7
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.14,
+    "hauteur": 0.03
+   },
+   "octets": 17748,
+   "ilots_uv": 6,
+   "nom": "écuelle de terre cuite",
+   "matiere": "argile",
+   "equivalent_q": "q_ecuelle_2",
+   "usage": "tables",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "q_ecuelle_2",
+     "type": "prop Quaternius du .dat (lots 2-4, couleurs de face, même modèle)",
+     "api": "PropsQuaternius (scripts/props_quaternius.gd)",
+     "auto": false
+    },
+    {
+     "prop_actuel": "tables",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_barreaux",
+   "source": "Bars",
+   "pack": "Medieval Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_barreaux.glb",
+   "dimensions_m": [
+    0.117,
+    2.2,
+    1.407
+   ],
+   "tris": 512,
+   "tris_source": 512,
+   "reduction": null,
+   "budget": 8100,
+   "echelle": 0.9075,
+   "atlas": [
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 80.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.117,
+     2.2,
+     1.407
+    ],
+    "centre_y": 1.1
+   },
+   "octets": 31312,
+   "ilots_uv": 98,
+   "nom": "barreaux de cellule",
+   "matiere": "fer",
+   "usage": "cellules, grilles de la crypte et du repaire",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "cellules, grilles de la crypte et du repaire",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_candelabre_court",
+   "source": "Candelabrum",
+   "pack": "Medieval Dungeon",
+   "categorie": "eclairage",
+   "fichier": "res://assets/modeles/props_quat/eclairage/pq_candelabre_court.glb",
+   "dimensions_m": [
+    0.128,
+    0.45,
+    0.378
+   ],
+   "tris": 636,
+   "tris_source": 636,
+   "reduction": null,
+   "budget": 2850,
+   "echelle": 0.4182,
+   "atlas": [
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer": 76.3,
+    "fer_v": 76.3
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.128,
+     0.45,
+     0.378
+    ],
+    "centre_y": 0.225
+   },
+   "octets": 53228,
+   "ilots_uv": 72,
+   "nom": "candélabre de table (éteint)",
+   "matiere": "fer + cire",
+   "usage": "tables de la crypte, autels (candélabres maison : flamme à ajouter)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "tables de la crypte, autels (candélabres maison : flamme à ajouter)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_torche_murale_d",
+   "source": "Torch_wall",
+   "pack": "Medieval Dungeon",
+   "categorie": "eclairage",
+   "fichier": "res://assets/modeles/props_quat/eclairage/pq_torche_murale_d.glb",
+   "dimensions_m": [
+    0.378,
+    0.6,
+    0.162
+   ],
+   "tris": 404,
+   "tris_source": 404,
+   "reduction": null,
+   "budget": 3299,
+   "echelle": 0.3445,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "bois": 73.3,
+    "fer": 82.2
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.378,
+     0.6,
+     0.162
+    ],
+    "centre_y": 0.3
+   },
+   "octets": 35664,
+   "ilots_uv": 61,
+   "nom": "torche murale de crypte (sans flamme)",
+   "matiere": "fer + bois",
+   "usage": "appliques de la crypte (flamme et lumière du jeu à garder)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "appliques de la crypte (flamme et lumière du jeu à garder)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_tonneau_cercle",
+   "source": "Barrel",
+   "pack": "Medieval Dungeon",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_tonneau_cercle.glb",
+   "dimensions_m": [
+    0.782,
+    0.9,
+    0.782
+   ],
+   "tris": 476,
+   "tris_source": 476,
+   "reduction": null,
+   "budget": 4199,
+   "echelle": 0.7771,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 78.4,
+    "bois": 77.1
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.391,
+    "hauteur": 0.9
+   },
+   "octets": 41132,
+   "ilots_uv": 86,
+   "nom": "tonneau cerclé de fer",
+   "matiere": "bois + fer",
+   "usage": "tonneaux de la crypte et de la grotte (variante de pq_tonneau)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "tonneaux de la crypte et de la grotte (variante de pq_tonneau)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_trappe",
+   "source": "Trapdoor",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "donjon",
+   "fichier": "res://assets/modeles/props_quat/donjon/pq_trappe.glb",
+   "dimensions_m": [
+    1.741,
+    0.215,
+    1.7
+   ],
+   "tris": 504,
+   "tris_source": 504,
+   "reduction": null,
+   "budget": 6723,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 76.0,
+    "bois": 79.9
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.741,
+     0.215,
+     1.7
+    ],
+    "centre_y": 0.108
+   },
+   "octets": 45384,
+   "ilots_uv": 106,
+   "nom": "trappe de bois ferrée",
+   "matiere": "bois + fer",
+   "usage": "sol de la crypte, cave, grenier",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "sol de la crypte, cave, grenier",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_coffre_or_2",
+   "source": "Chest_Gold",
+   "pack": "LowPoly Modular Dungeon",
+   "categorie": "rangement",
+   "fichier": "res://assets/modeles/props_quat/rangement/pq_coffre_or_2.glb",
+   "dimensions_m": [
+    1.179,
+    0.899,
+    1.482
+   ],
+   "tris": 6603,
+   "tris_source": 22512,
+   "reduction": "collapse 0.30",
+   "budget": 5946,
+   "echelle": 1.0,
+   "atlas": [
+    "pq_bois",
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "bois": 77.7,
+    "fer_v": 77.9,
+    "fer": 79.4
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     1.179,
+     0.899,
+     1.482
+    ],
+    "centre_y": 0.45
+   },
+   "octets": 532600,
+   "ilots_uv": 1094,
+   "nom": "coffre ferré doré",
+   "matiere": "bois + or terni",
+   "usage": "trésor de la crypte",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "trésor de la crypte",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_torche_bois",
+   "source": "WoodenTorch",
+   "pack": "Survival",
+   "categorie": "eclairage",
+   "fichier": "res://assets/modeles/props_quat/eclairage/pq_torche_bois.glb",
+   "dimensions_m": [
+    0.102,
+    0.6,
+    0.093
+   ],
+   "tris": 448,
+   "tris_source": 448,
+   "reduction": null,
+   "budget": 3299,
+   "echelle": 0.223,
+   "atlas": [
+    "pq_bois",
+    "pq_fer",
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "bois": 76.7,
+    "fer": 75.3,
+    "fer_v": 75.3
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.051,
+    "hauteur": 0.6
+   },
+   "octets": 41740,
+   "ilots_uv": 40,
+   "nom": "torche de bois (éteinte)",
+   "matiere": "bois + fer",
+   "usage": "torche tenue / plantée, râtelier de torches",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "torche tenue / plantée, râtelier de torches",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_marmite_vide",
+   "source": "CookingPot",
+   "pack": "Ultimate Food",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_marmite_vide.glb",
+   "dimensions_m": [
+    0.674,
+    0.3,
+    0.556
+   ],
+   "tris": 260,
+   "tris_source": 260,
+   "reduction": null,
+   "budget": 3522,
+   "echelle": 0.2789,
+   "atlas": [
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 77.0
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.674,
+     0.3,
+     0.556
+    ],
+    "centre_y": 0.15
+   },
+   "octets": 21812,
+   "ilots_uv": 31,
+   "nom": "marmite de fer",
+   "matiere": "fer",
+   "usage": "foyers, cuisine (pq_marmite est en argile)",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "foyers, cuisine (pq_marmite est en argile)",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_chaudron_anse",
+   "source": "CookingPot2",
+   "pack": "Ultimate Food",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_chaudron_anse.glb",
+   "dimensions_m": [
+    1.178,
+    0.32,
+    1.024
+   ],
+   "tris": 260,
+   "tris_source": 260,
+   "reduction": null,
+   "budget": 5032,
+   "echelle": 0.5141,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 75.8
+   },
+   "collision": {
+    "type": "cylindre",
+    "rayon": 0.589,
+    "hauteur": 0.32
+   },
+   "octets": 21012,
+   "ilots_uv": 31,
+   "nom": "chaudron à anse",
+   "matiere": "fer + bois",
+   "usage": "foyer pendu, camp",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "foyer pendu, camp",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_poele_f",
+   "source": "FryingPan",
+   "pack": "Ultimate Food",
+   "categorie": "cuisine_table",
+   "fichier": "res://assets/modeles/props_quat/cuisine_table/pq_poele_f.glb",
+   "dimensions_m": [
+    0.312,
+    0.045,
+    0.5
+   ],
+   "tris": 214,
+   "tris_source": 214,
+   "reduction": null,
+   "budget": 3000,
+   "echelle": 0.1793,
+   "atlas": [
+    "pq_bois",
+    "pq_fer"
+   ],
+   "texels_m": {
+    "fer": 76.7,
+    "bois": 74.1
+   },
+   "collision": {
+    "type": "boite",
+    "taille": [
+     0.312,
+     0.045,
+     0.5
+    ],
+    "centre_y": 0.023
+   },
+   "octets": 20092,
+   "ilots_uv": 16,
+   "nom": "poêle de fer",
+   "matiere": "fer + bois",
+   "usage": "cuisine, foyers",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "cuisine, foyers",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
+    }
+   ]
+  },
+  {
+   "id": "pq_lard_cuit",
+   "source": "Bacon_Cooked",
+   "pack": "Ultimate Food",
+   "categorie": "objets_petits",
+   "fichier": "res://assets/modeles/props_quat/objets_petits/pq_lard_cuit.glb",
+   "dimensions_m": [
+    0.17,
+    0.003,
+    0.044
+   ],
+   "tris": 564,
+   "tris_source": 564,
+   "reduction": null,
+   "budget": 2009,
+   "echelle": 0.1469,
+   "atlas": [
+    "pq_fer_v"
+   ],
+   "texels_m": {
+    "fer_v": 79.8
+   },
+   "collision": {
+    "type": "aucune"
+   },
+   "octets": 50052,
+   "ilots_uv": 6,
+   "nom": "tranche de lard grillé",
+   "matiere": "brun",
+   "usage": "tables du festin",
+   "lot": "v5",
+   "remplace": [
+    {
+     "prop_actuel": "tables du festin",
+     "type": "usage conseillé (docs/PROPS_SOURCES_V5.md)"
     }
    ]
   }
