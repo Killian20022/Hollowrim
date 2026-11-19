@@ -62,9 +62,9 @@ func _tester() -> void:
 		else:
 			_verif(false, "%s : corps %s sans armure maison (%s)" % [g.name, g.modele.name, pieces])
 		if String(g.donnees.get("id", "")) == "halle_e":
-			_verif(pieces.has("cuirasse_or"), "halle_e (garde du chef) : armure d'or")
+			_verif(pieces.has("cuirasse_acier_nordique"), "halle_e (garde du chef) : acier nordique (l'or reste au joueur, 8b47f722)")
 		if String(g.donnees.get("id", "")) == "n_e":
-			_verif(pieces.has("cuirasse_verre"), "n_e (garde d'élite) : armure de verre")
+			_verif(pieces.has("cuirasse_acier_nordique"), "n_e (garde d'élite) : acier nordique (le verre reste au joueur, 8b47f722)")
 		var cle := ",".join(pieces) + "|" + GardeMaison.arme_de(g.donnees)
 		vus.append([g, cle])
 	_verif(maison == gardes.size(), "%d gardes sur %d en armure maison" % [maison, gardes.size()])
