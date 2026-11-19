@@ -133,7 +133,7 @@ var _M: Dictionary
 
 func _construire(mats: Dictionary) -> void:
 	_M = mats
-	if Interieurs.v5("q_lit") and _construire_pq():
+	if Interieurs.v5("q_lit") and not PropsRealisme.lit_ancien() and _construire_pq():      # props/realisme_v5 : lit procédural
 		return
 	var w := largeur
 	var L := longueur

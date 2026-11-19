@@ -512,3 +512,66 @@ Pistes restantes (non faites, à juger en vue de jeu) : pq_crane (crane_a/b), pq
 Lecture : appels de dessin identiques (fusion par case de CrypteDecor), +9 000 triangles dans la crypte, GPU dans le bruit (± 0,1 ms hors
 passe atypique). Le temps réel par image (dt) varie AUTANT entre deux passes du même mode (grotte sans v5 : 0,1 % puis 13,9 % d'images
 lentes) : machine partagée avec d'autres Godot, pas un effet des props. Mémoire vidéo ± 50 Mo selon la passe, même ordre.
+
+## Props v5 : réalisme (intérieurs et souterrains) (branche `props/realisme_v5`, 2026-11-19)
+
+Retour utilisateur sur les props Quaternius v5 : « certains font plus jouet qu'autre chose ; il faut que ça colle au décor, rajoute des
+détails, que ce soit réaliste », « applique-le à la totalité ». Périmètre : intérieurs (halle, maisons nommées, bâtiments ouverts générés,
+forge) et souterrains (crypte, tertre, grotte). L'EXTÉRIEUR n'est pas touché (contexte de matériau « exterieur » inchangé ; la neige des
+pq_* dehors est traitée sur `props/exterieurs_v5`). Code : `scripts/props_realisme.gd` (`PropsRealisme`). Interrupteur A/B :
+`-- --sans-realisme-v5` rend exactement la v5 d'avant ce lot ; `--sans-props-v5` rend toujours l'état d'avant la v5.
+
+### 1. Anti-« jouet » : patine des matériaux partagés (aucun nouvel atlas, aucun appel de dessin en plus)
+
+Les pq_* sont fondus dans les lots par atlas (`PropsQuat.materiau(atlas, contexte)`) : le réglage d'UN matériau par (atlas, contexte)
+patine tous les props du lieu. Uniformes AJOUTÉS, neutres par défaut (le reste du décor ne change pas) :
+- `shaders/ps1_interieur.gdshader` : `usure` (taches de crasse en volume, cases de 1/16 m : gros pixels PS1, assombrit et désature par
+  plaques), `ao_gamma` (creuse l'occlusion cuite de la couleur de sommet : pieds, jonctions, dessous ; arêtes adoucies) ;
+- `shaders/crypte.gdshader` : idem + `poussiere` (voile gris sur les faces tournées vers le haut) et `moisi` (plaques sombres verdâtres).
+
+| Contexte | Réglage (`PropsRealisme.INTERIEUR` / `CRYPTE` / `GROTTE` / `SOUS_TERRE_ATLAS`) |
+|---|---|
+| intérieurs | bois teinte 0,80 / 0,72 / 0,66, saturation 0,74, usure 0,45, ao 1,2 (le pq_bois sortait plus clair et plus orangé que les planches et rondins de la pièce) ; fer 0,70 terni (sat. 0,5) ; pierre / os / cire 0,80 / 0,75 / 0,68 (les crânes n'ont plus le blanc « plastique ») ; tissus et pages légèrement salis |
+| crypte | usure 0,6, poussière 0,55, moisi 0,18, ao 1,5 ; bois brun chaud (0,86 / 0,70 / 0,56, sat. 0,9) et fer sombre : la teinte grise de props/maximum + la patine faisait virer le bois au violet sous l'ambiante froide (« caisse bleue ») |
+| grotte | usure 0,6, poussière 0,3, moisi 0,35 (humidité), ao 1,5 ; même bois / fer que la crypte |
+| toiles d'araignée (pq_tissu_v sous terre) | usure et poussière x 0,5 |
+
+La bande de crasse de pied (`crasse`) reste à 0 sur les pq_* : elle se cale sur le sol du niveau principal (y0) et noircirait les props
+des étages inférieurs du donjon ; le contact au sol vient de l'occlusion cuite creusée (`ao_gamma`).
+
+### 2. Retours à l'ancien (jugés sur planches, vue de jeu de nuit)
+
+| Objet | Où | Pourquoi |
+|---|---|---|
+| lit : pq_lit / pq_lit_2 ajusté au cadre -> lit procédural d'avant la v5 (`Lit`, montants, chevet haut, paillasse, fourrure drapée) | tous les lits à marqueur (Sigrun, chasseurs, Grima, maisons, fermes, auberge, moulin, tour) | le Bed_Twin étiré au cadre restait une caisse lisse à bord bleuté, « jouet » à côté des PNJ, même patiné ; le lit procédural a des montants, un chevet et une fourrure lisibles. Collisions, poses couchée / assise inchangées (code d'avant) |
+| coffre de décor coffre_a/b/c -> ancien coffre maison | niche d'Eirik (tertre) | le pq_coffre_ferme sortait en boîte lisse violacée sous la lumière de la crypte ; l'ancien a des planches brunes, des ferrures et un couvercle bombé |
+
+Gardés en Quaternius (patinés) : tables de festin et de maison, étagères, chevets, crânes, os, boucliers ronds, coffres des dépôts
+funéraires (dans une composition, seuls des q_*/pq_* sont posables), outils, toiles d'araignée. Les tables de la crypte étaient déjà
+revenues au modèle d'avant (`props/crypte_v5`).
+
+### 3. Détails ajoutés (avec mesure, rien de solide sur les passages, aucun tirage de `rng`)
+
+- Foyers (bâtiments ouverts : cheminée et foyer ouvert ; maisons nommées ; long foyer de la halle) : `PropsRealisme.cendres` (6 flocons
+  de cendre, 4 escarbilles de charbon, un tison noirci roulé hors du feu, au ras du sol). Rejeté sur planche : une « suie » en plaques
+  sur la pierre au-dessus du linteau (texture de charbon trop claire et trop plate : un panneau collé sur la cheminée de Grima).
+- Tables des maisons / fermes / auberge (`BatimentsOuverts._table`) : `table_entamee` (miettes et quignon, chope renversée au bout du
+  plateau avec sa flaque, os rongé) et `peau_jetee` (fourrure en travers d'un banc).
+- Bancs et coffres d'intérieur : biais de pose de ±2,5 à 3,5° (`PropsRealisme.biais`, bruit de position), plus rien de parfaitement
+  d'équerre.
+- Crypte : dépôt funéraire `C5_DEPOT_R` (ossuaire, tombeau, reliquaires, lb2a) : coffre de biais et décalé, vase renversé brisé, petit
+  vase roulé, os glissés au pied (la v5 était symétrique vase / coffre droit / vase, effet vitrine) ; même emprise que le dépôt v5.
+
+Planches (gauche : avant v5 `--sans-props-v5`, milieu : v5 actuelle `--sans-realisme-v5`, droite : v5 retravaillée), nuit 21 h :
+`C:\Users\lopezk19\Jeux\rendus\props_v5\realisme_interieurs_*.png` et `realisme_souterrains_*.png` ; captures brutes
+`rendus/props_v5/realisme/{avant,actuel,final}` ; poses `outils/poses_props_realisme.txt` (34 poses : 19 intérieures, 15 souterraines).
+Vérification ciblée (dépôts funéraires, tables et foyers vus de haut) : `realisme_souterrains_3_depots_et_tables.png`, captures
+`rendus/props_v5/realisme/verif_{avant,actuel,final}`, poses `outils/poses_props_realisme_verif.txt`.
+
+Tests (worktree `props/realisme_v5`) : test_crypte TOUT OK, test_cassables ECHECS : 0, test_sommeil RESULTAT : OK, test_interieurs
+TOUT OK, test_grotte OK. Godot rend le code 5 en fin de test_crypte / cassables / sommeil / interieurs : préexistant (même code
+sur la base 16cf1e98 sans ce lot), à juger sur la sortie et non sur le code.
+
+Limites : bruit d'usure en volume monde (un prop déplacé change de taches) ; la lame posée sur l'établi de la forge reste un peu claire ;
+les flocons de cendre se lisent en petits carrés (peu visibles en jeu) ; pas de mesure d'IPS (quelques instructions de shader, aucun
+appel de dessin en plus).

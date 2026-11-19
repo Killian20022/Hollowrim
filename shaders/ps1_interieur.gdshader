@@ -34,6 +34,8 @@ uniform bool emission_texture = false;
 uniform float saturation = 1.0;
 uniform vec3 ambiant : source_color = vec3(0.2, 0.17, 0.2);   // lumière ambiante PROPRE à l'intérieur (l'ambiante du ciel est coupée)
 instance uniform float eclair = 0.0;
+uniform float usure = 0.0;          // props/realisme_v5 : patine des props texturés (0 = rien, décor inchangé)
+uniform float ao_gamma = 1.0;       // > 1 : creux de l'occlusion cuite (COLOR.rgb) plus sombres, arêtes adoucies
 
 varying vec3 p_obj;
 varying vec3 n_obj;
@@ -43,6 +45,36 @@ float hash21(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
 	p += dot(p, p + 45.32);
 	return fract(p.x * p.y);
+}
+
+// props/realisme_v5 : bruit de valeur 3D (patine, poussière, moisissure des props texturés), cases de 1/16 m (gros pixels PS1)
+float rv_h(vec3 p) {
+	p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
+	p *= 17.0;
+	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float rv_bruit(vec3 x) {
+	vec3 i = floor(x);
+	vec3 f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(rv_h(i), rv_h(i + vec3(1, 0, 0)), f.x), mix(rv_h(i + vec3(0, 1, 0)), rv_h(i + vec3(1, 1, 0)), f.x), f.y),
+		mix(mix(rv_h(i + vec3(0, 0, 1)), rv_h(i + vec3(1, 0, 1)), f.x), mix(rv_h(i + vec3(0, 1, 1)), rv_h(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+// usure : taches de crasse et bois/fer patinés (assombrit et désature par plaques) ; poussiere : voile gris sur les dessus ;
+// moisi : plaques sombres verdâtres (humidité). p = position monde, nw = normale monde, c = albédo.
+vec3 rv_patine(vec3 c, vec3 p, vec3 nw, float us, float pou, float moi) {
+	vec3 q = floor(p * 16.0) / 16.0;
+	float n1 = rv_bruit(q * 2.3);
+	float n2 = rv_bruit(q * 9.0 + 3.7);
+	float tache = smoothstep(0.42, 0.8, n1 * 0.7 + n2 * 0.3);
+	float l = dot(c, vec3(0.3, 0.59, 0.11));
+	c *= 1.0 - us * (0.42 * tache + 0.16 * n2);
+	c = mix(c, vec3(l) * vec3(0.95, 0.86, 0.74), us * 0.35 * tache);
+	float dessus = smoothstep(0.55, 0.9, nw.y);
+	c = mix(c, vec3(l * 0.9 + 0.035) * vec3(1.0, 0.97, 0.92), pou * dessus * (0.45 + 0.55 * n2));
+	float m = smoothstep(0.55, 0.85, rv_bruit(q * 3.1 + 11.0)) * (1.0 - dessus * 0.5);
+	c = mix(c, c * vec3(0.55, 0.66, 0.5), moi * m);
+	return c;
 }
 
 void vertex() {
@@ -104,7 +136,11 @@ void fragment() {
 		mat3 mm = mat3(normalize(MODEL_MATRIX[0].xyz), normalize(MODEL_MATRIX[1].xyz), normalize(MODEL_MATRIX[2].xyz));
 		NORMAL = normalize(NORMAL + mat3(VIEW_MATRIX) * (mm * d));
 	}
-	ALBEDO = couleur * COLOR.rgb * teinte.rgb;
+	vec3 ao_c = ao_gamma != 1.0 ? pow(max(COLOR.rgb, vec3(0.0)), vec3(ao_gamma)) : COLOR.rgb;
+	ALBEDO = couleur * ao_c * teinte.rgb;
+	if (usure > 0.0) {
+		ALBEDO = rv_patine(ALBEDO, (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz, (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz, usure, 0.0, 0.0);
+	}
 	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
 	ALBEDO = mix(ALBEDO, vec3(1.0, 0.85, 0.8), eclair);
 	// ambiante d'appoint : les faces tournées vers le bas (plafond, dessous d'entrait) en reçoivent un peu plus, comme si le sol

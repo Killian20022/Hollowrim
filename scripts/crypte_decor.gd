@@ -506,6 +506,7 @@ func mat(nom: String) -> Material:
 			if est_pq:      # props/maximum : sous terre, le bois orangé et propre du pack jurait avec le bois sombre de la crypte et du camp
 				sm.set_shader_parameter("saturation", PQ_SATURATION)
 				sm.set_shader_parameter("teinte", PQ_TEINTE)
+				PropsRealisme.regler_sous_terre(sm, nom, self is GrotteDecor)      # props/realisme_v5 : patine, poussière, moisi
 			if est_crypte:
 				sm.set_shader_parameter("ambiant", AMBIANT_CRYPTE)
 				sm.set_shader_parameter("grille", GRILLE_CRYPTE)
@@ -2499,7 +2500,7 @@ const SUBST_V5 := {
 }
 
 func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: bool) -> Variant:
-	var v5 := PropsQuaternius.v5 and SUBST_V5.has(nom)
+	var v5 := PropsQuaternius.v5 and SUBST_V5.has(nom) and not PropsRealisme.ancien_crypte(nom)
 	if PropsQuaternius.pq and nom in SUBST_GARDE_PQ and not v5:
 		return null
 	var s: Array = SUBST_V5[nom] if v5 else SUBST[nom]
@@ -2532,7 +2533,7 @@ func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats :=
 		return []
 	if _sans_maison and (nom.begins_with("oss_long_") or nom.begins_with("os_long_") or nom.begins_with("os_court_") or nom.begins_with("gravats_")):
 		return []      # lot 4 : os longs et gravats maison remplacés par les props Quaternius (emprise, collision et tirages inchangés)
-	if PropsQuaternius.remplace and (SUBST.has(nom) or (PropsQuaternius.v5 and SUBST_V5.has(nom))):
+	if PropsQuaternius.remplace and (SUBST.has(nom) or (PropsQuaternius.v5 and SUBST_V5.has(nom) and not PropsRealisme.ancien_crypte(nom))):
 		var rs: Variant = _modele_subst(nom, pos, lacet, ech, emp)
 		if rs != null:
 			return rs

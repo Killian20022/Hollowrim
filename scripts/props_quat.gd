@@ -68,6 +68,7 @@ static func materiau(atlas: String, contexte := "exterieur") -> Material:
 		mi.set_shader_parameter("relief", 0.0)
 		mi.set_shader_parameter("proche", Vector2(40.0, 60.0))     # pas de tramage de mip (UV de trim : il mouchetait le plateau des tables)
 		mi.set_shader_parameter("ambiant", Interieurs.AMBIANT)
+		PropsRealisme.regler_interieur(mi, atlas)      # props/realisme_v5 : patine, bois sombre du bâti
 		Palette.suivre(mi)
 		m = mi
 	else:

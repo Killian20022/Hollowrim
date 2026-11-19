@@ -769,6 +769,7 @@ func modele_table(pos: Vector3, long: float, _larg: float, haut: float) -> Strin
 func banc(pos: Vector3, long: float, lacet := 0.0, haut := 0.46, prof := 0.34, solide_ := true) -> void:
 	pos = _sol(pos)
 	if rempl("q_banc"):
+		lacet += PropsRealisme.biais(pos, 0.045)      # props/realisme_v5 : bancs pas tout à fait d'équerre
 		if solide_:
 			solide(pos + Vector3(0, haut - 0.04, 0), Vector3(long, 0.08, prof), lacet)
 		qf("q_banc", pos, lacet, Vector3(long, haut, prof))
@@ -791,7 +792,8 @@ func tabouret(pos: Vector3, haut := 0.45) -> void:
 
 ## Coffre ferré : caisse de planches, couvercle bombé / plat / en bâtière, ferrures, serrure (modules L6).
 func coffre(pos: Vector3, lacet := 0.0, taille := Vector3(0.9, 0.46, 0.55), _ouvert := false) -> void:
-	if rempl("q_coffre"):      # décor (les coffres de butin interactifs sont posés par le monde, pas ici)
+	if rempl("q_coffre"):      # décor
+		lacet += PropsRealisme.biais(pos, 0.06)      # props/realisme_v5 (les coffres de butin interactifs sont posés par le monde, pas ici)
 		solide(pos + Vector3(0, taille.y * 0.5, 0), taille, lacet)
 		# pq : couvercle FERMÉ (pq_coffre_ferme, pose « Chest_Closed » du pack) sauf coffre ouvert ; q_* (--props-quat-ancien) : ouvert
 		var nc := "q_coffre_ferme" if not _ouvert and PropsQuaternius.pq_de("q_coffre_ferme") != "" else "q_coffre"

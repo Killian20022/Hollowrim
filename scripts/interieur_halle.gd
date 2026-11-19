@@ -164,6 +164,8 @@ static func _foyer(b: Interieurs, xh: float) -> void:
 	b.halo(Vector3(xh, F + 0.04, 0), Vector3.UP, 4.4, 2.2, Color(1, 0.85, 0.7, 1))
 	b.lumiere(Vector3(xh - 1.3, F + 1.0, 0), 2.6, 8.5)
 	b.lumiere(Vector3(xh + 1.3, F + 1.0, 0), 2.6, 8.5)
+	for sz in [-1.0, 1.0]:      # props/realisme_v5 : cendres et tisons tombés hors du cadre, des deux côtés du long foyer
+		PropsRealisme.cendres(b, Vector3(xh, F, sz * (lz * 0.5 + 0.22)), Vector3(0, 0, sz), lg * 0.8)
 	# rai de lumière du trou à fumée jusqu'au foyer (quatre plans croisés, volume : shader ps1_rai)
 	var haut := b.y0 + b.faite - F - 0.1
 	b.halo(Vector3(xh, F + haut * 0.5, 0), Vector3.BACK, 1.5, haut, Color(1.3, 1.25, 1.1, 1), "rai")

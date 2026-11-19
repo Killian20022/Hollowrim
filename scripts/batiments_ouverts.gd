@@ -775,6 +775,7 @@ static func _foyer(b: Interieurs, pl: Dictionary, murs: Murs) -> Vector3:
 		b.dallage(Rect2(atre.x - 0.75, atre.z - 0.55, 1.5, 1.1) if absf(n.z) > 0.5 else Rect2(atre.x - 0.55, atre.z - 0.75, 1.1, 1.5), "pierre_sombre", F + 0.03)
 		b.halo(Vector3(atre.x, F + 0.05, atre.z), Vector3.UP, 3.0, 3.0, Color(1, 0.9, 0.8, 1))
 		b.lumiere(atre + Vector3(0, F + 1.0, 0), 2.6, 7.0)
+		PropsRealisme.cendres(b, c + n * 0.5 + Vector3(0, F + 0.03, 0), n, 0.9)      # props/realisme_v5 : cendres et tison
 		b.chaudron(c + n * 0.5 + bz * Vector3(0.5, 0, 0) + Vector3(0, F, 0), 0.2)
 		b.buches(c + bz * Vector3(-1.2, 0, 0.25), lacet)
 		return atre
@@ -791,6 +792,7 @@ static func _foyer(b: Interieurs, pl: Dictionary, murs: Murs) -> Vector3:
 	b.halo(p + Vector3(0, F + 0.05, 0), Vector3.UP, 3.0, 3.0, Color(1, 0.9, 0.8, 1))
 	b.lumiere(p + Vector3(0, F + 0.9, 0), 2.3, 6.5)
 	b.solide(p + Vector3(0, F + 0.2, 0), Vector3(1.1, 0.4, 0.9))
+	PropsRealisme.cendres(b, p + Vector3(0, F, 0.55), Vector3(0, 0, 1), 0.8)      # props/realisme_v5
 	b.cyl(p + Vector3(0.75, F + 0.55, 0), 0.025, 1.1, "fer_noir", 4)
 	murs.occuper(p, Vector2(0.95, 0.85))
 	return p + Vector3(0, 0, 0.9)
@@ -812,6 +814,8 @@ static func _table(b: Interieurs, pl: Dictionary, centre: Vector3, long := 1.8, 
 	b.chope(Vector3(centre.x, y, centre.z) + bz * Vector3(0.3, 0, 0.22))
 	b.cruche(Vector3(centre.x, y, centre.z) + bz * Vector3(-0.2, 0, -0.2), 0.26)
 	b.bougie(Vector3(centre.x, y, centre.z) + bz * Vector3(0.12, 0, -0.05), 0.13)
+	PropsRealisme.table_entamee(b, Vector3(centre.x, y, centre.z), bz, long)      # props/realisme_v5 : miettes, chope renversée, os
+	PropsRealisme.peau_jetee(b, Vector3(centre.x, F + 0.46, centre.z) + bz * Vector3(-(long - 0.3) * 0.5 + 0.35, 0, 0.72), lacet)
 	if festin:
 		b.fromage(Vector3(centre.x, y + 0.024, centre.z) + bz * Vector3(0.25, 0, 0.05))
 		b.nq("q_cuisse", Vector3(centre.x, y + 0.024, centre.z) + bz * Vector3(-0.25, 0, 0.02), 0.6)

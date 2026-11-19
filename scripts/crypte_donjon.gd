@@ -1062,15 +1062,20 @@ const C5_TRESOR := [["pq_coffre_or", 0.0, 0.36, 90.0, 0.0, true, 1.0], ["q_tas_p
 	["pq_bourse", 0.5, 0.3, 40.0, 0.0, false]]
 const C5_RUINE := [["q_colonne_brisee", 0.0, 0.62, 90.0, 0.0, true, 1.0], ["q_colonne_brisee_2", -1.15, 0.5, 20.0, 0.0, true, 0.75],
 	["q_roc_3", 0.9, 0.35, 40.0, 0.0, false, 0.9], ["q_brique_2", 0.75, 1.0, 70.0, 0.0, false, 1.0], ["q_brique_4", -0.5, 1.15, 10.0, 0.0, false, 1.0]]
+## props/realisme_v5 : dépôt funéraire moins « vitrine » (le v5 était symétrique : vase, coffre droit, vase) : coffre de biais, le vase de
+## gauche renversé et brisé, os glissés au pied  ; emprise du dépôt v5 (urne brisée à la place du vase de gauche, rentrée de 15 cm : plus large, elle sortait de la salle).
+const C5_DEPOT_R := [["pq_coffre_ferme", 0.06, 0.3, 6.0, 0.0, true, 1.3], ["q_vase_4", 0.9, 0.32, -12.0, 0.0, false, 0.85, "urne"],
+	["q_urne_brisee", -0.74, 0.5, 30.0, 0.0, false, 0.8], ["q_os_tas_2", 0.3, 0.95, 52.0, 0.0, false, 1.2],
+	["pq_bougie_d", -0.12, 0.28, 0.0, 0.515, false]]
 static var compos_v5 := 0
 
 func _compos_v5(m: Dictionary) -> void:
 	match String(m["id"]):
 		"ossuaire":
 			_compo_mur(m, "v5_ossements", C5_OSSEMENTS)
-			_compo_mur(m, "v5_depot", C5_DEPOT, ["S", "E", "O", "N"])
+			_compo_mur(m, "v5_depot", C5_DEPOT_R if PropsRealisme.actif else C5_DEPOT, ["S", "E", "O", "N"])
 		"tombeau", "reliquaires", "lb2a":
-			_compo_mur(m, "v5_depot", C5_DEPOT)
+			_compo_mur(m, "v5_depot", C5_DEPOT_R if PropsRealisme.actif else C5_DEPOT)
 		"tresor":
 			_compo_mur(m, "v5_tresor", C5_TRESOR)
 		"arene":

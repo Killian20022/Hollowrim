@@ -1,0 +1,12 @@
+# props/realisme_v5 : vérifications (dépôts de la crypte, tables et foyers des maisons générées)
+c_ossuaire_depot crypte -17.0,-16.9,-90,-22 sans-mains
+c_tombeau_depot crypte 16.2,-74.0,0,-22 sans-mains
+c_reliquaires_depot crypte -29.9,-47.0,0,-22 sans-mains
+c_lb2a_depot crypte 6.0,-44.2,180,-22,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+i_h1_n35 interieur 0,0,0,-35 bat=h1 heure=21
+i_h1_s35 interieur 0,0,180,-35 bat=h1 heure=21
+i_h2_n35 interieur 0,0,0,-35 bat=h2 heure=21
+i_ferme_a_s35 interieur 0,0,180,-35 bat=ferme_a heure=21
+i_tour_s35 interieur 0,0,180,-35 bat=tour heure=21
+h_foyer interieur -1.5,2.5,0,-35 bat=halle heure=21
+s_foyer interieur 0,1.2,90,-30 bat=sigrun heure=21

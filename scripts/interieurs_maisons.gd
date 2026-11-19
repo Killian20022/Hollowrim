@@ -50,6 +50,7 @@ static func _colonne_foyer(b: Interieurs, xch: float) -> void:
 	b.dallage(Rect2(xch - 1.5, -0.85, 1.1, 1.7), "pierre_sombre", F + 0.03)
 	b.halo(Vector3(xch - 0.85, F + 0.05, 0), Vector3.UP, 3.4, 3.4, Color(1, 0.9, 0.8, 1))
 	b.lumiere(Vector3(xch - 0.9, F + 1.1, 0), 2.9, 7.5)
+	PropsRealisme.cendres(b, Vector3(xch - 0.52, F + 0.03, 0), Vector3(-1, 0, 0), 0.8)      # props/realisme_v5 : cendres et tison
 	# crémaillère : bras de fer pivotant et marmite
 	b.cyl(Vector3(xch - 0.5, F + 1.3, 0.45), 0.025, 1.7, "fer_noir", 4)
 	b.cyl_h(Vector3(xch - 0.88, F + 1.7, 0.45), 0.02, 0.8, "fer_noir", PI * 0.5, 4)

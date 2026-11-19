@@ -34,6 +34,10 @@ uniform vec3 lueur_bas = vec3(0.0);
 instance uniform float eclair = 0.0;
 // C1 matières : 1 = couleur inchangée ; < 1 rapproche la couleur de sa luminance (bois de la crypte moins orange)
 uniform float saturation = 1.0;
+uniform float usure = 0.0;          // props/realisme_v5 : patine (taches de crasse) des props texturés ; 0 = décor inchangé
+uniform float poussiere = 0.0;      // voile de poussière sur les faces tournées vers le haut
+uniform float moisi = 0.0;          // plaques sombres verdâtres (humidité)
+uniform float ao_gamma = 1.0;       // > 1 : creux de l'occlusion cuite plus sombres
 // C1 matières, variante BRILLANT seulement (sans effet ailleurs) : reflet net (brillance, durete = exposant, seuil de la tache),
 // lustre = reflet doux large (fer patiné), couleur du reflet ; le reflet suit la clarté de l'albédo (creux et joints sombres : rien)
 uniform float brillance = 0.0;
@@ -47,6 +51,36 @@ uniform float grain_densite = 256.0;
 
 varying vec3 pos_m;
 varying vec3 n_m;
+
+// props/realisme_v5 : bruit de valeur 3D (patine, poussière, moisissure des props texturés), cases de 1/16 m (gros pixels PS1)
+float rv_h(vec3 p) {
+	p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
+	p *= 17.0;
+	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float rv_bruit(vec3 x) {
+	vec3 i = floor(x);
+	vec3 f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(rv_h(i), rv_h(i + vec3(1, 0, 0)), f.x), mix(rv_h(i + vec3(0, 1, 0)), rv_h(i + vec3(1, 1, 0)), f.x), f.y),
+		mix(mix(rv_h(i + vec3(0, 0, 1)), rv_h(i + vec3(1, 0, 1)), f.x), mix(rv_h(i + vec3(0, 1, 1)), rv_h(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+// usure : taches de crasse et bois/fer patinés (assombrit et désature par plaques) ; poussiere : voile gris sur les dessus ;
+// moisi : plaques sombres verdâtres (humidité). p = position monde, nw = normale monde, c = albédo.
+vec3 rv_patine(vec3 c, vec3 p, vec3 nw, float us, float pou, float moi) {
+	vec3 q = floor(p * 16.0) / 16.0;
+	float n1 = rv_bruit(q * 2.3);
+	float n2 = rv_bruit(q * 9.0 + 3.7);
+	float tache = smoothstep(0.42, 0.8, n1 * 0.7 + n2 * 0.3);
+	float l = dot(c, vec3(0.3, 0.59, 0.11));
+	c *= 1.0 - us * (0.42 * tache + 0.16 * n2);
+	c = mix(c, vec3(l) * vec3(0.95, 0.86, 0.74), us * 0.35 * tache);
+	float dessus = smoothstep(0.55, 0.9, nw.y);
+	c = mix(c, vec3(l * 0.9 + 0.035) * vec3(1.0, 0.97, 0.92), pou * dessus * (0.45 + 0.55 * n2));
+	float m = smoothstep(0.55, 0.85, rv_bruit(q * 3.1 + 11.0)) * (1.0 - dessus * 0.5);
+	c = mix(c, c * vec3(0.55, 0.66, 0.5), moi * m);
+	return c;
+}
 
 void vertex() {
 	vec4 clip = PROJECTION_MATRIX * MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
@@ -63,7 +97,7 @@ void vertex() {
 void fragment() {
 	vec4 t = texture(tex_base, UV);
 	if (decoupe > 0.0 && t.a < decoupe) discard;
-	vec3 c = t.rgb * COLOR.rgb * teinte.rgb;
+	vec3 c = t.rgb * (ao_gamma != 1.0 ? pow(max(COLOR.rgb, vec3(0.0)), vec3(ao_gamma)) : COLOR.rgb) * teinte.rgb;
 	vec3 nw = normalize(n_m);
 	if (grain_proche > 0.0 && relief > 0.0) {         // condition uniforme : les dérivées restent valides
 		float dist = length(pos_m - CAMERA_POSITION_WORLD);
@@ -96,6 +130,7 @@ void fragment() {
 	float mur = 1.0 - abs(nw.y);
 	float pied = mix(0.5, 1.0, smoothstep(0.0, 1.15, h));
 	c *= mix(1.0, pied, crasse * mur);
+	if (usure > 0.0 || poussiere > 0.0 || moisi > 0.0) c = rv_patine(c, pos_m, nw, usure, poussiere, moisi);
 	if (saturation != 1.0) c = mix(vec3(dot(c, vec3(0.3, 0.59, 0.11))), c, saturation);
 	c = mix(c, vec3(1.0, 0.85, 0.8), eclair);
 	ALBEDO = c;

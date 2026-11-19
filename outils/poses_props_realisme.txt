@@ -1,0 +1,35 @@
+# props/realisme_v5 : vues de jeu de nuit (21 h) des intérieurs et des souterrains, avant v5 / v5 / v5 retravaillé
+h_ouest interieur -5.8,0.2,-90,-8 bat=halle heure=21
+h_est interieur 3.4,0.9,-78,-6 bat=halle heure=21
+h_tables interieur -1.2,0.6,-105,-14 bat=halle heure=21
+h_crane interieur 5.6,1.2,-90,-12 bat=halle heure=21
+s_est interieur 3.0,1.5,115,-8 bat=sigrun heure=21
+s_cranes interieur -2.4,0.9,90,-10 bat=sigrun heure=21
+c_porte interieur 0,2.0,0,-8 bat=chasseurs heure=21
+c_lits interieur -1.0,0.4,100,-22 bat=chasseurs heure=21
+g_porte interieur 0,1.8,0,-8 bat=grima heure=21
+g_ouest interieur -2.6,-0.5,-60,-6 bat=grima heure=21
+f_porte interieur 1.4,1.5,0,-8 bat=forge heure=21
+f_etabli interieur -0.6,0.5,170,-30 bat=forge heure=21
+i_h1_e interieur 0,0.5,-90,-16 bat=h1 heure=21
+i_h2_e interieur 0,1.2,-90,-16 bat=h2 heure=21
+i_h2_s interieur 0,0,180,-14 bat=h2 heure=21
+i_h3_n interieur 0,0,0,-14 bat=h3 heure=21
+i_tour_n interieur 0,0,0,-14 bat=tour heure=21
+i_ferme_a_n interieur 0,0,0,-14 bat=ferme_a heure=21
+i_grenier_n interieur 0,0,0,-14 bat=grenier heure=21
+zz_chauffe crypte 21.5,-53.4,-90,-12,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_eirik crypte -7.0,-24.5,90,-18 sans-mains
+c_quartiers crypte 16.3,-3.5,-70,-12 sans-mains
+c_garde crypte 25,-51,95,-10,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_garde_bouclier crypte 24.6,-56.0,0,-4,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_ossuaire_depot crypte -17.0,-16.9,-90,-22 sans-mains
+c_tombeau_depot crypte 16.2,-74.0,0,-22 sans-mains
+c_tresor crypte -36.8,-44,90,-15 sans-mains
+c_archives crypte -7.5,-43,90,-8,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_prep crypte -1.5,-25.5,90,-10 sans-mains
+g_mine_galerie grotte 112,0,0,-6 sans-mains
+g_camp grotte 302,0,0,-8 sans-mains
+g_camp_fond grotte 314,0,180,-8 sans-mains
+g5_mineur_a grotte 107,0,0,-12 sans-mains
+g5_butin grotte 305.5,0,0,-12 sans-mains
