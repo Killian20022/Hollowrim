@@ -437,6 +437,12 @@ func _installer_arme() -> void:
 		# sang v2 : sang qui s'accumule sur la lame puis s'efface (matériau propre au joueur : _copie_lame)
 		if _lame != _acier and is_instance_valid(_modele_arme_d):
 			SangLame.equiper(_modele_arme_d, _lame, _garde_lame, _pointe_lame)
+	# effet passif de l'élément de la lame (feu, glace, électricité, ténèbres) le long du segment tranchant lu ci-dessus
+	if is_instance_valid(_modele_arme_d):
+		var ef := EffetElementLame.poser_type(_modele_arme_d, arme.element_type, _garde_lame, _pointe_lame)
+		if ef != null:
+			ef.mains = self
+			ef.portee = 0.0
 
 ## Repère `nom` (nœud vide) d'un modèle sur disque, sans l'ajouter à la scène (Vector3.INF s'il n'existe pas).
 func _repere_fichier(chemin: String, nom: String) -> Vector3:

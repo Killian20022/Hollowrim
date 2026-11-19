@@ -181,7 +181,17 @@ static func poser(sq: Skeleton3D, centre: Vector3, id_corps: String, id: String,
 		ar.set("doigts", centre.normalized())
 	ar.set("os", sq.find_bone("hand_r"))
 	acc.add_child(ar)
+	# arme à élément (hache de Kolbeinn : glace) : effet passif le long de son segment tranchant (nœuds garde / pointe du modèle)
+	var da := donnees_arme(id)
+	if da != null:
+		EffetElementLame.poser(a, da)
 	return a
+
+## DonneesArme d'une arme d'ennemi : data/armes/<id>.tres pour un unique qui en a un (élément, teinte), sinon le catalogue.
+static func donnees_arme(id: String) -> DonneesArme:
+	if id.is_valid_filename() and ResourceLoader.exists("res://data/armes/%s.tres" % id):
+		return load("res://data/armes/%s.tres" % id) as DonneesArme
+	return CatalogueArmes.donnees(_de_base(id))
 
 static func arme_de(modele: Node) -> String:
 	return String(modele.get_meta("arme_id", "")) if modele != null else ""

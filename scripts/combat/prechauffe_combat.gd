@@ -44,6 +44,7 @@ static func caches() -> void:
 	Sang.pm_jet(2)
 	GerbePixels._preparer_ressources()   # gerbes de pixels du corps à corps (lot L6) : quads, shaders, matériaux de processus
 	EclatsOs._ressources()
+	EffetElementLame.prechauffer()       # effet passif des lames à élément : matériaux partagés (process + dessin) de chaque élément
 
 ## Lance le préchauffage rendu d'une vitrine posée en `lieu` (monde, sous le sol) : `soleil` exclu de la caméra si donné (sous
 ## terre), `env` = environnement du lieu (null = celui du monde). Renvoie la vitrine (libérée toute seule à la fin).
@@ -137,6 +138,19 @@ static func vitrine() -> Node3D:
 	vm.position = Vector3(0.0, 0.0, -1.0)
 	v.add_child(vm)
 	GestionMagie.obtenir().vitrine_prechauffe(vm)
+	# effet passif des lames à élément : un segment par élément (shaders lame_element_* compilés avant la première arme enchantée)
+	if EffetElementLame.actif:
+		var ve := Node3D.new()
+		ve.name = "VitrineElements"
+		ve.position = Vector3(-0.6, 0.0, 0.3)
+		v.add_child(ve)
+		var k := 0
+		for t: String in EffetElementLame.TYPES:
+			EffetElementLame.poser_type(ve, t, Vector3(k * 0.3, 0.1, 0), Vector3(k * 0.3, 0.9, 0))
+			var e := ve.get_node_or_null("EffetElement")
+			if e != null:
+				e.name = "Element_" + t     # plusieurs effets sous le même nœud
+			k += 1
 	return v
 
 static func _particules(parent: Node3D, pos: Vector3, pm: ParticleProcessMaterial, maillage: Mesh) -> void:
