@@ -1936,6 +1936,8 @@ func arme(pos: Vector3, lacet := 0.0) -> void:
 	ObjPetitMobilier.arme(self, pos, lacet)
 
 func toile(coin: Vector3, a: Vector3, b: Vector3, l := 1.1) -> void:
+	if PropsQuaternius.v5 and not muet and _toile_v5(coin, a, b, l):
+		return
 	j0("toile")
 	# triangle incliné : le coin, un point le long du mur A, un point le long du mur B plus bas
 	var p0 := coin
@@ -1951,6 +1953,34 @@ func toile(coin: Vector3, a: Vector3, b: Vector3, l := 1.1) -> void:
 	var buf := _buf((p0 + p1 + p2) / 3.0, "toile")
 	_tri(buf, p0, p1, p2, n, Vector2(0, 0), Vector2(1, 0), Vector2(0, 1))
 	j1()
+
+## props/crypte_v5 : toile d'araignée d'angle du Modular Dungeon (Cobweb / Cobweb2, fils en volume) à la place du triangle peint : son
+## coin d'accroche (x min, y max, z min du modèle) au point `coin`, ses bords le long des murs `a` et `b` (projetés à l'horizontale),
+## taille l x 0,85. Variante tirée de la position (aucun tirage de rng). Faux : modèle absent (le triangle reste).
+func _toile_v5(coin: Vector3, a: Vector3, b: Vector3, l: float) -> bool:
+	PropsQuaternius.preparer_crypte()
+	var w := xf * coin
+	var nom := "q_toile_araignee_%d" % (1 + absi(floori(w.x * 3.1) + floori(w.z * 1.7) + floori(w.y * 2.3)) % 2)
+	if not _modeles_de.has(nom):
+		return false
+	var ah := Vector3(a.x, 0, a.z)
+	var bh := Vector3(b.x, 0, b.z)
+	if ah.length_squared() < 1e-6 or bh.length_squared() < 1e-6:
+		return false
+	ah = ah.normalized()
+	bh = bh.normalized()
+	var th := atan2(-ah.z, ah.x)
+	if (Basis(Vector3.UP, th) * Vector3.BACK).dot(bh) < 0.0:      # repère gauche : x le long de b, z le long de a
+		th = atan2(-bh.z, bh.x)
+	var bb := PropsQuaternius.boite(nom)
+	var e := l * 0.85
+	var ancre := Vector3(bb.position.x, bb.end.y, bb.position.z) * e
+	j0("toile")
+	modele(nom, coin - Basis(Vector3.UP, th) * ancre + (ah + bh) * 0.03, th, Vector3.ONE * e, TOILE_V5_MATS, false)
+	j1()
+	PropsQuaternius.compter("souterrain_v5")
+	return true
+const TOILE_V5_MATS := {"lin": "lin"}
 
 func rai(pos_bas: Vector3, haut: float, largeur := 1.4) -> void:
 	j0("rai")
@@ -2237,6 +2267,16 @@ func gravats(pos: Vector3, r := 1.0, h := 0.7, avec_collision := true, mat := "m
 		var dd := r * g.randf_range(0.4, 0.62)
 		var sk := s0 * g.randf_range(0.5, 0.8)
 		_q4(["q_roc_5", "q_roc_3", "q_roc_1", "q_roc_4"][k % 4], pos + Vector3(cos(a) * dd, 0.0, sin(a) * dd), g.randf() * TAU, Vector3(sk, sk * g.randf_range(0.8, 1.3), sk), mats)
+	if PropsQuaternius.v5 and r >= 0.3:
+		# props/crypte_v5 : maçonnerie effondrée = briques taillées (Medieval Village, kitbash) mêlées aux rochers, au bord du tas
+		# (tirages du générateur à part : rien ne bouge) ; 2 à 4 selon la taille.
+		var nb := 2 if r < 0.6 else (3 if r < 1.0 else 4)
+		for k in nb:
+			var a := a0 + pas * k + g.randf_range(0.6, 1.4)
+			var dd := r * g.randf_range(0.55, 0.85)
+			var sb := clampf(r * 1.1, 0.7, 1.4) * g.randf_range(0.85, 1.15)
+			_q4("q_brique_%d" % (1 + (k + g.randi()) % 4), pos + Vector3(cos(a) * dd, 0.0, sin(a) * dd), g.randf() * TAU, Vector3(sb, sb, sb), mats)
+		PropsQuaternius.compter("souterrain_v5", nb)
 	j1()
 
 ## Fissures noires qui courent sur un mur (mur fragile : on les voit, et la poussière au pied).
@@ -2445,10 +2485,26 @@ const SUBST := {
 ## de 17 cm de fond : z 0,13), et aucun pq_* n'a la bonne forme (petite table, râtelier mural).
 const SUBST_GARDE_PQ := ["table_a", "table_b", "table_c", "ratelier_cadre_a", "ratelier_cadre_b", "g_ratelier"]
 
+## props/crypte_v5 : remplaçants des souterrains AVEC les props texturés (PropsQuaternius.v5), prioritaires sur SUBST / SUBST_GARDE_PQ ;
+## même forme que SUBST, quart de tour 1 = +90°, 3 = −90° (avant du prop tourné vers +Z local du module).
+##   - tables : petite table du Modular Dungeon (Table_Small, 1,30 x 1,97 m) couchée sur le grand axe : ajustée à 1,10 x 0,65 x 0,81 m,
+##     échelles 0,56 / 0,50 / 0,95 (presque uniformes en plan), plateau baissé de 3 % (4e champ : facteur de hauteur) pour que les
+##     garnitures C6 (parchemin, bol) posées à 0,81 m ne s'enfoncent pas dans ses planches ; la grande table du MegaKit (x 0,4 / 0,62)
+##     restait écrasée ;
+##   - coffre de décor d'une pièce (coffre_a/b/c, PAS les coffres qui s'ouvrent : cuve + couvercle L1) : coffre fermé texturé du MegaKit
+##     (0,71 x 0,40 x 0,42 m -> 0,93 x 0,57 x 0,62 : x 1,32 / 1,44 / 1,48) ;
+##   - boucliers muraux (bouclier_a/b/c) : bouclier rond de bois cerclé du MegaKit, à plat contre le mur.
+const SUBST_V5 := {
+	"table_a": ["q_table_petite_2", 1, {}, 0.97], "table_b": ["q_table_petite_2", 1, {}, 0.97], "table_c": ["q_table_petite_2", 1, {}, 0.97],
+	"coffre_a": ["pq_coffre_ferme", 0], "coffre_b": ["pq_coffre_ferme", 0], "coffre_c": ["pq_coffre_ferme", 0],
+	"bouclier_a": ["pq_bouclier_bois", 0], "bouclier_b": ["pq_bouclier_bois", 0], "bouclier_c": ["pq_bouclier_bois", 0],
+}
+
 func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: bool) -> Variant:
-	if PropsQuaternius.pq and nom in SUBST_GARDE_PQ:
+	var v5 := PropsQuaternius.v5 and SUBST_V5.has(nom)
+	if PropsQuaternius.pq and nom in SUBST_GARDE_PQ and not v5:
 		return null
-	var s: Array = SUBST[nom]
+	var s: Array = SUBST_V5[nom] if v5 else SUBST[nom]
 	if s[0] == "":
 		return []
 	PropsQuaternius.preparer_crypte()
@@ -2459,7 +2515,7 @@ func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: b
 	if ob.size.x <= 0.001 or pb.size.x <= 0.001:
 		return null
 	PropsQuaternius.compter("crypte_grotte")
-	var rot: bool = s[1] == 1
+	var rot: bool = s[1] == 1 or s[1] == 3
 	var sc := Vector3(ob.size.z / pb.size.x, ob.size.y / maxf(pb.size.y, 0.001), ob.size.x / pb.size.z) if rot else ob.size / pb.size
 	var e2 := (Vector3(ech.z, ech.y, ech.x) if rot else ech) * sc
 	var c := ob.get_center()
@@ -2467,14 +2523,18 @@ func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: b
 	var m := PropsQuaternius.MATS_CRYPTE.duplicate()
 	if s.size() > 2:
 		m.merge(s[2], true)
-	return modele(s[0], p2, lacet + (PI * 0.5 if rot else 0.0), e2, m, emp)
+	if s.size() > 3:
+		e2.y *= float(s[3])
+	if v5:
+		PropsQuaternius.compter("souterrain_v5")
+	return modele(s[0], p2, lacet + (PI * 0.5 if s[1] == 1 else (-PI * 0.5 if s[1] == 3 else 0.0)), e2, m, emp)
 
 func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}, emp := true) -> Array:
 	if muet:
 		return []
 	if _sans_maison and (nom.begins_with("oss_long_") or nom.begins_with("os_long_") or nom.begins_with("os_court_") or nom.begins_with("gravats_")):
 		return []      # lot 4 : os longs et gravats maison remplacés par les props Quaternius (emprise, collision et tirages inchangés)
-	if PropsQuaternius.remplace and SUBST.has(nom):
+	if PropsQuaternius.remplace and (SUBST.has(nom) or (PropsQuaternius.v5 and SUBST_V5.has(nom))):
 		var rs: Variant = _modele_subst(nom, pos, lacet, ech, emp)
 		if rs != null:
 			return rs

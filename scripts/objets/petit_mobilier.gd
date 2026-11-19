@@ -181,11 +181,18 @@ static func coffre_force(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
 	pos = dcr._ecarter(pos, Vector2(0.47, 0.3), lacet)
 	dcr.emprise("coffre_force", pos, Vector2(0.47, 0.3), lacet, 0.9)
 	var b := Basis(Vector3.UP, lacet)
-	dcr.boite("bois", pos + Vector3(0, 0.22, 0), Vector3(0.9, 0.44, 0.56), lacet)
-	dcr.boite("noir", pos + Vector3(0, 0.445, 0), Vector3(0.78, 0.01, 0.44), lacet)
-	dcr.boite("bois", pos + b * Vector3(0, 0.62, -0.3), Vector3(0.9, 0.5, 0.06), lacet + 0.12)
-	for dx in [-0.3, 0.3]:
-		dcr.boite("fer", pos + b * Vector3(dx, 0.31, 0), Vector3(0.09, 0.64, 0.6), lacet)
+	if PropsQuaternius.v5 and PropsQuaternius.existe("pq_coffre"):
+		# props/crypte_v5 : coffre OUVERT texturé du MegaKit (couvercle rabattu en arrière) à la place des boîtes ; l'interaction, la
+		# collision et les pièces semées devant (tirages de rng) ne changent pas. x 1,3 : 0,73 x 0,72 x 0,69 m (ancien 0,9 x 0,9 x 0,56).
+		var bb := PropsQuaternius.boite("pq_coffre")
+		dcr.modele("pq_coffre", pos + b * Vector3(0, 0, -bb.get_center().z * 1.3 + 0.04), lacet, Vector3.ONE * 1.3, PropsQuaternius.MATS_CRYPTE, false)
+		PropsQuaternius.compter("souterrain_v5")
+	else:
+		dcr.boite("bois", pos + Vector3(0, 0.22, 0), Vector3(0.9, 0.44, 0.56), lacet)
+		dcr.boite("noir", pos + Vector3(0, 0.445, 0), Vector3(0.78, 0.01, 0.44), lacet)
+		dcr.boite("bois", pos + b * Vector3(0, 0.62, -0.3), Vector3(0.9, 0.5, 0.06), lacet + 0.12)
+		for dx in [-0.3, 0.3]:
+			dcr.boite("fer", pos + b * Vector3(dx, 0.31, 0), Vector3(0.09, 0.64, 0.6), lacet)
 	dcr.solide(pos + Vector3(0, 0.3, 0), (b * Vector3(0.9, 0.6, 0.56)).abs())
 	for k in 5:
 		dcr.boite("or", pos + b * Vector3(dcr.rng.randf_range(-0.5, 0.5), 0.012, dcr.rng.randf_range(0.35, 0.8)), Vector3(0.05, 0.015, 0.05), dcr.rng.randf() * TAU)

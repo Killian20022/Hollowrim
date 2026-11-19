@@ -638,6 +638,8 @@ static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Stri
 			d.solide_rond(tn + Vector3(0, 0.5, 0), 0.38, 1.0)
 			d.caisse(_p(g, id, s0 + 11.0, 2.3), Vector3(0.8, 0.5, 0.5), 0.15)
 			differer(g, id, [[s0 + 17.0, -1.0], [s0 + 18.5, 1.0], [s0 + 3.0, 1.0]], G_RESERVE)      # props/maximum : réserve des mineurs
+			if PropsQuaternius.v5:      # props/crypte_v5 : mineur tombé (os, pioche, seau, toile) contre la paroi
+				differer(g, id, [[s0 + 8.0, 1.0], [s0 + 13.5, -1.0]] + _cands(s0 + 2.0, s1 - 2.0), G5_MINEUR_MORT)
 		"ressources":
 			# poste des mineurs-bandits : table, tabourets, lit de camp, caisses, sacs de minerai, râtelier de pioches
 			var tb: Vector3 = d.pose_objet(_p(g, id, s0 + 4.0, -1.2), 0.55, 0.33, 0.4, 0.8, GrotteDecor.DROIT, 0.5, 0.45, true)["p"]
@@ -675,6 +677,8 @@ static func _mine(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: Stri
 			d.caisse(_p(g, id, s0 + 15.0, 2.1), Vector3(0.8, 0.5, 0.5), 0.15)
 			d.caisse(_p(g, id, s0 + 15.8, 2.2), Vector3(0.6, 0.42, 0.45), 0.5)
 			differer(g, id, [[s0 + 11.0, -1.0], [s0 + 5.0, 1.0], [s0 + 18.0, -1.0]], G_RESERVE)      # props/maximum : réserve abandonnée
+			if PropsQuaternius.v5:
+				differer(g, id, [[s0 + 13.0, 1.0], [s0 + 7.0, -1.0]] + _cands(s0 + 2.0, s1 - 2.0), G5_MINEUR_MORT)
 
 ## props/maximum (2026-11-11) : COMPOSITION de props texturés adossée à une paroi (établi de mineur, réserve, halte), seulement avec
 ## PropsQuaternius.pq. Ancre : abscisse `s`, côté `cote` (+1 droite, -1 gauche), à 0,75 m de la paroi ; items [id, le long (m, sens de la
@@ -788,6 +792,13 @@ const G_GUET_ETROIT := [["pq_caisse", 0.0, 0.0, 8.0, 0.0, true], ["pq_tabouret",
 	["pq_bougie_2", -0.15, 0.1, 0.0, 0.71, false], ["pq_sac", 0.75, 0.0, -30.0, 0.0, false]]
 const G_HALTE := [["pq_banc", 0.0, 0.25, 0.0, 0.0, true], ["pq_tonneau", 1.6, 0.15, 0.0, 0.0, true], ["pq_seau_bois", -1.5, 0.3, 0.0, 0.0, false],
 	["pq_sac", -1.4, -0.35, 50.0, 0.0, false]]
+
+## props/crypte_v5 (2026-11-19) : Medieval / Modular Dungeon dans la grotte. Mineur tombé : os, pioche, seau de fer, crâne de l'os_tas ;
+## butin des bandits : coffre fermé (décor, sans butin : le butin du camp reste les pièces de `pieces`), tas de pièces, bourse, vase.
+const G5_MINEUR_MORT := [["q_os_tas", 0.0, 0.1, 0.0, 0.0, false, 1.3], ["pq_pioche", 0.75, 0.0, 80.0, 0.0, false],
+	["pq_seau_fer", -0.65, 0.05, 0.0, 0.0, false], ["q_os_tas_2", 0.3, 0.55, 40.0, 0.0, false, 1.1]]
+const G5_BUTIN := [["q_coffre_d", 0.0, 0.0, 90.0, 0.0, true, 1.1], ["q_tas_pieces_2", 0.7, 0.15, 20.0, 0.0, false, 1.3],
+	["pq_bourse", -0.65, 0.1, -30.0, 0.0, false], ["q_vase_4", 0.05, 0.6, 0.0, 0.0, false, 0.8]]
 
 ## Éboulement : un mur de blocs ferme la baie latérale, avec un passage (variante : position) ; arêtes de blocs au bord du couloir.
 static func _eboulis(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> void:
@@ -981,6 +992,8 @@ static func _repaire(g: Grotte, z: Dictionary, r: RandomNumberGenerator, role: S
 	# props/maximum v3 : le poste de guet (couloir d'accès trop étroit partout, |lat| < voie + rayon) passe à l'entrée du camp
 	if PropsQuaternius.v3:
 		differer(g, id, [[1.5, 1.0], [1.5, -1.0], [3.5, 1.0], [3.5, -1.0]] + _cands(5.0, 16.0), G_GUET, G_GUET_ETROIT)
+	if PropsQuaternius.v5:      # props/crypte_v5 : butin des bandits (coffre fermé du Medieval Dungeon, pièces, bourse, urne)
+		differer(g, id, [[12.0, 1.0], [9.5, -1.0]] + _cands(1.5, 16.0), G5_BUTIN)
 	# butin et trophées
 	var cb := _p(g, id, 14.6, -3.6)
 	d.pieces(cb + Vector3(0.9, 0, 0.5), 18, 0.35)

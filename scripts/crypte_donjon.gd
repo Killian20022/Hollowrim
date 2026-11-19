@@ -1047,3 +1047,70 @@ func _compos_pq(m: Dictionary) -> void:
 			_compo(m, "mannequin", C_MANNEQUIN, 28.4, -1.65, PI, y, Vector2(0.3, 0))
 		"lb2b":      # bivouac de l'expédition retranchée, contre le mur nord
 			_compo(m, "bivouac", C_BIVOUAC, -14.3, -55.4, 0.0, y, Vector2(0.5, 0))
+	if PropsQuaternius.v5:
+		_compos_v5(m)
+
+# ------------------------------------------------------------------ props/crypte_v5 : compositions de donjon (Medieval / Modular Dungeon)
+## Mêmes règles que les compositions v2/v3 (_compo : refus si un item au sol touche une voie de porte, une réserve, une ronde, une emprise
+## ou sort de la salle) ; ancre cherchée AUTOMATIQUEMENT le long des murs (_compo_mur). Coffres de décor fermés (pas de butin : les coffres
+## à butin restent ceux de la table des salles), urnes CASSABLES (même logique que toutes les urnes de la crypte), os, vases, colonne brisée.
+const C5_DEPOT := [["pq_coffre_ferme", 0.0, 0.3, 0.0, 0.0, true, 1.3], ["q_vase_4", 0.9, 0.32, 0.0, 0.0, false, 0.85, "urne"],
+	["q_vase_2", -0.9, 0.34, 15.0, 0.0, false, 0.9], ["q_os_tas_2", 0.25, 0.95, 30.0, 0.0, false, 1.2], ["q_bougie_d", -0.22, 0.3, 0.0, 0.515, false]]
+const C5_OSSEMENTS := [["q_os_tas", 0.0, 0.35, 0.0, 0.0, false, 1.3], ["q_vase_4", 0.7, 0.3, 0.0, 0.0, false, 0.8, "urne"],
+	["q_urne_brisee", -0.75, 0.5, 25.0, 0.0, false, 0.9], ["q_os_tas_2", 0.35, 0.95, -40.0, 0.0, false, 1.1]]
+const C5_TRESOR := [["q_coffre_or", 0.0, 0.36, 90.0, 0.0, true, 1.0], ["q_tas_pieces_2", -0.55, 0.3, 20.0, 0.0, false, 1.3],
+	["pq_bourse", 0.5, 0.3, 40.0, 0.0, false]]
+const C5_RUINE := [["q_colonne_brisee", 0.0, 0.62, 90.0, 0.0, true, 1.0], ["q_colonne_brisee_2", -1.15, 0.5, 20.0, 0.0, true, 0.75],
+	["q_roc_3", 0.9, 0.35, 40.0, 0.0, false, 0.9], ["q_brique_2", 0.75, 1.0, 70.0, 0.0, false, 1.0], ["q_brique_4", -0.5, 1.15, 10.0, 0.0, false, 1.0]]
+static var compos_v5 := 0
+
+func _compos_v5(m: Dictionary) -> void:
+	match String(m["id"]):
+		"ossuaire":
+			_compo_mur(m, "v5_ossements", C5_OSSEMENTS)
+			_compo_mur(m, "v5_depot", C5_DEPOT, ["S", "E", "O", "N"])
+		"tombeau", "reliquaires", "lb2a":
+			_compo_mur(m, "v5_depot", C5_DEPOT)
+		"tresor":
+			_compo_mur(m, "v5_tresor", C5_TRESOR)
+		"arene":
+			_compo_mur(m, "v5_ossements", C5_OSSEMENTS, ["S", "N", "E", "O"])
+	# Rejetés sur planches (2026-11-19) : la colonne brisée C5_RUINE (arène, lb3 ; blocs gris illisibles) et les ossements de lb2 chassaient
+	# la statue encapuchonnée, le candélabre et les gravats du semis v2 posés APRÈS (perte nette de décor validé).
+
+## Essaie la composition contre chaque mur de `murs` (ancre à 0,75 m du plan du mur, au milieu puis à ±30 % de sa longueur, glissements
+## de 0,9 m) ; un seul avertissement si tout est refusé.
+func _compo_mur(m: Dictionary, nom: String, items: Array, murs: Array = ["N", "S", "O", "E"]) -> bool:
+	var o: Vector2 = m["o"]
+	var dim: Vector2 = m["dim"]
+	var y := float(m.get("y", 0.0))
+	for c: String in murs:
+		for f: float in [0.0, 0.3, -0.3]:
+			var ax := o.x
+			var az := o.y
+			var lac := 0.0
+			var gl := Vector2(0.9, 0.0)
+			match c:
+				"N":
+					az = o.y - dim.y * 0.5 + 0.75
+					ax += f * dim.x
+				"S":
+					az = o.y + dim.y * 0.5 - 0.75
+					ax += f * dim.x
+					lac = PI
+				"O":
+					ax = o.x - dim.x * 0.5 + 0.75
+					az += f * dim.y
+					lac = PI * 0.5
+					gl = Vector2(0.0, 0.9)
+				_:
+					ax = o.x + dim.x * 0.5 - 0.75
+					az += f * dim.y
+					lac = -PI * 0.5
+					gl = Vector2(0.0, 0.9)
+			if _compo(m, nom, items, ax, az, lac, y, gl, true):
+				compos_v5 += 1
+				return true
+	compos_refusees.append(String(m["id"]) + ":" + nom)
+	push_warning("composition v5 refusée (aucun mur libre) : %s / %s" % [m["id"], nom])
+	return false

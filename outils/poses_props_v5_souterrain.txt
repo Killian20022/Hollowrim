@@ -1,0 +1,32 @@
+# props/crypte_v5 : planches avant (-- --sans-props-v5) / après. Crypte : x,z,lacet°,tangage°[,y] ; grotte : s,décalage,lacet°,tangage°.
+zz_chauffe crypte 21.5,-53.4,-90,-12,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_eirik crypte -7.0,-24.5,90,-18 sans-mains
+c_quartiers crypte 16.3,-3.5,-70,-12 sans-mains
+c_quartiers_table crypte 22.4,-3.0,-134,-25 sans-mains
+c_garde_bouclier crypte 24.6,-56.0,0,-4,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_garde crypte 25,-51,95,-10,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_lb2a_depot crypte 6.0,-44.2,180,-22,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_ossuaire_depot crypte -17.0,-16.9,-90,-22 sans-mains
+c_ossuaire_os crypte -21.0,-22.0,0,-22 sans-mains
+c_ossuaire crypte -15,-16,90,-10 sans-mains
+c_arene_ruine crypte 0.0,-75.5,0,-14 sans-mains
+c_arene_os crypte -2.7,-66.3,180,-20 sans-mains
+c_tombeau_depot crypte 16.2,-74.0,0,-22 sans-mains
+c_reliquaires_depot crypte -29.9,-47.0,0,-22 sans-mains
+c_lb2_os crypte -15.8,-44.0,0,-22,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_lb3_ruine crypte -35.0,-46.0,0,-16,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_tresor crypte -36.8,-44,90,-15 sans-mains
+c_archives crypte -7.5,-43,90,-8,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_barricade crypte -14,-48.5,0,-10,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_chapelle crypte 6,-41.5,0,-10,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_prep crypte -1.5,-25.5,90,-10 sans-mains
+g_carrefour grotte 29,0,0,-6 sans-mains
+g_mine_galerie grotte 112,0,0,-6 sans-mains
+g_mine_chambre grotte 134,0,0,-6 sans-mains
+g_camp grotte 302,0,0,-8 sans-mains
+g_camp_fond grotte 314,0,180,-8 sans-mains
+g_repaire grotte 267,0,0,-6 sans-mains
+g_repaire1 grotte 306,2.5,48,-2 sans-mains
+g5_mineur_a grotte 107,0,0,-12 sans-mains
+g5_mineur_b grotte 255,0,0,-12 sans-mains
+g5_butin grotte 305.5,0,0,-12 sans-mains

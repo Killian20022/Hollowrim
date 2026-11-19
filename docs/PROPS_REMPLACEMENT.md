@@ -352,3 +352,61 @@ pièce (lisibles). `test_interieurs` : OK (1 087 s, machine chargée).
 
 CPU médian témoin 1,80 → 1,70 ms (stable). Écart dans le bruit partout, sous le budget +0,5 ms. Chargement des abords ≈ 0,4 s, étalé sur
 une image par composition. Planches avant/après : `Desktop/Skyrim captures/a_voir_2026-11-11/props/v3_*.png` (gauche avant, droite après).
+
+## Props v5 : souterrains (crypte, tertre, grotte) (props/crypte_v5, 2026-11-19)
+
+Demande : « remplace un maximum de props maison par des Quaternius, notamment les tables ». Interrupteur A/B : `-- --sans-props-v5`
+(`PropsQuaternius.v5`) rend EXACTEMENT la v3 (captures « avant », mesures). Code : `CrypteDecor.SUBST_V5` (prioritaire sur `SUBST` et
+`SUBST_GARDE_PQ`, 4e champ = facteur de hauteur, quart de tour 1 = +90°, 3 = −90°), `CrypteDecor._toile_v5`, `CrypteDecor.gravats` (briques),
+`ObjPetitMobilier.coffre_force`, `CrypteDonjon._compos_v5` / `_compo_mur`, `GrotteModules.G5_*`. Poses : `outils/poses_props_v5_souterrain.txt`.
+
+### Remplacés
+
+| Module maison | Remplaçant | Endroit | Notes |
+|---|---|---|---|
+| table_a/b/c (tables de 1,10 x 0,65 m) | q_table_petite_2 (Table_Small, Modular Dungeon), couchée sur le grand axe | crypte (archives, quartiers, salle de garde, chapelle, lb2b, Eirik…), grotte (mine, camp) | échelles 0,56 / 0,50 / 0,95 (presque uniformes en plan) ; plateau baissé de 3 % pour les garnitures C6 ; la grande table du MegaKit restait écrasée (x 0,4) |
+| coffre_a/b/c (coffre de décor d'une pièce) | pq_coffre_ferme (MegaKit, x 1,32 / 1,44 / 1,48) | niche d'Eirik (tertre) | seul coffre de décor d'une pièce |
+| bouclier_a/b/c (boucliers muraux peints) | pq_bouclier_bois (rond, cerclé, umbo) | crypte (salle de garde, quartiers…) | la teinte peinte est perdue (le bouclier du pack se lit mieux à 480x270) |
+| toile() (triangle peint) | q_toile_araignee_1/2 (Cobweb, fils en volume), coin d'accroche au coin du mur | crypte, tertre, grotte (7 toiles rares) | variante tirée de la position, aucun tirage de rng |
+| coffre_force (boîtes) | pq_coffre (ouvert), x 1,3 | style « force » de DonjonKit.coffre | aucun coffre forcé dans la table actuelle de la crypte : prêt, non visible |
+| gravats (crypte, lot 4 : rochers) | + 2 à 4 q_brique_1..4 au bord du tas (kitbash « maçonnerie effondrée ») | crypte | générateur à part (position) : le décor ne bouge pas |
+
+### Ajouts (compositions de donjon, mêmes règles de refus que la v2/v3, ancre cherchée le long des murs)
+
+| Lieu | Composition | Contenu |
+|---|---|---|
+| ossuaire | ossements + dépôt funéraire | q_os_tas, q_os_tas_2, urne brisée, vase cassable ; pq_coffre_ferme x 1,3, vases, bougie éteinte |
+| tombeau, reliquaires, lb2a | dépôt funéraire | idem |
+| arène | ossements (mur sud) | idem |
+| trésor | coffre doré | q_coffre_or, tas de pièces, bourse |
+| grotte, mine (combat, récit) | mineur tombé | os, pioche, seau de fer |
+| grotte, camp des bandits | butin | q_coffre_d, pièces, bourse, vase |
+
+Coffres AJOUTÉS = décor sans butin (les coffres à butin restent ceux des tables de salles) ; urnes ajoutées = CrypteDecor.urne (cassables,
+même logique que toutes les urnes). Rejetés sur planches : colonne brisée C5_RUINE (arène, lb3 : blocs gris illisibles, et elle chassait la
+statue, le candélabre et les gravats du semis posés après) ; ossements de lb2 (chassaient une statue et un candélabre).
+
+### Gardés (et pourquoi)
+
+- Coffres qui s'OUVRENT (L1 : cuve + couvercle animé + or, coffre royal) : le couvercle pivote sur sa charnière (CoffreCouvercle, audit
+  des couvercles levés) ; aucun pq_* n'a de couvercle séparé.
+- Luminaires L8 (lustres, candélabres, braseros, appliques, cages, chaînes) : validés, flammes et lumières.
+- Sarcophages, statues, socles, autels, trône, table d'embaumement, bassin, ossuaire v2 (crânes anatomiques, niches, monticules d'os) :
+  pierre / anatomie validées ; pas d'équivalent Quaternius de la bonne forme (q_os_tas sert en compositions, pas comme monticule).
+- Râteliers (ratelier_cadre_a/b de la crypte, g_ratelier de la grotte) : le seul remplaçant (pq_rack_armes, 1,3 m de fond) est un râtelier
+  SUR PIED ; il est posé à part dans les compositions (v2), le râtelier mural garde ses armes arme_v_*.
+- Barricade (planches, poteaux, table renversée) : pièces étirées à la largeur du passage, collision avec brèche ; modele() ne bascule pas
+  une table sur le flanc (lacet seul).
+- Armes au sol (arme_*), présentoirs (pièce unique de quête), étagère renversée, sacs éventrés (déjà q_sac_pieces), crâne (oss_crane
+  anatomique), micro-objets du semis (éclats, planchettes, cire, chaînes, pièces : sans collision, échelle de 10-30 cm), tas de pièces de la
+  grotte (g_pieces : agrandi à 45-55 cm, q_tas_pieces fait des pièces de 12 cm), caisses/tonneaux/urnes cassables (déjà Quaternius).
+- Tumulus extérieur : pierres levées, stèle, dalles (consigne : nature/bâti).
+
+### Catalogue props/sources_v5 (autre agent)
+
+Commit fa026490 de `props/sources_v5` (137 pq_* texturés, revue en cours, .dat non régénéré) : NON cherry-pické. Les pièces de la v5
+souterraine y ont leur version texturée au même modèle et à la même échelle : `PropsQuaternius.ALIAS_PQ` les mappe déjà
+(q_table_petite_2, q_toile_araignee_1/2, q_os_tas(_2), q_coffre_d -> pq_*), alias INACTIFS tant que ces pq_* manquent dans props_quat.dat ;
+ils s'activent seuls après la fusion de props/sources_v5 et `outils/export_props_quat_dat.gd`. À faire ensuite avec ce catalogue :
+pq_coffre_or_2 (trésor, autre modèle : à reposer à la main), pq_crane (crane_a/b), pq_tapis_crypte (q_tapis), pq_candelabre_d,
+pq_roc_* / briques (gravats), pq_colonne_brisee (si une vraie ruine est voulue), pq_piege_pieux, pq_grille_fer.
