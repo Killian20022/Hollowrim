@@ -857,6 +857,16 @@ static func _coffre_pres(b: Interieurs, r: Dictionary, decal: float) -> void:
 	var p: Vector3 = r["pos"] + tg * decal
 	b.coffre(Vector3(p.x, Interieurs.F, p.z), r["lacet"], Vector3(0.85, 0.46, 0.5))
 
+## v5 (ajout) : table de chevet Quaternius (Nightstand_Shelf) près d'un lit, bougie et livre dessus (aucune lumière en plus).
+static func _chevet(b: Interieurs, r: Dictionary) -> void:
+	if r.is_empty() or not Interieurs.v5("q_chevet_etagere"):
+		return
+	var p: Vector3 = r["pos"]
+	b.qf("q_chevet_etagere", Vector3(p.x, 0, p.z), r["lacet"], Vector3(0.4, 0.6, 0.26), {}, true)
+	b.bougie(Vector3(p.x, Interieurs.F + 0.6, p.z) + Basis(Vector3.UP, r["lacet"]) * Vector3(-0.1, 0, 0), 0.11)
+	b.livre((Vector3(p.x, Interieurs.F + 0.6, p.z)) + Basis(Vector3.UP, r["lacet"]) * Vector3(0.09, 0, 0.02), float(r["lacet"]) + 0.3)
+	PropsQuaternius.compter("interieurs_ajouts")
+
 static func _tonneaux(b: Interieurs, r: Dictionary, n := 2) -> void:
 	if r.is_empty():
 		return
@@ -901,6 +911,7 @@ static func _maison(b: Interieurs, pl: Dictionary, murs: Murs, ferme: bool) -> v
 		var r: Dictionary = lits[i]
 		if r.has("n"):
 			_coffre_pres(b, murs.poser_ou([_mur_de(r)], 0.9, 0.5, false, 0.0), 0.0)
+			_chevet(b, murs.poser_ou([_mur_de(r)], 0.45, 0.32, false, 0.0))
 	var ax: float = pl["ax"]
 	var az: float = pl["az"]
 	_etagere(b, murs.poser_ou(["-Z", "+X", "-X"], 1.45, 0.34, true), 1.4, "cuisine")
