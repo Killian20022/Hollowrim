@@ -87,6 +87,9 @@ func _ready() -> void:
 	_choix(g, "Limite d'images / s", Graphismes.noms_limites(), clampi(int(Jeu.option("affichage", "limite_ips")), 0, Graphismes.LIMITES_IPS.size() - 1), func(v: int) -> void:
 		Jeu.regler("affichage", "limite_ips", v)
 		Graphismes.appliquer())
+	# compteur d'images par seconde en haut à droite (scripts/compteur_ips.gd), coupé par défaut
+	_case(g, "Afficher les IPS", Jeu.option("affichage", "afficher_ips"), func(v: bool) -> void:
+		Jeu.regler("affichage", "afficher_ips", v))
 	_choix(g, "Ombres", Graphismes.OMBRES, int(Jeu.option("affichage", "ombres")), func(v: int) -> void:
 		Jeu.regler("affichage", "ombres", v)
 		Graphismes.appliquer_ombres(get_tree(), v))
