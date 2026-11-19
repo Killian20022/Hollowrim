@@ -34,6 +34,10 @@ static var lot4 := remplace and not ("--sans-lot4" in OS.get_cmdline_user_args()
 static var pq := actif and not ("--props-quat-ancien" in OS.get_cmdline_user_args())
 ## props/maximum v3 (abords, replis de la grotte et de la crypte, coins de métier) ; `-- --sans-props-v3` rend la v2 (A/B des mesures).
 static var v3 := pq and not ("--sans-props-v3" in OS.get_cmdline_user_args())
+## props/exterieurs_v5 (2026-11-19) : derniers props maison du DEHORS remplacés et tables / postes de vie ajoutés (AbordsProps.LIEUX_V5,
+## foyer des bandits) ; `-- --sans-props-v5` rend exactement l'état d'avant (captures « avant », mesures A/B). `--sans-remplacement`
+## (remplace faux) l'éteint aussi : les anciens props maison reviennent.
+static var v5 := v3 and remplace and not ("--sans-props-v5" in OS.get_cmdline_user_args())
 const DAT_PQ := "res://assets/modeles/props_quat/props_quat.dat"
 const ATLAS_PQ := ["pq_bois", "pq_fer", "pq_fer_v", "pq_tissu", "pq_tissu_v", "pq_props", "pq_props_v", "pq_page"]
 ## Kitbash : ces q_* servent aussi de PIÈCES RETEINTES (carotte retournée = saucisson, bourse = jambon, toile de bannière = peau ou tapis,
@@ -306,6 +310,24 @@ static func triangles(nom: String, mats := {}) -> Array:
 		return r
 	return _brut.get(nom, [])
 static var _brut_pq_tri := {}
+
+## v5 : la bûche KITBASH maison (q_buche, OBJ à 8 pans de sources_blender/quaternius/kitbash) est servie par le rondin Quaternius
+## (q_rondin, Survival : écorce et bouts sciés) ramené à la boîte de la bûche (0,6 x 0,2 x 0,2 ; rapports 0,43 / 0,50 / 0,49 : presque
+## uniforme, l'écorce n'est pas déformée). Renvoie [id, Transform3D à composer À DROITE de la pose] ; inchangé sans v5.
+static func buche_v5(nom: String) -> Array:
+	if v5 and nom == "q_buche" and existe("q_rondin"):
+		compter("v5_buches")
+		return ["q_rondin", ajuste("q_rondin", "q_buche")]
+	return [nom, Transform3D.IDENTITY]
+
+## Transformation qui envoie la boîte de `src` dans celle de `cible` (échelle par axe, pied et centre de l'emprise alignés).
+static func ajuste(src: String, cible: String) -> Transform3D:
+	var a := boite(src)
+	var b := boite(cible)
+	var s := Vector3(b.size.x / maxf(a.size.x, 0.001), b.size.y / maxf(a.size.y, 0.001), b.size.z / maxf(a.size.z, 0.001))
+	var ca := a.get_center() * s
+	var cb := b.get_center()
+	return Transform3D(Basis.from_scale(s), Vector3(cb.x - ca.x, b.position.y - a.position.y * s.y, cb.z - ca.z))
 
 ## Nombre de triangles d'un prop (mesure du coût).
 static func nb_triangles(nom: String, mats := {}) -> int:

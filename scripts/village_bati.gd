@@ -208,7 +208,8 @@ static func tas_de_bois(v, p: Node3D, c: Vector3, lacet: float, longueur := 2.0)
 		var x := -longueur * 0.5 + 0.14 + (rang % 2) * 0.13
 		while x < longueur * 0.5 - 0.1:
 			if PropsQuaternius.remplace and PropsQuaternius.existe("q_buche"):      # props/remplacement : bûche Quaternius/kitbash
-				PropsQuaternius.village(v, p, "q_buche", Transform3D(b * Basis(Vector3.UP, PI * 0.5) * Basis.from_scale(Vector3(1.03, 1.2, 1.2)), c + b * Vector3(x, 0.13 + rang * 0.24, 0)))
+				var bv := PropsQuaternius.buche_v5("q_buche")      # v5 : rondin Quaternius (Survival) à la place de la bûche kitbash maison
+				PropsQuaternius.village(v, p, bv[0], Transform3D(b * Basis(Vector3.UP, PI * 0.5) * Basis.from_scale(Vector3(1.03, 1.2, 1.2)), c + b * Vector3(x, 0.13 + rang * 0.24, 0)) * (bv[1] as Transform3D))
 			else:
 				v._cylindre(p, 0.12, 0.12, 0.62, Transform3D(b * Basis(Vector3.RIGHT, PI * 0.5), c + b * Vector3(x, 0.13 + rang * 0.24, 0)), v.m_ecorce, 6)
 			x += 0.26
