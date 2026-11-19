@@ -2,7 +2,7 @@ extends SceneTree
 ## Armes du catalogue (data/armes/catalogue_armes.json, CatalogueArmes) : chaque arme se charge, a ses stats (famille x matériau),
 ## ses repères (prise / garde / pointe ; boucliers : prise / umbo, face peinte vers +X), une longueur dans la plage de sa famille,
 ## tous ses matériaux habillés en PS1 ; c'est un objet du sac (nom, poids, valeur, rareté, catégorie arme) et une DonneesArme
-## équipable dans la bonne main ; elle est trouvable (butin) et les tables / la forge restent valides ; cohérence de l'équilibrage
+## équipable dans la bonne main ; elle est trouvable (butin, forge ou corps d'un ennemi qui la tient) et les tables / la forge restent valides ; cohérence de l'équilibrage
 ## (dague plus vive que l'épée, deux mains plus forte et plus lente, obsidienne plus forte que l'acier…).
 ##   godot --headless --path . --script outils/test_armes_catalogue.gd -- --nouvelle
 var _echecs := 0
@@ -47,7 +47,7 @@ func _lancer() -> void:
 	var err := CatalogueArmes.verifier()
 	_verifier(err.is_empty(), "données du catalogue valides %s" % str(err))
 	var ids := CatalogueArmes.ids()
-	_verifier(ids.size() == 20, "20 armes au catalogue (8 hybrides + 12 CC0) : %d" % ids.size())
+	_verifier(ids.size() == 21, "21 armes au catalogue (8 hybrides + 12 CC0 + gourdin des ennemis) : %d" % ids.size())
 	for f in CatalogueArmes.FAMILLES:
 		_verifier(not CatalogueArmes.ids_famille(f).is_empty(), "famille « %s » représentée" % f)
 	_verifier(CatalogueArmes.ids_famille(CatalogueArmes.FAMILLE_DEUX_MAINS).size() >= 4, "plusieurs claymores (famille deux_mains) : %s" % str(CatalogueArmes.ids_famille("deux_mains")))
@@ -133,7 +133,7 @@ func _lancer() -> void:
 	_verifier(eq2.equiper("droite", "claymore") == "" and eq2.categorie("gauche") == "vide" and eq2.categorie("droite") == "arme_deux_mains", "claymore : la main gauche se vide")
 	var possedes := eq2.objets_possedes("armes")
 	var manquants := ids.filter(func(x: String) -> bool: return not possedes.has(x))
-	_verifier(manquants.is_empty(), "écran d'inventaire : les 20 armes du sac listées dans Armes (manquent %s)" % str(manquants))
+	_verifier(manquants.is_empty(), "écran d'inventaire : les %d armes du sac listées dans Armes (manquent %s)" % [ids.size(), str(manquants)])
 	var eq3 := EquipementMains.new(null, Inventaire.new())
 	if not eq3.catalogue.get("tout_disponible", false):
 		_verifier(not eq3.objets_possedes("armes").has("claymore"), "sac vide : aucune arme du catalogue listée")
@@ -162,8 +162,14 @@ func _lancer() -> void:
 	var forge := []
 	for ent: Dictionary in Marchand.fiche("forgeron").get("stock", []):
 		forge.append(String(ent["id"]))
-	var introuvables := ids.filter(func(x: String) -> bool: return not trouvables.has(x) and not forge.has(x))
-	_verifier(introuvables.is_empty(), "chaque arme est trouvable (butin ou forge) : manquent %s" % str(introuvables))
+	# armes tenues par les ennemis (data/armes/armes_ennemis.json, ArmesEnnemis) : lâchées dans le butin de leur corps (le gourdin n'existe que là)
+	var sur_ennemis := {}
+	for pr: Dictionary in (ArmesEnnemis.donnees().get("profils", {}) as Dictionary).values():
+		for e: Dictionary in pr.get("armes", []):
+			if ArmesEnnemis.butin_possible(String(e["id"])):
+				sur_ennemis[String(e["id"])] = true
+	var introuvables := ids.filter(func(x: String) -> bool: return not trouvables.has(x) and not forge.has(x) and not sur_ennemis.has(x))
+	_verifier(introuvables.is_empty(), "chaque arme est trouvable (butin, forge ou corps d'ennemi) : manquent %s" % str(introuvables))
 	_verifier(trouvables.get("sang_du_roi", "") == "unique" and trouvables.get("croc_de_givre", "") == "unique", "Sang-du-Roi et Croc-de-Givre : uniques")
 	var crypte_rares := [0, 0]
 	for i in 2000:
