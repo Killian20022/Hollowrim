@@ -1055,10 +1055,10 @@ func _compos_pq(m: Dictionary) -> void:
 ## ou sort de la salle) ; ancre cherchée AUTOMATIQUEMENT le long des murs (_compo_mur). Coffres de décor fermés (pas de butin : les coffres
 ## à butin restent ceux de la table des salles), urnes CASSABLES (même logique que toutes les urnes de la crypte), os, vases, colonne brisée.
 const C5_DEPOT := [["pq_coffre_ferme", 0.0, 0.3, 0.0, 0.0, true, 1.3], ["q_vase_4", 0.9, 0.32, 0.0, 0.0, false, 0.85, "urne"],
-	["q_vase_2", -0.9, 0.34, 15.0, 0.0, false, 0.9], ["q_os_tas_2", 0.25, 0.95, 30.0, 0.0, false, 1.2], ["q_bougie_d", -0.22, 0.3, 0.0, 0.515, false]]
+	["q_vase_2", -0.9, 0.34, 15.0, 0.0, false, 0.9], ["q_os_tas_2", 0.25, 0.95, 30.0, 0.0, false, 1.2], ["pq_bougie_d", -0.22, 0.3, 0.0, 0.515, false]]
 const C5_OSSEMENTS := [["q_os_tas", 0.0, 0.35, 0.0, 0.0, false, 1.3], ["q_vase_4", 0.7, 0.3, 0.0, 0.0, false, 0.8, "urne"],
 	["q_urne_brisee", -0.75, 0.5, 25.0, 0.0, false, 0.9], ["q_os_tas_2", 0.35, 0.95, -40.0, 0.0, false, 1.1]]
-const C5_TRESOR := [["q_coffre_or", 0.0, 0.36, 90.0, 0.0, true, 1.0], ["q_tas_pieces_2", -0.55, 0.3, 20.0, 0.0, false, 1.3],
+const C5_TRESOR := [["pq_coffre_or", 0.0, 0.36, 90.0, 0.0, true, 1.0], ["q_tas_pieces_2", -0.55, 0.3, 20.0, 0.0, false, 1.3],
 	["pq_bourse", 0.5, 0.3, 40.0, 0.0, false]]
 const C5_RUINE := [["q_colonne_brisee", 0.0, 0.62, 90.0, 0.0, true, 1.0], ["q_colonne_brisee_2", -1.15, 0.5, 20.0, 0.0, true, 0.75],
 	["q_roc_3", 0.9, 0.35, 40.0, 0.0, false, 0.9], ["q_brique_2", 0.75, 1.0, 70.0, 0.0, false, 1.0], ["q_brique_4", -0.5, 1.15, 10.0, 0.0, false, 1.0]]

@@ -369,7 +369,7 @@ Demande : « remplace un maximum de props maison par des Quaternius, notamment l
 | bouclier_a/b/c (boucliers muraux peints) | pq_bouclier_bois (rond, cerclé, umbo) | crypte (salle de garde, quartiers…) | la teinte peinte est perdue (le bouclier du pack se lit mieux à 480x270) |
 | toile() (triangle peint) | q_toile_araignee_1/2 (Cobweb, fils en volume), coin d'accroche au coin du mur | crypte, tertre, grotte (7 toiles rares) | variante tirée de la position, aucun tirage de rng |
 | coffre_force (boîtes) | pq_coffre (ouvert), x 1,3 | style « force » de DonjonKit.coffre | aucun coffre forcé dans la table actuelle de la crypte : prêt, non visible |
-| gravats (crypte, lot 4 : rochers) | + 2 à 4 q_brique_1..4 au bord du tas (kitbash « maçonnerie effondrée ») | crypte | générateur à part (position) : le décor ne bouge pas |
+| gravats (crypte, lot 4 : rochers) | + 2 à 4 pq_brique_1..4 (q_brique si absent) au bord du tas (kitbash « maçonnerie effondrée ») | crypte | générateur à part (position) : le décor ne bouge pas |
 
 ### Ajouts (compositions de donjon, mêmes règles de refus que la v2/v3, ancre cherchée le long des murs)
 
@@ -378,7 +378,7 @@ Demande : « remplace un maximum de props maison par des Quaternius, notamment l
 | ossuaire | ossements + dépôt funéraire | q_os_tas, q_os_tas_2, urne brisée, vase cassable ; pq_coffre_ferme x 1,3, vases, bougie éteinte |
 | tombeau, reliquaires, lb2a | dépôt funéraire | idem |
 | arène | ossements (mur sud) | idem |
-| trésor | coffre doré | q_coffre_or, tas de pièces, bourse |
+| trésor | coffre doré | pq_coffre_or, tas de pièces, bourse |
 | grotte, mine (combat, récit) | mineur tombé | os, pioche, seau de fer |
 | grotte, camp des bandits | butin | q_coffre_d, pièces, bourse, vase |
 
@@ -402,11 +402,28 @@ statue, le candélabre et les gravats du semis posés après) ; ossements de lb2
   grotte (g_pieces : agrandi à 45-55 cm, q_tas_pieces fait des pièces de 12 cm), caisses/tonneaux/urnes cassables (déjà Quaternius).
 - Tumulus extérieur : pierres levées, stèle, dalles (consigne : nature/bâti).
 
-### Catalogue props/sources_v5 (autre agent)
+### Catalogue props/sources_v5 (autre agent) : intégré
 
-Commit fa026490 de `props/sources_v5` (137 pq_* texturés, revue en cours, .dat non régénéré) : NON cherry-pické. Les pièces de la v5
-souterraine y ont leur version texturée au même modèle et à la même échelle : `PropsQuaternius.ALIAS_PQ` les mappe déjà
-(q_table_petite_2, q_toile_araignee_1/2, q_os_tas(_2), q_coffre_d -> pq_*), alias INACTIFS tant que ces pq_* manquent dans props_quat.dat ;
-ils s'activent seuls après la fusion de props/sources_v5 et `outils/export_props_quat_dat.gd`. À faire ensuite avec ce catalogue :
-pq_coffre_or_2 (trésor, autre modèle : à reposer à la main), pq_crane (crane_a/b), pq_tapis_crypte (q_tapis), pq_candelabre_d,
-pq_roc_* / briques (gravats), pq_colonne_brisee (si une vraie ruine est voulue), pq_piege_pieux, pq_grille_fer.
+Cherry-pick de fa026490, a8c19c55, 799ff092 (props_quat.dat régénéré, 254 props) : les alias `PropsQuaternius.ALIAS_PQ` de la v5
+(q_table_petite_2, q_toile_araignee_1/2, q_os_tas(_2), q_coffre_d -> pq_*) sont ACTIFS : tables, toiles, os et coffre du butin sont
+texturés (même modèle, même échelle). Posés en direct dans la crypte : pq_brique_1..4 (gravats ; pas d'alias car q_brique sert aussi au
+village), pq_coffre_or (trésor), pq_bougie_d (dépôt). Captures après catalogue : `rendus/props_v5/brut/apres_cat`.
+
+Consigne « univers médiéval nordique sombre » appliquée au catalogue : AUCUN de ces props n'est posé dans les souterrains : bouteilles
+(pq_bouteille_verte/vin), meubles à tiroirs (pq_commode, pq_chevet_*, pq_coffre_tiroirs), fioles vives, tapis rouge (pq_tapis_crypte).
+Pistes restantes (non faites, à juger en vue de jeu) : pq_crane (crane_a/b), pq_candelabre_d, pq_roc_*, pq_piege_pieux, pq_grille_fer.
+
+### Perf (A/B `--sans-props-v5`, audit_mesure_lieu, nuit 21 h, 12 s, sur secteur)
+
+2 passes alternées par lieu (sans v5 / v5), catalogue intégré. Logs : /tmp/pv5/perf (non conservés).
+
+| Lieu | Mode | GPU méd (ms) | appels | primitives | dt méd (ms) | > 16,7 ms |
+|---|---|---|---|---|---|---|
+| crypte | sans v5 | 3,17 / 3,14 | 273 | 101 403 | 14,2 / 12,5 | 10,3 % / 0,6 % |
+| crypte | v5 | 3,26 / 2,54 | 273 | 110 406 (+8,9 %) | 13,0 / 10,0 | 7,9 % / 0,9 % |
+| grotte | sans v5 | 3,68 / 3,75 | 392 | 133 752 | 8,4 / 13,9 | 0,1 % / 13,9 % |
+| grotte | v5 | 3,72 / 3,53 | 391 | 133 348 – 134 587 | 10,9 / 17,7 | 1,6 % / 76,1 % |
+
+Lecture : appels de dessin identiques (fusion par case de CrypteDecor), +9 000 triangles dans la crypte, GPU dans le bruit (± 0,1 ms hors
+passe atypique). Le temps réel par image (dt) varie AUTANT entre deux passes du même mode (grotte sans v5 : 0,1 % puis 13,9 % d'images
+lentes) : machine partagée avec d'autres Godot, pas un effet des props. Mémoire vidéo ± 50 Mo selon la passe, même ordre.

@@ -55,9 +55,9 @@ const ALIAS_PQ := {"q_tonneau_2": "pq_tonneau", "q_caisse_2": "pq_caisse_fer", "
 	"q_coffre_2": "pq_coffre_ferme", "q_seau_2": "pq_seau_bois", "q_chaise_2": "pq_chaise",
 	"q_bouteille_1": "pq_bouteille", "q_bouteille_2": "pq_bouteille",
 	# props/crypte_v5 : pièces de donjon posées par la v5 (tables, toiles, os, coffre de crypte) -> leurs pq_* texturés de props/sources_v5
-	# (même modèle source, même échelle : docs/PROPS_SOURCES_V5.md, « equivalent_q »). INACTIFS tant que ces pq_* ne sont pas dans
-	# props_quat.dat (la boucle de _charger_pq ne pose un alias que si son pq_* existe) : s'activent seuls après la fusion de
-	# props/sources_v5 et `outils/export_props_quat_dat.gd`.
+	# (même modèle source, même échelle : docs/PROPS_SOURCES_V5.md, « equivalent_q ») ; la boucle de _charger_pq ne pose un alias que si
+	# son pq_* est dans props_quat.dat. Pièces de DONJON seulement (briques et rochers servent aussi au village : la crypte pose
+	# directement pq_brique_*, pq_coffre_or, pq_bougie_d).
 	"q_table_petite_2": "pq_table_petite_2", "q_toile_araignee_1": "pq_toile_araignee_1", "q_toile_araignee_2": "pq_toile_araignee_2",
 	"q_os_tas": "pq_os_tas", "q_os_tas_2": "pq_os_tas_2", "q_coffre_d": "pq_coffre_d"}
 static var _pq_de := {}       # nom q_* (ou pq_* posé directement) -> id pq_*

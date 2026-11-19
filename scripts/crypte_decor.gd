@@ -2275,7 +2275,8 @@ func gravats(pos: Vector3, r := 1.0, h := 0.7, avec_collision := true, mat := "m
 			var a := a0 + pas * k + g.randf_range(0.6, 1.4)
 			var dd := r * g.randf_range(0.55, 0.85)
 			var sb := clampf(r * 1.1, 0.7, 1.4) * g.randf_range(0.85, 1.15)
-			_q4("q_brique_%d" % (1 + (k + g.randi()) % 4), pos + Vector3(cos(a) * dd, 0.0, sin(a) * dd), g.randf() * TAU, Vector3(sb, sb, sb), mats)
+			var nb_b := "brique_%d" % (1 + (k + g.randi()) % 4)
+			_q4(("pq_" + nb_b) if PropsQuaternius.existe("pq_" + nb_b) else ("q_" + nb_b), pos + Vector3(cos(a) * dd, 0.0, sin(a) * dd), g.randf() * TAU, Vector3(sb, sb, sb), mats)
 		PropsQuaternius.compter("souterrain_v5", nb)
 	j1()
 
