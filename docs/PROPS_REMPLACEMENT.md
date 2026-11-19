@@ -416,5 +416,23 @@ répartiteur `Murs`, passages et couloir d'entrée dégagés).
 
 ### Mesures v5
 
-Voir le rapport de la branche (outils/audit_mesure_lieu.gd, nuit 21 h, 12 s, passes alternées `--sans-props-v5` / v5) : tableau ci-dessous.
+`outils/audit_mesure_lieu.gd`, nuit 21 h, 12 s, 2 passes alternées `--sans-props-v5` / v5, AVANT l'intégration du catalogue
+props/sources_v5. Machine très chargée par d'autres agents (dt_med 33-60 ms) : seuls les écarts GPU par paire et les compteurs comptent.
+
+| Lieu | gpu_med avant (P1 / P2) | gpu_med v5 (P1 / P2) | appels | primitives |
+|---|---|---|---|---|
+| halle | 10,90 / 10,82 | 10,64 / 10,92 | 543 -> 543 | 725 k -> 739 k (+1,8 %) |
+| maison h1 (`--lieu=ferme --bat=h1`) | 13,65 / 13,26 | 11,99 / 13,31 | 950-956 -> 946-949 | 1,338 M -> 1,350 M (+0,9 %) |
+
+Lecture : aucun écart GPU au-delà du bruit (halle -0,08 ms en moyenne, h1 dans le bruit), aucun appel de dessin en plus (tout est
+fondu ; le lit pq_* = 3 surfaces + 2 faces de fourrure, autant de MeshInstance3D que le lit procédural). Non remesuré après le
+catalogue v5 (tables ovale / ferrées : 592-916 tris contre 986, même ordre).
+
+### Catalogue props/sources_v5 intégré (cherry-pick de fa026490, a8c19c55, 799ff092)
+
+- Tables : `tables_v5` = `pq_grande_table` (q_grande_table), `pq_table_ovale` (tréteaux), `pq_table_grande_2` (planches ferrées) ;
+  tables de 1,5 m ou moins : `pq_table_petite_2`, `pq_table_ronde`. Tirage stable par position ; modèles longs selon Z tournés d'un quart.
+- Crâne `pq_crane`, os `pq_os_tas_2`, pelles `pq_pelle`, couteau de dépeçage `pq_couteau_camp` (texturés).
+- Écartés (consigne « médiéval nordique ») : bouteilles verte / vin, commode, chevets à tiroir, coffre à tiroirs, tapis rouges,
+  chaises (non posées : bancs et tabourets déjà là, passages étroits).
 Planches avant | après (gauche avant, droite après) : `C:\Users\lopezk19\Jeux\rendus\props_v5\interieurs_*.png`.

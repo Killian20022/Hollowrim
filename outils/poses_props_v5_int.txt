@@ -37,3 +37,5 @@ i_h1_e interieur 0,0.5,-90,-16 bat=h1 heure=21
 i_h1_o interieur 0,0.5,90,-16 bat=h1 heure=21
 c_lits interieur -1.0,0.4,100,-22 bat=chasseurs heure=21
 f_etabli interieur -0.6,0.5,170,-30 bat=forge heure=21
+h_crane interieur 5.6,1.2,-90,-12 bat=halle heure=21
+s_cranes interieur -2.4,0.9,90,-10 bat=sigrun heure=21

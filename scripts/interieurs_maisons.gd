@@ -183,9 +183,9 @@ static func _chasseurs(b: Interieurs, xch: float) -> void:
 	b.epee(Vector3(2.35, yw, zb + 0.08), 0.0, -0.05, 0.8)
 	b.table(Vector3(0.6, 0, zb + 0.6), 2.0, 0.8, 0.0)
 	var y := F + 0.78
-	if Interieurs.v5("q_couteau_camp") and Interieurs.v5("q_roc_2"):      # v5 KITBASH : peau couchée (toile teinte), couteau de camp, pierre à aiguiser = galet Quaternius
+	if Interieurs.v5("pq_couteau_camp") and Interieurs.v5("q_roc_2"):      # v5 KITBASH : peau couchée (toile teinte), couteau de camp, pierre à aiguiser = galet Quaternius
 		b.toile_plate(Vector3(0.35, y + 0.01, zb + 0.55), Vector2(0.7, 0.4), 0.2, "peau_claire")
-		b.couche("q_couteau_camp", Vector3(1.0, y, zb + 0.7), 0.4, 0.26)
+		b.couche("pq_couteau_camp", Vector3(1.0, y, zb + 0.7), 0.4, 0.26)
 		b.qa("q_roc_2", Vector3(1.2, y, zb + 0.5), 0.1, Vector3(0.16, 0.05, 0.08), {"pierre": "brute"})
 	else:
 		b.bx(Vector3(0.35, y + 0.03, zb + 0.55), Vector3(0.7, 0.06, 0.4), "peau_claire", 0.2)      # peau en cours de raclage

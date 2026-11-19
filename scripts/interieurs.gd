@@ -728,8 +728,15 @@ func table(pos: Vector3, long: float, larg: float, lacet := 0.0, haut := 0.78, s
 		# v5 : une longue table de festin = plusieurs tables Quaternius bout à bout (pieds à leur taille, jamais étirés x1,6)
 		var n := maxi(1, roundi(long / 2.4)) if v5() and long > 3.0 else 1
 		var bz := Basis(Vector3.UP, lacet)
+		var bt := PropsQuaternius.boite(nom)
+		var long_z := bt.size.z > bt.size.x * 1.1      # modèle long selon Z (Table_Big / Table_Small) : quart de tour, boîte permutée
 		for i in n:
-			qf(nom, pos + bz * Vector3(-long * 0.5 + long * (i + 0.5) / n, 0, 0), lacet, Vector3(long / n - (0.02 if n > 1 else 0.0), haut, larg), mats_table)
+			var lg := long / n - (0.02 if n > 1 else 0.0)
+			var c := pos + bz * Vector3(-long * 0.5 + long * (i + 0.5) / n, 0, 0)
+			if long_z:
+				qf(nom, c, lacet + PI * 0.5, Vector3(larg, haut, lg), mats_table)
+			else:
+				qf(nom, c, lacet, Vector3(lg, haut, larg), mats_table)
 		return
 	var b := Basis(Vector3.UP, lacet)
 	if solide_:
@@ -744,12 +751,15 @@ func table(pos: Vector3, long: float, larg: float, lacet := 0.0, haut := 0.78, s
 
 ## v5 : modèle de table selon la taille et la place (stable d'un lancement à l'autre) : plan de travail haut = établi ; sinon une des
 ## tables de TABLES_V5 présentes dans le catalogue (props/sources_v5 : tables d'Ultimate Home Interior quand elles y sont).
-var tables_v5: Array = ["q_grande_table"]
-func modele_table(pos: Vector3, _long: float, _larg: float, haut: float) -> String:
+## Catalogue v5 (props/sources_v5) : grande table ovale à tréteaux, table de planches ferrée ; petites tables : ronde à pied central,
+## petite table ferrée. Bois sombre, formes rustiques (rien de « salle à manger »).
+var tables_v5: Array = ["q_grande_table", "pq_table_ovale", "pq_table_grande_2"]
+var petites_tables_v5: Array = ["pq_table_petite_2", "pq_table_ronde"]
+func modele_table(pos: Vector3, long: float, _larg: float, haut: float) -> String:
 	if haut > 0.83:
 		return "q_etabli"
 	var dispo: Array = []
-	for t: String in tables_v5:
+	for t: String in (petites_tables_v5 if long <= 1.5 else tables_v5):
 		if PropsQuaternius.existe(t):
 			dispo.append(t)
 	if dispo.is_empty():
@@ -873,8 +883,8 @@ func bouclier(pos: Vector3, lacet: float, rayon := 0.36, mat := "bouclier_r") ->
 	modele("bouclier_" + variante(pos, 2), pos, lacet, Vector3.ONE * (rayon / 0.36), {"BOUCLIER": mat})
 
 func crane(pos: Vector3, lacet := 0.0, e := 1.0) -> void:
-	if v5("q_crane"):      # v5 : crâne Quaternius (Skull, Modular Dungeon), à la taille de l'ancien module (~17 cm de large)
-		qa("q_crane", pos, lacet + PI * 0.5, Vector3(0.2 * e, 0, 0), {"os": "os"})      # le Skull regarde -X : quart de tour (face vers lacet)
+	if v5("pq_crane"):      # v5 : crâne Quaternius texturé (Skull, Modular Dungeon), à la taille de l'ancien module
+		qa("pq_crane", pos, lacet + PI * 0.5, Vector3(0.2 * e, 0, 0), {"os": "os"})      # le Skull regarde -X : quart de tour (face vers lacet)
 		return
 	modele("crane", pos + Vector3(0, -0.05 * e, 0), lacet, Vector3.ONE * e)
 
@@ -1071,8 +1081,8 @@ func sac(pos: Vector3, graine := 0.0, h := 0.5) -> void:
 	modele("sac_" + "abc"[int(absf(graine) * 3.0) % 3], pos, lac, Vector3(1.0, h / 0.5, 1.0))
 
 func os_sol(pos: Vector3, lacet := 0.0) -> void:
-	if v5("q_os_tas_2"):      # v5 : petit tas d'os Quaternius (Bones, Modular Dungeon) réduit à un os rongé et ses éclats
-		qa("q_os_tas_2", _sol(pos) if pos.y < 0.2 else pos, lacet, Vector3(0, 0, 0.24), {"os": "os"})
+	if v5("pq_os_tas_2"):      # v5 : petit tas d'os Quaternius texturé (Bones, Modular Dungeon) réduit à un os rongé et ses éclats
+		qa("pq_os_tas_2", _sol(pos) if pos.y < 0.2 else pos, lacet, Vector3(0, 0, 0.24), {"os": "os"})
 		return
 	bx(pos + Vector3(0, 0.02, 0), Vector3(0.2, 0.035, 0.045), "os", lacet)
 	bx(pos + Vector3(0.09, 0.025, 0.0), Vector3(0.05, 0.045, 0.06), "os", lacet + 0.4)
