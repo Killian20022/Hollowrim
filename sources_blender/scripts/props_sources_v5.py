@@ -148,7 +148,10 @@ def matieres(o, e):
             res.append(None)
             continue
         fb = max(0.6, min(1.0, (lum_lin(c) / max(lmax, 1e-4)) ** 0.5)) * e.get("bois_f", 1.0)
-        res.append(resoudre(sp, c, fb))
+        r = resoudre(sp, c, fb)
+        if r[0] in ("fer_v", "tissu_v") and e.get("sombre"):
+            r = (r[0], r[1] * e["sombre"])
+        res.append(r)
         print("   mat %-22s %-18s -> pq_%s %s" % (nm, sp, res[-1][0], np.round(res[-1][1], 2)))
     # retrait des faces « suppr »
     bm = bmesh.new()
