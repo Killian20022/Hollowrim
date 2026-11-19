@@ -84,10 +84,14 @@ func _lancer() -> void:
 	var mj := av.maillage("jambes")
 	ok(av.porte("jambes") == "jambieres_or" and mj != null and mj.get_parent() == sq, "jambières équipées : elles remplacent les chausses par défaut (%s)" % av.porte("jambes"))
 	var mat := mj.get_surface_override_material(0) as ShaderMaterial if mj else null
-	ok(mat != null and ArmureVisible.est_shader_armure(mat.shader) and mat.shader == ArmureVisible.shader_or(), "jambières d'or : matière HD et shader de brillance de l'or")
+	# shader de brillance = ArmureVisible.shader_brillance(matière) : depuis les armures lourdes / précieuses v3 (2026-11-13), une matière à
+	# « spec » (or.lourd, verre…) prend shader_lourd (vrai spéculaire) au lieu de l'ancien shader_or / shader_gemme
+	var nom_or := mat.resource_name.trim_prefix("armure_") if mat else ""
+	ok(mat != null and ArmureVisible.est_shader_armure(mat.shader) and nom_or.begins_with("or") and mat.shader == ArmureVisible.shader_brillance(nom_or), "jambières d'or : matière HD et shader de brillance de l'or (%s)" % nom_or)
 	eqv.equiper("jambieres_verre")
 	mat = av.maillage("jambes").get_surface_override_material(0) as ShaderMaterial
-	ok(mat != null and mat.shader == ArmureVisible.shader_gemme(), "jambières de verre : préset de la fiche, shader de brillance de la gemme")
+	var pv := ArmureVisible.preset_de("jambieres_verre")
+	ok(mat != null and pv == "verre" and mat.resource_name == "armure_" + pv and mat.shader != null and mat.shader == ArmureVisible.shader_brillance(pv), "jambières de verre : préset de la fiche, shader de brillance du verre (%s)" % (mat.resource_name if mat else "?"))
 	var p := sq.get_node_or_null("pantalon") as MeshInstance3D
 	ok(p != null and p.mesh.surface_get_array_index_len(0) <= 3, "pantalon du héros entièrement retiré sous les jambières")
 	eqv.retirer("jambes")

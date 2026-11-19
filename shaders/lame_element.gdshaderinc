@@ -36,17 +36,16 @@ void vertex() {
 }
 
 void fragment() {
-	float a = ceil(COLOR.a * paliers - 0.05) / paliers;
-	if (a <= 0.0) {
-		discard;
-	}
+	// pas de discard (test_shaders_sans_discard, docs/BANC_PERF.md) : a <= 0 donne ALPHA = 0 (mélange) ou ALBEDO = 0 (additif
+	// prémultiplié), donc rien à l'écran ; depth_draw_never : aucune profondeur écrite non plus
+	float a = clamp(ceil(COLOR.a * paliers - 0.05) / paliers, 0.0, 1.0);
 	vec3 c = COLOR.rgb;
 	c = mix(pow((c + 0.055) / 1.055, vec3(2.4)), c / 12.92, step(c, vec3(0.04045)));
 #ifdef LAME_ADD
-	ALBEDO = c * eclat * clamp(a, 0.0, 1.0);
+	ALBEDO = c * eclat * a;
 	ALPHA = 0.0;
 #else
 	ALBEDO = c * eclat;
-	ALPHA = clamp(a, 0.0, 1.0);
+	ALPHA = a;
 #endif
 }
