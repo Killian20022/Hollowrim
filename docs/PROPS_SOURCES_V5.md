@@ -322,3 +322,16 @@ il ne pose rien dans le jeu : les agents de remplacement (dehors / intérieurs /
 |---|---|
 | `pq_porte_4_plate`, `pq_porte_4_ronde` (Door_4 du Medieval Village) | porte entièrement vitrée à croisillons : fenêtre plus que porte, déplacée dans un village nordique |
 | `pq_muret`, `pq_muret_bout`, `pq_muret_angle` (Fence_*_Modular du Modular Dungeon) | pièce modulaire illisible seule (poteau + bout de lisse, « marteau ») |
+
+## État, vérifications, limites
+
+- `assets/modeles/props_quat/props_quat.dat` régénéré (`outils/export_props_quat_dat.gd`, headless) : 254 props, 170 784 triangles,
+  5,3 -> 14,5 Mo. Les v5 n'ont pas d'`ancien` : aucun remplacement automatique, le jeu pose exactement la même chose qu'avant, mais
+  `PropsQuaternius._charger_pq` lit TOUT le .dat à la première demande : temps de lecture environ x2,7 (non mesuré en jeu).
+- Vérifié : import Godot headless OK ; planches en look jeu (shader ps1, contextes intérieur ET extérieur) ; gros plan des portes.
+  Non vérifié : poses en jeu (rôle des agents de remplacement), perf, collisions dans le monde.
+- Défauts connus : dehors, la neige du shader blanchit les dessus (tapis, coussins, sacs, pierres) comme pour tous les pq_* ;
+  `pq_porte_1_*` a une bande claire sous la fenêtre et `pq_porte_2_*` une petite tache claire en haut (îlot UV sur une zone claire
+  de l'atlas) ; les moellons et bordures restent assez clairs ; titre de la planche hérité de l'outil (« Fantasy Props MegaKit »).
+- Planches : `C:\Users\lopezk19\Jeux\rendus\props_v5\planche_sources.png` (intérieur), `planche_sources_exterieur.png`,
+  `revue_int_1..4.png` (plus grandes), `gros_plan_portes.png`.
