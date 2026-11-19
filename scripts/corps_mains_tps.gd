@@ -54,6 +54,7 @@ var couche: CoucheBras
 var paume := {"gauche": null, "droite": null}
 var _accroche := {"gauche": null, "droite": null}
 var _arme_d: Node3D          # copie du modèle de l'arme de la main droite (mains._modele_arme_d)
+var _effet_d: EffetElementLame   # effet passif de l'élément sur l'arme du corps (null sans élément)
 var _source_d: Node3D
 var _objet_g: Node3D         # copie du bouclier tenu (mains._modele_gauche)
 var _source_g: Node3D
@@ -174,6 +175,8 @@ func avancer(dt: float, vue_3: bool) -> void:
 	_maj_objet_g()
 	_maj_deux_mains()
 	_maj_effets(vue_3)
+	if _effet_d != null and is_instance_valid(_effet_d):
+		_effet_d.visible = vue_3      # 1re personne : l'arme du corps ne projette que son ombre, l'effet est sur l'arme FPS
 	var mort: bool = joueur.mort
 	couche.active = not mort
 	if mort:
@@ -219,6 +222,7 @@ func _maj_arme_d() -> void:
 	_source_d = src
 	_retirer(_arme_d)
 	_arme_d = null
+	_effet_d = null
 	_enchant_ecole = ""
 	if src == null:
 		return
@@ -227,6 +231,13 @@ func _maj_arme_d() -> void:
 	_accroche["droite"].add_child(_arme_d)
 	_arme_d.transform = PRISE_D * Transform3D(Basis(), Vector3(0.0, POING_D - float(mains.get("_milieu_d")), 0.0))
 	_inscrire(_arme_d)
+	# effet passif de l'élément de la lame (après _inscrire : ses arcs ne sont pas des mailles du corps) ; montré à la 3e personne
+	var a: DonneesArme = mains.get("arme")
+	if a != null:
+		_effet_d = EffetElementLame.poser_type(_arme_d, a.element_type, mains.get("_garde_lame"), mains.get("_pointe_lame"))
+		if _effet_d != null:
+			_effet_d.mains = mains
+			_effet_d.portee = 0.0 if joueur.get("est_local") else EffetElementLame.PORTEE
 
 ## Mailles d'un objet tenu ajoutées à celles du corps : à la 1re personne elles ne projettent que leur ombre (corps_joueur.definir_vue).
 func _inscrire(o: Node3D) -> void:

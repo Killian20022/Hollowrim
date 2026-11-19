@@ -182,6 +182,8 @@ static func visuel(oid: String, pose := "sol", graine := 0) -> Node3D:
 	for g in racine.find_children("*", "GeometryInstance3D", true, false):
 		(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		(g as GeometryInstance3D).visibility_range_end = PORTEE if pose != "studio" else 0.0
+	if d != null and pose != "studio":
+		EffetElementLame.poser(m, d)      # arme à élément au sol / au râtelier : son effet passif (après le recalage au sol)
 	return racine
 
 ## Bijou (ou bijou-objet de quête / divers : anneau_cuivre, anneau_givre, collier_or, amulette_eirik, broche_sigrun) : « anneau »,
