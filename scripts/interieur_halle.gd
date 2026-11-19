@@ -195,6 +195,15 @@ static func _estrade(b: Interieurs) -> void:
 	else:
 		b.modele("trone_halle", Vector3(0, y, -2.95))
 	b.solide(Vector3(0, y + 1.2, -3.1), Vector3(1.0, 2.4, 0.5))
+	if Interieurs.v5("pq_chandelier_pied"):      # v5 (ajout) : deux candélabres sur pied Quaternius encadrent le haut-siège, bougies allumées (sans lumière en plus)
+		for sx in [-1.0, 1.0]:
+			var pc := Vector3(sx * 1.12, y, -2.9)
+			b.qa("pq_chandelier_pied", pc, 0.4, Vector3(0, 1.25, 0))
+			b.solide_cyl(pc + Vector3(0, 0.62, 0), 0.2, 1.25)
+			for k in 4:
+				var a := 0.4 + k * PI * 0.5
+				b.bougie(pc + Vector3(cos(a) * 0.3, 1.22, -sin(a) * 0.3), 0.12)
+		PropsQuaternius.compter("interieurs_ajouts", 2)
 
 static func _couvert(b: Interieurs, cx: float, cz: float, long: float) -> void:
 	var F := Interieurs.F

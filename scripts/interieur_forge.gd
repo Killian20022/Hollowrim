@@ -127,8 +127,13 @@ static func _foyer(b: Interieurs) -> void:
 	b.lumiere(Vector3(xh, 1.5, zh + 0.9), 3.4, 8.0)
 	FeuFixe.forge(b.ip.racine, Vector3(xh, 1.25, zh + 0.1), 1.2)
 	# outils du foyer : tisonnier et pelle contre la hotte, panier de bûches
-	b.bx(Vector3(xh - 1.0, 0.55, zh + 0.65), Vector3(0.03, 1.1, 0.03), "fer_noir", 0.0, false, Vector3(0, 0, 0.12))
-	b.bx(Vector3(xh - 0.9, 0.5, zh + 0.68), Vector3(0.18, 0.22, 0.03), "fer_noir", 0.0, false, Vector3(0, 0, 0.12))
+	if Interieurs.v5("pq_pelle"):      # v5 : tisonnier = perche de fer ; pelle = pelle Quaternius (Shovel) appuyée à la hotte
+		var dt := Basis(Vector3.BACK, 0.12) * Vector3.UP
+		b.perche(Vector3(xh - 1.0, 0.0, zh + 0.65) - dt * 0.0, Vector3(xh - 1.0, 0.0, zh + 0.65) + dt * 1.1, 0.016, "fer_noir")
+		b.appuye("pq_pelle", Vector3(xh - 0.82, Y, zh + 0.7), 0.0, 0.12, 1.0, {"bois": "bois_sombre"})
+	else:
+		b.bx(Vector3(xh - 1.0, 0.55, zh + 0.65), Vector3(0.03, 1.1, 0.03), "fer_noir", 0.0, false, Vector3(0, 0, 0.12))
+		b.bx(Vector3(xh - 0.9, 0.5, zh + 0.68), Vector3(0.18, 0.22, 0.03), "fer_noir", 0.0, false, Vector3(0, 0, 0.12))
 	b.solide(Vector3(xh, 1.0, zh + 0.1), Vector3(1.9, 2.0, 1.2))
 
 ## Billot cerclé et enclume à bigorne (module L6 « enclume ») ; collisions inchangées.
@@ -179,7 +184,9 @@ static func _charbon(b: Interieurs, pos: Vector3) -> void:
 	for k in 5:
 		b.bloc(Vector3(0.12, 0.1, 0.1), 4500 + k, pos + Vector3(-0.3 + k * 0.14, 0.52, b.rng.randf_range(-0.25, 0.25)), "charbon", k)
 	b.bx(pos + Vector3(-0.7, 0.04, 0.4), Vector3(0.35, 0.05, 0.25), "charbon", 0.4)
-	if Interieurs.rempl("q_pioche"):      # pelle à charbon = pioche Quaternius appuyée au cageot
+	if Interieurs.v5("pq_pelle"):      # v5 : vraie pelle Quaternius (Shovel) dans le tas de charbon
+		b.appuye("pq_pelle", pos + Vector3(-0.7, 0.0, 0.62), 0.6, 0.35, 1.0)
+	elif Interieurs.rempl("q_pioche"):      # pelle à charbon = pioche Quaternius appuyée au cageot
 		b._q_xf("q_pioche", Transform3D(Basis(Vector3.UP, 0.6) * Basis(Vector3.BACK, 0.35) * Basis.from_scale(Vector3.ONE * 0.6), pos + Vector3(-0.7, 0.0, 0.62)))
 	else:
 		b.bx(pos + Vector3(-0.55, 0.15, 0.5), Vector3(0.05, 0.3, 0.05), "bois", 0.0, false, Vector3(0.0, 0, 0.3))     # pelle
@@ -191,11 +198,17 @@ static func _etabli(b: Interieurs, pos: Vector3) -> void:
 	b.bx(pos + Vector3(0.55, y + 0.12, 0.2), Vector3(0.025, 0.025, 0.2), "fer", 0.0)
 	for k in 3:
 		b.bx(pos + Vector3(-0.5 + k * 0.1, y + 0.02, -0.1 + 0.05 * k), Vector3(0.025, 0.02, 0.3), "etain", 0.3 * k)      # limes
-	b.bx(pos + Vector3(-0.1, y + 0.02, 0.0), Vector3(0.6, 0.015, 0.06), "etain", 0.2)                # lame brute
-	b.bx(pos + Vector3(-0.1, y + 0.025, 0.0), Vector3(0.12, 0.015, 0.025), "fer_noir", 0.2)          # garde
+	if Interieurs.v5("q_epee_mur"):      # v5 : lame en cours = épée Quaternius couchée sur l'établi
+		b.couche("q_epee_mur", pos + Vector3(-0.1, y, 0.0), 0.2, 0.7)
+	else:
+		b.bx(pos + Vector3(-0.1, y + 0.02, 0.0), Vector3(0.6, 0.015, 0.06), "etain", 0.2)                # lame brute
+		b.bx(pos + Vector3(-0.1, y + 0.025, 0.0), Vector3(0.12, 0.015, 0.025), "fer_noir", 0.2)          # garde
 	for k in 6:
 		b.bx(pos + Vector3(0.1 + (k % 3) * 0.08, y + 0.02, 0.15 + int(k / 3) * 0.06), Vector3(0.05, 0.015, 0.02), "fer", k)    # clous
-	b.cyl(pos + Vector3(0.3, y + 0.07, -0.1), 0.06, 0.14, "terre", 8, false, 0.05)                     # pot de clous
+	if Interieurs.v5("q_seau_fer"):      # v5 : pot de clous = petit seau de fer Quaternius
+		b.qa("q_seau_fer", pos + Vector3(0.3, y, -0.1), 0.5, Vector3(0.13, 0, 0))
+	else:
+		b.cyl(pos + Vector3(0.3, y + 0.07, -0.1), 0.06, 0.14, "terre", 8, false, 0.05)                     # pot de clous
 	b.bougie(pos + Vector3(-0.7, y, 0.05), 0.12)
 	b.tabouret(pos + Vector3(-0.1, 0, 0.75))
 

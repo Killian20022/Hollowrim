@@ -81,15 +81,23 @@ static func _sigrun(b: Interieurs, xch: float) -> void:
 	# --- lit au coin du fond (ouest)
 	b.lit(Vector3(-2.75, F, zb + 0.62), 0.0, 2.0, 1.0, "peau_sombre", 0, "volva")
 	b.peau_murale(Vector3(-2.75, 1.7, zb + 0.04), 0.0, 1.0, 1.2, "peau_claire")
-	b.bx(Vector3(-3.6, 1.55, -1.55), Vector3(0.7, 0.04, 0.4), "bois", 0.0)           # petite planchette au chevet
+	if Interieurs.v5("q_etagere_simple"):      # v5 : planchette au chevet = étagère murale Quaternius (Shelf_Simple), face à la pièce
+		b.qa("q_etagere_simple", Vector3(-b.L * 0.5 + 0.14 + 0.15, 1.57 - 0.25, -1.55), PI * 0.5, Vector3(0.7, 0.25, 0.3))
+	else:
+		b.bx(Vector3(-3.6, 1.55, -1.55), Vector3(0.7, 0.04, 0.4), "bois", 0.0)           # petite planchette au chevet
 	b.bougie(Vector3(-3.6, 1.57, -1.55), 0.12)
 	# --- table de travail au fond, entre le lit et la colonne
 	b.table(Vector3(0.1, 0, zb + 0.42), 2.2, 0.7, 0.0)
 	var y := F + 0.78
-	b.bx(Vector3(0.1, y + 0.003, zb + 0.42), Vector3(1.0, 0.012, 0.5), "parchemin")      # nappe de parchemin
+	if Interieurs.v5("q_banniere_toile") and Interieurs.v5("q_marmite"):      # v5 KITBASH : nappe de parchemin = toile couchée ; mortier = pot Quaternius de pierre, pilon = perche
+		b.toile_plate(Vector3(0.1, y + 0.004, zb + 0.42), Vector2(1.0, 0.5), 0.0, "parchemin")
+		b.qa("q_marmite", Vector3(0.3, y, zb + 0.35), 0.4, Vector3(0.16, 0.1, 0.16), {"fer": "brute"})
+		b.perche(Vector3(0.28, y + 0.04, zb + 0.35), Vector3(0.36, y + 0.24, zb + 0.33), 0.016, "bois_clair")
+	else:
+		b.bx(Vector3(0.1, y + 0.003, zb + 0.42), Vector3(1.0, 0.012, 0.5), "parchemin")      # nappe de parchemin
+		b.cyl(Vector3(0.3, y + 0.05, zb + 0.35), 0.075, 0.1, "brute", 8, false, 0.055)       # mortier
+		b.cyl(Vector3(0.3, y + 0.14, zb + 0.35), 0.015, 0.2, "bois_clair", 6, false, 0.015)  # pilon
 	b.livre(Vector3(-0.55, y, zb + 0.4), 0.3)
-	b.cyl(Vector3(0.3, y + 0.05, zb + 0.35), 0.075, 0.1, "brute", 8, false, 0.055)       # mortier
-	b.cyl(Vector3(0.3, y + 0.14, zb + 0.35), 0.015, 0.2, "bois_clair", 6, false, 0.015)  # pilon
 	b.crane(Vector3(0.75, y, zb + 0.5), -0.6, 1.1)
 	b.cruche(Vector3(-0.2, y, zb + 0.55), 0.3)
 	b.cruche(Vector3(0.95, y, zb + 0.3), 0.22)
@@ -118,7 +126,10 @@ static func _sigrun(b: Interieurs, xch: float) -> void:
 	b.tonneau(Vector3(3.45, 0, 0.7), 0.85, 0.32)
 	b.tonneau(Vector3(3.4, 0, 1.55), 0.8, 0.3)
 	b.sac(Vector3(2.7, F, 2.05), 0.8)
-	b.cyl_h(Vector3(2.9, F + 1.9, -2.5), 0.025, 2.0, "bois_sombre", 0.0, 6)
+	if Interieurs.v5("q_poutre_ronde"):      # v5 KITBASH : perche d'herbes = poutre ronde Quaternius
+		b.perche(Vector3(1.9, F + 1.9, -2.5), Vector3(3.9, F + 1.9, -2.5), 0.025, "bois_sombre")
+	else:
+		b.cyl_h(Vector3(2.9, F + 1.9, -2.5), 0.025, 2.0, "bois_sombre", 0.0, 6)
 	for k in 6:
 		b.herbes(Vector3(2.1 + k * 0.32, F + 1.88, -2.5), 0.2 * k, 0.9)
 	# --- suspendus aux entraits : bouquets, mobile de runes et d'os
@@ -164,14 +175,22 @@ static func _chasseurs(b: Interieurs, xch: float) -> void:
 		b.arc(Vector3(-0.35 + k * 0.5, yw, zb + 0.05), 0.0, 1.0 + 0.05 * k)
 	b.carquois(Vector3(1.2, yw - 0.1, zb + 0.08), 0.0)
 	b.carquois(Vector3(1.5, yw - 0.1, zb + 0.08), 0.2)
-	b.bx(Vector3(0.5, yw + 0.55, zb + 0.04), Vector3(2.0, 0.06, 0.05), "bois_sombre")
+	if Interieurs.v5("q_porte_manteau"):      # v5 : planche aux arcs = patère Quaternius (Peg_Rack)
+		b.qf("q_porte_manteau", Vector3(0.5, yw + 0.44, zb + 0.04), 0.0, Vector3(2.0, 0.22, 0))
+	else:
+		b.bx(Vector3(0.5, yw + 0.55, zb + 0.04), Vector3(2.0, 0.06, 0.05), "bois_sombre")
 	b.hache(Vector3(2.0, yw, zb + 0.08), 0.0, 0.05, 1.0)
 	b.epee(Vector3(2.35, yw, zb + 0.08), 0.0, -0.05, 0.8)
 	b.table(Vector3(0.6, 0, zb + 0.6), 2.0, 0.8, 0.0)
 	var y := F + 0.78
-	b.bx(Vector3(0.35, y + 0.03, zb + 0.55), Vector3(0.7, 0.06, 0.4), "peau_claire", 0.2)      # peau en cours de raclage
-	b.bx(Vector3(1.0, y + 0.02, zb + 0.7), Vector3(0.22, 0.03, 0.06), "etain", 0.4)            # couteau
-	b.bx(Vector3(1.2, y + 0.03, zb + 0.5), Vector3(0.16, 0.05, 0.08), "brute", 0.1)           # pierre à aiguiser
+	if Interieurs.v5("pq_couteau_camp") and Interieurs.v5("q_roc_2"):      # v5 KITBASH : peau couchée (toile teinte), couteau de camp, pierre à aiguiser = galet Quaternius
+		b.toile_plate(Vector3(0.35, y + 0.01, zb + 0.55), Vector2(0.7, 0.4), 0.2, "peau_claire")
+		b.couche("pq_couteau_camp", Vector3(1.0, y, zb + 0.7), 0.4, 0.26)
+		b.qa("q_roc_2", Vector3(1.2, y, zb + 0.5), 0.1, Vector3(0.16, 0.05, 0.08), {"pierre": "brute"})
+	else:
+		b.bx(Vector3(0.35, y + 0.03, zb + 0.55), Vector3(0.7, 0.06, 0.4), "peau_claire", 0.2)      # peau en cours de raclage
+		b.bx(Vector3(1.0, y + 0.02, zb + 0.7), Vector3(0.22, 0.03, 0.06), "etain", 0.4)            # couteau
+		b.bx(Vector3(1.2, y + 0.03, zb + 0.5), Vector3(0.16, 0.05, 0.08), "brute", 0.1)           # pierre à aiguiser
 	b.os_sol(Vector3(0.0, y, zb + 0.75), 0.7)
 	b.nappe(Vector3(0.92, y, zb + 0.56), Vector2(0.5, 0.62), 0.15, true)      # v3 : planche claire sous les morceaux (détachés du plateau sombre)
 	var yv := y + (0.024 if PropsQuaternius.lot4 else 0.0)
@@ -192,8 +211,11 @@ static func _chasseurs(b: Interieurs, xch: float) -> void:
 	b.ramure(Vector3(3.78, 2.0, -0.3), -PI * 0.5, 1.0)
 	b.peau_murale(Vector3(3.8, 1.5, 0.6), -PI * 0.5, 0.9, 1.3, "peau_sombre")
 	# --- séchoir à viande au-dessus du foyer et viandes pendues aux entraits
-	b.bx(Vector3(xch - 0.9, b.y0 - 0.32, -1.75), Vector3(1.9, 0.06, 0.06), "bois_sombre")
-	b.bx(Vector3(xch - 0.9, b.y0 - 0.32, -1.05), Vector3(1.9, 0.06, 0.06), "bois_sombre")
+	for zz in [-1.75, -1.05]:
+		if Interieurs.v5("q_poutre_ronde"):      # v5 KITBASH : barres du séchoir = poutres rondes
+			b.perche(Vector3(xch - 1.85, b.y0 - 0.32, zz), Vector3(xch + 0.05, b.y0 - 0.32, zz), 0.032, "bois_sombre")
+		else:
+			b.bx(Vector3(xch - 0.9, b.y0 - 0.32, zz), Vector3(1.9, 0.06, 0.06), "bois_sombre")
 	for k in 6:
 		b.viande_seche(Vector3(xch - 1.6 + k * 0.32, b.y0 - 0.35, -1.75 if k % 2 == 0 else -1.05), 1, 0.0)
 	for x in Interieurs.FERMES["chasseurs"]:
@@ -209,6 +231,14 @@ static func _chasseurs(b: Interieurs, xch: float) -> void:
 static func _cadre_peau(b: Interieurs, pos: Vector3, lacet: float) -> void:
 	var F := Interieurs.F
 	var bs := Basis(Vector3.UP, lacet)
+	if Interieurs.v5("q_banniere_toile"):      # v5 KITBASH : montants et traverses = poutres rondes, peau tendue = toile teinte
+		for sx in [-1.0, 1.0]:
+			b.perche(pos + bs * Vector3(sx * 0.55, 0, 0) + Vector3(0, F, 0), pos + bs * Vector3(sx * 0.55, 0, 0) + Vector3(0, F + 1.6, 0), 0.04, "bois")
+		for yy in [0.2, 1.55]:
+			b.perche(pos + bs * Vector3(-0.6, 0, 0) + Vector3(0, F + yy, 0), pos + bs * Vector3(0.6, 0, 0) + Vector3(0, F + yy, 0), 0.026, "bois")
+		b.toile_debout(pos + Vector3(0, F + 0.88, 0), lacet, 1.0, 1.25, "peau_claire")
+		b.solide(pos + Vector3(0, F + 0.8, 0), Vector3(1.2, 1.6, 0.2), lacet)
+		return
 	for sx in [-1.0, 1.0]:
 		b.cyl(pos + bs * Vector3(sx * 0.55, 0, 0) + Vector3(0, F + 0.8, 0), 0.04, 1.6, "bois", 6)
 	b.bx(pos + Vector3(0, F + 1.55, 0), Vector3(1.2, 0.05, 0.05), "bois", lacet)
@@ -232,22 +262,44 @@ static func _grima(b: Interieurs, xch: float) -> void:
 	# --- sol : tapis tressé et siège de la doyenne au coin du feu
 	b.peau_sol(Vector3(xch - 1.7, 0, -0.1), Vector2(1.4, 1.2), 0.1, "peau_claire")
 	b.tabouret(Vector3(xch - 1.5, 0, 0.9), 0.4)
-	b.bx(Vector3(xch - 1.5, F + 0.43, 0.9), Vector3(0.34, 0.03, 0.34), "peau_claire", 0.3)
-	b.bx(Vector3(xch - 1.1, F + 0.65, 1.0), Vector3(0.05, 0.9, 0.05), "bois", 0.0, false, Vector3(0, 0, 0.15))   # quenouille
-	b.bx(Vector3(xch - 1.07, F + 1.1, 1.0), Vector3(0.09, 0.2, 0.09), "foin", 0.0, false, Vector3(0, 0, 0.15))
+	if Interieurs.v5("q_sac"):      # v5 KITBASH : peau du siège = toile teinte ; quenouille = perche + sac de laine (foin) en tête
+		b.toile_plate(Vector3(xch - 1.5, F + 0.415, 0.9), Vector2(0.36, 0.36), 0.3, "peau_claire")
+		var dq := Basis(Vector3.BACK, 0.15) * Vector3.UP
+		b.perche(Vector3(xch - 1.1, F + 0.65, 1.0) - dq * 0.45, Vector3(xch - 1.1, F + 0.65, 1.0) + dq * 0.45, 0.022, "bois")
+		b.appuye("q_sac", Vector3(xch - 1.1, F + 0.65, 1.0) + dq * 0.33, 0.0, 0.15, 0.22, {"jute": "foin", "lin": "foin"})
+	else:
+		b.bx(Vector3(xch - 1.5, F + 0.43, 0.9), Vector3(0.34, 0.03, 0.34), "peau_claire", 0.3)
+		b.bx(Vector3(xch - 1.1, F + 0.65, 1.0), Vector3(0.05, 0.9, 0.05), "bois", 0.0, false, Vector3(0, 0, 0.15))   # quenouille
+		b.bx(Vector3(xch - 1.07, F + 1.1, 1.0), Vector3(0.09, 0.2, 0.09), "foin", 0.0, false, Vector3(0, 0, 0.15))
 	# --- métier à tisser (au fond ouest) : montants, traverse, fils tendus, pesons de pierre, tissu commencé
 	var mx := xw + 1.35
 	var mz := zb + 0.55
+	var v5m := Interieurs.v5("q_poutre_ronde") and Interieurs.v5("q_roc_1") and Interieurs.v5("q_cageot_vide")
 	for sx in [-1.0, 1.0]:
-		b.cyl(Vector3(mx + sx * 0.7, F + 1.05, mz), 0.05, 2.1, "bois", 8, true)
-	b.cyl_h(Vector3(mx, F + 2.0, mz), 0.045, 1.5, "bois", 0.0, 8)
-	b.cyl_h(Vector3(mx, F + 1.55, mz + 0.05), 0.03, 1.4, "bois_clair", 0.0, 6)
+		if v5m:      # v5 KITBASH : montants et ensouples du métier = poutres rondes ; pesons = galets ; panier = cageot de ferme (laine dedans)
+			b.perche(Vector3(mx + sx * 0.7, F, mz), Vector3(mx + sx * 0.7, F + 2.1, mz), 0.05, "bois")
+			b.solide_cyl(Vector3(mx + sx * 0.7, F + 1.05, mz), 0.05, 2.1)
+		else:
+			b.cyl(Vector3(mx + sx * 0.7, F + 1.05, mz), 0.05, 2.1, "bois", 8, true)
+	if v5m:
+		b.perche(Vector3(mx - 0.75, F + 2.0, mz), Vector3(mx + 0.75, F + 2.0, mz), 0.045, "bois")
+		b.perche(Vector3(mx - 0.7, F + 1.55, mz + 0.05), Vector3(mx + 0.7, F + 1.55, mz + 0.05), 0.03, "bois_clair")
+	else:
+		b.cyl_h(Vector3(mx, F + 2.0, mz), 0.045, 1.5, "bois", 0.0, 8)
+		b.cyl_h(Vector3(mx, F + 1.55, mz + 0.05), 0.03, 1.4, "bois_clair", 0.0, 6)
 	for k in 28:
 		b.bx(Vector3(mx - 0.63 + k * 0.047, F + 0.95, mz), Vector3(0.012, 1.0 + (k % 3) * 0.03, 0.012), "foin", 0.0)
 	for k in 7:
-		b.bloc(Vector3(0.09, 0.12, 0.07), 7400 + k, Vector3(mx - 0.6 + k * 0.2, F + 0.35, mz), "brute", k)
+		if v5m:
+			b.qa("q_roc_1", Vector3(mx - 0.6 + k * 0.2, F + 0.29, mz), k, Vector3(0.09, 0.12, 0.07), {"pierre": "brute"})
+		else:
+			b.bloc(Vector3(0.09, 0.12, 0.07), 7400 + k, Vector3(mx - 0.6 + k * 0.2, F + 0.35, mz), "brute", k)
 	b.tenture(Vector3(mx, F + 1.82, mz + 0.045), 0.0, 1.26, 0.5, "tenture_r")
-	b.bx(Vector3(mx + 0.9, F + 0.18, mz + 0.5), Vector3(0.7, 0.28, 0.45), "foin", 0.2)       # panier de laine
+	if v5m:
+		b.qf("q_cageot_vide", Vector3(mx + 0.9, 0, mz + 0.5), 0.2, Vector3(0.7, 0.3, 0.45))
+		b.bx(Vector3(mx + 0.9, F + 0.2, mz + 0.5), Vector3(0.6, 0.18, 0.36), "foin", 0.2)       # laine en écheveaux dans le panier
+	else:
+		b.bx(Vector3(mx + 0.9, F + 0.18, mz + 0.5), Vector3(0.7, 0.28, 0.45), "foin", 0.2)       # panier de laine
 	b.solide(Vector3(mx, F + 1.0, mz), Vector3(1.55, 2.0, 0.35))
 	# --- lit modeste (sud-ouest), couverture
 	b.lit(Vector3(xw + 1.1, F, zf - 0.97), PI * 0.5, 1.9, 0.95, "peau", 0, "ancienne")      # lot sommeil : pied du mur (le lit procédural fait 1,9 m hors tout)
@@ -263,7 +315,11 @@ static func _grima(b: Interieurs, xch: float) -> void:
 	b.bx(Vector3(xch - 0.55, y + 0.04, zb + 0.4), Vector3(0.4, 0.07, 0.3), "foin", 0.2)       # pâte
 	b.bol(Vector3(xch, y, zb + 0.5))
 	b.bol(Vector3(xch + 0.25, y, zb + 0.35))
-	b.cyl_h(Vector3(xch - 0.9, y + 0.025, zb + 0.55), 0.025, 0.4, "bois_clair", 0.2, 6)       # rouleau
+	if Interieurs.v5("q_poutre_ronde"):      # v5 KITBASH : rouleau à pâtisserie = poutre ronde courte
+		var dr := Basis(Vector3.UP, 0.2) * Vector3.RIGHT
+		b.perche(Vector3(xch - 0.9, y + 0.025, zb + 0.55) - dr * 0.2, Vector3(xch - 0.9, y + 0.025, zb + 0.55) + dr * 0.2, 0.025, "bois_clair")
+	else:
+		b.cyl_h(Vector3(xch - 0.9, y + 0.025, zb + 0.55), 0.025, 0.4, "bois_clair", 0.2, 6)       # rouleau
 	b.bougie(Vector3(xch + 0.4, y, zb + 0.55), 0.13, true)
 	if PropsQuaternius.lot4:      # lot 4 : plan de travail de la doyenne (miche, navets, oeufs dans un bol, écuelle et cuillère) + garde-manger
 		b.nappe(Vector3(xch - 0.12, y, zb + 0.67), Vector2(0.4, 0.22), 0.0, true)      # v3 : planches claires sous la miche et les légumes
@@ -295,9 +351,15 @@ static func _grima(b: Interieurs, xch: float) -> void:
 	for x in Interieurs.FERMES["grima"]:
 		for k in 3:
 			var p := Vector3(x + (k - 1) * 0.6 + (1.2 if absf(x) < 0.2 else 0.0), b.y0 - 0.3, -1.65 if k != 1 else (1.65 if absf(x) > 1.0 else -1.2))
-			b.cyl(p + Vector3(0, -0.22, 0), 0.012, 0.44, "cuir", 4)
-			for j in 4:
-				b.cyl(p + Vector3(0.0, -0.18 - j * 0.1, 0.0), 0.06 - j * 0.004, 0.09, "peau_claire" if k != 1 else "foin", 6, false, 0.05)
+			if Interieurs.v5("q_navet") and Interieurs.v5("q_poutre_ronde"):      # v5 KITBASH : tresse = ficelle (poutre ronde fine) + oignons (navets Quaternius, fanes en haut)
+				b.perche(p, p + Vector3(0, -0.44, 0), 0.008, "cuir")
+				for j in 4:
+					var mo := {"lin": "peau_claire" if k != 1 else "foin", "laine": "peau_claire" if k != 1 else "foin", "herbe": "foin"}
+					b._q_xf("q_navet", Transform3D(Basis(Vector3.UP, j * 1.7) * Basis.from_scale(Vector3.ONE * (0.9 - j * 0.05)), p + Vector3(0.03 * (j % 2) - 0.015, -0.32 - j * 0.1, 0.0)), mo)
+			else:
+				b.cyl(p + Vector3(0, -0.22, 0), 0.012, 0.44, "cuir", 4)
+				for j in 4:
+					b.cyl(p + Vector3(0.0, -0.18 - j * 0.1, 0.0), 0.06 - j * 0.004, 0.09, "peau_claire" if k != 1 else "foin", 6, false, 0.05)
 		b.viande_seche(Vector3(x + 0.1, b.y0 - 0.3, -1.9), 2, 0.2)
 	# --- bout est, porte : tenture, peau, applique
 	b.tenture(Vector3(xe - 0.01, 1.7, 1.6), -PI * 0.5, 1.2, 1.6, "tenture_b")

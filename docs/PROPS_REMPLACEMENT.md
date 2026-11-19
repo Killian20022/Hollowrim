@@ -352,3 +352,87 @@ pièce (lisibles). `test_interieurs` : OK (1 087 s, machine chargée).
 
 CPU médian témoin 1,80 → 1,70 ms (stable). Écart dans le bruit partout, sous le budget +0,5 ms. Chargement des abords ≈ 0,4 s, étalé sur
 une image par composition. Planches avant/après : `Desktop/Skyrim captures/a_voir_2026-11-11/props/v3_*.png` (gauche avant, droite après).
+
+## Props v5 : intérieurs (branche `props/interieurs_v5`, 2026-11-19)
+
+Demande : « remplace-en un maximum voire tous, NOTAMMENT LES TABLES ». Périmètre : halle, Sigrun, chasseurs, Grima, forge et TOUS les
+bâtiments ouverts générés (`BatimentsOuverts` : maisons h1-h5, auberge h2, fermes, grenier, moulins, tour, grange, étable). Interrupteur
+A/B : `-- --sans-props-v5` (`Interieurs.v5()`) rend exactement l'état d'avant ; `--sans-remplacement` / `--props-quat-ancien` coupent
+aussi la v5. Même méthode : fondu dans les lots de la pièce (aucun nœud par prop), helpers d'`interieurs.gd` à signature et collisions
+inchangées. Nouveaux helpers : `perche` (poutre ronde de a à b), `toile_debout` / `toile_plate` (toile de bannière teinte), `qa` (prop
+ajusté sans recalage au sol), `couche` (prop debout couché sur le flanc), `appuye` (outil penché), `modele_table` / `tables_v5`.
+
+### Tables (vérifié par grep : plus AUCUNE table maison n'est posée avec les props texturés)
+
+Toutes les tables passent par `Interieurs.table()` (halle x4, Sigrun, chasseurs, Grima, établi de la forge, `_table` des maisons /
+fermes / auberge / tour, comptoir de l'auberge). Le module maison (plateau + tréteaux L6) ne sort plus qu'avec `--sans-remplacement`.
+v5 : une table de plus de 3 m = plusieurs `pq_grande_table` bout à bout (halle : 4,2-4,8 m -> 2 tables de 2,1-2,4 m ; avant, une seule
+Table_Large étirée x1,6 avec des pieds déformés) ; plan haut (> 0,83 m) = `pq_etabli`. `tables_v5` est la liste des modèles tirés au
+sort par position : y ajouter les tables d'Ultimate Home Interior quand props/sources_v5 les aura dans le catalogue (voir plus bas).
+
+### Remplacés en v5
+
+| Objet maison | Remplaçant | Où |
+|---|---|---|
+| lit procédural du sommeil (`Lit`, cadre + paillasse + fourrure) | `pq_lit` / `pq_lit_2` texturé ajusté au cadre (largeur, longueur, dessus du matelas à `H_PAILLASSE` : poses couchée / assise inchangées), v2 : literie (drap et oreiller de l'atlas tissu, blancs et gris-bleu, effet « chambre d'hôtel ») passée à la laine écrue sale de l'intérieur (matière `jute`, mêmes UV, pas de nouvel atlas) et GRANDE fourrure de la peau demandée étalée du pied aux deux tiers du lit (kitbash toile), collisions identiques (chevet à la hauteur du modèle) | tous les lits à marqueur : Sigrun, chasseurs x2, Grima, maisons, fermes, auberge, moulin, tour |
+| crâne (module L6) | `q_crane` (Skull) tourné face à la pièce | halle, Sigrun (x7) |
+| os rongés au sol | `q_os_tas_2` réduit | halle (x7), chasseurs |
+| peau tendue murale (boîte + cadre) | toile teinte + 4 perches | halle, Sigrun x2, chasseurs x3, Grima, maisons, coins de chasseurs |
+| cadre à peaux (chasseurs, coins de métier) | 2 montants + 2 traverses (perches) + toile teinte | chasseurs x2, maisons de chasseurs |
+| planche aux arcs | `pq_porte_manteau` | chasseurs |
+| peau en raclage, couteau, pierre à aiguiser (table de dépeçage) | toile couchée, `q_couteau_camp` couché, `q_roc_2` | chasseurs |
+| barres du séchoir à viande | perches | chasseurs |
+| planchette du chevet | `pq_etagere_simple` | Sigrun |
+| nappe de parchemin, mortier, pilon | toile couchée, `q_marmite` en pierre, perche | Sigrun |
+| perche d'herbes | perche | Sigrun |
+| peau du siège, quenouille | toile couchée, perche + `q_sac` (laine) | Grima |
+| métier à tisser : montants, ensouples, pesons, panier | perches, `q_roc_1`, `pq_cageot_vide` | Grima |
+| rouleau à pâtisserie | perche | Grima |
+| tresses d'oignons (cylindres) | ficelle (perche) + `q_navet` pendus (fanes en haut) | Grima (9 tresses) |
+| tisonnier, pelle de la hotte | perche de fer, `q_pelle` (Shovel) | forge |
+| pelle à charbon (était une pioche) | `q_pelle` | forge |
+| lame brute + garde (établi) | `pq_epee_mur` couchée | forge |
+| pot de clous | `pq_seau_fer` réduit | forge |
+
+Ajouts (garnir) : 2 `pq_chandelier_pied` à 4 bougies allumées (flammes, sans lumière en plus) de part et d'autre du haut-siège (halle) ;
+une table de chevet `pq_chevet_etagere` + bougie + livre près de chaque lit des maisons et fermes générées (place prise par le
+répartiteur `Murs`, passages et couloir d'entrée dégagés).
+
+### Gardés (et pourquoi)
+
+| Objet | Raison |
+|---|---|
+| appliques, lanterne de la halle, lanternes pendues et brasero (bâtiments ouverts) | luminaires validés (flamme, halo, lumière) |
+| râtelier de l'Épée de Skarnholt (forge) | objet unique de quête (L9) |
+| plate-forme de transe, pierres de rune, bâton de seiðr, mobile de runes (Sigrun) | objets uniques de la völva, runes émissives |
+| tentures (halle, maisons, tour) | textures de la bible (motifs nordiques rouge / bleu / vert) ; la toile pq_* est gris-bleu sans motif |
+| ramures de cerf | aucune ramure / bois de cerf dans les packs, kitbash non crédible |
+| arcs, carquois, raquettes, bottes à sécher (chasseurs) | aucun arc, carquois, raquette ni botte dans les packs (règle : les arcs sont maison) |
+| fers à cheval, étau, limes, clous, lingots, barres pendues, débris (forge) | pièces minuscules sans équivalent |
+| nappes de lin et planches à pain (lot 4) | surfaces de tissu UV ; un q_* sans UV n'y montrerait qu'un texel (essai rejeté : nappe disparue sous l'éclairage) |
+| paille, foin en tas / bottes (grange, étable), fromage, pâte | matières en vrac sans équivalent |
+| alcôve du lit clos (cloison, ciel de lit, coffre-banquette), estrade, trône (déjà kitbash), meules et rouet des moulins, stalles, mangeoires, échelle | bâti / machines (hors périmètre) |
+| foyers, crémaillères, poteaux, planchers, plafonds | architecture |
+
+### Mesures v5
+
+`outils/audit_mesure_lieu.gd`, nuit 21 h, 12 s, 2 passes alternées `--sans-props-v5` / v5, AVANT l'intégration du catalogue
+props/sources_v5. Machine très chargée par d'autres agents (dt_med 33-60 ms) : seuls les écarts GPU par paire et les compteurs comptent.
+
+| Lieu | gpu_med avant (P1 / P2) | gpu_med v5 (P1 / P2) | appels | primitives |
+|---|---|---|---|---|
+| halle | 10,90 / 10,82 | 10,64 / 10,92 | 543 -> 543 | 725 k -> 739 k (+1,8 %) |
+| maison h1 (`--lieu=ferme --bat=h1`) | 13,65 / 13,26 | 11,99 / 13,31 | 950-956 -> 946-949 | 1,338 M -> 1,350 M (+0,9 %) |
+
+Lecture : aucun écart GPU au-delà du bruit (halle -0,08 ms en moyenne, h1 dans le bruit), aucun appel de dessin en plus (tout est
+fondu ; le lit pq_* = 3 surfaces + 2 faces de fourrure, autant de MeshInstance3D que le lit procédural). Non remesuré après le
+catalogue v5 (tables ovale / ferrées : 592-916 tris contre 986, même ordre).
+
+### Catalogue props/sources_v5 intégré (cherry-pick de fa026490, a8c19c55, 799ff092)
+
+- Tables : `tables_v5` = `pq_grande_table` (q_grande_table), `pq_table_ovale` (tréteaux), `pq_table_grande_2` (planches ferrées) ;
+  tables de 1,5 m ou moins : `pq_table_petite_2`, `pq_table_ronde`. Tirage stable par position ; modèles longs selon Z tournés d'un quart.
+- Crâne `pq_crane`, os `pq_os_tas_2`, pelles `pq_pelle`, couteau de dépeçage `pq_couteau_camp` (texturés).
+- Écartés (consigne « médiéval nordique ») : bouteilles verte / vin, commode, chevets à tiroir, coffre à tiroirs, tapis rouges,
+  chaises (non posées : bancs et tabourets déjà là, passages étroits).
+Planches avant | après (gauche avant, droite après) : `C:\Users\lopezk19\Jeux\rendus\props_v5\interieurs_*.png`.

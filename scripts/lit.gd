@@ -133,6 +133,8 @@ var _M: Dictionary
 
 func _construire(mats: Dictionary) -> void:
 	_M = mats
+	if Interieurs.v5("q_lit") and _construire_pq():
+		return
 	var w := largeur
 	var L := longueur
 	var hw := w * 0.5
@@ -188,6 +190,78 @@ func _construire(mats: Dictionary) -> void:
 	# collision : le cadre entier + le chevet
 	_forme(Vector3(0, H_PAILLASSE * 0.5, 0), Vector3(w, H_PAILLASSE, L))
 	_forme(Vector3(0, H_CHEVET * 0.5, hl - 0.05), Vector3(w, H_CHEVET, 0.1))
+
+## Props v5 (props/interieurs_v5) : le lit Quaternius texturé (Bed_Twin 1 ou 2, pq_lit / pq_lit_2) ajusté au cadre du lit procédural :
+## largeur et longueur du Lit, dessus de la toile du matelas à H_PAILLASSE (les poses couchée / assise ne bougent pas), chevet
+## (montants hauts) vers +Z ; fourrure de la peau demandée pliée au pied (KITBASH : toile de bannière teinte). Mêmes collisions.
+## `-- --sans-props-v5` : le lit procédural d'avant.
+func _construire_pq() -> bool:
+	var nom := "q_lit_2" if (proprietaire.hash() & 1) == 1 else "q_lit"
+	var parts: Array = PropsQuaternius.morceaux(nom)
+	if parts.is_empty() or not PropsQuaternius.est_pq(String(parts[0][0])):
+		return false
+	var bb := AABB()
+	var premier := true
+	var top_tissu := 0.0
+	var y_haut := -INF
+	var z_haut := 0.0
+	for m: Array in parts:
+		var vs: PackedVector3Array = (m[1] as Array)[Mesh.ARRAY_VERTEX]
+		for p in vs:
+			bb = AABB(p, Vector3.ZERO) if premier else bb.expand(p)
+			premier = false
+			if p.y > y_haut:
+				y_haut = p.y
+				z_haut = p.z
+	for m: Array in parts:      # dessus du matelas : toile au MILIEU du lit (l'oreiller, plus haut, est au chevet)
+		if not String(m[0]).begins_with("pq_tissu"):
+			continue
+		for p in ((m[1] as Array)[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+			if absf(p.z - bb.get_center().z) < bb.size.z * 0.2:
+				top_tissu = maxf(top_tissu, p.y)
+	if top_tissu <= bb.position.y + 0.05:
+		return false
+	var c := bb.get_center()
+	var sc := Vector3(largeur / bb.size.x, H_PAILLASSE / (top_tissu - bb.position.y), longueur / bb.size.z)
+	var demi_tour := z_haut < c.z       # le plus haut montant (chevet) doit regarder +Z
+	var bs := Basis(Vector3.UP, PI if demi_tour else 0.0) * Basis.from_scale(sc)
+	var xf := Transform3D(bs, -(bs * Vector3(c.x, bb.position.y, c.z)))
+	var mpq := PropsQuaternius.mats_pq("interieur")
+	for m: Array in parts:
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, m[1])
+		var mi := MeshInstance3D.new()
+		mi.name = "Lit_" + String(m[0])
+		mi.mesh = mesh
+		mi.transform = xf
+		# literie (drap, oreiller : atlas tissu, blanc et gris-bleu « hôtel ») -> laine écrue sale de l'intérieur (jute), même UV
+		var lit_tissu := String(m[0]).begins_with("pq_tissu") and _M.has("jute")
+		mi.material_override = _M["jute"] if lit_tissu else mpq.get(m[0], _M.get("bois"))
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mi)
+	# GRANDE fourrure (teinte de la peau du lit) étalée du pied aux deux tiers, débordant un peu sur les côtés
+	var pm := peau if _M.has(peau) else ("peau" if _M.has("peau") else "")
+	if pm != "" and PropsQuaternius.existe("q_banniere_toile"):
+		var bt := PropsQuaternius.boite("q_banniere_toile")
+		var tw := largeur * 0.98
+		var tl := longueur * 0.66
+		var bf := Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(tw / bt.size.x, tl / bt.size.y, 2.0))
+		var xt := Transform3D(bf, Vector3(0, H_PAILLASSE + 0.035, -longueur * 0.5 + 0.08))
+		for m: Array in PropsQuaternius.morceaux("q_banniere_toile", {"toile": pm}, false):
+			for face in [Transform3D(), Transform3D(Basis.from_scale(Vector3(1, 1, -1)), Vector3.ZERO)]:
+				var mesh := ArrayMesh.new()
+				mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, m[1])
+				var mi := MeshInstance3D.new()
+				mi.name = "Lit_fourrure"
+				mi.mesh = mesh
+				mi.transform = xt * face
+				mi.material_override = _M[pm]
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				add_child(mi)
+	_forme(Vector3(0, H_PAILLASSE * 0.5, 0), Vector3(largeur, H_PAILLASSE, longueur))
+	var h_chevet := (y_haut - bb.position.y) * sc.y      # chevet du modèle (plus bas que celui du lit procédural)
+	_forme(Vector3(0, h_chevet * 0.5, longueur * 0.5 - 0.05), Vector3(largeur, h_chevet, 0.1))
+	return true
 
 func _forme(c: Vector3, t: Vector3) -> void:
 	var cs := CollisionShape3D.new()
