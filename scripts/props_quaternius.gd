@@ -315,10 +315,43 @@ static var _brut_pq_tri := {}
 ## (q_rondin, Survival : écorce et bouts sciés) ramené à la boîte de la bûche (0,6 x 0,2 x 0,2 ; rapports 0,43 / 0,50 / 0,49 : presque
 ## uniforme, l'écorce n'est pas déformée). Renvoie [id, Transform3D à composer À DROITE de la pose] ; inchangé sans v5.
 static func buche_v5(nom: String) -> Array:
-	if v5 and nom == "q_buche" and existe("q_rondin"):
-		compter("v5_buches")
-		return ["q_rondin", ajuste("q_rondin", "q_buche")]
+	if v5 and nom == "q_buche":
+		for r: String in ["pq_rondin", "q_rondin"]:      # rondin TEXTURÉ du catalogue v5 (props/sources_v5) s'il est là
+			if existe(r):
+				compter("v5:q_buche")
+				return [r, ajuste(r, "q_buche")]
 	return [nom, Transform3D.IDENTITY]
+
+## v5 DEHORS seulement : q_* (couleurs de face) servis par leur pq_* TEXTURÉ du catalogue v5 (props/sources_v5, champ
+## « equivalent_q » : même modèle, même échelle, même emprise), aux sites d'appel du dehors (MobilierVillage, PropsQuaternius.village,
+## AbordsProps) ; pas de champ « ancien » (les intérieurs, la crypte et la grotte ne changent pas). Rien sans v5 ni sans le pq_*.
+## Pièces de nourriture des étals (objets vivants), kitbash reteints et pièces de construction sans pq_* (q_buche à part, q_poutre_ronde,
+## q_souche, q_tronc) : absents de la table.
+const EXT_V5 := {"q_barriere_bois": "pq_barriere_bois", "q_barriere_ext_1": "pq_barriere_ext_1", "q_barriere_ext_2": "pq_barriere_ext_2",
+	"q_bordure_1": "pq_bordure_1", "q_bordure_2": "pq_bordure_2", "q_bordure_angle": "pq_bordure_angle",
+	"q_brique_1": "pq_brique_1", "q_brique_2": "pq_brique_2", "q_brique_3": "pq_brique_3", "q_brique_4": "pq_brique_4",
+	"q_bucher": "pq_bucher", "q_caisse_village": "pq_caisse_village", "q_chariot": "pq_chariot", "q_feu_bois": "pq_feu_bois",
+	"q_hache_camp": "pq_hache_camp", "q_hachette": "pq_hachette", "q_marmite_camp": "pq_marmite_camp", "q_piege_ours": "pq_piege_ours",
+	"q_piege_ours_ferme": "pq_piege_ours_ferme", "q_planches_sol": "pq_planches_sol", "q_rondin": "pq_rondin", "q_support_bois": "pq_support_bois",
+	"q_tente": "pq_tente", "q_pelle": "pq_pelle", "q_crane": "pq_crane", "q_pain": "pq_pain", "q_pomme": "pq_pomme", "q_viande": "pq_viande",
+	"q_poisson": "pq_poisson", "q_porte_1_plate": "pq_porte_1_plate", "q_porte_1_ronde": "pq_porte_1_ronde", "q_porte_2_plate": "pq_porte_2_plate",
+	"q_porte_2_ronde": "pq_porte_2_ronde", "q_porte_8_plate": "pq_porte_8_plate", "q_porte_8_ronde": "pq_porte_8_ronde",
+	"q_volets_thin_flat_open": "pq_volets_etroits_ouverts", "q_volets_thin_flat_closed": "pq_volets_etroits_fermes",
+	"q_volets_wide_flat_open": "pq_volets_larges_ouverts", "q_volets_wide_flat_closed": "pq_volets_larges_fermes"}
+## Admis même avec des matières imposées par la pose (elles teignaient le q_* ; le pq_* porte sa propre texture) : toile de la tente,
+## manche de cuir de la hache, piège en fer mat.
+const EXT_V5_MATS_IGNOREES := ["q_tente", "q_hache_camp", "q_piege_ours"]
+
+static func ext_v5(nom: String, mats := {}) -> String:
+	if not v5 or not EXT_V5.has(nom):
+		return nom
+	if not mats.is_empty() and not (nom in EXT_V5_MATS_IGNOREES):
+		return nom
+	var id: String = EXT_V5[nom]
+	if not existe(id):
+		return nom
+	compter("v5:" + nom)
+	return id
 
 ## Transformation qui envoie la boîte de `src` dans celle de `cible` (échelle par axe, pied et centre de l'emprise alignés).
 static func ajuste(src: String, cible: String) -> Transform3D:
@@ -442,6 +475,10 @@ static func mats_village(v) -> Dictionary:
 ## Pose un prop dehors, fondu dans les lots du village (Village._ajouter) ; `xf` dans le repère de `parent` (sol à y 0) ; `mats` :
 ## matière du prop -> nom de matière de mats_village (ex. {"fer": "argile"}) ; `solide` : boîte de collision de l'emprise.
 static func village(v, parent: Node3D, nom: String, xf: Transform3D, solide := false, mats := {}) -> void:
+	var nv := ext_v5(nom, mats)      # v5 : q_* du kit -> son pq_* texturé (dehors seulement)
+	if nv != nom:
+		nom = nv
+		mats = {}
 	if not actif or not existe(nom):
 		return
 	var mv := mats_village(v)

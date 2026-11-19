@@ -83,21 +83,27 @@ const TABLEE := [["pq_grande_table", 0.0, 0.0, 0.0, 0.0, true], ["pq_banc", 0.0,
 	["pq_chope", -0.7, 0.25, 20.0, 0.76, false], ["pq_chope", 0.3, -0.3, -40.0, 0.76, false], ["pq_chope", 0.9, 0.2, 80.0, 0.76, false],
 	["pq_assiette", -0.3, 0.25, 0.0, 0.76, false], ["pq_assiette", 0.55, -0.25, 0.0, 0.76, false], ["q_pain", -0.3, 0.25, 30.0, 0.775, false],
 	["pq_bouteille", 0.05, 0.05, 0.0, 0.76, false], ["pq_marmite", -1.0, -0.2, 0.0, 0.76, false], ["pq_tonneau", 1.85, 0.1, 0.0, 0.0, true]]
-## Poste de garde : petite table (grande table raccourcie), deux tabourets, chopes et dés (tas de pièces), râtelier, bouclier, tonneau.
-const POSTE_GARDE := [["pq_grande_table", 0.0, 0.0, 0.0, 0.0, true, Vector3(0.6, 1.0, 0.8)], ["pq_tabouret", -0.35, 0.75, 0.0, 0.0, false],
-	["pq_tabouret", 0.45, -0.7, 30.0, 0.0, false], ["pq_chope", -0.3, 0.15, 0.0, 0.76, false], ["pq_chope", 0.35, -0.15, 60.0, 0.76, false],
-	["pq_tas_pieces", 0.0, 0.05, 0.0, 0.76, false, 1.3], ["pq_rack_armes", 1.95, -0.1, 0.0, 0.0, true], ["pq_bouclier_bois", 1.95, 0.6, 0.0, 0.0, false, 1.0, -14.0],
+## Poste de garde : table ronde (Table_RoundSmall, catalogue v5), deux tabourets, chopes et dés (tas de pièces), râtelier, bouclier, tonneau.
+const POSTE_GARDE := [["pq_table_ronde", 0.0, 0.0, 0.0, 0.0, true], ["pq_tabouret", -0.2, 0.9, 0.0, 0.0, false],
+	["pq_tabouret", 0.75, -0.6, 30.0, 0.0, false], ["pq_chope", -0.25, 0.2, 0.0, 0.78, false], ["pq_chope", 0.3, -0.15, 60.0, 0.78, false],
+	["pq_tas_pieces", 0.0, 0.05, 0.0, 0.78, false, 1.3], ["pq_rack_armes", 1.95, -0.1, 0.0, 0.0, true], ["pq_bouclier_bois", 1.95, 0.6, 0.0, 0.0, false, 1.0, -14.0],
 	["pq_epee_mur", 1.55, -0.1, 0.0, 0.06, false, 1.0, -8.0], ["pq_hache_outil", 2.35, -0.1, 0.0, 0.06, false, 1.0, -8.0], ["pq_tonneau", -1.35, -0.3, 0.0, 0.0, true]]
-## Table du chaudronnier au marché : chaudron, marmites, vase sur la table ; caisse, seau, grand vase au pied.
+## Table du chaudronnier au marché : chaudron, marmites, vase sur la table ; caisse, seau, grand vase et ballot au pied.
 const TABLE_MARCHE := [["pq_grande_table", 0.0, 0.0, 0.0, 0.0, true, Vector3(0.75, 1.0, 1.0)], ["pq_chaudron", -0.6, 0.0, 0.0, 0.76, false, 0.55],
 	["pq_marmite", 0.05, 0.15, 0.0, 0.76, false], ["pq_marmite_couverte", 0.1, -0.2, 30.0, 0.76, false], ["pq_vase_4", 0.65, 0.0, 0.0, 0.76, false, 0.7],
-	["pq_seau_fer", 1.4, 0.25, 0.0, 0.0, false], ["pq_caisse", -1.45, -0.1, 10.0, 0.0, true], ["pq_vase_2", -1.4, 0.65, 0.0, 0.0, false, 0.7]]
+	["pq_seau_fer", 1.4, 0.25, 0.0, 0.0, false], ["pq_caisse", -1.45, -0.1, 10.0, 0.0, true], ["pq_vase_2", -1.4, 0.65, 0.0, 0.0, false, 0.7],
+	["pq_ballot", 1.5, -0.45, 15.0, 0.0, false]]
 ## Établi du forgeron dehors : hache couchée, petite enclume, chaîne lovée, seau de trempe, caisse ferrée.
 const ETABLI_FORGE := [["pq_etabli", 0.0, 0.0, 0.0, 0.0, true], ["pq_hache_outil", -0.5, 0.05, 90.0, 0.85, false, 1.0, 90.0],
 	["pq_enclume", 0.4, 0.0, 10.0, 0.85, false, 0.7], ["pq_chaine", -1.55, 0.45, 0.0, 0.0, false, 0.8], ["pq_seau_fer", 1.3, 0.45, 0.0, 0.0, false],
 	["pq_caisse_fer", 1.4, -0.35, 15.0, 0.0, true, 0.8]]
-## Coin de travail d'une ferme : établi, pioche couchée et corde dessus, seau, sacs, billot (souche) et hache plantée.
+## Coin de travail d'une ferme : établi, pioche couchée et corde dessus, seau, sacs, billot (souche) et hache plantée, chevalet de sciage.
 const ETABLI_FERME := [["pq_etabli", 0.0, 0.0, 0.0, 0.0, true], ["pq_pioche", -0.3, 0.1, 90.0, 0.85, false, 1.0, 90.0], ["pq_corde_2", 0.45, 0.15, 0.0, 0.85, false],
+	["pq_seau_bois", 1.35, 0.4, 0.0, 0.0, false], ["pq_sac", -1.4, 0.25, 20.0, 0.0, false], ["pq_sac", -1.35, -0.35, -30.0, 0.0, false],
+	["q_souche", 2.25, -0.2, 0.0, 0.0, true, 0.55], ["pq_hache_outil", 2.25, -0.2, 75.0, 0.34, false, 1.0, 0.0, 12.0],
+	["pq_chevalet_scie", -2.65, 0.1, 0.0, 0.0, true]]
+## Variante sans chevalet (plus courte de 2,6 m) pour la ferme A, où la version complète ne trouve pas de place.
+const ETABLI_FERME_A := [["pq_etabli", 0.0, 0.0, 0.0, 0.0, true], ["pq_pioche", -0.3, 0.1, 90.0, 0.85, false, 1.0, 90.0], ["pq_corde_2", 0.45, 0.15, 0.0, 0.85, false],
 	["pq_seau_bois", 1.35, 0.4, 0.0, 0.0, false], ["pq_sac", -1.4, 0.25, 20.0, 0.0, false], ["pq_sac", -1.35, -0.35, -30.0, 0.0, false],
 	["q_souche", 2.25, -0.2, 0.0, 0.0, true, 0.55], ["pq_hache_outil", 2.25, -0.2, 75.0, 0.34, false, 1.0, 0.0, 12.0]]
 ## Table de jeu des bandits devant la grotte : tonneau en guise de table, deux tabourets, chopes, mise (pièces), bouteille vide au pied.
@@ -113,7 +119,7 @@ const LIEUX_V5 := [
 	["poste_porte_e", POSTE_GARDE, [[69.0, 30.5, -90.0], [69.0, 42.0, -90.0], [68.0, 29.0, -90.0]], 1.0],
 	["table_marche", TABLE_MARCHE, [[56.5, 38.0, -90.0], [48.5, 40.0, 0.0], [56.5, 29.0, 180.0]], 1.0],
 	["etabli_forge", ETABLI_FORGE, [[28.5, 40.3, 180.0], [28.5, 31.7, 0.0], [31.5, 41.5, 90.0], [25.5, 40.0, 180.0]], 1.0],
-	["etabli_ferme_a", ETABLI_FERME, [[82.5, 19.8, 180.0], [77.0, 29.5, 0.0], [84.5, 28.8, 0.0]], 1.0],
+	["etabli_ferme_a", ETABLI_FERME_A, [[82.5, 19.8, 180.0], [80.0, 19.6, 180.0], [84.0, 19.4, 180.0], [77.0, 29.5, 0.0], [84.5, 28.8, 0.0]], 1.0],
 	["etabli_ferme_b", ETABLI_FERME, [[58.0, 7.8, 0.0], [66.8, 3.5, 90.0], [60.0, -0.8, 180.0]], 1.0],
 	["jeu_bandits", JEU_BANDITS, [[83.5, -32.0, 90.0], [82.5, -21.0, 90.0], [84.5, -33.5, 60.0]]],
 ]
@@ -163,6 +169,8 @@ static func creer(monde: Node3D) -> void:
 			if not is_instance_valid(monde) or not monde.is_inside_tree():
 				return
 	print("PropsMax : abords, %d compositions en %d ms" % [nb, Time.get_ticks_msec() - t0])
+	if PropsQuaternius.v5:
+		print("PropsQuaternius v5 : remplacements ", PropsQuaternius.compte)
 	var f := ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--abords-vues="):
@@ -389,7 +397,7 @@ static func _poser(monde: Node3D, racine: Node3D, nom: String, items: Array, o: 
 		else:
 			xf.origin.y = y - _bas(id, xf)
 		var bv := PropsQuaternius.buche_v5(id)      # v5 : bûche kitbash maison -> rondin Quaternius, même boîte
-		poses.append([bv[0], xf * (bv[1] as Transform3D), bool(it[5])])
+		poses.append([PropsQuaternius.ext_v5(bv[0]), xf * (bv[1] as Transform3D), bool(it[5])])
 		pieds.append([Vector2(xf.origin.x, xf.origin.z), y])
 		posees.append([centre, maxf((mx - mn).length() * 0.5, 0.15)])
 	for it: Array in items:
@@ -406,7 +414,7 @@ static func _poser(monde: Node3D, racine: Node3D, nom: String, items: Array, o: 
 				y0 = float(pd[1])
 		xf.origin.y = y0 + float(it[4]) - _bas(String(it[0]), xf)
 		var bw := PropsQuaternius.buche_v5(String(it[0]))
-		poses.append([bw[0], xf * (bw[1] as Transform3D), bool(it[5])])
+		poses.append([PropsQuaternius.ext_v5(bw[0]), xf * (bw[1] as Transform3D), bool(it[5])])
 	var mi := PropsQuaternius.lot_pq(racine, nom, poses, "exterieur", monde.village)
 	if mi != null:
 		mi.visibility_range_end = PORTEE

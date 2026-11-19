@@ -352,3 +352,82 @@ pièce (lisibles). `test_interieurs` : OK (1 087 s, machine chargée).
 
 CPU médian témoin 1,80 → 1,70 ms (stable). Écart dans le bruit partout, sous le budget +0,5 ms. Chargement des abords ≈ 0,4 s, étalé sur
 une image par composition. Planches avant/après : `Desktop/Skyrim captures/a_voir_2026-11-11/props/v3_*.png` (gauche avant, droite après).
+
+## Props v5 : extérieurs (branche `props/exterieurs_v5`, 2026-11-19)
+
+Interrupteur A/B : `-- --sans-props-v5` (`PropsQuaternius.v5`, vrai seulement si `v3` et `remplace`) rend exactement l'état v3 ;
+`--sans-remplacement` coupe toujours tout. Catalogue v5 (`props_quat.dat` à 254 props, 159 nouveaux pq_*, `docs/PROPS_SOURCES_V5.md`)
+intégré par cherry-pick (24071bd7, 249d5d43, 21ab8e0b). Méthode inchangée : fondu dans les lots existants (aucun nœud par objet),
+mêmes collisions, mêmes emprises, décor tiré au hasard inchangé. Univers médiéval nordique sombre : bouteilles vertes/de vin, commodes,
+chevets et coffres à tiroirs, fioles vives, auvents rayés et tapis rouge NON posés (consigne utilisateur) ; aucun auvent recoloré.
+
+### Remplacement central (`PropsQuaternius.ext_v5`, table `EXT_V5`)
+
+Tout `q_*` (couleur de face) qui a un jumeau texturé passe par `ext_v5` dans `village()`, `MobilierVillage._poser_sub`/`poser_dans`/
+`noeud_modules` et `AbordsProps._poser` : barrières (bois, ext 1/2), bordures, briques 1-4, bûcher, caisse, chariot, feu de bois,
+hache de camp, hachette, marmite, piège à ours, planches de sol, rondin, support, tente, pelle, crâne, pain, pomme, viande, poisson
+(+ portes et volets, préparés mais aucun appel dehors). Si l'appel impose des matières (`mats`), on garde le q_* (sauf tente, hache,
+piège, dont la teinte imposée est celle du modèle). `buche_v5` : la bûche kitbash `q_buche` devient le rondin Quaternius ajusté à la
+même boîte (`ajuste` : échelle par axe, pied et centre alignés).
+
+| Type | Remplacés (1 monde) |
+|---|---|
+| bûches (tas de bois, bûchers, foyers) | 177 |
+| barrières de bois | 24 |
+| rondins | 21 |
+| briques (foyers, murets) | 35 (7 + 13 + 9 + 6) |
+| planches de sol | 6 |
+| haches de camp | 5 |
+| nourriture des abords (pain, pomme, viande, poisson) | 10 |
+| marmites, tentes, chariots, pièges, crânes, bordures | 2 chacun |
+| bûcher, feu de bois des bandits | 1 + 1 |
+| tables d'étal (Brodd, Grima) : tréteaux maison 9 boîtes -> `pq_grande_table` | 2 |
+| meules de foin -> 3 `pq_gerbe` chacune | 3 meules (9 gerbes) |
+| couronne du feu de camp (briques + feu) -> `pq_foyer_pierres` | 1 |
+| cloche du beffroi (2 cylindres) -> `pq_cloche` | 1 |
+
+### Compositions ajoutées (`AbordsProps.LIEUX_V5`, mêmes règles que la v3 + refus « ville »)
+
+Refus supplémentaires dans le village (`_refus_ville`) : point non libre (`Village.point_libre`), pavé (`RuesVillage.profondeur_pave`
+> 1 m), piste de la grotte, moins de r + 3 m d'une porte d'intérieur, moins de r + 1,4 m d'un poste de garde (`data/gardes.json`).
+Pas de spirale de repli : ancres seulement, glissées de ±1 / ±2 m.
+
+| Lieu (posé) | Composition |
+|---|---|
+| place (40, 47,5) | tablée : grande table, 2 bancs, chopes, assiettes, pain, bouteille, marmite, tonneau |
+| portes SO (32,9, 26,1), N (49,5, 11), E (69, 29,5) | postes de garde : table ronde, 2 tabourets, chopes, pièces, râtelier garni (épée, hache), bouclier, tonneau |
+| ruelle du marché (56,5, 39) | table du marché : chaudron, marmites, vases, seau, caisse, ballot |
+| devant la forge (28,5, 40,3) | établi : hache, petite enclume, chaîne, seau de trempe, caisse ferrée |
+| fermes A (81,5, 19,8) et B (60, −0,8) | établi : pioche, corde, seau, sacs, billot + hache plantée ; chevalet de sciage en B (A : variante sans chevalet, faute de place) |
+| devant la grotte (83,5, −33) | jeu des bandits : tonneau-table, 2 tabourets, chopes, mise, bouteille couchée |
+
+Retiré : poste de la tour (aucune place libre hors pavé et portes).
+
+### Gardés (avec la raison)
+
+- Luminaires validés : braseros, lanternes, torches, enseignes (bâti).
+- Interactifs dont la logique dépend de la géométrie : vantaux, puits (Tripo par défaut, validé).
+- Torche éteinte des bandits : `pq_torche_bois` fait 0,6 m, pas de torche sur pied à l'échelle.
+- Arme au sol, trophées `g_trophee` : règle armes = modèles maison, trophées validés.
+- Nature maison (os et bois de cerf du cercle, rochers, souches, arbres) : interdit.
+- `q_poutre_ronde` (hampes, poteaux indicateurs, séchoir, chevaux de frise) : aucune poutre ronde Quaternius.
+- Kitbash reteints (séchoir de peaux), barrières d'`AbordsQ` (UV d'écorce, autre chaîne), nourriture des étals (objets vivants).
+
+### Mesures v5 (`outils/mesure_perf.gd`, fenêtre hors écran, 2 passes alternées v3 = `--sans-props-v5` / v5)
+
+| Lieu (pose) | v3 : médiane GPU (ms), passes 1 / 2 | v5 : médiane GPU (ms), passes 1 / 2 | Appels | Primitives |
+|---|---|---|---|---|
+| place (44, 31, 180°, −8°) | 16,89 / 16,77 | 13,82* / 17,03 | 1 231-1 236 → 1 227 | 1,816 M → 1,846 M (+1,7 %) |
+| marché (46, 36, −56°, −9°) | 14,14 / 14,59 | 16,57 / 12,83 | 863-871 → 883 | 1,385 M → 1,461 M (+5,5 %) |
+
+\* passe 1 v5 de la place : 570 appels seulement (chargement pas fini au moment de la mesure), écartée. CPU médian : place
+6,18 / 8,51 → 6,62 ms, marché 3,95 / 4,77 → 4,79 / 3,50 ms. Écart GPU dans le bruit (GPU partagé, autres agents actifs) ; seuls
+appels et primitives sont fiables : +12 à +20 appels au marché (compositions), +1,7 à +5,5 % de primitives. Pas de répétition
+justifiant LOD/MultiMesh : chaque composition est déjà un seul maillage, les bûches restent fondues dans les lots du mobilier.
+
+Planches avant/après (gauche avant, droite après) : `C:\Users\lopezk19\Jeux\rendus\props_v5\exterieurs_1_tables_postes.png`,
+`exterieurs_2_marche_forge_etals.png`, `exterieurs_3_bois_enclos_feu.png`, `exterieurs_4_abords_bandits.png`, `exterieurs_5_cloche_foyers.png`,
+`exterieurs_6_ferme_a_poste_e_tas_marche.png`.
+
+Limites : la couronne de pierres du `pq_foyer_pierres` se lit peu sous les bûches ; le foyer des bandits disparaît sous la congère ;
+neige sur le dessus des sacs et tissus (défaut connu du catalogue) ; MobilierVillage 83 532 -> 92 092 triangles.
