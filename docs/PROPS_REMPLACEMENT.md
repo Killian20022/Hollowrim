@@ -374,7 +374,7 @@ sort par position : y ajouter les tables d'Ultimate Home Interior quand props/so
 
 | Objet maison | Remplaçant | Où |
 |---|---|---|
-| lit procédural du sommeil (`Lit`, cadre + paillasse + fourrure) | `pq_lit` / `pq_lit_2` texturé ajusté au cadre (largeur, longueur, dessus du matelas à `H_PAILLASSE` : poses couchée / assise inchangées), fourrure de la peau demandée pliée au pied (kitbash toile), collisions identiques (chevet à la hauteur du modèle) | tous les lits à marqueur : Sigrun, chasseurs x2, Grima, maisons, fermes, auberge, moulin, tour |
+| lit procédural du sommeil (`Lit`, cadre + paillasse + fourrure) | `pq_lit` / `pq_lit_2` texturé ajusté au cadre (largeur, longueur, dessus du matelas à `H_PAILLASSE` : poses couchée / assise inchangées), v2 : literie (drap et oreiller de l'atlas tissu, blancs et gris-bleu, effet « chambre d'hôtel ») passée à la laine écrue sale de l'intérieur (matière `jute`, mêmes UV, pas de nouvel atlas) et GRANDE fourrure de la peau demandée étalée du pied aux deux tiers du lit (kitbash toile), collisions identiques (chevet à la hauteur du modèle) | tous les lits à marqueur : Sigrun, chasseurs x2, Grima, maisons, fermes, auberge, moulin, tour |
 | crâne (module L6) | `q_crane` (Skull) tourné face à la pièce | halle, Sigrun (x7) |
 | os rongés au sol | `q_os_tas_2` réduit | halle (x7), chasseurs |
 | peau tendue murale (boîte + cadre) | toile teinte + 4 perches | halle, Sigrun x2, chasseurs x3, Grima, maisons, coins de chasseurs |

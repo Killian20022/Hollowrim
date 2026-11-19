@@ -234,17 +234,19 @@ func _construire_pq() -> bool:
 		mi.name = "Lit_" + String(m[0])
 		mi.mesh = mesh
 		mi.transform = xf
-		mi.material_override = mpq.get(m[0], _M.get("bois"))
+		# literie (drap, oreiller : atlas tissu, blanc et gris-bleu « hôtel ») -> laine écrue sale de l'intérieur (jute), même UV
+		var lit_tissu := String(m[0]).begins_with("pq_tissu") and _M.has("jute")
+		mi.material_override = _M["jute"] if lit_tissu else mpq.get(m[0], _M.get("bois"))
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
-	# fourrure pliée en travers au pied (teinte de la peau du lit : les intérieurs gardent leurs peaux claires / sombres)
+	# GRANDE fourrure (teinte de la peau du lit) étalée du pied aux deux tiers, débordant un peu sur les côtés
 	var pm := peau if _M.has(peau) else ("peau" if _M.has("peau") else "")
 	if pm != "" and PropsQuaternius.existe("q_banniere_toile"):
 		var bt := PropsQuaternius.boite("q_banniere_toile")
-		var tw := largeur * 0.82
-		var tl := 0.5
+		var tw := largeur * 0.98
+		var tl := longueur * 0.66
 		var bf := Basis(Vector3.RIGHT, PI * 0.5) * Basis.from_scale(Vector3(tw / bt.size.x, tl / bt.size.y, 2.0))
-		var xt := Transform3D(bf, Vector3(0, H_PAILLASSE + 0.03, -longueur * 0.5 + 0.22 - tl * 0.5))
+		var xt := Transform3D(bf, Vector3(0, H_PAILLASSE + 0.035, -longueur * 0.5 + 0.08))
 		for m: Array in PropsQuaternius.morceaux("q_banniere_toile", {"toile": pm}, false):
 			for face in [Transform3D(), Transform3D(Basis.from_scale(Vector3(1, 1, -1)), Vector3.ZERO)]:
 				var mesh := ArrayMesh.new()
