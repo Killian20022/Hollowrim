@@ -333,9 +333,10 @@ func _signes_des_bandits() -> void:
 	for k in 7:
 		var a := TAU * k / 7.0
 		decor.rocher("c_roche_nu", f + Vector3(cos(a) * 0.62, 0.0, sin(a) * 0.62), 0.2, 0.18, 4200 + k, 0.35, false, 5)
-	# props/exterieurs_v5 : les trois bûches noircies (prismes maison) deviennent les bûches Bonfire Quaternius (Survival), noircies
-	# (bois -> fer, déjà dans les tampons de l'entrée), au milieu de la couronne de pierres (rayon intérieur 0,42 m : x 0,8)
-	if not (PropsQuaternius.v5 and decor.q4("q_feu_bois", f, 0.5, 0.8, false, true, {"bois": "fer"}) != Vector3.INF):
+	# props/exterieurs_v5 : essai des bûches Bonfire Quaternius noircies (decor.q4("q_feu_bois", f, 0.5, 0.8, false, true, {"bois": "fer"}))
+	# ABANDONNÉ (retour « effet jouet », 2026-11-19) : noyées sous la congère, on ne les voyait plus ; les trois prismes maison, plus
+	# lisibles (bûches calcinées en étoile), restent.
+	if true:
 		for k in 3:
 			var a := 0.5 + k * 2.1
 			decor.prisme("fer", f + Vector3(cos(a) * 0.35, 0.1, sin(a) * 0.35), f + Vector3(-cos(a) * 0.3, 0.16, -sin(a) * 0.3), 0.05, 5)

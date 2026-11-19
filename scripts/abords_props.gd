@@ -83,11 +83,12 @@ const TABLEE := [["pq_grande_table", 0.0, 0.0, 0.0, 0.0, true], ["pq_banc", 0.0,
 	["pq_chope", -0.7, 0.25, 20.0, 0.76, false], ["pq_chope", 0.3, -0.3, -40.0, 0.76, false], ["pq_chope", 0.9, 0.2, 80.0, 0.76, false],
 	["pq_assiette", -0.3, 0.25, 0.0, 0.76, false], ["pq_assiette", 0.55, -0.25, 0.0, 0.76, false], ["q_pain", -0.3, 0.25, 30.0, 0.775, false],
 	["pq_bouteille", 0.05, 0.05, 0.0, 0.76, false], ["pq_marmite", -1.0, -0.2, 0.0, 0.76, false], ["pq_tonneau", 1.85, 0.1, 0.0, 0.0, true]]
-## Poste de garde : table ronde (Table_RoundSmall, catalogue v5), deux tabourets, chopes et dés (tas de pièces), râtelier, bouclier, tonneau.
-const POSTE_GARDE := [["pq_table_ronde", 0.0, 0.0, 0.0, 0.0, true], ["pq_tabouret", -0.2, 0.9, 0.0, 0.0, false],
-	["pq_tabouret", 0.75, -0.6, 30.0, 0.0, false], ["pq_chope", -0.25, 0.2, 0.0, 0.78, false], ["pq_chope", 0.3, -0.15, 60.0, 0.78, false],
+## Poste de garde : table rustique de planches ferrée (Table_Small, pq_table_petite_2, échelle 1, long côté en travers), deux tabourets, chopes et dés (tas de pièces), râtelier, bouclier, tonneau, seau (v5 retravaillé).
+const POSTE_GARDE := [["pq_table_petite_2", 0.0, 0.0, 90.0, 0.0, true], ["pq_tabouret", -0.2, 0.95, 0.0, 0.0, false],
+	["pq_tabouret", 0.45, -0.95, 30.0, 0.0, false], ["pq_chope", -0.25, 0.2, 0.0, 0.78, false], ["pq_chope", 0.3, -0.15, 60.0, 0.78, false],
 	["pq_tas_pieces", 0.0, 0.05, 0.0, 0.78, false, 1.3], ["pq_rack_armes", 1.95, -0.1, 0.0, 0.0, true], ["pq_bouclier_bois", 1.95, 0.6, 0.0, 0.0, false, 1.0, -14.0],
-	["pq_epee_mur", 1.55, -0.1, 0.0, 0.06, false, 1.0, -8.0], ["pq_hache_outil", 2.35, -0.1, 0.0, 0.06, false, 1.0, -8.0], ["pq_tonneau", -1.35, -0.3, 0.0, 0.0, true]]
+	["pq_epee_mur", 1.55, -0.1, 0.0, 0.06, false, 1.0, -8.0], ["pq_hache_outil", 2.35, -0.1, 0.0, 0.06, false, 1.0, -8.0], ["pq_tonneau", -1.6, -0.3, 0.0, 0.0, true],
+	["pq_seau_bois", -1.15, 0.75, 0.0, 0.0, false]]
 ## Table du chaudronnier au marché : chaudron, marmites, vase sur la table ; caisse, seau, grand vase et ballot au pied.
 const TABLE_MARCHE := [["pq_grande_table", 0.0, 0.0, 0.0, 0.0, true, Vector3(0.75, 1.0, 1.0)], ["pq_chaudron", -0.6, 0.0, 0.0, 0.76, false, 0.55],
 	["pq_marmite", 0.05, 0.15, 0.0, 0.76, false], ["pq_marmite_couverte", 0.1, -0.2, 30.0, 0.76, false], ["pq_vase_4", 0.65, 0.0, 0.0, 0.76, false, 0.7],
@@ -371,6 +372,7 @@ static func _refus_ville(monde: Node3D, items: Array, o: Vector3, lac: float) ->
 static func _poser(monde: Node3D, racine: Node3D, nom: String, items: Array, o: Vector3, lac: float, posees: Array) -> void:
 	var poses: Array = []
 	var pieds: Array = []      # [centre (x, z), y du dessus] des items au sol, pour les items posés dessus
+	var sol := func(x: float, z: float) -> float: return float(monde.hauteur(x, z))
 	for it: Array in items:
 		if float(it[4]) > 0.05:
 			continue
@@ -397,7 +399,7 @@ static func _poser(monde: Node3D, racine: Node3D, nom: String, items: Array, o: 
 		else:
 			xf.origin.y = y - _bas(id, xf)
 		var bv := PropsQuaternius.buche_v5(id)      # v5 : bûche kitbash maison -> rondin Quaternius, même boîte
-		poses.append([PropsQuaternius.ext_v5(bv[0]), xf * (bv[1] as Transform3D), bool(it[5])])
+		poses.append([PropsQuaternius.ext_v5(bv[0]), xf * (bv[1] as Transform3D), bool(it[5]), sol])      # sol : congère au pied (v5)
 		pieds.append([Vector2(xf.origin.x, xf.origin.z), y])
 		posees.append([centre, maxf((mx - mn).length() * 0.5, 0.15)])
 	for it: Array in items:

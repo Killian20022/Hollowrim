@@ -205,13 +205,15 @@ func _construire_table() -> void:
 ## props/exterieurs_v5 : la table à tréteaux maison (9 boîtes, 9 nœuds) devient la grande table Quaternius texturée (Table_Large,
 ## pq_grande_table) en UN maillage (PropsQuaternius.lot_pq) : dessus à la même hauteur `table.y` (les pièces exposées ne bougent pas),
 ## même profondeur ; longueur = celle de l'étal, sans écraser la table de plus de 25 % par rapport à sa hauteur (Grima : 1,1 -> 1,44 m).
-## Même boîte de collision qu'avant, à la nouvelle longueur. `--sans-props-v5` : table maison.
+## Même boîte de collision qu'avant, à la nouvelle longueur. Patinée ; Grima (à découvert) : neige sur le plateau et congère au
+## pied ; Brodd (sous l'auvent, sur le pavé) : ni l'une ni l'autre. `--sans-props-v5` : table maison.
 func _table_q() -> void:
 	var bb := PropsQuaternius.boite("pq_grande_table")
+	var abrite := String(ETALS.get(id_marchand, {}).get("repere", "")) == "forge"      # Brodd : sous l'auvent de la forge, sur le pavé
 	var sy := table.y / maxf(bb.size.y, 0.01)
 	var sz := table.z / maxf(bb.size.z, 0.01)
 	var sx := maxf(table.x / maxf(bb.size.x, 0.01), 0.75 * minf(sy, sz))
-	PropsQuaternius.lot_pq(self, "TableQ", [["pq_grande_table", Transform3D(Basis.from_scale(Vector3(sx, sy, sz)), Vector3.ZERO), false]], "exterieur")
+	PropsQuaternius.lot_pq(self, "TableQ", [["pq_grande_table", Transform3D(Basis.from_scale(Vector3(sx, sy, sz)), Vector3.ZERO), false, not abrite, not abrite]], "exterieur")
 	PropsQuaternius.compter("v5_tables_etals")
 	var corps := StaticBody3D.new()
 	var forme := CollisionShape3D.new()

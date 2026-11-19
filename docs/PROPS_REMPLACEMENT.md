@@ -383,7 +383,7 @@ même boîte (`ajuste` : échelle par axe, pied et centre alignés).
 | bûcher, feu de bois des bandits | 1 + 1 |
 | tables d'étal (Brodd, Grima) : tréteaux maison 9 boîtes -> `pq_grande_table` | 2 |
 | meules de foin -> 3 `pq_gerbe` chacune | 3 meules (9 gerbes) |
-| couronne du feu de camp (briques + feu) -> `pq_foyer_pierres` | 1 |
+| couronne du feu de camp (briques + feu) -> `pq_foyer_pierres` | 1 (REVENU à l'ancien, voir « v5 retravaillé ») |
 | cloche du beffroi (2 cylindres) -> `pq_cloche` | 1 |
 
 ### Compositions ajoutées (`AbordsProps.LIEUX_V5`, mêmes règles que la v3 + refus « ville »)
@@ -395,7 +395,7 @@ Pas de spirale de repli : ancres seulement, glissées de ±1 / ±2 m.
 | Lieu (posé) | Composition |
 |---|---|
 | place (40, 47,5) | tablée : grande table, 2 bancs, chopes, assiettes, pain, bouteille, marmite, tonneau |
-| portes SO (32,9, 26,1), N (49,5, 11), E (69, 29,5) | postes de garde : table ronde, 2 tabourets, chopes, pièces, râtelier garni (épée, hache), bouclier, tonneau |
+| portes SO (32,9, 26,1), N (59,5, 12), E (69, 29,5) | postes de garde : table rustique de planches (`pq_table_petite_2`, échelle 1 ; la table ronde sur pied faisait « salon »), 2 tabourets, seau, chopes, pièces, râtelier garni (épée, hache), bouclier, tonneau |
 | ruelle du marché (56,5, 39) | table du marché : chaudron, marmites, vases, seau, caisse, ballot |
 | devant la forge (28,5, 40,3) | établi : hache, petite enclume, chaîne, seau de trempe, caisse ferrée |
 | fermes A (81,5, 19,8) et B (60, −0,8) | établi : pioche, corde, seau, sacs, billot + hache plantée ; chevalet de sciage en B (A : variante sans chevalet, faute de place) |
@@ -431,3 +431,35 @@ Planches avant/après (gauche avant, droite après) : `C:\Users\lopezk19\Jeux\re
 
 Limites : la couronne de pierres du `pq_foyer_pierres` se lit peu sous les bûches ; le foyer des bandits disparaît sous la congère ;
 neige sur le dessus des sacs et tissus (défaut connu du catalogue) ; MobilierVillage 83 532 -> 92 092 triangles.
+
+### v5 retravaillé : neige, patine, contact au sol (retour « effet jouet », 2026-11-19)
+
+Tous les morceaux pq_* posés dehors (lots `PropsQuaternius.lot_pq` en contexte « exterieur », `village()`, `MobilierVillage` via
+`PropsQuaternius.brut_v5`) passent par `patine_v5` (copie non indexée, couleur de sommet seulement, aucun nouvel atlas) :
+
+- **neige** : faces dont la normale monde y > 0,72 (et une partie des y > 0,4), tirées par hachage pour casser l'uniformité, en
+  alpha 0, donc neige peinte du shader ps1, avec une occlusion douce ; la « neige qui tient » procédurale s'ajoute par-dessus ;
+- **patine** (`PATINE_V5`) : bois assombri gris de gel, fer terni bleuté, tissus et objets grisés ; pied (15 cm) assombri (humidité) ;
+- **petits objets** (< 35 cm : chopes, assiettes, pièces) : pas de calotte, givre bleuté sur les faces vers le haut ;
+- **pas de neige** (`SANS_NEIGE_V5`) : cloche, luminaires muraux, bannières, volets, armes et outils accrochés, foyers et feux ;
+  Brodd (étal sous l'auvent de la forge) sans neige ni congère ;
+- **contact au sol** (`congere_v5`) : congère elliptique (12 segments, 3 anneaux) collée au terrain (`monde.hauteur`) au pied des
+  objets posés au sol (marqués `true` ou Callable de hauteur dans les compositions), centre ombré (les lots n'ont pas d'ombre portée),
+  bord fondu sous la neige du sol ; rien ne flotte.
+
+Bug corrigé : les matériaux pq « exterieur » étaient créés avant que `monde.gd` ne pose `Palette.tex_neige` (la neige peinte prenait la
+couleur du bois) ; `PropsQuat.neige_exterieur()` repose la texture de neige sur tous les matériaux « :exterieur » (v5 seulement).
+
+Revenus à l'ancien (le maison était plus réaliste) :
+
+- couronne du feu de camp : `pq_foyer_pierres` -> couronne de 9 briques + feu (la couronne Quaternius se lisait mal, effet jouet) ;
+- foyer des bandits devant la grotte : bûches Bonfire noircies -> 3 prismes calcinés maison (les Bonfire disparaissaient sous la neige).
+
+Pas posé : cape ou peau sur un tabouret (aucun pq adapté au thème), glaçons sur les props (non tentés : les toits en portent déjà, risque de surcharge).
+
+`outils/test_props_village.gd` échoue à l'identique sur la base ed5b92a7 (sans catalogue v5) : 6 `Mobilier_pq_tissu_v` à 0,87 m
+(x 50-54, z 31-44) et 1 maillage à 0,09 m, défaut antérieur, hors v5.
+
+Planches v2 (gauche v3, droite v5 retravaillé) : `C:\Users\lopezk19\Jeux\rendus\props_v5\exterieurs_1_postes_tablee_v2.png`,
+`exterieurs_2_marche_forge_etals_v2.png`, `exterieurs_3_fermes_bois_bandits_v2.png`, `exterieurs_4_enclos_champs_feu_v2.png`,
+`exterieurs_5_nuit_v2.png` ; poste E table ronde -> table rustique : `exterieurs_7_postes_v2.png`.

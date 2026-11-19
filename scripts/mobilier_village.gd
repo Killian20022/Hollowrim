@@ -248,8 +248,10 @@ static func substitut(mod: String) -> Array:
 			for k in 3:
 				r.append(["q_banniere_toile", Transform3D(Basis(Vector3.UP, 0.15 * (k - 1)) * Basis.from_scale(Vector3(0.7, 0.45, 1.0)), Vector3(-0.8 + k * 0.8, 0.7, 0.04)), {"toile": "jute"}, Vector3(1, 1, -1)])
 		"feu_camp":      # KITBASH : couronne de briques Quaternius (9) + bûcher Woodfire ; braises de l'ancien module gardées
-			var foyer_q := PropsQuaternius.v5 and PropsQuaternius.lot4 and PropsQuaternius.existe("pq_foyer_pierres")
-			if foyer_q:      # v5 : couronne de pierres et bûches d'un seul tenant (Bonfire, Medieval Village Pack), à l'emprise de l'ancienne couronne
+			# v5 : essai du foyer d'un seul tenant (pq_foyer_pierres, Bonfire du Medieval Village Pack) ABANDONNÉ (retour « effet jouet »,
+			# 2026-11-19) : sa couronne basse ne se lisait pas sous les bûches ; l'ancienne couronne de 9 briques, plus lisible, revient.
+			var foyer_q := false
+			if foyer_q:
 				r.append(["pq_foyer_pierres", _fit("pq_foyer_pierres", Vector3.ZERO, 0.4, Vector3(2.0, 0.0, 0.0)), {}])
 			for i in (0 if foyer_q else 9):
 				var a := i * TAU / 9.0
@@ -497,9 +499,9 @@ static func noeud_modules(poses: Array, nom_noeud: String) -> Node3D:
 					var stq := SurfaceTool.new()
 					stq.begin(Mesh.PRIMITIVE_TRIANGLES)
 					st_par[mq] = stq
-				(st_par[mq] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(nq, t[0]), 0, (p[1] as Transform3D) * (e[1] as Transform3D))
+				(st_par[mq] as SurfaceTool).append_from(PropsQuaternius.brut_v5(nq, t[0], (p[1] as Transform3D) * (e[1] as Transform3D)), 0, (p[1] as Transform3D) * (e[1] as Transform3D))
 				if e.size() > 3:
-					(st_par[mq] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(nq, t[0]), 0, (p[1] as Transform3D) * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO))
+					(st_par[mq] as SurfaceTool).append_from(PropsQuaternius.brut_v5(nq, t[0], (p[1] as Transform3D) * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO)), 0, (p[1] as Transform3D) * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO))
 		for nom: String in donnees:
 			if not nom.begins_with(pre):
 				continue
@@ -712,9 +714,9 @@ func _poser_sub(fusion: Dictionary, sub: Array, xf: Transform3D, _mod: String) -
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
 				fusion[mat] = st
-			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(nom, t[0]), 0, xf * (e[1] as Transform3D))
+			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.brut_v5(nom, t[0], xf * (e[1] as Transform3D)), 0, xf * (e[1] as Transform3D))
 			if e.size() > 3:
-				(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(nom, t[0]), 0, xf * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO))
+				(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.brut_v5(nom, t[0], xf * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO)), 0, xf * (e[1] as Transform3D) * Transform3D(Basis.from_scale(e[3]), Vector3.ZERO))
 			tris += (t[1] as PackedVector3Array).size() / 3
 	return tris
 
@@ -771,7 +773,7 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 				var st := SurfaceTool.new()
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
 				fusion[mat] = st
-			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.maillage_brut(nom, t[0]), 0, xf)
+			(fusion[mat] as SurfaceTool).append_from(PropsQuaternius.brut_v5(nom, t[0], xf), 0, xf)
 			tris += (t[1] as PackedVector3Array).size() / 3
 		if e[4]:
 			var bb := PropsQuaternius.boite(nom, e[5] if e.size() > 5 else {})

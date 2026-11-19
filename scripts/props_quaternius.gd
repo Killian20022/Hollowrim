@@ -483,7 +483,10 @@ static func village(v, parent: Node3D, nom: String, xf: Transform3D, solide := f
 		return
 	var mv := mats_village(v)
 	for m: Array in morceaux(nom, mats):
-		v._ajouter(parent, m[1], xf, mv[mats.get(m[0], m[0])] if mv.has(mats.get(m[0], m[0])) else mv["bois"])
+		var arr: Array = patine_v5(m[1], m[0], xf, not SANS_NEIGE_V5.has(nom)) if v5 and est_pq(String(m[0])) else m[1]
+		v._ajouter(parent, arr, xf, mv[mats.get(m[0], m[0])] if mv.has(mats.get(m[0], m[0])) else mv["bois"])
+	if v5:
+		PropsQuat.neige_exterieur()
 	if solide:
 		var bb := boite(nom, mats)
 		var s := xf.basis.get_scale()
@@ -555,15 +558,174 @@ static func maillage_brut(nom: String, mat: String) -> ArrayMesh:
 	_verrou.unlock()
 	return m
 
+# ------------------------------------------------------------------ props/exterieurs_v5 : patine et neige des pq_* dehors
+## Retour utilisateur « certains font plus jouet » (2026-11-19) : dehors, avec la v5, chaque pq_* est PATINÉ dans sa couleur de sommet
+## (pas de nouvel atlas) : bois assombri et grisé de gel, fer terni, tissus éteints ; le pied (15 premiers cm) plus sombre, humide.
+## Les triangles tournés vers le haut (normale MONDE y > 0,72, et une part des faces inclinées) passent en alpha 0 = tex_neige du
+## matériau, comme les calottes de neige peintes des anciens props et du bâti (shaders/ps1.gdshader : mix(neige, base, step(0.5, a))) ;
+## découpe stable tirée de la position monde (pas de motif répété d'un prop à l'autre). `--sans-props-v5` : rien de tout cela.
+const PATINE_V5 := {"pq_bois": Color(0.50, 0.50, 0.54), "pq_fer": Color(0.56, 0.57, 0.61), "pq_fer_v": Color(0.56, 0.57, 0.61),
+	"pq_tissu": Color(0.66, 0.66, 0.70), "pq_tissu_v": Color(0.66, 0.66, 0.70), "pq_props": Color(0.62, 0.62, 0.67),
+	"pq_props_v": Color(0.62, 0.62, 0.67), "pq_page": Color(0.70, 0.70, 0.74)}
+const NEIGE_V5 := Color(0.92, 0.94, 1.0, 0.0)
+## Sous un toit ou au mur : patinés mais sans calotte de neige.
+## Armes et bouclier rangés au râtelier (inclinés : la calotte les coupait en deux), foyers et marmites au feu : patinés seulement.
+const SANS_NEIGE_V5 := ["pq_cloche", "pq_torche_murale", "pq_lanterne_murale", "pq_banniere_mur", "pq_volets_etroits_ouverts",
+	"pq_volets_etroits_fermes", "pq_volets_larges_ouverts", "pq_volets_larges_fermes", "pq_bouclier_bois", "pq_epee_mur",
+	"pq_hache_outil", "pq_pioche", "pq_pelle", "pq_hachette", "pq_hache_camp", "pq_epee_support",
+	"pq_foyer_pierres", "pq_feu_bois", "q_feu_bois", "pq_marmite_camp", "q_marmite_camp"]      # au feu : la neige y fond
+
+## maillage_brut patiné pour la pose `xf` (v5 dehors, MobilierVillage) ; sinon le maillage brut partagé.
+static func brut_v5(nom: String, mat: String, xf: Transform3D) -> ArrayMesh:
+	var m := maillage_brut(nom, mat)
+	if not v5 or not est_pq(mat) or m == null:
+		return m
+	var r := ArrayMesh.new()
+	r.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, patine_v5(m.surface_get_arrays(0), mat, xf, not SANS_NEIGE_V5.has(nom)))
+	PropsQuat.neige_exterieur()
+	return r
+
+static func _hash_v5(p: Vector3) -> float:
+	var q := (p * 4.0).floor()
+	return fposmod(sin(q.x * 12.9898 + q.y * 78.233 + q.z * 37.719) * 43758.5453, 1.0)
+
+## Copie NON indexée des tableaux `a` d'un morceau pq_* (`atlas`), couleurs patinées et calottes de neige pour la pose `xf`
+## (sommets restés dans le repère du prop : à poser avec le même `xf`).
+## `neige` faux : patine seule (sous un toit : cloche du beffroi, luminaires muraux). Petits objets (moins de 35 cm : chopes,
+## assiettes, nourriture) : pas de calotte, du GIVRE (dessus éclairci, bleuté).
+static func patine_v5(a: Array, atlas: String, xf: Transform3D, neige_ok := true) -> Array:
+	var sv: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var sn: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+	var su: PackedVector2Array = a[Mesh.ARRAY_TEX_UV] if a[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+	var sc: PackedColorArray = a[Mesh.ARRAY_COLOR]
+	var ii: PackedInt32Array = a[Mesh.ARRAY_INDEX] if a[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+	if ii.is_empty():
+		ii.resize(sv.size())
+		for k in sv.size():
+			ii[k] = k
+	var t_c: Color = PATINE_V5.get(atlas, Color(0.6, 0.6, 0.64))
+	var bn := xf.basis.inverse().transposed()
+	var bas := INF
+	var bmin := Vector3(INF, INF, INF)
+	var bmax := -bmin
+	for v in sv:
+		bas = minf(bas, v.y)
+		bmin = bmin.min(v)
+		bmax = bmax.max(v)
+	var tl := (bmax - bmin) * xf.basis.get_scale()
+	var petit := maxf(tl.x, maxf(tl.y, tl.z)) < 0.35
+	var dv := PackedVector3Array()
+	var dn := PackedVector3Array()
+	var du := PackedVector2Array()
+	var dc := PackedColorArray()
+	dv.resize(ii.size())
+	dn.resize(ii.size())
+	du.resize(ii.size())
+	dc.resize(ii.size())
+	for t in range(0, ii.size() - 2, 3):
+		var i0 := ii[t]
+		var i1 := ii[t + 1]
+		var i2 := ii[t + 2]
+		var nl := sn[i0] + sn[i1] + sn[i2]
+		var nm := (bn * nl).normalized() if nl.length_squared() > 1e-10 else Vector3.UP
+		var cm := xf * ((sv[i0] + sv[i1] + sv[i2]) / 3.0)
+		var h := _hash_v5(cm)
+		var neige := neige_ok and not petit and ((nm.y > 0.72 and h > 0.22) or (nm.y > 0.4 and h > 0.66))
+		var givre := neige_ok and petit and nm.y > 0.3
+		for j in 3:
+			var k := ii[t + j]
+			var c := sc[k]
+			if neige:
+				var o := lerpf(0.8, 1.0, clampf(c.r / 0.7, 0.0, 1.0))      # garde un peu de l'occlusion du prop (creux, pied)
+				c = Color(NEIGE_V5.r * o, NEIGE_V5.g * o, NEIGE_V5.b * o, 0.0)
+			else:
+				var pied := clampf((sv[k].y - bas) / 0.15, 0.0, 1.0)
+				c = Color(c.r * t_c.r, c.g * t_c.g, c.b * t_c.b, c.a) * lerpf(0.62, 1.0, pied)
+				if givre:
+					c = c.lerp(Color(0.78, 0.83, 0.94), 0.35)
+				c.a = sc[k].a
+			dv[t + j] = sv[k]
+			dn[t + j] = sn[k]
+			du[t + j] = su[k] if not su.is_empty() else Vector2.ZERO
+			dc[t + j] = c
+	var d := []
+	d.resize(Mesh.ARRAY_MAX)
+	d[Mesh.ARRAY_VERTEX] = dv
+	d[Mesh.ARRAY_NORMAL] = dn
+	d[Mesh.ARRAY_TEX_UV] = du
+	d[Mesh.ARRAY_COLOR] = dc
+	return d
+
+## Congère tassée au pied d'un prop posé dehors (v5) : ellipse de neige autour de la boîte `bb` (repère du prop) posée en `xf`,
+## bord à fleur du sol, bourrelet de quelques cm sur les pieds (ils s'enfoncent), centre ombré (contact : les lots ne portent pas
+## d'ombre). `hauteur` (Callable x, z -> y monde) colle chaque sommet au terrain ; sinon sol plat y = 0 du repère de `xf`.
+## Renvoie des tableaux dans le repère de `xf` (comme patine_v5) : à poser avec `xf`.
+static func congere_v5(bb: AABB, xf: Transform3D, hauteur: Callable = Callable()) -> Array:
+	const N := 12
+	var c0 := bb.get_center()
+	var e := Vector2(bb.size.x * 0.5, bb.size.z * 0.5)
+	var sc := xf.basis.get_scale()
+	var marge := Vector2(0.16 / maxf(sc.x, 0.05), 0.16 / maxf(sc.z, 0.05))
+	var inv := xf.affine_inverse()
+	var anneaux := [[0.0, 0.07, Color(0.60, 0.65, 0.78, 0.0)], [0.82, 0.075, Color(0.74, 0.78, 0.88, 0.0)], [1.0, -0.035, Color(0.95, 0.97, 1.0, 0.0)]]
+	var pts := []      # [anneau][i] -> Vector3 (repère de xf)
+	for an: Array in anneaux:
+		var rang := []
+		for i in N:
+			var ang := TAU * float(i) / N
+			var f: float = an[0]
+			var dir := Vector2(cos(ang), sin(ang))
+			var r := (e + marge) * f
+			if f > 0.9:
+				r += marge * (0.6 * _hash_v5(xf * Vector3(dir.x, 0, dir.y) * 3.0) - 0.2)
+			var pl := Vector3(c0.x + dir.x * r.x, bb.position.y, c0.z + dir.y * r.y)
+			var pw := xf * pl
+			var y0 := float(hauteur.call(pw.x, pw.z)) if hauteur.is_valid() else (xf * Vector3(pl.x, bb.position.y, pl.z)).y
+			pw.y = y0 + float(an[1])
+			rang.append(inv * pw)
+		pts.append(rang)
+	var dv := PackedVector3Array()
+	var dc := PackedColorArray()
+	for a in 2:
+		for i in N:
+			var j := (i + 1) % N
+			var q := [pts[a][i], pts[a + 1][i], pts[a + 1][j], pts[a][i], pts[a + 1][j], pts[a][j]]
+			var cq := [anneaux[a][2], anneaux[a + 1][2], anneaux[a + 1][2], anneaux[a][2], anneaux[a + 1][2], anneaux[a][2]]
+			for k in 6:
+				dv.append(q[k])
+				dc.append(cq[k])
+	var dn := PackedVector3Array()
+	var du := PackedVector2Array()
+	var nl := (xf.basis.inverse() * Vector3.UP).normalized()
+	for k in range(0, dv.size(), 3):
+		var n := (dv[k + 2] - dv[k]).cross(dv[k + 1] - dv[k])
+		if n.dot(nl) < 0.0:      # même sens que le reste du lot (double face de toute façon)
+			n = -n
+		n = n.normalized() if n.length_squared() > 1e-12 else nl
+		for j in 3:
+			dn.append(n)
+			var w := xf * dv[k + j]
+			du.append(Vector2(w.x, w.z) * 0.37)
+	var d := []
+	d.resize(Mesh.ARRAY_MAX)
+	d[Mesh.ARRAY_VERTEX] = dv
+	d[Mesh.ARRAY_NORMAL] = dn
+	d[Mesh.ARRAY_TEX_UV] = du
+	d[Mesh.ARRAY_COLOR] = dc
+	return d
+
 # ------------------------------------------------------------------ props/maximum : lot autonome de props texturés
 ## Un groupe de pq_* (ou q_* servis en pq_*) posé d'un bloc sous `parent` : UN MeshInstance3D (une surface par atlas, matériaux
 ## partagés de `contexte`) et UN StaticBody3D (boîtes des items marqués solides). Poses : [[id, Transform3D (repère de parent), solide]].
 ## Aucun nœud par prop. Renvoie le MeshInstance3D (null sans props texturés).
 ## `v` (le village, v3 abords) : les q_* sans pq_* (charrette, tente, rondins, souche…) y sont admis, une surface par matière de
 ## mats_village (bois, fer, jute…) ; sans `v` ils sont ignorés.
+## v5 dehors : les morceaux pq_* sont patinés (patine_v5) ; une pose [id, xf, solide, congère, neige] avec congère = true (ou un
+## Callable de hauteur du terrain) ajoute une congère au pied (congere_v5) ; neige = false : sous un toit, patine sans calotte.
 static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exterieur", v: Object = null) -> MeshInstance3D:
 	if not pq:
 		return null
+	var patine := v5 and contexte == "exterieur"
 	var sts := {}
 	var mats_q := {}
 	var corps: StaticBody3D = null
@@ -587,8 +749,17 @@ static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exter
 				st.begin(Mesh.PRIMITIVE_TRIANGLES)
 				sts[m[0]] = st
 			var mesh := ArrayMesh.new()
-			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, m[1])
+			var nok: bool = not SANS_NEIGE_V5.has(id) and not (p.size() > 4 and p[4] == false)
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, patine_v5(m[1], m[0], xf, nok) if patine and est_pq(String(m[0])) else m[1])
 			(sts[m[0]] as SurfaceTool).append_from(mesh, 0, xf)
+		if patine and p.size() > 3 and (p[3] is Callable or p[3] == true):
+			var cg := ArrayMesh.new()
+			cg.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, congere_v5(boite(id), xf, p[3] if p[3] is Callable else Callable()))
+			if not sts.has("pq_bois"):
+				var st2 := SurfaceTool.new()
+				st2.begin(Mesh.PRIMITIVE_TRIANGLES)
+				sts["pq_bois"] = st2
+			(sts["pq_bois"] as SurfaceTool).append_from(cg, 0, xf)
 		if p.size() > 2 and bool(p[2]):
 			if corps == null:
 				corps = StaticBody3D.new()
@@ -608,6 +779,8 @@ static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exter
 		var st: SurfaceTool = sts[a]
 		am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, st.commit_to_arrays())
 		am.surface_set_material(am.get_surface_count() - 1, mats_q[a] if mats_q.has(a) else PropsQuat.materiau(a, contexte))
+	if patine:
+		PropsQuat.neige_exterieur()
 	var mi := MeshInstance3D.new()
 	mi.name = nom
 	mi.mesh = am
