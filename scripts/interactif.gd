@@ -55,8 +55,11 @@ static func _balayer(arbre: SceneTree) -> void:
 		var dz: float = j.global_position.z - n.global_position.z
 		var r: float = n.rayon + 1.5
 		var loin: bool = dx * dx + dz * dz > r * r
-		if loin and n.is_processing():
-			n.set_process(false)
+		if loin:
+			if n.is_processing():
+				n.set_process(false)
+			# même déjà éteint : une invite posée de l'extérieur (Dialogue.inviter direct, téléportation juste après) ne serait sinon
+			# jamais retirée, son _process ne tournant plus (invite fantôme : E ouvrait l'entrée de la grotte depuis le tertre)
 			if n.dialogue != null and is_instance_valid(n.dialogue):
 				n.dialogue.retirer_invite(n)
 		elif not loin and not n.is_processing():
