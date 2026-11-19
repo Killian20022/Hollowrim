@@ -164,6 +164,8 @@ static func _charger_pq() -> void:
 				else:
 					bb = bb.expand(v[q])
 			surfs.append([atlas, v, nn, uv, cc, ii])
+		if PropsQuat.detail():
+			_varier_pieces(id, surfs)
 		var ech := 1.0
 		var dep := Vector3.ZERO
 		if anc != "" and _boites.has(anc) and _boites[anc].size.length() > 0.001 and bb.size.length() > 0.001:
@@ -193,6 +195,64 @@ static func _charger_pq() -> void:
 	for al: String in ALIAS_PQ:
 		if _pq_mods.has(ALIAS_PQ[al]) and not _pq_de.has(al):
 			_pq_de[al] = ALIAS_PQ[al]
+
+## props/detail_v5 : variation PAR PIÈCE (planche, pied, traverse, cerclage…) dans la couleur de sommet : chaque morceau d'un seul
+## tenant (sommets soudés par position à 1 mm près, toutes surfaces confondues) reçoit un ton (x 0,88-1,12), une pointe chaude ou
+## froide (± 4 %) et, une fois sur cinq, une usure plus marquée (x 0,84) ; tirage stable (nom du prop, rang du morceau). Sans
+## effet sur un prop d'un seul tenant. Aucun sommet ni atlas en plus.
+static func _varier_pieces(id: String, surfs: Array) -> void:
+	var cle := {}       # position quantifiée -> sommet représentant
+	var parent: Array[int] = []      # Array (référence) : partagé avec la fermeture `trouver`
+	var base := []      # par surface : indice du 1er représentant global de ses sommets
+	for su: Array in surfs:
+		var v: PackedVector3Array = su[1]
+		var rep := PackedInt32Array()
+		rep.resize(v.size())
+		for q in v.size():
+			var k := Vector3i((v[q] * 1000.0).round())
+			var r: int = cle.get(k, -1)
+			if r < 0:
+				r = parent.size()
+				parent.append(r)
+				cle[k] = r
+			rep[q] = r
+		base.append(rep)
+	var trouver := func(a: int) -> int:
+		while parent[a] != a:
+			parent[a] = parent[parent[a]]
+			a = parent[a]
+		return a
+	for s in surfs.size():
+		var ii: PackedInt32Array = surfs[s][5]
+		var rep: PackedInt32Array = base[s]
+		for t in range(0, ii.size() - 2, 3):
+			var a: int = trouver.call(rep[ii[t]])
+			for j in [1, 2]:
+				var b: int = trouver.call(rep[ii[t + j]])
+				if a != b:
+					parent[b] = a
+	var rang := {}
+	for s in surfs.size():
+		var rep: PackedInt32Array = base[s]
+		for q in rep.size():
+			var r: int = trouver.call(rep[q])
+			if not rang.has(r):
+				rang[r] = rang.size()
+	if rang.size() < 2:
+		return
+	var h0 := id.hash()
+	for s in surfs.size():
+		var cc: PackedColorArray = surfs[s][4]
+		var rep: PackedInt32Array = base[s]
+		for q in cc.size():
+			var k: int = rang[trouver.call(rep[q])]
+			var h1 := fposmod(sin(float(h0 % 9973) * 0.731 + k * 12.9898) * 43758.5453, 1.0)
+			var h2 := fposmod(sin(float(h0 % 7919) * 0.377 + k * 78.233) * 24634.6345, 1.0)
+			var f := lerpf(0.88, 1.12, h1) * (0.84 if h2 > 0.8 else 1.0)
+			var w := (h2 - 0.5) * 0.08
+			var c := cc[q]
+			cc[q] = Color(c.r * f * (1.0 + w), c.g * f, c.b * f * (1.0 - w), c.a)
+		surfs[s][4] = cc
 
 ## Id du pq_* posé à la place de `nom` pour cette pose ("" = le q_* reste) : interrupteur global, prop sans équivalent, kitbash reteint.
 static func pq_de(nom: String, mats := {}) -> String:
@@ -575,6 +635,8 @@ static func maillage_brut(nom: String, mat: String) -> ArrayMesh:
 const PATINE_V5 := {"pq_bois": Color(0.50, 0.50, 0.54), "pq_fer": Color(0.56, 0.57, 0.61), "pq_fer_v": Color(0.56, 0.57, 0.61),
 	"pq_tissu": Color(0.66, 0.66, 0.70), "pq_tissu_v": Color(0.66, 0.66, 0.70), "pq_props": Color(0.62, 0.62, 0.67),
 	"pq_props_v": Color(0.62, 0.62, 0.67), "pq_page": Color(0.70, 0.70, 0.74)}
+## props/detail_v5 : atlas repeints (bois K_BOIS du bâti, déjà usé et grisé planche par planche) : patine de gel un peu moins sombre.
+const PATINE_V5_D := {"pq_bois": Color(0.58, 0.57, 0.6), "pq_fer": Color(0.62, 0.62, 0.66)}
 const NEIGE_V5 := Color(0.92, 0.94, 1.0, 0.0)
 ## Sous un toit ou au mur : patinés mais sans calotte de neige.
 ## Armes et bouclier rangés au râtelier (inclinés : la calotte les coupait en deux), foyers et marmites au feu : patinés seulement.
@@ -611,7 +673,8 @@ static func patine_v5(a: Array, atlas: String, xf: Transform3D, neige_ok := true
 		ii.resize(sv.size())
 		for k in sv.size():
 			ii[k] = k
-	var t_c: Color = PATINE_V5.get(atlas, Color(0.6, 0.6, 0.64))
+	var t_c: Color = (PATINE_V5_D.get(atlas, PATINE_V5.get(atlas, Color(0.6, 0.6, 0.64))) if PropsQuat.detail()
+		else PATINE_V5.get(atlas, Color(0.6, 0.6, 0.64)))
 	var bn := xf.basis.inverse().transposed()
 	var bas := INF
 	var bmin := Vector3(INF, INF, INF)

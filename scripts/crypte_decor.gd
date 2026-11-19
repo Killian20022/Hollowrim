@@ -2499,7 +2499,16 @@ const SUBST_V5 := {
 	"bouclier_a": ["pq_bouclier_bois", 0], "bouclier_b": ["pq_bouclier_bois", 0], "bouclier_c": ["pq_bouclier_bois", 0],
 }
 
+## props/detail_v5 : retours au module MAISON (jugés sur planches à 3 colonnes, crypte de nuit) : l'étagère pq_bibliotheque est VIDE (le
+## remplacement retirait aussi le contenu : livres, rouleaux, fioles) là où l'étagère maison est garnie ; les tas d'or (q_tas_pieces à
+## couleurs de face, étiré aux bornes) sortaient en flaques jaunes plates là où le tas maison montre des pièces. `--sans-detail-v5` :
+## comme avant.
+const RETOUR_MAISON_D := ["etagere_cadre_a", "etagere_cadre_b", "etagere_contenu_a", "etagere_contenu_b", "etagere_contenu_c",
+	"or_tas_a", "or_tas_b", "or_tas_c"]
+
 func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: bool) -> Variant:
+	if nom in RETOUR_MAISON_D and PropsQuat.detail():
+		return null
 	var v5 := PropsQuaternius.v5 and SUBST_V5.has(nom) and not PropsRealisme.ancien_crypte(nom)
 	if PropsQuaternius.pq and nom in SUBST_GARDE_PQ and not v5:
 		return null

@@ -24,6 +24,16 @@ const INTERIEUR := {
 	"pq_page": [Color(0.86, 0.8, 0.72), 0.8, 0.35, 1.2],
 }
 
+## props/detail_v5 : avec les atlas repeints au détail du bâti (PropsQuat.detail), le bois n'est plus orangé et propre (rampe K_BOIS
+## des planches, planches grises, fil, nœuds, joints) et porte déjà son usure : moins d'assombrissement, saturation proche du bâti ;
+## le fer repeint (piqûres, rouille) moins terni. Remplace INTERIEUR pour ces atlas ; `--sans-detail-v5` : INTERIEUR d'avant.
+const INTERIEUR_D := {
+	"pq_bois": [Color(0.96, 0.87, 0.79), 0.88, 0.32, 1.2],
+	"pq_fer": [Color(0.8, 0.8, 0.82), 0.6, 0.35, 1.3],
+	"pq_props": [Color(0.86, 0.8, 0.74), 0.78, 0.4, 1.3],
+}
+const SOUS_TERRE_ATLAS_D := {"pq_bois": [Color(0.98, 0.82, 0.68), 0.95], "pq_fer": [Color(0.7, 0.68, 0.66), 0.55]}
+
 ## Sous terre (crypte.gdshader, matériaux de CrypteDecor / GrotteDecor) : la teinte et la saturation de props/maximum (PQ_TEINTE, 0,62)
 ## restent ; on ajoute [usure, poussière, moisi, ao_gamma, crasse]. Crasse 0 : la bande de pied de crypte.gdshader se cale sur le
 ## sol du niveau principal (y0) ; les props des étages inférieurs du donjon (alpha 1) sortiraient tout sombres. Le pied sombre vient
@@ -40,7 +50,7 @@ const TISSU_SOUS_TERRE := 0.5
 static func regler_interieur(m: ShaderMaterial, atlas: String) -> void:
 	if not actif or not INTERIEUR.has(atlas):
 		return
-	var r: Array = INTERIEUR[atlas]
+	var r: Array = INTERIEUR_D[atlas] if PropsQuat.detail() and INTERIEUR_D.has(atlas) else INTERIEUR[atlas]
 	m.set_shader_parameter("teinte", r[0])
 	m.set_shader_parameter("saturation", r[1])
 	m.set_shader_parameter("usure", r[2])
@@ -51,9 +61,10 @@ static func regler_sous_terre(m: ShaderMaterial, atlas: String, grotte: bool) ->
 		return
 	var r: Array = GROTTE if grotte else CRYPTE
 	var k := TISSU_SOUS_TERRE if atlas.begins_with("pq_tissu") else 1.0
-	if SOUS_TERRE_ATLAS.has(atlas):
-		m.set_shader_parameter("teinte", SOUS_TERRE_ATLAS[atlas][0])
-		m.set_shader_parameter("saturation", SOUS_TERRE_ATLAS[atlas][1])
+	var sta: Dictionary = SOUS_TERRE_ATLAS_D if PropsQuat.detail() else SOUS_TERRE_ATLAS
+	if sta.has(atlas):
+		m.set_shader_parameter("teinte", sta[atlas][0])
+		m.set_shader_parameter("saturation", sta[atlas][1])
 	m.set_shader_parameter("usure", float(r[0]) * k)
 	m.set_shader_parameter("poussiere", float(r[1]) * k)
 	m.set_shader_parameter("moisi", float(r[2]))

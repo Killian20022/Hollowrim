@@ -1,0 +1,49 @@
+# props/detail_v5 : 3 colonnes (maison `--sans-remplacement` / v5 actuel `--sans-detail-v5` / v5 détaillé), jour et nuit, gros plans
+# à hauteur d'yeux (tables, coffres, tonneaux, râteliers, lits, étals). Monde : x,z,lacet°,tangage° ; intérieur : repère du bâtiment.
+m_tablee monde 40,45.2,180,-22 heure=12
+m_tablee_n monde 40,45.2,180,-22 heure=21
+m_poste_so monde 32.9,23.9,180,-20 heure=12
+m_poste_so_n monde 32.9,23.9,180,-20 heure=21
+m_poste_e monde 66.8,29.5,-90,-20 heure=12
+m_marche monde 56.5,36.8,180,-20 heure=12
+m_etals monde 49.5,26.5,-160,-14 heure=12
+m_marche_pres monde 47.2,35.2,-56,-16 heure=12
+m_marche_pres_n monde 47.2,35.2,-56,-16 heure=21
+m_forge monde 30.8,40.3,90,-22 heure=12
+m_ferme_a monde 79.3,19.8,-90,-20 heure=12
+m_place monde 44,31,180,-8 heure=12
+gp_poste_e monde 67.4,29.0,-95,-24 heure=12
+gp_poste_e_n monde 67.4,29.0,-95,-24 heure=21
+gp_poste_so monde 32.9,24.7,180,-30 heure=12
+gp_poste_n monde 59.5,14.2,0,-26 heure=12
+gp_forge monde 29.8,40.3,90,-34 heure=12
+gp_tablee monde 41.2,46.0,150,-28 heure=12
+i_halle_table interieur 0.6,1.6,10,-22 bat=halle heure=12
+i_halle_table_n interieur 0.6,1.6,10,-22 bat=halle heure=21
+h_tables interieur -1.2,0.6,-105,-14 bat=halle heure=21
+h_est interieur 3.4,0.9,-78,-6 bat=halle heure=21
+h_ouest interieur -5.8,0.2,-90,-8 bat=halle heure=21
+c_lits interieur -1.0,0.4,100,-22 bat=chasseurs heure=21
+c_est interieur 3.0,1.5,115,-8 bat=chasseurs heure=21
+s_est interieur 3.0,1.5,115,-8 bat=sigrun heure=21
+g_ouest interieur -2.6,-0.5,-60,-6 bat=grima heure=21
+f_etabli interieur -0.6,0.5,170,-30 bat=forge heure=21
+f_ouest interieur -0.9,0.9,-60,-6 bat=forge heure=12
+i_h1_n35 interieur 0,0,0,-35 bat=h1 heure=21
+i_h2_e interieur 0,1.2,-90,-16 bat=h2 heure=21
+i_h2_s interieur 0,0,180,-14 bat=h2 heure=12
+i_ferme_a_s interieur 0,0,180,-14 bat=ferme_a heure=21
+gp_halle_table interieur 2.0,0.9,-105,-30 bat=halle heure=21
+gp_halle_table_j interieur 2.0,0.9,-105,-30 bat=halle heure=12
+gp_halle_coffre interieur 3.6,1.4,-70,-30 bat=halle heure=21
+gp_forge_etabli interieur -0.6,0.8,170,-38 bat=forge heure=21
+gp_h2_table interieur 0,0.6,-90,-30 bat=h2 heure=21
+c_eirik crypte -7.0,-24.5,90,-18 sans-mains
+c_quartiers_table crypte 22.4,-3.0,-134,-25 sans-mains
+c_garde crypte 25,-51,95,-10,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_ossuaire_depot crypte -17.0,-16.9,-90,-22 sans-mains
+c_tresor crypte -36.8,-44,90,-15 sans-mains
+c_prep crypte -1.5,-25.5,90,-10 sans-mains
+gp_quartiers_table crypte 21.7,-3.6,-134,-32 sans-mains
+gp_tresor crypte -37.6,-44,90,-26 sans-mains
+c_archives crypte -7.5,-43,90,-8,-6 ouvre=s1,s2,s3,secret,herse sans-mains

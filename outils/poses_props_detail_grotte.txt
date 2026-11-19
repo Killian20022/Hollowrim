@@ -1,0 +1,6 @@
+# props/detail_v5 : grotte (lancement à part)
+g_camp grotte 302,0,0,-8 sans-mains
+g_camp_fond grotte 314,0,180,-8 sans-mains
+g_repaire1 grotte 306,2.5,48,-2 sans-mains
+g5_mineur_a grotte 107,0,0,-12 sans-mains
+g_mine_chambre grotte 134,0,0,-6 sans-mains
