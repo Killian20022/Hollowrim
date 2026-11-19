@@ -17,17 +17,19 @@ MD = R + "medieval_dungeon/FBX/%s.fbx"
 DI = R + "lowpoly_modular_dungeon_itch/Updated_Modular_Dungeon_May2019/FBX/%s.fbx"
 SV = R + "survival/FBX/%s.fbx"
 UF = R + "ultimate_food/FBX/%s.fbx"
+RPG = R + "ultimate_rpg/FBX/%s.fbx"     # Ultimate RPG Pack (CC0), téléchargé le 2026-11-19
+MV19 = R + "medieval_village_pack_2019/Props/FBX/%s.fbx"     # Medieval Village Pack (2019, CC0), téléchargé le 2026-11-19
 
 # matières de la bible (lots 2-4) -> matière texturée v5
 BIBLE = {"bois": "bois", "fer": "fer", "noir": "fer:0.5", "or": "v:or", "os": "v:ecru", "lin": "v:ecru", "laine": "v:laine_rouge",
          "toile": "v:laine_bleue", "jute": "v:tourbe", "argile": "v:pin", "herbe": "v:aiguilles", "pierre": "v:pierre", "lame": "fer"}
 # matériaux des packs unis (Modular Dungeon itch : pas de « mats » dans props.json)
 DONJON = {"DarkWood": "bois", "LightWood": "bois", "Wood": "bois", "DarkMetal": "fer:0.6", "DarkSteel": "fer:0.6", "LightSteel": "fer",
-          "Steel": "fer", "Metal": "fer", "Gold": "v:or", "Main": "tissu:laine_rouge", "Bag": "tissu:tourbe", "Thread": "v:cuir",
-          "Grey_Floor": "v:pierre", "DarkGrey_Floor": "v:pierre*0.8", "Marble": "v:pierre", "Bone": "v:ecru", "Ceramic": "v:pin*0.8",
+          "Steel": "fer", "Metal": "fer", "Gold": "v:or", "Main": "tissu:laine_rouge", "Bag": "tissu:tourbe*0.7", "Thread": "v:cuir",
+          "Grey_Floor": "v:pierre", "DarkGrey_Floor": "v:pierre*0.8", "Marble": "v:pierre*0.7", "Bone": "v:ecru", "Ceramic": "v:pin*0.8",
           "Cobweb": "tissu:ecru", "Fire": "suppr", "Rock": "v:pierre"}
 # trims du Medieval Village MegaKit
-VILLAGE = {"WoodTrim_Wear": "bois:0.85", "WoodTrim": "bois", "MetalOrnaments": "fer", "RockTrim": "v:pierre", "Brick": "v:pierre",
+VILLAGE = {"WoodTrim_Wear": "bois:0.85", "WoodTrim": "bois", "MetalOrnaments": "fer", "RockTrim": "v:pierre*0.6", "Brick": "v:pierre*0.6",
            "Plaster": "v:ecru", "WindowGlass": "fer:0.35"}
 
 # (id, source, catégorie, échelle {hauteur|longueur|ech}, mats, nom FR, matière, usage conseillé)
@@ -60,13 +62,13 @@ UHI_L = [
   "grand tapis tissé", "laine rouge, bordure ocre", "sol de la halle du jarl, devant le trône"),
  ("pq_tapis_rond", "Carpet_Round", "mobilier", {"longueur": 2.0}, {"DarkRed": "tissu:laine_rouge", "LightOrange": "tissu:tourbe"},
   "tapis tissé rond", "laine rouge, bordure ocre", "devant un foyer, chambre, q_tapis de la crypte"),
- ("pq_piedestal_rond", "Column_Round1", "donjon", {"hauteur": 1.1}, {"Marble": "v:pierre"}, "piédestal de pierre rond",
+ ("pq_piedestal_rond", "Column_Round1", "donjon", {"hauteur": 1.1}, {"Marble": "v:pierre*0.7"}, "piédestal de pierre rond",
   "pierre", "présentoirs, reliquaires de la crypte (piédestaux maison), offrandes"),
- ("pq_colonne_ronde", "Column_Round2", "donjon", {"hauteur": 3.2}, {"Marble": "v:pierre"}, "colonne de pierre ronde",
+ ("pq_colonne_ronde", "Column_Round2", "donjon", {"hauteur": 3.2}, {"Marble": "v:pierre*0.7"}, "colonne de pierre ronde",
   "pierre", "colonnes de la crypte (q_colonne_1/2), salle du trône g4"),
- ("pq_pilier_carre", "Column_SquareBig", "donjon", {"hauteur": 3.2}, {"Marble": "v:pierre"}, "pilier de pierre carré",
+ ("pq_pilier_carre", "Column_SquareBig", "donjon", {"hauteur": 3.2}, {"Marble": "v:pierre*0.7"}, "pilier de pierre carré",
   "pierre", "piliers de la crypte, entrée du tumulus"),
- ("pq_piedestal_carre", "Column_SquareSmall", "donjon", {"hauteur": 1.3}, {"Marble": "v:pierre"}, "piédestal de pierre carré",
+ ("pq_piedestal_carre", "Column_SquareSmall", "donjon", {"hauteur": 1.3}, {"Marble": "v:pierre*0.7"}, "piédestal de pierre carré",
   "pierre", "présentoir de l'Épée, socle de statue, autel"),
  ("pq_ecuelle_creuse", "Plate_3", "cuisine_table", {"longueur": 0.24}, {"White": "bois:0.9"}, "écuelle creuse en bois",
   "bois", "vaisselle des tables (assiette / bol maison, q_ecuelle)"),
@@ -97,8 +99,6 @@ Q_L = [
  ("q_porte_1_ronde", "pq_porte_1_ronde", "mobilier", "porte de planches 1 cintrée", "bois", "portes des maisons closes", None),
  ("q_porte_2_plate", "pq_porte_2_plate", "mobilier", "porte de planches 2", "bois", "portes des maisons closes", None),
  ("q_porte_2_ronde", "pq_porte_2_ronde", "mobilier", "porte de planches 2 cintrée", "bois", "portes des maisons closes", None),
- ("q_porte_4_plate", "pq_porte_4_plate", "mobilier", "porte de planches 4", "bois", "portes des maisons closes", None),
- ("q_porte_4_ronde", "pq_porte_4_ronde", "mobilier", "porte de planches 4 cintrée", "bois", "portes des maisons closes", None),
  ("q_porte_8_plate", "pq_porte_8_plate", "mobilier", "porte ferrée 8", "bois + fer", "portes des maisons closes, halle", None),
  ("q_porte_8_ronde", "pq_porte_8_ronde", "mobilier", "porte ferrée 8 cintrée", "bois + fer", "portes des maisons closes, halle", None),
  ("q_volets_thin_flat_closed", "pq_volets_etroits_fermes", "mobilier", "volets étroits fermés", "bois", "volets des fenêtres (q_volets_*)", None),
@@ -118,9 +118,6 @@ Q_L = [
  ("q_colonne_1", "pq_colonne_donjon", "donjon", "colonne de crypte", "pierre", "colonnes de la crypte", None),
  ("q_colonne_2", "pq_colonne_donjon_2", "donjon", "colonne de crypte 2", "pierre", "colonnes de la crypte", None),
  ("q_caisse_2", "pq_caisse_2", "rangement", "caisse de planches cerclée", "bois", "g_caisse_a (alias pq_caisse_fer aujourd'hui)", None),
- ("q_palissade", "pq_muret", "donjon", "muret de pierre", "pierre", "murets de la crypte, enclos", None),
- ("q_palissade_bout", "pq_muret_bout", "donjon", "muret de pierre (bout)", "pierre", "murets", None),
- ("q_palissade_angle", "pq_muret_angle", "donjon", "muret de pierre (angle)", "pierre", "murets", None),
  ("q_piedestal_1", "pq_piedestal_1", "donjon", "piédestal", "pierre", "présentoirs, reliquaires", None),
  ("q_piedestal_2", "pq_piedestal_2", "donjon", "piédestal 2", "pierre", "présentoirs, reliquaires", None),
  ("q_crane", "pq_crane", "donjon", "crâne", "os", "crane_a/b de la crypte et de la grotte (gardés : aucun pq_*)", None),
@@ -198,19 +195,97 @@ NEUF_L = [
   "torche murale de crypte (sans flamme)", "fer + bois", "appliques de la crypte (flamme et lumière du jeu à garder)"),
  ("pq_tonneau_cercle", MD % "Barrel", "rangement", {"hauteur": 0.9}, {"Wood": "bois", "Steel": "fer"}, "tonneau cerclé de fer",
   "bois + fer", "tonneaux de la crypte et de la grotte (variante de pq_tonneau)"),
- ("pq_trappe", DI % "Trapdoor", "donjon", {"ech": 1.0}, DONJON, "trappe de bois ferrée", "bois + fer", "sol de la crypte, cave, grenier"),
- ("pq_coffre_or_2", DI % "Chest_Gold", "rangement", {"ech": 1.0}, DONJON, "coffre ferré doré", "bois + or terni", "trésor de la crypte"),
+ ("pq_trappe", DI % "Trapdoor", "donjon", {"longueur": 1.2}, DONJON, "trappe de bois ferrée", "bois + fer", "sol de la crypte, cave, grenier"),
+ ("pq_coffre_or_2", DI % "Chest_Gold", "rangement", {"hauteur": 0.7}, DONJON, "coffre ferré doré", "bois + or terni", "trésor de la crypte"),
  ("pq_torche_bois", SV % "WoodenTorch", "eclairage", {"hauteur": 0.6}, {"DarkWood": "bois:0.7", "LightGrey": "fer", "Yellow": "v:tourbe"},
   "torche de bois (éteinte)", "bois + fer", "torche tenue / plantée, râtelier de torches"),
  ("pq_marmite_vide", UF % "CookingPot", "cuisine_table", {"hauteur": 0.3}, {"Grey": "fer"}, "marmite de fer", "fer",
   "foyers, cuisine (pq_marmite est en argile)"),
- ("pq_chaudron_anse", UF % "CookingPot2", "cuisine_table", {"hauteur": 0.32}, {"Grey": "fer", "Brown": "bois"}, "chaudron à anse",
+ ("pq_chaudron_anse", UF % "CookingPot2", "cuisine_table", {"longueur": 0.55}, {"Grey": "fer", "Brown": "bois"}, "chaudron à anse",
   "fer + bois", "foyer pendu, camp"),
  ("pq_poele_f", UF % "FryingPan", "cuisine_table", {"longueur": 0.5}, {"Grey": "fer", "DarkBrown": "bois"}, "poêle de fer",
   "fer + bois", "cuisine, foyers"),
  ("pq_lard_cuit", UF % "Bacon_Cooked", "objets_petits", {"longueur": 0.17}, {"Light": "v:ecru", "Meat": "v:laine_rouge*0.8"},
   "tranche de lard grillé", "brun", "tables du festin"),
 ]
+
+# Medieval Village Pack (2019, Quaternius, CC0 ; Drive public, téléchargé le 2026-11-19) : props du village
+V19 = {"DarkWood": "bois", "Wood_Side": "bois", "WoodSide": "bois", "Wood_Light": "bois", "Wood": "bois", "Bag_Inside": "v:tourbe*0.8",
+       "Bag": "tissu:tourbe*0.7", "Stone_Dark": "v:pierre*0.75", "Stone_Light": "v:pierre*0.75", "Hay": "v:tourbe*0.85", "Leather": "v:cuir",
+       "Metal": "fer", "DarkMetal": "fer:0.6", "RoofTiles_Red": "bois:0.65", "Plaster": "v:ecru*0.8"}
+ETAL19 = dict(V19, RoofTiles_Red="tissu:laine_rouge*0.8", Red="tissu:laine_rouge*0.8", Beige="tissu:ecru*0.9")
+NEUF_L += [
+ ("pq_puits", MV19 % "Well", "exterieur_ferme", {"hauteur": 2.6}, V19, "puits couvert (margelle de pierre, toit de bardeaux)",
+  "pierre + bois + toile", "puits de la place (kitbash maison : 8 dalles + briques + poutres + planches), puits des fermes"),
+ ("pq_banc_dossier", MV19 % "Bench_1", "mobilier", {"hauteur": 0.85}, V19, "banc à dossier", "bois",
+  "bancs de la place et des ruelles (banc maison / pq_banc), porche de la halle"),
+ ("pq_banc_simple", MV19 % "Bench_2", "mobilier", {"hauteur": 0.45}, V19, "banc de planches", "bois",
+  "bancs des intérieurs et du camp (helper banc maison)"),
+ ("pq_tas_sacs", MV19 % "Bags", "exterieur_marche", {"hauteur": 0.55}, V19, "tas de trois sacs", "toile de jute",
+  "sacs du marché (kitbash « sacs » maison : 2 q_sac + q_sac_debout), moulins, grenier"),
+ ("pq_sac_couche", MV19 % "Bag", "exterieur_marche", {"longueur": 0.8}, V19, "sac de grain couché", "toile de jute",
+  "réserves, meule de foin (kitbash de 6 q_sac), charrette"),
+ ("pq_sac_ouvert", MV19 % "Bag_Open", "exterieur_marche", {"hauteur": 0.4}, V19, "sac de grain ouvert", "toile de jute + grain",
+  "étals, moulin, grange"),
+ ("pq_gerbe", MV19 % "Hay", "exterieur_ferme", {"hauteur": 1.1}, V19, "gerbe de paille liée", "paille",
+  "meules de foin de l'enclos (kitbash maison), grange, épouvantails"),
+ ("pq_etal_auvent", MV19 % "MarketStand_1", "exterieur_marche", {"hauteur": 2.5}, ETAL19, "étal à auvent rayé", "bois + toile rouge/écru",
+  "étals de la place (étal maison 3 m = 2 pq_etal)"),
+ ("pq_etal_etroit", MV19 % "MarketStand_2", "exterieur_marche", {"hauteur": 2.4}, ETAL19, "étal étroit à auvent", "bois + toile rouge/écru",
+  "étals des ruelles"),
+ ("pq_charrette_auvent", MV19 % "Cart", "exterieur_marche", {"hauteur": 2.0}, ETAL19, "charrette à bras à auvent",
+  "bois + toile rouge/écru", "marchand ambulant, marché (charrette maison)"),
+ ("pq_chaudron_pieds", MV19 % "Cauldron", "cuisine_table", {"hauteur": 0.65}, dict(V19, Stone="fer:0.7", Soup="v:tourbe*0.8", Orange="v:pin*0.8"),
+  "chaudron à pieds (soupe)", "fer + soupe", "foyers des maisons, feu de camp, bivouac"),
+ ("pq_ballot", MV19 % "Package_1", "exterieur_marche", {"longueur": 0.9}, V19, "ballot ficelé de cuir", "toile de jute + cuir",
+  "réserves du marché, quai, charrette"),
+ ("pq_ballot_2", MV19 % "Package_2", "exterieur_marche", {"hauteur": 0.55}, V19, "ballot cubique ficelé", "toile de jute + cuir",
+  "réserves du marché, quai"),
+ ("pq_cloche", MV19 % "Bell", "exterieur_ferme", {"hauteur": 0.6}, {"Bell": "v:or*0.7"}, "cloche de bronze terni", "or terni",
+  "cloche d'alarme du guet, halle, temple"),
+ ("pq_abri", MV19 % "Gazebo", "exterieur_marche", {"hauteur": 2.8}, V19, "abri à poteaux (toit de bardeaux)", "bois",
+  "abri de marché, séchoir à peaux (kitbash maison), puits ouvert"),
+ ("pq_barriere_lisses", MV19 % "Fence", "exterieur_ferme", {"hauteur": 1.0}, V19, "barrière à deux lisses", "bois",
+  "enclos d'Ylva (pieux + lisses maison), abords"),
+ ("pq_foyer_pierres", MV19 % "Bonfire", "exterieur_ferme", {"longueur": 1.4}, V19, "foyer : couronne de pierres et bûches (sans flamme)",
+  "pierre + bois", "feu de camp (kitbash maison : 9 q_brique + q_bucher), foyers de plein air"),
+ ("pq_caisse_planches", MV19 % "Crate", "rangement", {"hauteur": 0.8}, V19, "caisse de planches à croisillon", "bois",
+  "caisses du marché (caisse_a/b/c maison)"),
+ ("pq_tonneau_village", MV19 % "Barrel", "rangement", {"hauteur": 0.95}, dict(V19, Stone="fer:0.7"), "tonneau cerclé de fer", "bois + fer",
+  "tonneaux du marché (tonneau_a/b/c maison)"),
+ ("pq_porte_cave", MV19 % "Door_Straight", "mobilier", {"hauteur": 2.6}, V19, "porte ferrée sous encadrement de pierre (marches)",
+  "bois + pierre", "entrée de cave, de crypte, de tumulus"),
+ ("pq_porte_cave_ronde", MV19 % "Door_Round", "mobilier", {"hauteur": 2.6}, V19, "porte cintrée sous arc de pierre (marches)",
+  "bois + pierre", "entrée de crypte, de cave"),
+ ("pq_chevalet_scie", MV19 % "Sawmill_saw", "exterieur_ferme", {"longueur": 2.2}, V19, "chevalet de sciage (rondin et scie)",
+  "bois + fer", "bûchers des fermes, scierie, tas de bois"),
+]
+
+# Ultimate RPG Pack (CC0) : seulement le trésor et l'ossuaire (le reste = objets d'inventaire, couronnes, cristaux violets : écartés)
+RPG_M = {"DarkMetal": "fer:0.6", "Metal": "fer", "Wood": "bois", "Gold": "v:or*0.85", "DarkBrown": "v:cuir*0.8", "Brown": "v:cuir",
+         "Beige": "v:ecru"}
+NEUF_L += [
+ ("pq_coffre_bombe", RPG % "Chest_Closed", "rangement", {"hauteur": 0.6}, RPG_M, "coffre bombé ferré (fermé)", "bois + fer",
+  "coffres décor des maisons et de la crypte (variante de pq_coffre_ferme)"),
+ ("pq_coffre_lingots", RPG % "Chest_Ingots", "rangement", {"hauteur": 0.75}, RPG_M, "coffre ouvert plein de lingots", "bois + fer + or terni",
+  "trésor de la crypte (or_tas maison, q_coffre_or)"),
+ ("pq_lingots", RPG % "Gold_Ingots", "objets_petits", {"longueur": 0.45}, RPG_M, "pile de lingots d'or", "or terni",
+  "trésor (tas d'or maison or_tas_a/b/c)"),
+ ("pq_grimoire", RPG % "Book3_Closed", "livres", {"hauteur": 0.32}, RPG_M, "grimoire à fermoir", "cuir + écru + or terni",
+  "lutrin, archives, autel (livre maison)"),
+ ("pq_os", RPG % "Bone", "donjon", {"longueur": 0.4}, RPG_M, "os long", "os", "os épars au sol de la crypte et de la grotte (os maison gardés)"),
+]
+
+# échelle RÉELLE (le q_* du lot 3 est à l'échelle brute du FBX, recadrée par le code de pose ; PropsQuaternius ramène de toute façon un
+# pq_* à l'encombrement de son q_* quand « ancien » est posé) ; « sombre » = teintes assombries (lot 4 : pas de nourriture fluo)
+ECH_Q = {"q_sac_debout": {"hauteur": 0.6}, "q_tonneau_2": {"hauteur": 0.9}, "q_seau_2": {"hauteur": 0.4}, "q_chaise_2": {"hauteur": 1.0},
+         "q_coffre_2": {"hauteur": 0.6}, "q_colonne_1": {"hauteur": 3.2}, "q_colonne_2": {"hauteur": 3.2}, "q_caisse_2": {"hauteur": 0.8},
+         "q_piedestal_1": {"hauteur": 1.1}, "q_piedestal_2": {"hauteur": 1.1}, "q_crane": {"hauteur": 0.2}, "q_pieux": {"hauteur": 0.6},
+         "q_table_grande_2": {"hauteur": 0.8}, "q_table_petite_2": {"hauteur": 0.78}, "q_piege_pieux": {"longueur": 1.5},
+         "q_banniere_mur": {"hauteur": 2.2}, "q_toile_araignee_1": {"longueur": 1.2}, "q_toile_araignee_2": {"longueur": 1.2}}
+SOMBRE = {"q_citrouille": 0.72, "q_ecuelle_2": 0.78, "q_saucisse": 0.85, "q_carotte_f": 0.85, "q_jarre": 0.75, "q_cuisse": 0.88,
+          "q_pomme": 0.85, "q_tapis": 0.85}
+BUDGET_Q = {"q_porte_2_plate": 2500, "q_porte_2_ronde": 2500}
 
 
 def charger_q():
@@ -230,7 +305,7 @@ def mats_q(e, force):
 
 
 def pack(src):
-    for k, v in (("ultimate_home_interior", "Ultimate Home Interior"), ("medieval_village", "Medieval Village MegaKit"),
+    for k, v in (("ultimate_rpg", "Ultimate RPG Pack"), ("medieval_village_pack_2019", "Medieval Village Pack (2019)"), ("ultimate_home_interior", "Ultimate Home Interior"), ("medieval_village", "Medieval Village MegaKit"),
                  ("lowpoly_modular_dungeon", "LowPoly Modular Dungeon"), ("medieval_dungeon", "Medieval Dungeon"),
                  ("survival", "Survival"), ("ultimate_food", "Ultimate Food")):
         if k in src:
@@ -249,10 +324,16 @@ def main():
         eq = q[qn]
         e = {"id": i, "src": eq["src"], "categorie": cat, "mats": mats_q(eq, force), "nom": nom, "matiere": mat, "usage": usage,
              "equivalent_q": qn}
-        if eq.get("hauteur"):
+        if qn in ECH_Q:
+            e.update(ECH_Q[qn])
+        elif eq.get("hauteur"):
             e["hauteur"] = eq["hauteur"]
         elif eq.get("ech"):
             e["ech"] = eq["ech"]
+        if qn in SOMBRE:
+            e["sombre"] = SOMBRE[qn]
+        if qn in BUDGET_Q:
+            e["budget"] = BUDGET_Q[qn]
         out.append(e)
     for i, src, cat, ech, mats, nom, mat, usage in NEUF_L:
         e = {"id": i, "src": src, "categorie": cat, "mats": mats, "nom": nom, "matiere": mat, "usage": usage}

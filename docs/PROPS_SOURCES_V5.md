@@ -39,9 +39,12 @@ il ne pose rien dans le jeu : les agents de remplacement (dehors / intérieurs /
 | Medieval Village MegaKit | CC0 | `references/quaternius_props/medieval_village_megakit/` | props, portes et volets convertis en pq_* (28) ; murs/toits/planchers/escaliers = bâti, hors périmètre |
 | LowPoly Modular Dungeon (itch) | CC0 | `references/quaternius_props/lowpoly_modular_dungeon_itch/` | les 25 q_* du lot 3 + 2 pièces neuves |
 | Medieval Dungeon, Survival, Ultimate Food | CC0 | `references/quaternius_props/{medieval_dungeon,survival,ultimate_food}/` | les q_* du lot 4 sans pq_* + 7 pièces neuves |
+| Medieval Village Pack (2019) | CC0 1.0 (License.txt du pack ; https://quaternius.com/packs/medievalvillage.html) | `references/quaternius_props/medieval_village_pack_2019/` | **téléchargé le 2026-11-19** (Drive public lié par la page). 34 props (+10 bâtiments, non utilisés) ; 22 gardés : puits, bancs, sacs, gerbe, étals, charrette, chaudron, ballots, cloche, abri, barrière, foyer de pierres, caisse, tonneau, portes de cave, chevalet de sciage |
+| Ultimate RPG Pack | CC0 1.0 (page https://quaternius.com/packs/ultimaterpg.html ; pas de License.txt dans le dossier Drive, note dans `LICENCE_SOURCE.txt`) | `references/quaternius_props/ultimate_rpg/` | **téléchargé le 2026-11-19**. Surtout des objets d'inventaire ; 5 gardés (coffres, lingots, grimoire, os) |
+| Autres packs Quaternius vus sur quaternius.com | CC0 | — | non pris : Ultimate Furniture / Furniture Pack (mobilier moderne d'après leurs noms et aperçus du site, non téléchargés), Pirate Kit (canons, thème pirate), Ultimate Modular Ruins (architecture), Modular Medieval Building / Farm Buildings (bâti). Proxy TLS : aucun refus de certificat rencontré (Drive et quaternius.com accessibles) |
 
-## Props ajoutés (première version : revue visuelle en cours, liste susceptible de baisser)
-<!-- TABLE 137 props, 88257 tris -->
+## Props ajoutés
+<!-- TABLE 159 props, 103119 tris -->
 
 ### Ultimate Home Interior (20)
 
@@ -68,7 +71,7 @@ il ne pose rien dans le jeu : les agents de remplacement (dehors / intérieurs /
 | `pq_ecuelle_creuse` | écuelle creuse en bois | Plate_3 | 136 -> 136 | 0.23 x 0.02 x 0.24 | bois (bois) | vaisselle des tables (assiette / bol maison, q_ecuelle) | — |
 | `pq_cuillere_bois` | cuillère de bois | Spoon | 128 -> 128 | 0.04 x 0.01 x 0.20 | bois (bois) | q_cuillere_bois (gardé : pq_cuillere est en métal), tables, marmites | — |
 
-### Medieval Village MegaKit (28)
+### Medieval Village MegaKit (26)
 
 | id | nom | source | tris (source -> jeu) | emprise X x Y x Z (m) | matière (atlas) | usage conseillé / remplace | q_* équivalent |
 |---|---|---|---|---|---|---|---|
@@ -90,10 +93,8 @@ il ne pose rien dans le jeu : les agents de remplacement (dehors / intérieurs /
 | `pq_planches_sol` | plancher de planches | Floor_WoodDark_Half1 | 32 -> 32 | 1.00 x 0.02 x 2.00 | bois (bois) | estrade de la halle, toit du puits, soufflet (kitbash) | `q_planches_sol` |
 | `pq_porte_1_plate` | porte de planches 1 | Door_1_Flat | 314 -> 314 | 1.17 x 2.20 x 0.13 | bois (bois, fer) | portes des maisons closes (q_porte_*) | `q_porte_1_plate` |
 | `pq_porte_1_ronde` | porte de planches 1 cintrée | Door_1_Round | 470 -> 470 | 1.06 x 2.20 x 0.12 | bois (bois, fer) | portes des maisons closes | `q_porte_1_ronde` |
-| `pq_porte_2_plate` | porte de planches 2 | Door_2_Flat | 6032 -> 6032 | 1.17 x 2.20 x 0.27 | bois (bois, fer) | portes des maisons closes | `q_porte_2_plate` |
-| `pq_porte_2_ronde` | porte de planches 2 cintrée | Door_2_Round | 6188 -> 6188 | 1.05 x 2.20 x 0.25 | bois (bois, fer) | portes des maisons closes | `q_porte_2_ronde` |
-| `pq_porte_4_plate` | porte de planches 4 | Door_4_Flat | 1034 -> 1034 | 1.18 x 2.20 x 0.22 | bois (bois, fer) | portes des maisons closes | `q_porte_4_plate` |
-| `pq_porte_4_ronde` | porte de planches 4 cintrée | Door_4_Round | 1218 -> 1218 | 1.06 x 2.20 x 0.20 | bois (bois, fer) | portes des maisons closes | `q_porte_4_ronde` |
+| `pq_porte_2_plate` | porte de planches 2 | Door_2_Flat | 6032 -> 2500 (collapse 0.43) | 1.17 x 2.20 x 0.27 | bois (bois, fer) | portes des maisons closes | `q_porte_2_plate` |
+| `pq_porte_2_ronde` | porte de planches 2 cintrée | Door_2_Round | 6188 -> 2500 (collapse 0.42) | 1.05 x 2.20 x 0.25 | bois (bois, fer) | portes des maisons closes | `q_porte_2_ronde` |
 | `pq_porte_8_plate` | porte ferrée 8 | Door_8_Flat | 986 -> 986 | 1.17 x 2.20 x 0.21 | bois + fer (bois, fer) | portes des maisons closes, halle | `q_porte_8_plate` |
 | `pq_porte_8_ronde` | porte ferrée 8 cintrée | Door_8_Round | 1142 -> 1142 | 1.09 x 2.20 x 0.19 | bois + fer (bois, fer) | portes des maisons closes, halle | `q_porte_8_ronde` |
 | `pq_volets_etroits_fermes` | volets étroits fermés | WindowShutters_Thin_Flat_Closed | 96 -> 96 | 0.85 x 1.42 x 0.14 | bois (bois) | volets des fenêtres (q_volets_*) | `q_volets_thin_flat_closed` |
@@ -101,37 +102,34 @@ il ne pose rien dans le jeu : les agents de remplacement (dehors / intérieurs /
 | `pq_volets_larges_fermes` | volets larges fermés | WindowShutters_Wide_Flat_Closed | 120 -> 120 | 1.35 x 1.42 x 0.14 | bois (bois) | volets des fenêtres | `q_volets_wide_flat_closed` |
 | `pq_volets_larges_ouverts` | volets larges ouverts | WindowShutters_Wide_Flat_Open | 120 -> 120 | 2.48 x 1.42 x 0.46 | bois (bois) | volets des fenêtres | `q_volets_wide_flat_open` |
 
-### LowPoly Modular Dungeon (27)
+### LowPoly Modular Dungeon (24)
 
 | id | nom | source | tris (source -> jeu) | emprise X x Y x Z (m) | matière (atlas) | usage conseillé / remplace | q_* équivalent |
 |---|---|---|---|---|---|---|---|
 | `pq_sac_pieces` | sac de pièces couché | Bag_Coins | 976 -> 976 | 0.44 x 0.12 x 0.22 | toile de jute + or (fer_v, tissu_v) | trésor de la crypte (sac_a/b) | `q_sac_pieces` |
-| `pq_sac_debout` | sac debout ficelé | Bag_Standing | 456 -> 456 | 0.22 x 0.25 x 0.21 | toile de jute (fer_v, tissu_v) | sacs du marché, réserves (alias pq_sac aujourd'hui) | `q_sac_debout` |
-| `pq_banniere_mur` | bannière murale | Banner_wall | 440 -> 440 | 1.64 x 2.85 x 0.59 | laine rouge, bois, fer (bois, fer, tissu_v) | halle, salle du trône, crypte | `q_banniere_mur` |
-| `pq_tonneau_2` | tonneau cerclé de bois | Barrel2 | 1088 -> 1088 | 1.03 x 1.35 x 1.02 | bois (bois) | tonneau_b / tonneau_c (alias pq_tonneau aujourd'hui) | `q_tonneau_2` |
-| `pq_seau_2` | seau de bois cerclé de fer | Bucket | 360 -> 360 | 0.38 x 0.53 x 0.40 | bois + fer (bois, fer) | seaux (alias pq_seau_bois aujourd'hui) | `q_seau_2` |
-| `pq_chaise_2` | chaise à assise de laine | Chair | 1298 -> 1298 | 0.63 x 1.16 x 0.70 | bois + laine rouge (bois, tissu_v) | chaises de la crypte (alias pq_chaise aujourd'hui) | `q_chaise_2` |
-| `pq_coffre_2` | coffre ferré bombé | Chest | 1676 -> 1676 | 1.18 x 0.90 x 0.82 | bois + fer (bois, fer) | coffres décor (alias pq_coffre_ferme aujourd'hui) | `q_coffre_2` |
-| `pq_toile_araignee_1` | toile d'araignée | Cobweb | 1108 -> 1108 | 1.21 x 0.76 x 0.91 | écru (tissu_v) | angles de la crypte et de la grotte | `q_toile_araignee_1` |
-| `pq_toile_araignee_2` | toile d'araignée 2 | Cobweb2 | 868 -> 868 | 1.34 x 0.84 x 1.03 | écru (tissu_v) | angles de la crypte et de la grotte | `q_toile_araignee_2` |
-| `pq_colonne_donjon` | colonne de crypte | Column | 440 -> 440 | 1.30 x 4.07 x 1.30 | pierre (fer_v) | colonnes de la crypte | `q_colonne_1` |
-| `pq_colonne_donjon_2` | colonne de crypte 2 | Column2 | 548 -> 548 | 1.30 x 4.07 x 1.30 | pierre (fer_v) | colonnes de la crypte | `q_colonne_2` |
-| `pq_caisse_2` | caisse de planches cerclée | Crate | 2502 -> 2502 | 1.38 x 1.31 x 1.31 | bois (bois) | g_caisse_a (alias pq_caisse_fer aujourd'hui) | `q_caisse_2` |
-| `pq_muret` | muret de pierre | Fence_Straight_Modular | 104 -> 104 | 2.00 x 1.29 x 0.78 | pierre (fer_v) | murets de la crypte, enclos | `q_palissade` |
-| `pq_muret_bout` | muret de pierre (bout) | Fence_End_Modular | 102 -> 102 | 1.39 x 1.29 x 0.78 | pierre (fer_v) | murets | `q_palissade_bout` |
-| `pq_muret_angle` | muret de pierre (angle) | Fence_90_Modular | 112 -> 112 | 1.39 x 1.29 x 1.39 | pierre (fer_v) | murets | `q_palissade_angle` |
-| `pq_piedestal_1` | piédestal | Pedestal | 1844 -> 1844 | 1.95 x 2.19 x 1.96 | pierre (fer_v) | présentoirs, reliquaires | `q_piedestal_1` |
-| `pq_piedestal_2` | piédestal 2 | Pedestal2 | 1182 -> 1182 | 1.74 x 2.31 x 1.74 | pierre (fer_v) | présentoirs, reliquaires | `q_piedestal_2` |
-| `pq_crane` | crâne | Skull | 1392 -> 1392 | 0.60 x 0.46 x 0.44 | os (fer_v) | crane_a/b de la crypte et de la grotte (gardés : aucun pq_*) | `q_crane` |
-| `pq_pieux` | pointes de fer | Spikes | 504 -> 504 | 1.76 x 1.18 x 1.76 | fer (fer) | pièges, défenses | `q_pieux` |
+| `pq_sac_debout` | sac debout ficelé | Bag_Standing | 456 -> 456 | 0.52 x 0.60 x 0.50 | toile de jute (fer_v, tissu_v) | sacs du marché, réserves (alias pq_sac aujourd'hui) | `q_sac_debout` |
+| `pq_banniere_mur` | bannière murale | Banner_wall | 440 -> 440 | 1.27 x 2.20 x 0.46 | laine rouge, bois, fer (bois, fer, tissu_v) | halle, salle du trône, crypte | `q_banniere_mur` |
+| `pq_tonneau_2` | tonneau cerclé de bois | Barrel2 | 1088 -> 1088 | 0.69 x 0.90 x 0.68 | bois (bois) | tonneau_b / tonneau_c (alias pq_tonneau aujourd'hui) | `q_tonneau_2` |
+| `pq_seau_2` | seau de bois cerclé de fer | Bucket | 360 -> 360 | 0.29 x 0.40 x 0.30 | bois + fer (bois, fer) | seaux (alias pq_seau_bois aujourd'hui) | `q_seau_2` |
+| `pq_chaise_2` | chaise à assise de laine | Chair | 1298 -> 1298 | 0.54 x 1.00 x 0.61 | bois + laine rouge (bois, tissu_v) | chaises de la crypte (alias pq_chaise aujourd'hui) | `q_chaise_2` |
+| `pq_coffre_2` | coffre ferré bombé | Chest | 1676 -> 1676 | 0.79 x 0.60 x 0.55 | bois + fer (bois, fer) | coffres décor (alias pq_coffre_ferme aujourd'hui) | `q_coffre_2` |
+| `pq_toile_araignee_1` | toile d'araignée | Cobweb | 1108 -> 1108 | 1.20 x 0.75 x 0.91 | écru (tissu_v) | angles de la crypte et de la grotte | `q_toile_araignee_1` |
+| `pq_toile_araignee_2` | toile d'araignée 2 | Cobweb2 | 868 -> 868 | 1.20 x 0.76 x 0.92 | écru (tissu_v) | angles de la crypte et de la grotte | `q_toile_araignee_2` |
+| `pq_colonne_donjon` | colonne de crypte | Column | 440 -> 440 | 1.03 x 3.20 x 1.03 | pierre (fer_v) | colonnes de la crypte | `q_colonne_1` |
+| `pq_colonne_donjon_2` | colonne de crypte 2 | Column2 | 548 -> 548 | 1.02 x 3.20 x 1.02 | pierre (fer_v) | colonnes de la crypte | `q_colonne_2` |
+| `pq_caisse_2` | caisse de planches cerclée | Crate | 2502 -> 2502 | 0.84 x 0.80 x 0.80 | bois (bois) | g_caisse_a (alias pq_caisse_fer aujourd'hui) | `q_caisse_2` |
+| `pq_piedestal_1` | piédestal | Pedestal | 1844 -> 1844 | 0.98 x 1.10 x 0.98 | pierre (fer_v) | présentoirs, reliquaires | `q_piedestal_1` |
+| `pq_piedestal_2` | piédestal 2 | Pedestal2 | 1182 -> 1182 | 0.83 x 1.10 x 0.83 | pierre (fer_v) | présentoirs, reliquaires | `q_piedestal_2` |
+| `pq_crane` | crâne | Skull | 1392 -> 1392 | 0.26 x 0.20 x 0.19 | os (fer_v) | crane_a/b de la crypte et de la grotte (gardés : aucun pq_*) | `q_crane` |
+| `pq_pieux` | pointes de fer | Spikes | 504 -> 504 | 0.90 x 0.60 x 0.90 | fer (fer) | pièges, défenses | `q_pieux` |
 | `pq_epee_support` | épée sur support mural | Sword_WallMount | 2382 -> 2382 | 1.07 x 0.85 x 0.21 | fer + bois (bois, fer, fer_v) | trophée mural de la halle, armurerie | `q_epee_support` |
-| `pq_table_grande_2` | grande table de planches ferrée | Table_Big | 916 -> 916 | 1.58 x 0.85 x 3.30 | bois + fer (bois, fer) | tables de la crypte (table_a/b/c), réfectoire | `q_table_grande_2` |
-| `pq_table_petite_2` | petite table de planches ferrée | Table_Small | 804 -> 804 | 1.30 x 0.85 x 1.98 | bois + fer (bois, fer) | tables de la crypte, camp | `q_table_petite_2` |
-| `pq_piege_pieux` | dalle à pointes (piège) | Trap_spikes | 2032 -> 2032 | 1.99 x 1.17 x 1.99 | fer (fer) | pièges de la crypte | `q_piege_pieux` |
+| `pq_table_grande_2` | grande table de planches ferrée | Table_Big | 916 -> 916 | 1.48 x 0.80 x 3.09 | bois + fer (bois, fer) | tables de la crypte (table_a/b/c), réfectoire | `q_table_grande_2` |
+| `pq_table_petite_2` | petite table de planches ferrée | Table_Small | 804 -> 804 | 1.19 x 0.78 x 1.81 | bois + fer (bois, fer) | tables de la crypte, camp | `q_table_petite_2` |
+| `pq_piege_pieux` | dalle à pointes (piège) | Trap_spikes | 2032 -> 2032 | 1.50 x 0.88 x 1.50 | fer (fer) | pièges de la crypte | `q_piege_pieux` |
 | `pq_vase_5` | urne de terre cuite | Vase | 220 -> 220 | 0.31 x 0.36 x 0.31 | argile (fer_v) | urne_b (alias pq_vase_4 aujourd'hui) | `q_vase_5` |
 | `pq_bucher` | bûcher (sans flamme) | Woodfire | 144 -> 144 | 0.78 x 0.45 x 0.83 | bois (bois) | foyers, feu de camp, forge de plein air (q_bucher gardé) | `q_bucher` |
-| `pq_trappe` | trappe de bois ferrée | Trapdoor | 504 -> 504 | 1.74 x 0.21 x 1.70 | bois + fer (bois, fer) | sol de la crypte, cave, grenier | — |
-| `pq_coffre_or_2` | coffre ferré doré | Chest_Gold | 22512 -> 6603 (collapse 0.30) | 1.18 x 0.90 x 1.48 | bois + or terni (bois, fer, fer_v) | trésor de la crypte | — |
+| `pq_trappe` | trappe de bois ferrée | Trapdoor | 504 -> 504 | 1.20 x 0.15 x 1.17 | bois + fer (bois, fer) | sol de la crypte, cave, grenier | — |
+| `pq_coffre_or_2` | coffre ferré doré | Chest_Gold | 22512 -> 6604 (collapse 0.30) | 0.92 x 0.70 x 1.15 | bois + or terni (bois, fer, fer_v) | trésor de la crypte | — |
 
 ### Medieval Dungeon (22)
 
@@ -206,9 +204,46 @@ il ne pose rien dans le jeu : les agents de remplacement (dehors / intérieurs /
 | `pq_ecuelle` | écuelle de bois | Plate | 156 -> 156 | 0.23 x 0.03 x 0.24 | bois (bois) | tables (bol maison) | `q_ecuelle` |
 | `pq_ecuelle_2` | écuelle de terre cuite | Plate2 | 196 -> 196 | 0.27 x 0.03 x 0.28 | argile (fer_v) | tables | `q_ecuelle_2` |
 | `pq_marmite_vide` | marmite de fer | CookingPot | 260 -> 260 | 0.67 x 0.30 x 0.56 | fer (fer) | foyers, cuisine (pq_marmite est en argile) | — |
-| `pq_chaudron_anse` | chaudron à anse | CookingPot2 | 260 -> 260 | 1.18 x 0.32 x 1.02 | fer + bois (bois, fer) | foyer pendu, camp | — |
+| `pq_chaudron_anse` | chaudron à anse | CookingPot2 | 260 -> 260 | 0.55 x 0.15 x 0.48 | fer + bois (bois, fer) | foyer pendu, camp | — |
 | `pq_poele_f` | poêle de fer | FryingPan | 214 -> 214 | 0.31 x 0.04 x 0.50 | fer + bois (bois, fer) | cuisine, foyers | — |
 | `pq_lard_cuit` | tranche de lard grillé | Bacon_Cooked | 564 -> 564 | 0.17 x 0.00 x 0.04 | brun (fer_v) | tables du festin | — |
+
+### Medieval Village Pack (2019) (22)
+
+| id | nom | source | tris (source -> jeu) | emprise X x Y x Z (m) | matière (atlas) | usage conseillé / remplace | q_* équivalent |
+|---|---|---|---|---|---|---|---|
+| `pq_puits` | puits couvert (margelle de pierre, toit de bardeaux) | Well | 1870 -> 1870 | 1.39 x 2.60 x 2.09 | pierre + bois + toile (bois, fer_v, tissu_v) | puits de la place (kitbash maison : 8 dalles + briques + poutres + planches), puits des fermes | — |
+| `pq_banc_dossier` | banc à dossier | Bench_1 | 376 -> 376 | 1.79 x 0.85 x 0.65 | bois (bois) | bancs de la place et des ruelles (banc maison / pq_banc), porche de la halle | — |
+| `pq_banc_simple` | banc de planches | Bench_2 | 276 -> 276 | 1.61 x 0.45 x 0.54 | bois (bois) | bancs des intérieurs et du camp (helper banc maison) | — |
+| `pq_tas_sacs` | tas de trois sacs | Bags | 912 -> 912 | 1.39 x 0.55 x 1.23 | toile de jute (tissu_v) | sacs du marché (kitbash « sacs » maison : 2 q_sac + q_sac_debout), moulins, grenier | — |
+| `pq_sac_couche` | sac de grain couché | Bag | 304 -> 304 | 0.80 x 0.30 x 0.57 | toile de jute (tissu_v) | réserves, meule de foin (kitbash de 6 q_sac), charrette | — |
+| `pq_sac_ouvert` | sac de grain ouvert | Bag_Open | 280 -> 280 | 0.57 x 0.40 x 0.78 | toile de jute + grain (fer_v, tissu_v) | étals, moulin, grange | — |
+| `pq_gerbe` | gerbe de paille liée | Hay | 488 -> 488 | 0.75 x 1.10 x 0.77 | paille (fer_v) | meules de foin de l'enclos (kitbash maison), grange, épouvantails | — |
+| `pq_etal_auvent` | étal à auvent rayé | MarketStand_1 | 1548 -> 1548 | 2.27 x 2.50 x 2.83 | bois + toile rouge/écru (bois, tissu_v) | étals de la place (étal maison 3 m = 2 pq_etal) | — |
+| `pq_etal_etroit` | étal étroit à auvent | MarketStand_2 | 1132 -> 1132 | 1.19 x 2.40 x 2.66 | bois + toile rouge/écru (bois, tissu_v) | étals des ruelles | — |
+| `pq_charrette_auvent` | charrette à bras à auvent | Cart | 2628 -> 2628 | 1.16 x 2.00 x 2.33 | bois + toile rouge/écru (bois, fer_v, tissu_v) | marchand ambulant, marché (charrette maison) | — |
+| `pq_chaudron_pieds` | chaudron à pieds (soupe) | Cauldron | 1238 -> 1238 | 0.93 x 0.65 x 0.77 | fer + soupe (fer, fer_v) | foyers des maisons, feu de camp, bivouac | — |
+| `pq_ballot` | ballot ficelé de cuir | Package_1 | 420 -> 420 | 0.90 x 0.42 x 0.59 | toile de jute + cuir (fer_v, tissu_v) | réserves du marché, quai, charrette | — |
+| `pq_ballot_2` | ballot cubique ficelé | Package_2 | 464 -> 464 | 0.66 x 0.55 x 0.65 | toile de jute + cuir (fer_v, tissu_v) | réserves du marché, quai | — |
+| `pq_cloche` | cloche de bronze terni | Bell | 779 -> 779 | 0.52 x 0.60 x 0.52 | or terni (fer_v) | cloche d'alarme du guet, halle, temple | — |
+| `pq_abri` | abri à poteaux (toit de bardeaux) | Gazebo | 698 -> 698 | 2.15 x 2.80 x 2.62 | bois (bois, fer_v) | abri de marché, séchoir à peaux (kitbash maison), puits ouvert | — |
+| `pq_barriere_lisses` | barrière à deux lisses | Fence | 208 -> 208 | 2.43 x 1.00 x 0.08 | bois (bois) | enclos d'Ylva (pieux + lisses maison), abords | — |
+| `pq_foyer_pierres` | foyer : couronne de pierres et bûches (sans flamme) | Bonfire | 602 -> 602 | 1.40 x 0.39 x 1.25 | pierre + bois (bois, fer_v) | feu de camp (kitbash maison : 9 q_brique + q_bucher), foyers de plein air | — |
+| `pq_caisse_planches` | caisse de planches à croisillon | Crate | 784 -> 784 | 0.80 x 0.80 x 0.80 | bois (bois) | caisses du marché (caisse_a/b/c maison) | — |
+| `pq_tonneau_village` | tonneau cerclé de fer | Barrel | 1312 -> 1312 | 0.74 x 0.95 x 0.73 | bois + fer (bois, fer) | tonneaux du marché (tonneau_a/b/c maison) | — |
+| `pq_porte_cave` | porte ferrée sous encadrement de pierre (marches) | Door_Straight | 958 -> 958 | 1.84 x 2.60 x 1.09 | bois + pierre (bois, fer, fer_v) | entrée de cave, de crypte, de tumulus | — |
+| `pq_porte_cave_ronde` | porte cintrée sous arc de pierre (marches) | Door_Round | 990 -> 990 | 1.80 x 2.60 x 1.07 | bois + pierre (bois, fer_v) | entrée de crypte, de cave | — |
+| `pq_chevalet_scie` | chevalet de sciage (rondin et scie) | Sawmill_saw | 300 -> 300 | 0.91 x 0.70 x 2.20 | bois + fer (bois, fer) | bûchers des fermes, scierie, tas de bois | — |
+
+### Ultimate RPG Pack (5)
+
+| id | nom | source | tris (source -> jeu) | emprise X x Y x Z (m) | matière (atlas) | usage conseillé / remplace | q_* équivalent |
+|---|---|---|---|---|---|---|---|
+| `pq_coffre_bombe` | coffre bombé ferré (fermé) | Chest_Closed | 1728 -> 1728 | 0.70 x 0.60 x 0.60 | bois + fer (bois, fer) | coffres décor des maisons et de la crypte (variante de pq_coffre_ferme) | — |
+| `pq_coffre_lingots` | coffre ouvert plein de lingots | Chest_Ingots | 2344 -> 2344 | 0.62 x 0.75 x 0.65 | bois + fer + or terni (bois, fer, fer_v) | trésor de la crypte (or_tas maison, q_coffre_or) | — |
+| `pq_lingots` | pile de lingots d'or | Gold_Ingots | 648 -> 648 | 0.45 x 0.28 x 0.38 | or terni (fer_v) | trésor (tas d'or maison or_tas_a/b/c) | — |
+| `pq_grimoire` | grimoire à fermoir | Book3_Closed | 1060 -> 1060 | 0.12 x 0.32 x 0.27 | cuir + écru + or terni (fer_v) | lutrin, archives, autel (livre maison) | — |
+| `pq_os` | os long | Bone | 304 -> 304 | 0.40 x 0.14 x 0.07 | os (fer_v) | os épars au sol de la crypte et de la grotte (os maison gardés) | — |
 
 ## Rejetés (avec la raison)
 
@@ -268,3 +303,22 @@ il ne pose rien dans le jeu : les agents de remplacement (dehors / intérieurs /
 | Modular Dungeon (itch) | Arch*, Floor*, Wall*, Stairs*, Decorative_Wall, Trap_empty | architecture |
 | Modular Dungeon (itch) | Banner, Barrel, Coin_Pile, Torch | doublons de pq_* existants ; flamme |
 | Modular Dungeon (itch) | Statue_Horse | statue de cheval stylisée « jouet » |
+
+### Medieval Village Pack (2019) et Ultimate RPG Pack
+
+| Pièces | Raison |
+|---|---|
+| MVP 2019 : Bell_Tower, Blacksmith, House_1-4, Inn, Mill, Sawmill, Stable | bâtiments entiers : hors périmètre |
+| MVP 2019 : Bag (gardé), Bonfire_Lit, Smoke | flamme / fumée (le jeu pose les siennes) |
+| MVP 2019 : Rock_1-3, Path_*, Stairs, Window_1-4 | nature (règle), dallage et bâti |
+| Ultimate RPG : armures, armes, arcs, flèches, dagues | ce qui se porte ou se tient = modèles maison (règle Tripo/armes) ; style « icône » |
+| Ultimate RPG : potions, cœurs, étoiles, flocons, pièces, bagues, colliers, couronnes, cristaux, minerai violet | objets d'inventaire / interface, couleurs vives (violet absent de la bible), style jouet |
+| Ultimate RPG : Chest_Open, Book*_Open/Closed (sauf Book3_Closed), Parchment, Scroll, Chalice, Skull, ChickenLeg, FishBone, Pouch, Bag, Backpack | doublons de pq_* existants (pq_coffre, pq_livre_*, pq_parchemin, pq_calice, pq_crane v5, pq_cuisse, pq_aretes, pq_bourse) ; sac à dos moderne |
+| Ultimate RPG : Skull2 (crâne et tibias croisés), Padlock | emblème pirate ; cadenas d'aspect moderne |
+
+### Rejetés APRÈS rendu en look jeu (glb présents dans `assets/modeles/props_quat/`, mais retirés du catalogue)
+
+| id | Raison |
+|---|---|
+| `pq_porte_4_plate`, `pq_porte_4_ronde` (Door_4 du Medieval Village) | porte entièrement vitrée à croisillons : fenêtre plus que porte, déplacée dans un village nordique |
+| `pq_muret`, `pq_muret_bout`, `pq_muret_angle` (Fence_*_Modular du Modular Dungeon) | pièce modulaire illisible seule (poteau + bout de lisse, « marteau ») |
