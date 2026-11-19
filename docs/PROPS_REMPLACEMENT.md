@@ -686,3 +686,66 @@ Pas posé : cape ou peau sur un tabouret (aucun pq adapté au thème), glaçons 
 Planches v2 (gauche v3, droite v5 retravaillé) : `C:\Users\lopezk19\Jeux\rendus\props_v5\exterieurs_1_postes_tablee_v2.png`,
 `exterieurs_2_marche_forge_etals_v2.png`, `exterieurs_3_fermes_bois_bandits_v2.png`, `exterieurs_4_enclos_champs_feu_v2.png`,
 `exterieurs_5_nuit_v2.png` ; poste E table ronde -> table rustique : `exterieurs_7_postes_v2.png`.
+
+## Props v5 : détail (branche `props/detail_v5`, 2026-11-19)
+
+Demande : « que ça fasse moins jouet », amener les pq_* au niveau de détail des props maison
+(`--sans-remplacement`), sans casser le pipeline (ps1 / ps1_interieur / crypte, nearest, palette,
+patine PropsRealisme, neige_exterieur). Interrupteur : `--sans-detail-v5` (revient au v5 précédent).
+
+### Méthode (texture et couleur de sommet d'abord, aucune géométrie ajoutée)
+- **Atlas détaillés** `assets/modeles/props_quat/textures/pq_<k>_d.png` (bois, fer, fer_v, tissu,
+  tissu_v, props, props_v), même taille et même disposition que les originaux : les UV des modèles
+  ne changent pas. Générés par `outils/props_detail_atlas.gd` (`--diag`, `--seulement=bois`) :
+  - matière lue par bloc sur les trims Quaternius pleine résolution (couleur, clarté, normale),
+    regroupée (bois / fer / cuir / tissu / tourbe…) puis filtrée (majoritaire 5x5) ;
+  - repeinte avec les rampes du bâti (`PeintureBati` : K_BOIS, K_BOIS_GRIS, K_FER, K_ROUILLE, K_CUIR…),
+    relief tiré de la normale (lit, creux, filet) ;
+  - bois : planches identifiées (composantes hors joints), ton et grisaillement propres à chaque planche,
+    fil, stries, nœuds ; fer : piqûres et rouille dans les creux ; cuir : cellules ; tissus : trame ;
+  - clarté moyenne par matière recalée sur l'ancien atlas, `nettoie(2)` : 0 % de texels isolés.
+- **Sélection** : `PropsQuat._texture()` charge `<atlas>_d.png` si `PropsQuat.detail()` (v5 actif et pas
+  `--sans-detail-v5`). Même nombre de matériaux, donc aucun appel de dessin en plus.
+- **Variation par pièce** : `PropsQuaternius._varier_pieces()` (au chargement, mis en cache avec le
+  modèle) repère les morceaux disjoints d'un prop (union-find sur les sommets à 1 mm) et module leur
+  couleur de sommet (clarté 0,88 à 1,12, une pièce sur cinq plus sombre, légère dérive chaude/froide).
+- **Réglages de matériau** pour les atlas détaillés : `PATINE_V5_D` (props_quaternius), `INTERIEUR_D` et
+  `SOUS_TERRE_ATLAS_D` (props_realisme), calés sur les planches pour garder la clarté du v5 validé.
+- Outils : `outils/props_detail_dump.gd` (export des textures du bâti pour comparer), poses
+  `outils/poses_props_detail.txt` et `outils/poses_props_detail_grotte.txt`.
+
+### Par famille (planches)
+- Tables, bancs, établis, coffres, tonneaux, lits : planches et douelles lisibles, grain du bois, ferrures
+  piquées ; plus d'aplat. Écart le plus net en intérieur et en gros plan.
+- Extérieur : la neige couvre les dessus (inchangée, validée) ; le détail se voit sur les flancs.
+- Crypte : crânes et os beiges lisibles (sombres avant), bois et fer cohérents avec les murs.
+- Grotte : camp et mine cohérents, écart modéré (éclairage faible).
+
+### Revenus au maison (mode détaillé seulement, `CrypteDecor.RETOUR_MAISON_D`)
+- `etagere_cadre_a/b`, `etagere_contenu_a/b/c` : la pq_bibliotheque est vide, l'étagère maison est garnie.
+- `or_tas_a/b/c` : les tas de pièces Quaternius sortaient en flaques jaunes plates.
+
+### Planches (`C:\Users\lopezk19\Jeux\rendus\props_v5\`, colonnes maison / v5 actuel / v5 détaillé)
+`detail_exterieur_jour.png`, `detail_exterieur_nuit.png`, `detail_interieurs.png`, `detail_crypte.png`,
+`detail_grotte.png`, `detail_gros_plans.png` ; captures brutes dans `detail\brut\`.
+
+### Perf (2 passes alternées, actuel = `--sans-detail-v5` / détaillé ; fenêtre hors écran)
+| Lieu | Mesure | Actuel p1 / p2 | Détaillé p1 / p2 |
+|---|---|---|---|
+| Place (mesure_perf) | gpu_med ms | 16,67 / 19,08 | 19,31 / 16,60 |
+| | appels de dessin | 1223 / 1230 | 1230 / 1223 |
+| Marché (mesure_perf) | gpu_med ms | 13,94 / 16,25 | 16,51 / 15,35 |
+| | appels de dessin | 871 / 884 | 875 / 862 |
+| Halle (audit, 21 h, 12 s) | gpu_med ms | 11,29 / 10,79 | 10,57 / 9,01 |
+| | appels | 554 / 553 | 437 / 556 |
+| Crypte (audit, 21 h, 12 s) | gpu_med ms | 2,94 / 2,97 | 3,30 / 3,29 |
+| | appels | 273 / 275 | 273 / 275 |
+
+Appels de dessin et primitives identiques (même nombre de matériaux, mêmes maillages). Les écarts de
+GPU restent dans le bruit des passes (une suite de tests tournait en parallèle dans `nordique`), sauf la
+crypte, environ +0,3 ms stable (2,95 → 3,30 ms) : plus de texels distincts échantillonnés, coût
+négligeable à ce niveau. Le 437 de la halle détaillée p1 est une passe isolée (556 à la passe suivante, même position) : culling d'un instant, pas un effet du détail.
+
+### Limites
+- La bannière pq du marché reste un aplat rouge sombre (tissu uni dans l'atlas d'origine).
+- Le détail reste au niveau texel PS1 : de loin, l'écart avec le v5 précédent est faible.

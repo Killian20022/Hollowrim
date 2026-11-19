@@ -48,7 +48,19 @@ static func texture(atlas: String) -> Texture2D:
 	return _texture(atlas)
 
 static func _texture(atlas: String) -> Texture2D:
+	if detail() and ResourceLoader.exists(TEXTURES + atlas + "_d.png"):
+		return load(TEXTURES + atlas + "_d.png") as Texture2D
 	return load(TEXTURES + atlas + ".png") as Texture2D
+
+## props/detail_v5 (2026-11-19) : atlas REPEINTS au détail du bâti (outils/props_detail_atlas.gd : planches, fil et nœuds du bois,
+## joints, clous, biseaux, piqûres et rouille du fer, mêmes rampes de 12 tons que les textures du bâti ; mêmes UV, même densité) et
+## variation par pièce (PropsQuaternius._varier_pieces). `-- --sans-detail-v5` : atlas et couleurs d'avant (comparaisons, mesures A/B) ;
+## éteint aussi sans la v5 (`--sans-props-v5`, `--sans-remplacement`, `--props-quat-ancien`).
+static var _detail := -1
+static func detail() -> bool:
+	if _detail < 0:
+		_detail = 1 if (PropsQuaternius.v5 and not ("--sans-detail-v5" in OS.get_cmdline_user_args())) else 0
+	return _detail == 1
 
 ## Matériau partagé d'un atlas (« pq_bois », « pq_fer_v »…) pour un contexte : un seul par paire, créé à la première demande.
 static func materiau(atlas: String, contexte := "exterieur") -> Material:
