@@ -9,7 +9,7 @@ extends SceneTree
 ## - interrupteur EffetElementLame.actif (= --sans-effet-element) : plus aucun effet posé.
 
 const SCENE := preload("res://scenes/test_combat.tscn")
-const MAX_PARTICULES_ARME := 64
+const MAX_PARTICULES_ARME := 80
 
 var s: Node3D
 var echecs := 0

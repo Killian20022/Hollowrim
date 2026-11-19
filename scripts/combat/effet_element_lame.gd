@@ -10,7 +10,7 @@ extends Node3D
 ##   EffetElementLame.prechauffer()                                                matériaux partagés créés au chargement
 ##   effet.mains = <mains.gd>                                                       renfort pendant la charge / le coup lourd
 ## Style PS1 : carrés de pixels entiers (shaders/lame_element_*.gdshader, même dessin que les particules de magie, sans
-## occlusion de couche fine), palettes de 3-4 teintes en paliers, 38 à 58 particules allouées par arme (62 % émises au repos, toutes au renfort), AUCUNE lumière dynamique.
+## occlusion de couche fine), palettes de 3-4 teintes en paliers, 50 à 78 particules allouées par arme (62 % émises au repos, toutes au renfort), AUCUNE lumière dynamique.
 ## Matériaux : créés une fois (fil principal) puis partagés par toutes les armes ; jamais créés dans un fil de construction.
 ## Interrupteur : --sans-effet-element (comparaison, mesures).
 
@@ -29,42 +29,46 @@ const RENFORT := 1.6
 const COUCHES := {
 	"feu": [
 		# braises : points jaune -> orange -> rouge sombre qui montent du fil et traînent derrière un coup
-		{"add": true, "n": 30, "vie": 1.0, "larg": 0.016, "ep": 0.014, "grav": Vector3(0, 0.6, 0), "vit": Vector2(0.02, 0.1),
+		{"add": true, "n": 40, "vie": 1.0, "larg": 0.016, "ep": 0.014, "grav": Vector3(0, 0.6, 0), "vit": Vector2(0.02, 0.1),
 			"ecart": 180.0, "taille": Vector2(0.012, 0.02), "courbe": "descend", "rampe": ["#fff0a8", "#ffb040", "#ec6a1f", "#8a2a10"],
 			"eclat": 1.4, "cap": 3.0, "alea": 0.4},
 		# lueur du fil : pixels orange collés à la lame qui s'allument et s'éteignent (fer chauffé)
-		{"add": true, "local": true, "n": 28, "vie": 0.5, "larg": 0.016, "ep": 0.014, "vit": Vector2(0.0, 0.0),
-			"taille": Vector2(0.011, 0.017), "rampe": ["#ffd070", "#ff8a30", "#c84a18"], "eclat": 1.25, "cap": 3.0, "alea": 0.5},
+		{"add": true, "local": true, "n": 38, "vie": 0.6, "larg": 0.016, "ep": 0.014, "vit": Vector2(0.0, 0.0),
+			"taille": Vector2(0.011, 0.017), "rampe": ["#ffd070", "#ff8a30", "#c84a18"], "eclat": 1.4, "cap": 3.0, "alea": 0.3},
 	],
 	"glace": [
 		# givre : éclats blancs / bleu pâle fixés au fil qui scintillent longuement
-		{"add": true, "local": true, "n": 30, "vie": 1.6, "larg": 0.018, "ep": 0.014, "vit": Vector2(0.0, 0.0),
-			"taille": Vector2(0.011, 0.017), "courbe": "bosse", "rampe": ["#a8d8f8", "#e8f6ff", "#5f9fe8"], "eclat": 1.2, "cap": 3.0, "alea": 0.5},
+		{"add": true, "local": true, "n": 40, "vie": 1.1, "larg": 0.018, "ep": 0.014, "vit": Vector2(0.0, 0.0),
+			"taille": Vector2(0.011, 0.017), "courbe": "bosse", "rampe": ["#a8d8f8", "#e8f6ff", "#5f9fe8"], "eclat": 1.3, "cap": 3.0, "alea": 0.35},
 		# cristaux qui se détachent et tombent
-		{"add": true, "n": 10, "vie": 1.3, "larg": 0.016, "ep": 0.014, "grav": Vector3(0, -0.5, 0), "vit": Vector2(0.0, 0.02),
+		{"add": true, "n": 14, "vie": 1.3, "larg": 0.016, "ep": 0.014, "grav": Vector3(0, -0.5, 0), "vit": Vector2(0.0, 0.02),
 			"ecart": 30.0, "taille": Vector2(0.012, 0.017), "rampe": ["#e8f6ff", "#a8d8f8", "#5f9fe8"], "eclat": 1.25, "cap": 3.0, "alea": 0.5},
 		# vapeur froide : petits paquets pâles qui coulent sous la lame
-		{"n": 12, "vie": 1.5, "larg": 0.016, "ep": 0.016, "grav": Vector3(0, -0.14, 0), "vit": Vector2(0.0, 0.015), "ecart": 40.0,
+		{"n": 16, "vie": 1.5, "larg": 0.016, "ep": 0.016, "grav": Vector3(0, -0.14, 0), "vit": Vector2(0.0, 0.015), "ecart": 40.0,
 			"taille": Vector2(0.03, 0.05), "courbe": "bosse", "rampe": ["#d8ecf880", "#b0d0ec60", "#8cb4dc40"], "eclat": 1.0, "cap": 6.0,
 			"alea": 0.4},
 	],
 	"electricite": [
 		# étincelles : rafales courtes (relancées à intervalles irréguliers par _process), traînée d'un pixel
-		{"add": true, "n": 16, "vie": 0.22, "larg": 0.014, "ep": 0.014, "vit": Vector2(0.3, 0.8), "ecart": 180.0, "grav": Vector3(0, -1.2, 0),
+		{"add": true, "n": 20, "vie": 0.22, "larg": 0.014, "ep": 0.014, "vit": Vector2(0.3, 0.8), "ecart": 180.0, "grav": Vector3(0, -1.2, 0),
 			"taille": Vector2(0.009, 0.013), "rampe": ["#ffffff", "#c8d0ff", "#7a7af0"], "eclat": 1.6, "cap": 2.0, "expl": 0.85, "rafale": true,
 			"etire": 3.0},
 		# grésillement du fil : pixels bleu-violet
-		{"add": true, "local": true, "n": 22, "vie": 0.3, "larg": 0.014, "ep": 0.014, "vit": Vector2(0.0, 0.0),
+		{"add": true, "local": true, "n": 30, "vie": 0.3, "larg": 0.014, "ep": 0.014, "vit": Vector2(0.0, 0.0),
 			"taille": Vector2(0.011, 0.016), "rampe": ["#e0e6ff", "#9a9af8"], "eclat": 1.25, "cap": 3.0, "alea": 0.6},
 	],
 	"tenebres": [
 		# fumée violette sombre qui monte en ondulant et s'effiloche
-		{"n": 30, "vie": 1.6, "larg": 0.016, "ep": 0.016, "grav": Vector3(0, 0.16, 0), "vit": Vector2(0.005, 0.03), "ecart": 180.0,
-			"taille": Vector2(0.03, 0.048), "courbe": "bosse", "rampe": ["#8a48c8c0", "#5e2c90a0", "#3a1c5c70"], "eclat": 1.0, "cap": 6.0,
+		# voile collé à la lame (repère de la lame) : la fumée reste lisible en 1re personne, de nuit
+		{"local": true, "n": 14, "vie": 1.0, "larg": 0.034, "ep": 0.03, "grav": Vector3(0, 0.05, 0), "vit": Vector2(0.0, 0.015), "ecart": 180.0,
+			"taille": Vector2(0.024, 0.036), "courbe": "bosse", "rampe": ["#b87cf0c8", "#8448c0a8", "#58308878"], "eclat": 1.0, "cap": 5.0,
+			"alea": 0.4},
+		{"n": 26, "vie": 1.6, "larg": 0.03, "ep": 0.03, "grav": Vector3(0, 0.2, 0), "vit": Vector2(0.02, 0.06), "ecart": 180.0,
+			"taille": Vector2(0.03, 0.048), "courbe": "bosse", "rampe": ["#9c5ad8d8", "#6c36a4b8", "#46226e80"], "eclat": 1.0, "cap": 6.0,
 			"alea": 0.4, "turb": true},
 		# braises violettes au cœur de la fumée
-		{"add": true, "local": true, "n": 22, "vie": 0.7, "larg": 0.014, "ep": 0.014, "vit": Vector2(0.0, 0.0),
-			"taille": Vector2(0.011, 0.016), "rampe": ["#e0b0ff", "#a050e8"], "eclat": 1.25, "cap": 3.0, "alea": 0.5},
+		{"add": true, "local": true, "n": 30, "vie": 0.7, "larg": 0.014, "ep": 0.014, "vit": Vector2(0.0, 0.0),
+			"taille": Vector2(0.011, 0.016), "rampe": ["#e0b0ff", "#a050e8"], "eclat": 1.4, "cap": 3.0, "alea": 0.5},
 	],
 }
 ## Arcs électriques (électricité) : traits d'un pixel (lignes) en zigzag le long du fil, montrés ARC_DUREE s à intervalles irréguliers.
@@ -268,7 +272,7 @@ func _process(dt: float) -> void:
 	if not _rafales.is_empty():
 		_t_rafale -= dt
 		if _t_rafale <= 0.0:
-			_t_rafale = _rng.randf_range(0.3, 1.1) * lerpf(1.0, 0.45, renfort)
+			_t_rafale = _rng.randf_range(0.2, 0.75) * lerpf(1.0, 0.45, renfort)
 			for gp in _rafales:
 				gp.amount_ratio = ratio
 				gp.restart()

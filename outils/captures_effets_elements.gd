@@ -16,6 +16,9 @@ var s: Node
 var j: CharacterBody3D
 var mains: Node3D
 var dossier := ""
+## --suffixe=_v2 : images brut/<element>_<vue><suffixe>.png, film<suffixe>/, planche<suffixe> ; la planche ajoute en tête la colonne
+## « avant » = brut/<element>_nuit_fps.png (version sans suffixe).
+var suf := ""
 
 func _init() -> void:
 	_go.call_deferred()
@@ -35,6 +38,7 @@ func _attendre(sec: float) -> void:
 		await process_frame
 
 func _photo(nom: String) -> void:
+	nom = nom.replace(".png", suf + ".png").replace("film/", "film%s/" % suf)
 	await RenderingServer.frame_post_draw
 	var img := root.get_viewport().get_texture().get_image()
 	img.convert(Image.FORMAT_RGBA8)
@@ -52,8 +56,9 @@ func _donnees(el: String) -> DonneesArme:
 func _go() -> void:
 	RetourImpact.muet = true
 	dossier = _arg("sortie", "res://captures/effets_elements")
+	suf = _arg("suffixe", "")
 	DirAccess.make_dir_recursive_absolute(dossier.path_join("brut"))
-	DirAccess.make_dir_recursive_absolute(dossier.path_join("film"))
+	DirAccess.make_dir_recursive_absolute(dossier.path_join("film" + suf))
 	var els := _arg("elements", "feu,glace,electricite,tenebres").split(",")
 	var parties := _arg("parties", "images,film,planche").split(",")
 	if parties.has("images"):
@@ -205,9 +210,15 @@ func _planche(els: Array) -> void:
 	var w := 0
 	var h := 0
 	var imgs := {}
+	var vues: Array = VUES.duplicate()
+	if suf != "":
+		vues.push_front("avant")
 	for el: String in els:
-		for v: String in VUES:
-			var img := Image.load_from_file(dossier.path_join("brut/%s_%s.png" % [el, v]))
+		for v: String in vues:
+			var ch := dossier.path_join("brut/%s_nuit_fps.png" % el) if v == "avant" else dossier.path_join("brut/%s_%s%s.png" % [el, v, suf])
+			if not FileAccess.file_exists(ch):
+				continue
+			var img := Image.load_from_file(ch)
 			if img == null:
 				continue
 			img.convert(Image.FORMAT_RGBA8)
@@ -217,12 +228,12 @@ func _planche(els: Array) -> void:
 	if imgs.is_empty():
 		return
 	var marge := 4
-	var pl := Image.create(VUES.size() * (w + marge) + marge, els.size() * (h + marge) + marge, false, Image.FORMAT_RGBA8)
+	var pl := Image.create(vues.size() * (w + marge) + marge, els.size() * (h + marge) + marge, false, Image.FORMAT_RGBA8)
 	pl.fill(Color(0.08, 0.08, 0.09))
 	for r in els.size():
-		for c in VUES.size():
-			var cle: String = els[r] + VUES[c]
+		for c in vues.size():
+			var cle: String = els[r] + vues[c]
 			if imgs.has(cle):
 				var im: Image = imgs[cle]
 				pl.blit_rect(im, Rect2i(Vector2i.ZERO, im.get_size()), Vector2i(marge + c * (w + marge), marge + r * (h + marge)))
-	pl.save_png(dossier.path_join("planche_effets_elements.png"))
+	pl.save_png(dossier.path_join("planche_effets_elements%s.png" % suf))
