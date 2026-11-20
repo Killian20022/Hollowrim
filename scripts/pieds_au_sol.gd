@@ -44,6 +44,12 @@ var _rot: Array[Quaternion] = [Quaternion(), Quaternion()]
 var _base_pied: Array[Basis] = [Basis(), Basis()]
 var _finale := {}                   # os → pose globale finale (bassin, jambes) de la dernière image
 var _h_repos := 0.08
+## Opti 2026-11-20 (persos_anim) : poses globales de la chaîne bassin -> pieds calculées UNE fois par image (au lieu de ~70 remontées
+## os par os jusqu'à la racine), même calcul. --sans-opti-pieds : version d'avant.
+static var opti := not OS.get_cmdline_user_args().has("--sans-opti-pieds")
+var _opti := opti                  # par instance (le test compare les deux versions côte à côte)
+var _chaine_os: Array[int] = []
+var _chaine_directe := false        # cuisse enfant du bassin, mollet de la cuisse, pied du mollet (rig humain) : produits directs
 var _avant := Vector3.BACK
 
 ## Pose globale d'un os (repère du squelette) reconstruite depuis les poses LOCALES : dans un
@@ -70,13 +76,33 @@ class Orienteur extends SkeletonModifier3D:
 		var sq := get_skeleton()
 		if sq == null or pilote == null:
 			return
+		if not pilote._opti:
+			_ancien(sq)
+			return
+		var inv := sq.global_transform.basis.inverse()
+		var o: Dictionary = pilote._os
+		var ip: int = o["pelvis"]
+		var g_bassin := PiedsAuSol.pose_globale(sq, ip)
+		for k in 2:
+			var i: int = o["pied"][k]
+			var g_mollet := g_bassin * sq.get_bone_pose(o["cuisse"][k]) * sq.get_bone_pose(o["mollet"][k]) if pilote._chaine_directe else PiedsAuSol.pose_globale(sq, o["mollet"][k])
+			var pose := g_mollet * sq.get_bone_pose(i)
+			var voulue := Basis(pilote._rot[k]) * pilote._base_pied[k]
+			var local := g_mollet.affine_inverse() * Transform3D(inv * voulue, pose.origin)
+			sq.set_bone_pose_position(i, local.origin)
+			sq.set_bone_pose_rotation(i, local.basis.get_rotation_quaternion())
+		# pose finale du bassin et des jambes (poses LOCALES : appliquer_pose_finale les remet telles quelles, parents d'abord)
+		for i: int in pilote._chaine_os:
+			pilote._finale[i] = sq.get_bone_pose(i)
+
+	## Version d'avant (--sans-opti-pieds) : chaque pose globale reconstruite depuis la racine.
+	func _ancien(sq: Skeleton3D) -> void:
 		var inv := sq.global_transform.basis.inverse()
 		for k in 2:
 			var i: int = pilote._os["pied"][k]
 			var pose := PiedsAuSol.pose_globale(sq, i)
 			var voulue := Basis(pilote._rot[k]) * pilote._base_pied[k]
 			PiedsAuSol.poser_globale(sq, i, Transform3D(inv * voulue, pose.origin))
-		# pose finale du bassin et des jambes, pour pouvoir la rendre définitive (ragdoll)
 		for i: int in pilote._chaine():
 			pilote._finale[i] = PiedsAuSol.pose_globale(sq, i)
 
@@ -105,6 +131,11 @@ func _construire(sq: Skeleton3D) -> void:
 	if ib >= 0:
 		var orteil := sq.get_bone_global_rest(ib).origin
 		_avant = Vector3(orteil.x - pied.x, 0.0, orteil.z - pied.z).normalized()
+	_chaine_os = _chaine()
+	_chaine_directe = true
+	for k in 2:
+		_chaine_directe = _chaine_directe and sq.get_bone_parent(_os["cuisse"][k]) == _os["pelvis"] and sq.get_bone_parent(_os["mollet"][k]) == _os["cuisse"][k] \
+			and sq.get_bone_parent(_os["pied"][k]) == _os["mollet"][k]
 	_ik = TwoBoneIK3D.new()
 	_ik.name = "IKJambes"
 	_orienteur = Orienteur.new()
@@ -147,7 +178,12 @@ func appliquer_pose_finale() -> void:
 		return
 	for i: int in _chaine():
 		if _finale.has(i):
-			PiedsAuSol.poser_globale(sq, i, _finale[i])
+			if _opti:
+				var t: Transform3D = _finale[i]
+				sq.set_bone_pose_position(i, t.origin)
+				sq.set_bone_pose_rotation(i, t.basis.get_rotation_quaternion())
+			else:
+				PiedsAuSol.poser_globale(sq, i, _finale[i])
 	sq.force_update_all_bone_transforms()
 
 func _sol(depart: Vector3, bas: float, exclus: Array[RID]) -> Dictionary:
@@ -164,6 +200,67 @@ func _process_modification_with_delta(delta: float) -> void:
 	var sq := get_skeleton()
 	if sq == null or corps == null or not corps.is_inside_tree() or not actif:
 		return
+	if not _opti or not _chaine_directe:
+		_ancien(sq, delta)
+		return
+	var xf := sq.global_transform
+	var inv := xf.basis.inverse()
+	var f := 1.0 - exp(-lissage * delta)
+	var influence := get_influence()
+	var origine := corps.global_position
+	var sol_y := [origine.y, origine.y]
+	var pf: Array[Vector3] = [Vector3.ZERO, Vector3.ZERO]
+	var ip: int = _os["pelvis"]
+	var pp_i := sq.get_bone_parent(ip)
+	var g_parent := pose_globale(sq, pp_i) if pp_i >= 0 else Transform3D.IDENTITY
+	var pp := g_parent * sq.get_bone_pose(ip)
+	for k in 2:
+		var i: int = _os["pied"][k]
+		var pose := pp * sq.get_bone_pose(_os["cuisse"][k]) * sq.get_bone_pose(_os["mollet"][k]) * sq.get_bone_pose(i)
+		pf[k] = xf * pose.origin
+		_base_pied[k] = xf.basis * pose.basis
+		var depart := Vector3(pf[k].x, maxf(pf[k].y, origine.y) + 0.5, pf[k].z)
+		var r := _sol(depart, depart.y - origine.y + 1.0, [corps.get_rid()] as Array[RID])
+		var h_anim := pf[k].y - origine.y
+		var poids := clampf(1.0 - (h_anim - _h_repos) / 0.3, 0.0, 1.0) * influence
+		var normale := Vector3.UP
+		var brut := 0.0
+		if not r.is_empty():
+			sol_y[k] = r.position.y
+			brut = r.position.y - origine.y
+			normale = r.normal
+		_decal[k] = lerpf(_decal[k], brut * poids, f)
+		var angle := minf(Vector3.UP.angle_to(normale), deg_to_rad(angle_max)) * poids
+		var axe := Vector3.UP.cross(normale)
+		var q := Quaternion(axe.normalized(), angle) if axe.length() > 0.001 and angle > 0.0 else Quaternion()
+		_rot[k] = _rot[k].slerp(q, f)
+	# bassin : descend (ou monte un peu) avec le pied le plus bas
+	var decal_bassin := clampf(minf(_decal[0], _decal[1]), -bassin_bas_max, bassin_haut_max)
+	var voulu_bassin := Transform3D(pp.basis, pp.origin + inv * Vector3(0.0, decal_bassin, 0.0))
+	var local_bassin := g_parent.affine_inverse() * voulu_bassin
+	sq.set_bone_pose_position(ip, local_bassin.origin)
+	sq.set_bone_pose_rotation(ip, local_bassin.basis.get_rotation_quaternion())
+	var g_bassin := g_parent * sq.get_bone_pose(ip)
+	for k in 2:
+		var y: float = pf[k].y + _decal[k]
+		var plancher: float = sol_y[k] + _h_repos * garde
+		if influence > 0.0 and y < plancher:
+			y = plancher
+		var but := Vector3(pf[k].x, y, pf[k].z)
+		_cibles[k].global_position = but
+		# pôle : le genou reste dans son plan de flexion d'origine
+		var g_cuisse := g_bassin * sq.get_bone_pose(_os["cuisse"][k])
+		var hanche := xf * g_cuisse.origin
+		var genou := xf * (g_cuisse * sq.get_bone_pose(_os["mollet"][k])).origin
+		var jambe := but - hanche
+		var t := clampf((genou - hanche).dot(jambe) / maxf(jambe.length_squared(), 0.0001), 0.0, 1.0)
+		var dir := genou - (hanche + jambe * t)
+		if dir.length() < 0.01:
+			dir = xf.basis * _avant
+		_poles[k].global_position = genou + dir.normalized()
+
+## Version d'avant (--sans-opti-pieds, ou rig dont la jambe n'est pas une chaîne directe).
+func _ancien(sq: Skeleton3D, delta: float) -> void:
 	var xf := sq.global_transform
 	var inv := xf.basis.inverse()
 	var f := 1.0 - exp(-lissage * delta)

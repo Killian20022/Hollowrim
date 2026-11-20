@@ -3,6 +3,9 @@ extends Node
 ## Animation des PNJ (villageois, gardes) à cadence réduite quand ils sont HORS DU CHAMP (derrière ou sur le côté du joueur, à plus de 3 m) :
 ## leur AnimationPlayer passe en mode manuel et n'avance qu'une image sur 4 (avec le temps cumulé : même mouvement, mêmes signaux). Le squelette, l'IK des
 ## pieds et l'orientation de tête (modificateurs) ne sont recalculés qu'à ce moment-là. Dans le champ, rien ne change (mode normal).
+## Opti 2026-11-20 (persos_anim) : un modificateur de squelette ACTIF tourne à chaque image même si l'animation est figée (mesuré, Godot 4.7) ;
+## le Skeleton3D passe donc lui aussi en mode MANUEL hors champ et avance (skeleton.advance) avec l'animation : IK des pieds (2 rayons), tête,
+## orientation des mains et ressorts ne coûtent plus rien entre deux pas. --sans-opti-squelette-lod : comportement d'avant (modificateurs à chaque image).
 ##   AnimLod.inscrire(pnj, pnj.anim)   (une fois, à la création du PNJ)
 ## Réévalué toutes les 0,1 s ; la marge (90° de part et d'autre de l'axe de vue, pour un demi-champ d'environ 55°) laisse 0,2 s à un demi-tour rapide.
 
@@ -11,6 +14,7 @@ const CADENCE := 4
 const DIST_MIN := 3.0
 
 static var _inst: AnimLod
+static var opti_squelette := not OS.get_cmdline_user_args().has("--sans-opti-squelette-lod")
 var _items: Array[Dictionary] = []
 var _t := 0.0
 var _image := 0
@@ -22,7 +26,27 @@ static func inscrire(pnj: Node3D, anim: AnimationPlayer) -> void:
 		_inst = AnimLod.new()
 		_inst.name = "AnimLod"
 		pnj.get_tree().root.add_child.call_deferred(_inst)
-	_inst._items.append({"n": pnj, "a": anim, "acc": 0.0, "lent": false})
+	_inst._items.append({"n": pnj, "a": anim, "acc": 0.0, "lent": false, "sk": null})
+
+## Squelette animé par `a` (sous sa racine), mis en cache ; null si aucun.
+static func _squelette(it: Dictionary) -> Skeleton3D:
+	var sk: Variant = it["sk"]
+	if sk != null and is_instance_valid(sk):
+		return sk as Skeleton3D
+	var a: AnimationPlayer = it["a"]
+	var r := a.get_node_or_null(a.root_node)
+	var s: Skeleton3D = r.find_child("Skeleton3D", true, false) as Skeleton3D if r != null else null
+	it["sk"] = s
+	return s
+
+## Avance le squelette en mode manuel (modificateurs) du temps cumulé.
+static func _avancer(it: Dictionary, acc: float) -> void:
+	var a: AnimationPlayer = it["a"]
+	a.advance(acc)
+	if opti_squelette:
+		var sk := _squelette(it)
+		if sk != null and sk.modifier_callback_mode_process == Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL:
+			sk.advance(acc)
 
 func _process(dt: float) -> void:
 	_image += 1
@@ -53,11 +77,15 @@ func _process(dt: float) -> void:
 				it["lent"] = hors
 				a.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL if hors else AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
 				if not hors and float(it["acc"]) > 0.0:
-					a.advance(float(it["acc"]))
+					_avancer(it, float(it["acc"]))
 					it["acc"] = 0.0
+				if opti_squelette:
+					var sk := _squelette(it)
+					if sk != null:
+						sk.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL if hors else Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_IDLE
 		if it["lent"] and n.can_process():
 			it["acc"] = float(it["acc"]) + dt
 			if (_image + i) % CADENCE == 0:
-				a.advance(float(it["acc"]))
+				_avancer(it, float(it["acc"]))
 				it["acc"] = 0.0
 		i += 1
