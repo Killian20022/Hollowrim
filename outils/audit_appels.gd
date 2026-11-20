@@ -135,6 +135,7 @@ func _repartition() -> void:
 
 ## --lister=<motif> : chaque GeometryInstance3D visible dont le chemin contient le motif (nom, maillage, surfaces, triangles, ombre).
 func _lister(motif: String) -> void:
+	_dans_champ(AABB())
 	for nd in root.find_children("*", "GeometryInstance3D", true, false):
 		var gi := nd as GeometryInstance3D
 		var ch := String(gi.get_path())
@@ -155,7 +156,23 @@ func _lister(motif: String) -> void:
 				if msh is ArrayMesh:
 					var ix := (msh as ArrayMesh).surface_get_array_index_len(i)
 					tris += (ix if ix > 0 else (msh as ArrayMesh).surface_get_array_len(i)) / 3
-		print("LISTE %s | %s | %s surf=%d tris=%d ombre=%d vr=%.0f-%.0f mat=%s" % [ch.substr(maxi(0, ch.length() - 110)), gi.get_class(), nom_m, surf, tris, gi.cast_shadow, gi.visibility_range_begin, gi.visibility_range_end, _matiere(gi)])
+		var bb := gi.global_transform * gi.get_aabb()
+		var dans := _dans_champ(bb)
+		var d := bb.get_center().distance_to(cam_pos)
+		print("LISTE %s | %s | %s surf=%d tris=%d ombre=%d vr=%.0f-%.0f champ=%d d=%.0f taille=%.0f mat=%s" % [ch.substr(maxi(0, ch.length() - 110)), gi.get_class(), nom_m, surf, tris, gi.cast_shadow, gi.visibility_range_begin, gi.visibility_range_end, 1 if dans else 0, d, bb.size.length(), _matiere(gi)])
+
+var cam_pos := Vector3.ZERO
+var _plans: Array = []
+func _dans_champ(bb: AABB) -> bool:
+	if _plans.is_empty():
+		var cam := root.get_viewport().get_camera_3d()
+		_plans = cam.get_frustum()
+		cam_pos = cam.global_position
+	for pl: Plane in _plans:
+		var pv := bb.position + Vector3(bb.size.x if pl.normal.x < 0 else 0.0, bb.size.y if pl.normal.y < 0 else 0.0, bb.size.z if pl.normal.z < 0 else 0.0)
+		if pl.is_point_over(pv):
+			return false
+	return true
 
 func _mesurer(liste: Array) -> Array:
 	var avant := _lire()
