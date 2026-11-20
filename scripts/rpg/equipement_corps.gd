@@ -83,7 +83,26 @@ func armure_totale() -> float:
 
 ## Somme des effets portés (clés communes : docs/RPG.md §3), lue par Progression.bonus() : « traits » de matière (armures HD,
 ## toujours actifs, malus négatifs permis) + « effets » (enchantements).
+## Opti cpu_scripts (2026-11-20) : lue plusieurs fois par pas de physique (régénérations du joueur, Progression.bonus/mult) ; c'est une
+## fonction pure des pièces portées (fiches fixes par identifiant, « +n » compris) : gardée tant que `emplacements` ne change pas
+## (empreinte Dictionary.hash). Le dictionnaire rendu est partagé : lecture seule. `--sans-opti-cache-stats` : recalcul à chaque appel.
+static var opti_cache := not ("--sans-opti-cache-stats" in OS.get_cmdline_user_args())
+var _eff_cache: Dictionary = {}
+var _eff_cle := 0
+var _eff_ok := false
+
 func effets_totaux() -> Dictionary:
+	if opti_cache:
+		var h := emplacements.hash()
+		if _eff_ok and h == _eff_cle:
+			return _eff_cache
+		_eff_cache = _effets_totaux_calcul()
+		_eff_cle = h
+		_eff_ok = true
+		return _eff_cache
+	return _effets_totaux_calcul()
+
+func _effets_totaux_calcul() -> Dictionary:
 	var t := {}
 	for e in emplacements:
 		if emplacements[e] == "":

@@ -50,6 +50,14 @@ static func temoins_shaders() -> Array:
 	return res
 
 # ------------------------------------------------------------------ fléchette
+## Opti cpu_scripts (2026-11-20) : en SOLO, crypte cachée (joueur dehors), les dalles et souffles ne servent à rien mais tournaient à
+## chaque pas de physique (~0,12 ms/pas au village) : ils dorment. En coop, jamais (l'hôte arbitre pour des joueurs qui peuvent être
+## dedans). Le cycle du souffle reprend au retour ; il est remis au calme (son coupé) en s'endormant. `--sans-opti-pieges` : avant.
+static var opti_sommeil := not ("--sans-opti-pieges" in OS.get_cmdline_user_args())
+
+static func endormi(n: Node3D) -> bool:
+	return opti_sommeil and not n.is_visible_in_tree() and not ReseauProjectiles.en_ligne()
+
 class Fleche extends Node3D:
 	var vitesse := 18.0
 	var direction := Vector3.FORWARD     # globale
@@ -152,6 +160,8 @@ class Dalle extends Mecanisme.Base:
 		return absf(l.x) < 0.65 and absf(l.z) < 0.65 and l.y > -0.3 and l.y < 0.5 and (j as CharacterBody3D).is_on_floor()
 
 	func _physics_process(dt: float) -> void:
+		if Piege.endormi(self):
+			return
 		if ReseauProjectiles.invite():
 			return   # coop, invité : l'hôte arbitre la dalle (evenement_distant)
 		if not ReseauProjectiles.en_ligne() and (joueur == null or joueur.mort):
@@ -343,6 +353,11 @@ class Souffle extends Mecanisme.Base:
 			temps = float(d.get("t", temps))
 
 	func _physics_process(dt: float) -> void:
+		if Piege.endormi(self):
+			if _phase_prec != "calme" and _phase_prec != "":
+				_changer_phase("calme")
+				_phase_prec = "calme"
+			return
 		temps += dt
 		if ReseauProjectiles.en_ligne() and ReseauProjectiles.est_hote():
 			_sync += dt

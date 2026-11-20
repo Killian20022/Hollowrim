@@ -71,6 +71,38 @@ func monter(id: String, genre_: String, ech: float, tampons: Array, materiaux: D
 	add_to_group("cassables")
 	_veille = fposmod(float(ident.hash() % 1000) / 1000.0 * PERIODE, PERIODE)
 
+## Entrée dans l'arbre (fil principal, même pour une crypte bâtie en fil de fond) : inscription au balayage commun.
+func _ready() -> void:
+	if opti_veille and not casse:
+		set_process(_vol >= 0.0)      # plus de _process par pièce intacte : un seul balayage pour toutes (voir _sonder)
+		if not _veilleurs.has(self):
+			_veilleurs.append(self)
+		if not _sondage_arme:
+			_sondage_arme = true
+			get_tree().create_timer(PERIODE).timeout.connect(_sonder.bind(get_tree()))
+
+## Opti cpu_scripts (2026-11-20) : ~100 urnes/tonneaux/caisses intacts gardaient chacun un _process par image pour relire l'état
+## « pillé » toutes les PERIODE s ; un seul balayage statique le fait pour tous (mêmes appels, même période ; une pièce gelée ou
+## en pause n'est pas relue, comme avant). Le _process ne sert plus qu'à l'envol des éclats. `--sans-opti-cassables` : avant.
+static var opti_veille := not ("--sans-opti-cassables" in OS.get_cmdline_user_args())
+static var _veilleurs: Array = []
+static var _sondage_arme := false
+
+static func _sonder(arbre: SceneTree) -> void:
+	var i := 0
+	while i < _veilleurs.size():
+		var c = _veilleurs[i]
+		if not is_instance_valid(c) or c.casse:
+			_veilleurs.remove_at(i)
+			continue
+		i += 1
+		if c.is_inside_tree() and c.can_process() and ButinTables.est_pille(c.ident):
+			c.casser(false, c.global_position + Vector3(0, c.haut, 0))
+	if _veilleurs.is_empty() or not is_instance_valid(arbre):
+		_sondage_arme = false
+	else:
+		arbre.create_timer(PERIODE).timeout.connect(_sonder.bind(arbre))
+
 func est_casse() -> bool:
 	return casse
 
@@ -243,6 +275,7 @@ func _eclater(avec_effets: bool, centre: Vector3, origine: Vector3) -> void:
 			ec.basis = q
 	if avec_effets:
 		_vol = 0.0
+		set_process(true)      # envol des éclats (_animer)
 	else:
 		_vol = -1.0
 

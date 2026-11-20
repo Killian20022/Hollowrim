@@ -157,7 +157,17 @@ static func _nb_longues(ids: Array[String]) -> int:
 func pieces() -> Array[String]:
 	return choisir(Marchand.stock(id_marchand))
 
+## Opti cpu_scripts (2026-11-20) : le tri du stock (pieces(), ~10 ms pour les deux étals toutes les PERIODE s, sur UNE image) n'est
+## refait que si le stock a changé (empreinte Dictionary.hash, exacte : pieces() ne dépend que du stock). `--sans-opti-etal` : avant.
+static var _opti := not ("--sans-opti-etal" in OS.get_cmdline_user_args())
+var _empreinte := -1
+
 func actualiser() -> void:
+	if _opti:
+		var h := Marchand.stock(id_marchand).hash()
+		if h == _empreinte and _vu != "?":
+			return
+		_empreinte = h
 	var ex := pieces()
 	var cle := ",".join(ex)
 	if cle == _vu:

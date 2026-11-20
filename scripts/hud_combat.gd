@@ -197,7 +197,32 @@ func _process(dt: float) -> void:
 		_a_vie = 1.0; _a_mana = 1.0; _a_end = 1.0; _a_mains = 1.0; _a_barre = 1.0
 	if _force_deploye:
 		_deploi = 1.0
-	queue_redraw()
+	if not opti_dessin or _dessin_change(dt):
+		queue_redraw()
+
+## Opti cpu_scripts (2026-11-20) : _draw coûtait ~1 ms par image (centaines de draw_rect, glyphes, icônes) alors que la plupart du
+## temps rien ne change. Redessin seulement si l'état affiché change (valeurs lues, opacités, mains, style, manette), à chaque image
+## tant qu'un clignotement est en cours (vie basse, statut, charge pleine) et toutes les 0,25 s au moins (filet de sécurité).
+## Le dernier dessin reste affiché tel quel entre deux : même image à l'écran. `--sans-opti-hud` : redessin à chaque image.
+static var opti_dessin := not ("--sans-opti-hud" in OS.get_cmdline_user_args())
+var _sig_dessin: Array = []
+var _t_force_dessin := 0.0
+
+func _dessin_change(dt: float) -> bool:
+	_t_force_dessin -= dt
+	var anime := demo
+	if not _v.is_empty():
+		anime = anime or (_a_vie > 0.02 and float(_v.vie) / maxf(1.0, float(_v.vie_max)) < 0.25) \
+			or float(_v.charge_g) >= 0.999 or float(_v.charge_d) >= 0.999 or not (_v.statuts as Array).is_empty()
+	const Q := 1.0 / 512.0      # opacités (fondus exponentiels) : un écart < 1/512 ne se voit pas sur 8 bits
+	var sig := [_v.hash(), snappedf(_a_vie, Q), snappedf(_a_mana, Q), snappedf(_a_end, Q), snappedf(_a_mains, Q), snappedf(_a_barre, Q),
+		snappedf(_deploi, Q), gauche.hash(), droite.hash(), _dernier_choisi,
+		size, CUIR.style(), Manette.generation, _force_visible, _force_deploye]
+	if anime or _t_force_dessin <= 0.0 or sig != _sig_dessin:
+		_sig_dessin = sig
+		_t_force_dessin = 0.25
+		return true
+	return false
 
 ## Remplit _v (valeurs de l'image) depuis le joueur ou la démo.
 func _lire_etat(dt: float) -> void:

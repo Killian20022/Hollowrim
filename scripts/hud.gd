@@ -22,6 +22,74 @@ const ENNEMI := preload("res://assets/ui/indicateur_degat.svg")
 const HUD_COMBAT := preload("res://scripts/hud_combat.gd")
 const HUD_FURTIVITE := preload("res://scripts/hud_furtivite.gd")
 const CUIR := preload("res://scripts/hud_cuir.gd")
+## Opti cpu_scripts (2026-11-20) : le bandeau de la boussole (~80 draw_rect / textures, fixe) coûtait ~0,25 ms à chaque redessin du
+## HUD ; il vit dans un nœud enfant dessiné DERRIÈRE le HUD (même place, même ordre : il était dessiné en premier) et n'est redessiné
+## que si la taille ou le style changent. Graduations, lettres et marqueurs restent dessinés à chaque image. `--sans-opti-hud` : avant.
+static var opti_boussole := not ("--sans-opti-hud" in OS.get_cmdline_user_args())
+var _fond_bous: Control
+var _fond_cle := ""
+
+func _assurer_fond_boussole(st: String) -> void:
+	if _fond_bous == null:
+		_fond_bous = Control.new()
+		_fond_bous.name = "FondBoussole"
+		_fond_bous.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_fond_bous.show_behind_parent = true
+		_fond_bous.set_anchors_preset(Control.PRESET_FULL_RECT)
+		add_child(_fond_bous)
+		move_child(_fond_bous, 0)
+		_fond_bous.draw.connect(func() -> void:
+			if joueur != null and CUIR.style() != "ancienne":
+				_fond_boussole_cuir(_fond_bous, _cx(), CUIR.style()))
+	var cle := "%s|%s" % [st, size]
+	if cle != _fond_cle:
+		_fond_cle = cle
+		_fond_bous.queue_redraw()
+
+## Bandeau fixe de la boussole cuir (fond, embouts, filets) dessiné sur `c` : la boussole elle-même, ou (opti cpu_scripts) le nœud
+## FondBoussole derrière le HUD, redessiné seulement si la taille ou le style change.
+func _fond_boussole_cuir(c: CanvasItem, cx: float, st: String) -> void:
+	var demi := BOUSSOLE_DEMI
+	var y := 3.0
+	var h := 11.0
+	var x0 := cx - demi - 6
+	var larg := 2 * demi + 12
+	match st:
+		"a":
+			# bandeau de cuir : corps plein, puis 10 px qui s'effacent à chaque bout (pas d'embout dur)
+			var corps := Rect2(x0 + 10, y, larg - 20, h)
+			c.draw_rect(Rect2(corps.position - Vector2(0, 1), Vector2(corps.size.x, h + 2)), Color(CUIR.NOIR, 0.55))
+			c.draw_texture_rect(CUIR.cuir(), corps, true, Color(1, 1, 1, 0.82))
+			for k in 10:
+				var a := (10 - k) / 11.0
+				for cote in [-1, 1]:
+					var x: float = corps.position.x - 1 - k if cote < 0 else corps.end.x + k
+					c.draw_rect(Rect2(x, y - 1, 1, h + 2), Color(CUIR.NOIR, 0.55 * a))
+					c.draw_texture_rect_region(CUIR.cuir(), Rect2(x, y, 1, h), Rect2(fmod(x, 64.0), 0, 1, h), Color(1, 1, 1, 0.82 * a))
+					c.draw_rect(Rect2(x, y, 1, 1), Color(CUIR.OR_TERNI, 0.9 * a))
+					c.draw_rect(Rect2(x, y + h - 1, 1, 1), Color(CUIR.OR_SOMBRE, 0.9 * a))
+			c.draw_rect(Rect2(corps.position, Vector2(corps.size.x, 1)), Color(CUIR.OR_TERNI, 0.9))
+			c.draw_rect(Rect2(corps.position + Vector2(0, h - 1), Vector2(corps.size.x, 1)), Color(CUIR.OR_SOMBRE, 0.9))
+		"b":
+			# fil d'or sous les lettres, qui s'efface aux bouts
+			for k in int(larg):
+				var t: float = absf(k - larg * 0.5) / (larg * 0.5)
+				var a := clampf((1.0 - t) * 3.0, 0.0, 1.0)
+				c.draw_rect(Rect2(x0 + k, y + h, 1, 1), Color(CUIR.NOIR, 0.6 * a))
+				c.draw_rect(Rect2(x0 + k, y + h - 1, 1, 1), Color(CUIR.OR_TERNI, 0.95 * a))
+		"c":
+			# bande de vélin, embouts de cuir à filet d'or
+			var bande := Rect2(x0 + 4, y, larg - 8, h)
+			c.draw_rect(bande.grow(1), Color(CUIR.NOIR, 0.7))
+			c.draw_texture_rect(CUIR.velin(), bande, true, Color(1, 1, 1, 0.9))
+			c.draw_rect(Rect2(bande.position, Vector2(bande.size.x, 1)), Color(CUIR.OR_TERNI, 0.9))
+			c.draw_rect(Rect2(bande.position + Vector2(0, h - 1), Vector2(bande.size.x, 1)), Color(CUIR.OR_SOMBRE, 0.9))
+			for cote in [-1, 1]:
+				var r := Rect2(x0 - 1 if cote < 0 else x0 + larg - 6, y - 2, 7, h + 4)
+				CUIR.plaque(c, r, 1.0, CUIR.OR_TERNI)
+				CUIR.losange(c, r.get_center().floor(), CUIR.CIRE_CLAIRE, 1.0)
+
+
 ## Boussole « cuir enluminé » (styles a, b, c de HudCuir) : demi-largeur utile (px) et hauteur du bandeau.
 const BOUSSOLE_DEMI := 84.0
 
@@ -281,6 +349,8 @@ func _draw() -> void:
 	# --- boussole ---
 	if CUIR.style() == "ancienne":
 		_boussole_fer(cx)
+		if _fond_bous != null:
+			_assurer_fond_boussole("ancienne")     # plus de bandeau cuir derrière
 	else:
 		_boussole_cuir(cx, CUIR.style())
 
@@ -577,42 +647,15 @@ func _boussole_cuir(cx: float, st: String) -> void:
 	var nord_c: Color = CUIR.LETTRINE_OR
 	var tic_c: Color = Color(CUIR.SUR_CUIR, 0.75)
 	var ombre := true
+	if not opti_boussole:
+		_fond_boussole_cuir(self, cx, st)
+	else:
+		_assurer_fond_boussole(st)
 	match st:
-		"a":
-			# bandeau de cuir : corps plein, puis 10 px qui s'effacent à chaque bout (pas d'embout dur)
-			var corps := Rect2(x0 + 10, y, larg - 20, h)
-			draw_rect(Rect2(corps.position - Vector2(0, 1), Vector2(corps.size.x, h + 2)), Color(CUIR.NOIR, 0.55))
-			draw_texture_rect(CUIR.cuir(), corps, true, Color(1, 1, 1, 0.82))
-			for k in 10:
-				var a := (10 - k) / 11.0
-				for cote in [-1, 1]:
-					var x: float = corps.position.x - 1 - k if cote < 0 else corps.end.x + k
-					draw_rect(Rect2(x, y - 1, 1, h + 2), Color(CUIR.NOIR, 0.55 * a))
-					draw_texture_rect_region(CUIR.cuir(), Rect2(x, y, 1, h), Rect2(fmod(x, 64.0), 0, 1, h), Color(1, 1, 1, 0.82 * a))
-					draw_rect(Rect2(x, y, 1, 1), Color(CUIR.OR_TERNI, 0.9 * a))
-					draw_rect(Rect2(x, y + h - 1, 1, 1), Color(CUIR.OR_SOMBRE, 0.9 * a))
-			draw_rect(Rect2(corps.position, Vector2(corps.size.x, 1)), Color(CUIR.OR_TERNI, 0.9))
-			draw_rect(Rect2(corps.position + Vector2(0, h - 1), Vector2(corps.size.x, 1)), Color(CUIR.OR_SOMBRE, 0.9))
 		"b":
-			# fil d'or sous les lettres, qui s'efface aux bouts
-			for k in int(larg):
-				var t: float = absf(k - larg * 0.5) / (larg * 0.5)
-				var a := clampf((1.0 - t) * 3.0, 0.0, 1.0)
-				draw_rect(Rect2(x0 + k, y + h, 1, 1), Color(CUIR.NOIR, 0.6 * a))
-				draw_rect(Rect2(x0 + k, y + h - 1, 1, 1), Color(CUIR.OR_TERNI, 0.95 * a))
 			lettre_c = CUIR.CLAIR
 			tic_c = Color(CUIR.OR_CLAIR, 0.85)
 		"c":
-			# bande de vélin, embouts de cuir à filet d'or
-			var bande := Rect2(x0 + 4, y, larg - 8, h)
-			draw_rect(bande.grow(1), Color(CUIR.NOIR, 0.7))
-			draw_texture_rect(CUIR.velin(), bande, true, Color(1, 1, 1, 0.9))
-			draw_rect(Rect2(bande.position, Vector2(bande.size.x, 1)), Color(CUIR.OR_TERNI, 0.9))
-			draw_rect(Rect2(bande.position + Vector2(0, h - 1), Vector2(bande.size.x, 1)), Color(CUIR.OR_SOMBRE, 0.9))
-			for cote in [-1, 1]:
-				var r := Rect2(x0 - 1 if cote < 0 else x0 + larg - 6, y - 2, 7, h + 4)
-				CUIR.plaque(self, r, 1.0, CUIR.OR_TERNI)
-				CUIR.losange(self, r.get_center().floor(), CUIR.CIRE_CLAIRE, 1.0)
 			lettre_c = CUIR.ENCRE
 			nord_c = CUIR.RUBRIQUE
 			tic_c = Color(CUIR.ENCRE, 0.7)

@@ -120,6 +120,17 @@ var _parle := false  # conversation : Idle_Talking (vrai) ou Idle
 var _delai_parole := 0.0
 var marionnette := false         # multijoueur (reseau_monde_vivant.gd) : chez un invité l'IA est coupée, l'hôte envoie l'état
 var lod := 0                     # 0 complet ; 1 allégé (ni IK des pieds, ni suivi de tête, ni ombre) ; 2 endormi (caché, gelé) — réglé par Vie
+## Opti cpu_scripts (2026-11-20) : en `lod` 1 (au-delà de 22 m de tout joueur), l'IA et move_and_slide ne tournent qu'un pas de physique
+## sur PAS_ETALE, avec le temps cumulé (vitesse mise à l'échelle le temps du move_and_slide : même trajet). Marche à 1,3 m/s : 6,5 cm
+## par mise à jour, sous le pixel du rendu à 22 m (~7 cm). Aussi en lod 0 quand il est IMMOBILE (poste, pause) à plus de 8 m du joueur
+## local : il ne se déplace pas, seule son animation (indépendante de ce pas) bouge. Jamais en conversation, en causerie ni en course.
+## `--sans-opti-pnj-etale` : avant.
+const PAS_ETALE := 3
+const DIST_IMMOBILE_ETALE := 8.0   # m : immobile (poste, pause) au-delà, étalé aussi en lod 0 (rien ne bouge que l'animation, à part)
+static var etale := not ("--sans-opti-pnj-etale" in OS.get_cmdline_user_args())
+var _dt_etale := 0.0
+var _n_etale := 0
+var _rot_etale := 0.0
 var _forme: CollisionShape3D
 var _route: Array = []           # RENTRE : points à suivre (le dernier est le but)
 var _entre := false              # RENTRE : à l'arrivée, il entre dans le bâtiment (DORT)
@@ -538,6 +549,18 @@ func _physics_process(dt: float) -> void:
 		if seq != "":
 			_au_lit(dt)      # lot sommeil : s'asseoir, s'allonger, dormir, se lever (le corps ne bouge plus : pas de move_and_slide)
 		return
+	if etale and (lod == 1 or (velocity.x == 0.0 and velocity.z == 0.0 and rotation.y == _rot_etale and (etat == POSTE or etat == PAUSE) \
+			and _dist_locale() > DIST_IMMOBILE_ETALE)) \
+			and not _en_conversation and causerie == null and not _vite:
+		_dt_etale += dt
+		_n_etale += 1
+		if (_n_etale + get_instance_id()) % PAS_ETALE != 0:
+			return
+		dt = _dt_etale
+	else:
+		dt += _dt_etale
+	_dt_etale = 0.0
+	_rot_etale = rotation.y      # a-t-il pivoté pendant ce pas ? (alors le suivant est à plein régime)
 	_t += dt
 	_images_physique += 1
 	if not _points_filtres and _images_physique >= 3:
@@ -631,7 +654,7 @@ func _physics_process(dt: float) -> void:
 	elif velocity == Vector3.ZERO and is_on_floor() and (_images_physique + get_instance_id()) & 3 != 0:
 		pass     # perf : à l'arrêt sur le sol, move_and_slide ne sert qu'une image sur 4 (rien ne le pousse, il retomberait en ≤ 4 images)
 	else:
-		move_and_slide()
+		_glisser(dt)
 
 	if cap != Vector3.ZERO:  # en déplacement : Walk si ça avance, Idle si demi-tour
 		if etat in [ALLER, RETOUR, RENTRE]:
@@ -649,6 +672,16 @@ func _physics_process(dt: float) -> void:
 		var vl := joueur.global_position - global_position
 		dist = Vector2(vl.x, vl.z).length()      # l'invite « E Parler » et l'interpellation concernent le joueur LOCAL
 	_interactions(dist, dt)
+
+## move_and_slide pour un pas de `dt` s (plusieurs pas de physique cumulés en lod 1 : vitesse mise à l'échelle le temps de l'appel).
+func _glisser(dt: float) -> void:
+	var k := dt / get_physics_process_delta_time()
+	if k > 1.01:
+		velocity *= k
+		move_and_slide()
+		velocity /= k
+	else:
+		move_and_slide()
 
 ## Conversation : alterne Idle_Talking (2,5 à 5 s) et Idle (1 à 2,5 s).
 func _parole(dt: float) -> void:
@@ -782,7 +815,7 @@ func _regard_tete(dist: float) -> void:
 	if causerie != null and is_instance_valid(causerie) and not _en_conversation:
 		_tete.cible = causerie.global_position + Vector3.UP * (1.2 if causerie.get("_assis") != "" else 1.55)
 		_tete.voulu = true
-	elif _cible_joueur() != null and (dist < DIST_TETE or _en_conversation):
+	elif (dist < DIST_TETE or _en_conversation) and _cible_joueur() != null:     # perf : la cible n'est cherchée que de près
 		var cj := _cible_joueur()
 		var cam: Camera3D = cj.camera if "camera" in cj else null
 		_tete.cible = cam.global_position if cam != null else cj.global_position + Vector3.UP * 1.6

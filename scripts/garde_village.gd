@@ -43,6 +43,17 @@ var deja_parle := false
 var etat := POSTE
 var anim: AnimationPlayer
 var lod := 0                    # 0 : complet ; 1 : allégé (ni IK des pieds ni suivi de tête ni ombre) ; 2 : endormi (caché, gelé)
+## Opti cpu_scripts (2026-11-20) : en `lod` 1 (au-delà de 22 m de tout joueur), l'IA et move_and_slide ne tournent qu'un pas de physique
+## sur PAS_ETALE, avec le temps cumulé (même trajet : la vitesse est mise à l'échelle le temps du move_and_slide). À 22 m, un pas de
+## ronde de 1 m/s fait 5 cm en 3 pas de physique, sous le pixel du rendu 480x270 (~7 cm). Phase décalée par garde (charge étalée).
+## Aussi en lod 0 quand il est IMMOBILE (poste, halte) à plus de 8 m du joueur local. Jamais en alerte ni en conversation.
+## `--sans-opti-pnj-etale` : un pas sur un, comme avant.
+const PAS_ETALE := 3
+const DIST_IMMOBILE_ETALE := 8.0   # m : immobile (poste, halte) au-delà, étalé aussi en lod 0
+static var etale := not ("--sans-opti-pnj-etale" in OS.get_cmdline_user_args())
+var _dt_etale := 0.0
+var _n_etale := 0
+var _rot_etale := 0.0
 var blocages := 0               # nombre de fois où il a dû renoncer à un point (test_gardes_village)
 var dernier_blocage := Vector3.ZERO
 var parcouru := 0.0             # distance parcourue (m)
@@ -236,6 +247,18 @@ func _physics_process(dt: float) -> void:
 	if marionnette:
 		_interactions(_dist_locale(), dt)      # invité : seulement « E Parler » et les interpellations
 		return
+	if etale and (lod == 1 or (velocity.x == 0.0 and velocity.z == 0.0 and rotation.y == _rot_etale and (etat == POSTE or etat == HALTE) \
+			and _dist_locale() > DIST_IMMOBILE_ETALE)) \
+			and etat != ALERTE and not _en_conversation:
+		_dt_etale += dt
+		_n_etale += 1
+		if (_n_etale + get_instance_id()) % PAS_ETALE != 0:
+			return
+		dt = _dt_etale
+	else:
+		dt += _dt_etale
+	_dt_etale = 0.0
+	_rot_etale = rotation.y      # a-t-il pivoté pendant ce pas ? (alors le suivant est à plein régime)
 	_t += dt
 	if service == "vigie":
 		_vigie(dt)
@@ -322,7 +345,7 @@ func _physics_process(dt: float) -> void:
 	velocity.z = dir_cap.z * _vit
 	_images_idle += 1
 	if velocity != Vector3.ZERO or not is_on_floor() or (_images_idle + get_instance_id()) & 3 == 0:
-		move_and_slide()      # perf : à l'arrêt sur le sol, move_and_slide ne sert qu'une image sur 4
+		_glisser(dt)      # perf : à l'arrêt sur le sol, move_and_slide ne sert qu'une image sur 4
 	var pas := global_position - _pos_prec
 	pas.y = 0.0
 	parcouru += pas.length()
@@ -338,6 +361,16 @@ func _physics_process(dt: float) -> void:
 		var vl := joueur.global_position - global_position
 		dist = Vector2(vl.x, vl.z).length()      # invite « E Parler » : joueur LOCAL
 	_interactions(dist, dt)
+
+## move_and_slide pour un pas de `dt` s (plusieurs pas de physique cumulés en lod 1 : vitesse mise à l'échelle le temps de l'appel).
+func _glisser(dt: float) -> void:
+	var k := dt / get_physics_process_delta_time()
+	if k > 1.01:
+		velocity *= k
+		move_and_slide()
+		velocity /= k
+	else:
+		move_and_slide()
 
 ## Le joueur arrive en face (devant lui, à moins de DIST_CEDER) : il faut lui laisser le passage (escaliers, ruelles).
 func _doit_ceder(vers: Vector3, dist: float) -> bool:
@@ -469,7 +502,7 @@ func _regard_tete(dist: float) -> void:
 	if etat == ALERTE and _ennemi != null and is_instance_valid(_ennemi):
 		_tete.cible = _ennemi.global_position + Vector3.UP * 1.3
 		_tete.voulu = true
-	elif _cible_joueur() != null and (dist < DIST_TETE or _en_conversation):
+	elif (dist < DIST_TETE or _en_conversation) and _cible_joueur() != null:     # perf : la cible n'est cherchée que de près
 		var cj := _cible_joueur()
 		var cam: Camera3D = cj.camera if "camera" in cj else null
 		_tete.cible = cam.global_position if cam != null else cj.global_position + Vector3.UP * 1.6
