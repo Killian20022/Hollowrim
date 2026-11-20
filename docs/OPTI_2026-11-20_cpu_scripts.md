@@ -61,6 +61,17 @@ suivi de tête, orientation — l'évaluation des clips seule ne coûte presque 
 | `cassable.gd` (64-104 nœuds) | 0,06-0,11 ms/image | un `_process` par urne pour sonder « pillé » toutes les 0,75 s |
 | mécanismes de crypte (5, classes internes de piege.gd) | 0,12 ms/pas | tournent même quand le joueur est au village (piste) |
 
+## Gains en images par seconde (médiane, même lancement, interrupteurs coupés à chaud, machine partagée)
+
+| lieu | sans mes optis | avec | gain | p95 sans → avec |
+|---|---|---|---|---|
+| feu de camp, 12 h | 16,88 ms = 59,2 i/s | 15,84 ms = **63,1 i/s** | +3,9 i/s (−1,0 ms) | 28,6 → 21,8 ms |
+| place du village, 12 h | 34,87 ms = 28,7 i/s | 30,71 ms = **32,6 i/s** | +3,9 i/s (−4,2 ms) | 60,3 → 40,2 ms |
+| combat (crypte, 6 ennemis + sorts), 21 h | 10,93 ms = 91,5 i/s | 10,33 ms = **96,8 i/s** | +5,3 i/s (−0,6 ms) | 17,3 → 17,8 ms (bruit) |
+
+Non compris dans ces chiffres : cassables et bandeau de boussole (non basculables à chaud), pièges de crypte, et le cache du poids du sac
+dans l'EXE (le sac de PERIODE_TEST_EQUIPEMENT n'existe pas en mode outil). Max refera le banc au calme.
+
 ## Ce qui est fait (une optimisation = un commit, interrupteur `--sans-opti-…` pour l'avant)
 
 | optimisation | interrupteur | exact ? | mesure |
