@@ -42,4 +42,9 @@ static func creer(graine := -1) -> GPUParticles3D:
 	mq.distance_fade_max_distance = 1.5
 	q.material = mq
 	neige.draw_pass_1 = q
+	# opti 2026-11-20 : les flocons (5000, matériau opaque à fondu tramé) étaient redessinés dans chaque découpe de l'ombre du
+	# soleil / de la lune (cast_shadow par défaut = ON) ; leurs ombres (3 à 8 cm) ne se voient pas à 640x360 (planches jour/nuit
+	# dans rendus/opti_2026-11-20/effets_lumieres/neige_ombre). --sans-opti-neige-ombre : comportement d'avant.
+	if not OS.get_cmdline_user_args().has("--sans-opti-neige-ombre"):
+		neige.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return neige

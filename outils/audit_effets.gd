@@ -98,6 +98,18 @@ func _appliquer(cfg: String) -> void:
 	if cfg != "" and cfg != "base":
 		print("EFFETS config « %s » : %d nœuds cachés" % [cfg, _caches.size()])
 
+var _ombre_appels := 0.0
+var _ombre_prims := 0.0
+var _ombre_n := 0
+## Passe d'OMBRE seule (indépendant de la charge de la machine) : appels et primitives dessinés dans les cartes d'ombre.
+func _process(dt: float) -> bool:
+	var r: bool = super._process(dt)
+	if phase == "mesure" and t >= STAB and rid.is_valid():
+		_ombre_appels += RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+		_ombre_prims += RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, RenderingServer.VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME)
+		_ombre_n += 1
+	return r
+
 func _terminer() -> void:
 	if _series.is_empty():
 		super._terminer()
@@ -138,6 +150,10 @@ func _ligne_serie(cfg: String) -> void:
 	if not _res.has(cfg):
 		_res[cfg] = []
 	(_res[cfg] as Array).append(v)
+	print("SERIE %-28s ombre_appels=%d ombre_prims=%d" % [cfg, _ombre_appels / maxf(1, _ombre_n), _ombre_prims / maxf(1, _ombre_n)])
+	_ombre_appels = 0.0
+	_ombre_prims = 0.0
+	_ombre_n = 0
 	print("SERIE %-28s cpu_rendu=%.2f gpu_med=%.2f gpu_p95=%.2f dt_med=%.2f dt_p99=%.2f >33=%d appels=%d prims=%d objets=%d n=%d" % [cfg, v[8], v[0], v[6], v[1], v[2], s33, v[3], v[4], v[5], n])
 
 func _bilan() -> void:
@@ -331,6 +347,13 @@ func _inventaire() -> void:
 			orph[k] = int(orph.get(k, 0)) + 1
 	for k in orph:
 		print("EFFETS   racine: %3d x %s" % [orph[k], k])
+	var ombre_p := {}
+	for p in m.find_children("*", "GPUParticles3D", true, false):
+		var gp := p as GPUParticles3D
+		if gp.is_visible_in_tree() and gp.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			var k := _origine(gp)
+			ombre_p[k] = int(ombre_p.get(k, 0)) + 1
+	print("EFFETS particules qui projettent une ombre (visibles) : %s" % str(ombre_p))
 	print("EFFETS particules GPU : total=%d visibles=%d (quantité %.0f) dans le champ=%d (quantité %.0f) CPUParticles=%d" % [np, np_vis, quant, np_champ, quant_champ, m.find_children("*", "CPUParticles3D", true, false).size()])
 	for cle in pscript:
 		var e: Array = pscript[cle]
