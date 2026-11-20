@@ -78,10 +78,20 @@ func _physics_process(dt: float) -> void:
 	_tick += 1
 	var maintenant := Time.get_ticks_msec() / 1000.0
 	var octets := {}   # id -> PackedByteArray (encodé une fois par tick)
+	# opti 2026-11-20 (physique_reseau_exe) : n'encoder QUE les entités qu'au moins un pair recevra à ce tick (pertinente pour lui et
+	# à sa cadence) ; le reste (PNJ, bêtes et ennemis lointains : la grande majorité du monde) n'appelle plus son fournisseur ni
+	# var_to_bytes. Envois identiques octet pour octet. `-- --sans-opti-replication` : toutes les entités encodées (comportement d'avant).
+	var tri := not _sans_opti
+	var pos_pairs: Array = []
+	if tri:
+		for pair in pairs:
+			pos_pairs.append(_pos_pair(pair))
 	for id in _ent.keys():
 		var e: Dictionary = _ent[id]
 		if not is_instance_valid(e["noeud"]) or not (e["four"] as Callable).is_valid():
 			retirer(id)
+			continue
+		if tri and not _attendu(id, e, pos_pairs):
 			continue
 		octets[id] = var_to_bytes(_quantifier((e["four"] as Callable).call()))
 	for pair in pairs:
@@ -90,6 +100,10 @@ func _physics_process(dt: float) -> void:
 		_envoye[pair] = vus
 		var lot: Array = []
 		var taille := 0
+		if tri:   # entité non encodée sortie de la zone du pair : oubliée comme avant (renvoyée en entier à son retour)
+			for id in vus.keys():
+				if not octets.has(id) and _ent.has(id) and not _pertinent(_ent[id], pos):
+					vus.erase(id)
 		for id in octets:
 			if not _pertinent(_ent[id], pos):
 				vus.erase(id)
@@ -188,6 +202,18 @@ func _quantifier(v: Variant) -> Variant:
 				d[k] = snappedf(x, PAS_REEL)
 		return d
 	return v
+
+var _sans_opti := "--sans-opti-replication" in OS.get_cmdline_user_args()
+
+## Vrai si au moins un pair (positions `pos_pairs`) recevra l'entité à ce tick : pertinente pour lui et à sa cadence.
+func _attendu(id: Variant, e: Dictionary, pos_pairs: Array) -> bool:
+	var h := int(hash(id))
+	for pos in pos_pairs:
+		if _pertinent(e, pos):
+			var cadence := _cadence(e, pos)
+			if cadence <= 1 or (_tick + h) % cadence == 0:
+				return true
+	return false
 
 ## Un état sur `cadence` pour les entités lointaines du pair.
 func _cadence(e: Dictionary, pos: Variant) -> int:
