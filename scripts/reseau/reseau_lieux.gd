@@ -94,8 +94,14 @@ static func enregistrer_porte(id: String, appliquer: Callable) -> void:
 	_init_reseau()
 
 ## Autoload Reseau, résolu à l'exécution (ce script est préchargé par des tests en `-s` avant l'enregistrement des autoloads).
+## Opti cpu_scripts (2026-11-20) : 46 appelants (pièges, projectiles, lieux…), plusieurs fois par pas ; le nœud Reseau (autoload)
+## est gardé tant qu'il est dans l'arbre (sinon recherché comme avant : même résultat).
+static var _reseau_garde: Node
 static func reseau() -> Node:
-	return (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Reseau")
+	if is_instance_valid(_reseau_garde) and _reseau_garde.is_inside_tree():
+		return _reseau_garde
+	_reseau_garde = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Reseau")
+	return _reseau_garde
 
 static func _en_ligne() -> bool:
 	return reseau().est_en_ligne()
