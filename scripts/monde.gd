@@ -258,6 +258,8 @@ func _ready() -> void:
 	await _attendre_prechauffes()
 	Chrono.total()
 	pret = true
+	if joueur != null and joueur.mains != null and joueur.mains.get("magie") != null and joueur.mains.magie.get("eq") != null:
+		joueur.mains.magie.eq.precharger_modeles()   # opti saccades : modèles des armes équipables lus en fil (--sans-opti-armes : A/B)
 	_brancher_rejoindre()   # lot 2a : instantané pour un invité qui rejoint en cours de partie
 	ApportPersonnage.installer(self)   # lot 5b : l'invité apporte SON personnage à l'hôte (inerte hors ligne)
 	if not _arguments().has("capture"):

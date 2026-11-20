@@ -54,6 +54,30 @@ func _init(eq: Equipement = null, inv: Inventaire = null) -> void:
 	_synchroniser("droite")
 	equipement.change.connect(_sur_equipement)
 
+## Opti saccades (2026-11-20) : modèles des armes du sac (et des raccourcis) lus en tâche de fond, à l'arrivée dans le monde et à chaque
+## changement du sac. Le 1er équipement d'une arme (raccourci 1-0 en pleine partie) faisait son load() sur le fil principal (6 à 18 ms
+## mesurés). La ressource lue reste tenue par le chargeur : le load() de Mains._installer_arme la trouve prête. Rien en --headless.
+## `--sans-opti-armes` : ancien comportement.
+var _demandes := {}
+func precharger_modeles() -> void:
+	if DisplayServer.get_name() == "headless" or OS.get_cmdline_user_args().has("--sans-opti-armes"):
+		return
+	if inventaire != null and not inventaire.change.is_connected(precharger_modeles):
+		inventaire.change.connect(precharger_modeles)
+	var ids: Array = []
+	for c: Dictionary in catalogue.get("categories", []):   # ce que l'écran d'inventaire propose (sac, période de test : tout)
+		ids.append_array(objets_possedes(String(c.get("id", ""))))
+	if inventaire != null:
+		ids.append_array(inventaire.ids_de("arme"))
+	for id in ids:
+		var cle := String(id)
+		if _demandes.has(cle) or cle == "":
+			continue
+		_demandes[cle] = true
+		var d := objet(cle) as DonneesArme
+		if d != null and d.modele != "" and ResourceLoader.exists(d.modele) and not ResourceLoader.has_cached(d.modele):
+			ResourceLoader.load_threaded_request(d.modele)
+
 ## Connaît tous les sorts de data/sorts/ (tests, outils de capture : depuis la fin du « tout disponible », une partie neuve n'a que les sorts de départ).
 func apprendre_tout() -> void:
 	for f in DirAccess.get_files_at("res://data/sorts/"):
