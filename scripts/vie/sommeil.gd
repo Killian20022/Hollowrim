@@ -95,7 +95,10 @@ func _process(dt: float) -> void:
 	_scan_t -= dt
 	if _scan_t <= 0.0:
 		_scan_t = 1.0
-		scanner()
+		# opti saccades (2026-11-20) : un lit par image (Lit procédural : 16-24 maillages + collisions ; les 3 lits de la halle passaient
+		# dans la même image, sauts de 107-113 ms) ; s'il en reste, le balayage suivant est à l'image d'après. `--sans-opti-lits` : tous.
+		if scanner(1 if _opti_lits else -1):
+			_scan_t = 0.0
 	# bonus de repos : décompté en heures de jeu
 	var c: Node = monde.get("cycle") if monde != null else null
 	if c != null:
@@ -122,14 +125,22 @@ func _unhandled_input(e: InputEvent) -> void:
 # ======================================================================================================== lits
 
 ## Pose un Lit sur chaque marqueur qui n'en a pas encore (appelé toutes les secondes : les intérieurs se posent par étapes).
-func scanner() -> void:
+## `max_n` : lits posés au plus (-1 : tous) ; renvoie vrai s'il reste des marqueurs à poser.
+var _opti_lits := not OS.get_cmdline_user_args().has("--sans-opti-lits")
+func scanner(max_n := -1) -> bool:
 	if not is_inside_tree():
-		return
+		return false
 	var nouveaux := false
+	var poses := 0
+	var reste := false
 	for m: Node in get_tree().get_nodes_in_group(GROUPE_MARQUEURS):
 		var mk := m as Node3D
 		if mk == null or not mk.is_inside_tree() or mk.has_meta("lit_pose"):
 			continue
+		if max_n >= 0 and poses >= max_n:
+			reste = true
+			break
+		poses += 1
 		mk.set_meta("lit_pose", true)
 		if _doublon(mk.global_position):
 			continue        # un autre lot a posé un marqueur au même endroit : un seul lit
@@ -147,9 +158,10 @@ func scanner() -> void:
 		nouveaux = true
 		_reserve.clear()           # nouvelles places : attributions refaites au prochain coucher
 		_attrib.clear()
-	var v: Node = monde.get("vie") if nouveaux and monde != null else null
+	var v: Node = monde.get("vie") if nouveaux and not reste and monde != null else null
 	if v != null and v.has_method("lits_poses"):
 		v.lits_poses()             # intérieur posé à la demande : ses dormeurs cachés se couchent dans leur lit
+	return reste
 
 ## Lit retiré de l'arbre (intérieur à la demande déchargé) : il n'est plus proposé à personne ; il sera reposé au rechargement.
 func _oublier(l: Lit) -> void:
