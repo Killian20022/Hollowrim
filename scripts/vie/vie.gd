@@ -125,7 +125,8 @@ func tick() -> void:
 	var saut := _heure_prec < 0.0 or absf(angle_difference(_heure_prec / 24.0 * TAU, heure / 24.0 * TAU)) / TAU * 24.0 > SAUT_HEURE
 	_heure_prec = heure
 	var menaces := _menaces()
-	_annoncer(menaces)
+	var proches := _menaces_proches(menaces) if opti_menaces else menaces
+	_annoncer(proches)
 	var pj := joueur.global_position
 	for c: Dictionary in civils:
 		var n: Node3D = c["n"]
@@ -137,7 +138,7 @@ func tick() -> void:
 			n.regler_lod(0 if d < GardesVillage.DIST_COMPLET else (1 if d < GardesVillage.DIST_ALLEGE else 2))
 		elif n.has_method("au_lit") and n.au_lit():
 			n.lod_lit(ReseauMondeVivant.distance_joueurs(n.global_position, pj))
-		_evaluer(c, heure, menaces, saut)
+		_evaluer(c, heure, menaces, saut, proches)
 	_frapper(heure)
 	if conversations != null:
 		conversations.tick(_horloge, menaces)
@@ -160,6 +161,33 @@ func _menaces() -> Array:
 			emettre("combat", n3.global_position, R_DANGER, n3)
 		actuels[id] = true
 	_menaces_prec = actuels
+	return out
+
+## Opti cpu_scripts (2026-11-20) : le groupe « ennemis » compte tous les hostiles du monde (crypte, grotte, forêt : ~100) et chaque
+## civil le parcourait jusqu'à 3 fois par tick (distances). Seuls ceux qui sont dans la boîte des civils (plan horizontal) élargie de
+## R_ANNONCE (≥ R_DANGER) peuvent être à moins de R_DANGER / 25 m d'un civil : filtre EXACT pour _annoncer et _danger_proche.
+## _fin_abri (distance à la porte de l'abri) et les causeries gardent la liste complète. `--sans-opti-vie-menaces` : avant.
+const R_ANNONCE := 25.0
+static var opti_menaces := not ("--sans-opti-vie-menaces" in OS.get_cmdline_user_args())
+
+func _menaces_proches(menaces: Array) -> Array:
+	if menaces.is_empty():
+		return menaces
+	var mn := Vector2(INF, INF)
+	var mx := Vector2(-INF, -INF)
+	for c: Dictionary in civils:
+		var n: Node3D = c["n"]
+		if is_instance_valid(n):
+			var p := n.global_position
+			mn = Vector2(minf(mn.x, p.x), minf(mn.y, p.z))
+			mx = Vector2(maxf(mx.x, p.x), maxf(mx.y, p.z))
+	mn -= Vector2(R_ANNONCE, R_ANNONCE)
+	mx += Vector2(R_ANNONCE, R_ANNONCE)
+	var out: Array = []
+	for e: Node3D in menaces:
+		var q := e.global_position
+		if q.x >= mn.x and q.x <= mx.x and q.z >= mn.y and q.z <= mx.y:
+			out.append(e)
 	return out
 
 ## « danger » sur le bus (au plus toutes les 2 s par ennemi) pour chaque hostile à moins de 25 m d'un civil : les gardes le prennent en compte.
@@ -195,26 +223,27 @@ func _danger_proche(pos: Vector3, menaces: Array) -> Node3D:
 			best = e
 	return best
 
-func _evaluer(c: Dictionary, heure: float, menaces: Array, saut: bool) -> void:
+func _evaluer(c: Dictionary, heure: float, menaces: Array, saut: bool, proches_: Variant = null) -> void:
+	var proches: Array = menaces if proches_ == null else proches_
 	var n: Node3D = c["n"]
 	if n.occupe():
 		return
 	var veilleur := String(c["f"].get("toujours", "")) != ""
 	# --- au lit : un hostile tout près le réveille (il est déjà à l'abri chez lui : il se lève et reste sur ses gardes)
 	if n.has_method("au_lit") and n.au_lit():
-		var e0 := _danger_proche(n.global_position, menaces)
+		var e0 := _danger_proche(n.global_position, proches)
 		if e0 != null:
 			c["danger_t"] = _horloge
 			n.reveiller_en_sursaut()
 			return
 	if n.get("lit") != null and c["mode"] == "maison" and not n.est_endormi() and not c["fuit"] and _chez_lui(n, c):
-		var e1 := _danger_proche(n.global_position, menaces)
+		var e1 := _danger_proche(n.global_position, proches)
 		if e1 != null:
 			c["danger_t"] = _horloge    # réveillé chez lui : il reste à l'abri de ses murs, debout
 			return
 	# --- danger
 	if not veilleur and not (n.est_endormi() and not c["fuit"]):
-		var e := _danger_proche(n.global_position, menaces)
+		var e := _danger_proche(n.global_position, proches)
 		if e != null:
 			c["danger_t"] = _horloge
 			dernier_danger = _horloge
