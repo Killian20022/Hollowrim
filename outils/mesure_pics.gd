@@ -35,6 +35,7 @@ var dt_s := 0.016       # durée de la dernière image (s)
 var _hist: Array[float] = []   # 30 dernières images (ms) : médiane glissante pour les sauts
 var _sauts := 0
 var _obj_prec := 0
+var _ajouts := {}       # nœuds ajoutés pendant l'image : « parent/nom (classe) » -> nombre (imprimé sur un saut)
 var _nds_prec := 0
 
 func _init() -> void:
@@ -62,6 +63,15 @@ func _pipelines() -> int:
 
 func _demarrer() -> void:
 	cible = _arg("cible", "place")
+	node_added.connect(func(n: Node) -> void:
+		if nom == "":
+			return
+		var p := n.get_parent()
+		var cle := "%s<%s" % [n.get_class(), (str(p.name) if p != null else "?")]
+		var gp := p.get_parent() if p != null else null
+		if gp != null:
+			cle += "<" + str(gp.name)
+		_ajouts[cle] = int(_ajouts.get(cle, 0)) + 1)
 	debug = _arg("detail") != ""
 	process_frame.connect(func() -> void:
 		var n := Time.get_ticks_usec()
@@ -399,6 +409,14 @@ func _process(_dt: float) -> bool:
 			jp = m.tertre.crypte.to_local(jp)
 		print("%s %6.1f ms [%s] t=%.1f s med=%.1f A=%.1f B=%.1f C=%.1f pipelines+%d (%s) obj%+d nds%+d fils=%s | joueur (%.1f, %.1f, %.1f) gpu=%.1f" % ["SAUT" if saut else "PIC", ms, nom, (Time.get_ticks_msec() - t0) / 1000.0, med, _a, _b, _c, dp, det, dob, dnd, _fils(), jp.x, jp.y, jp.z,
 			RenderingServer.viewport_get_measured_render_time_gpu(rid)])
+		if dnd > 5 or _ajouts.size() > 0:
+			var cles := _ajouts.keys()
+			cles.sort_custom(func(x, y) -> bool: return int(_ajouts[x]) > int(_ajouts[y]))
+			var txt := []
+			for c in cles.slice(0, 6):
+				txt.append("%s x%d" % [c, _ajouts[c]])
+			print("   ajouts : " + " ; ".join(txt))
+	_ajouts.clear()
 	return false
 
 func _clore() -> void:
