@@ -74,6 +74,7 @@ suivi de tête, orientation — l'évaluation des clips seule ne coûte presque 
 | Musique : balayage des ennemis en combat 10 fois/s | `--sans-opti-musique` | ≤ 0,1 s de retard sous un fondu | 0,15-0,19 → 0,07 ms/image |
 | `Conteneur.poids()` et `EquipementCorps.effets_totaux()` gardés tant que le contenu ne change pas (`hash`) | `--sans-opti-cache-stats` | exact | le joueur relisait tout le sac à chaque pas (surcharge) et 3 fois les effets ; dans l'EXE (PERIODE_TEST_EQUIPEMENT : tout l'équipement dans le sac) c'est le plus gros gain |
 | Cassables intacts sans `_process` : un seul balayage statique de l'état « pillé » toutes les 0,75 s | `--sans-opti-cassables` | mêmes appels, même période | 64-104 `_process` en moins (0,06-0,11 ms/image) |
+| Pièges de crypte (dalles, souffles) endormis en SOLO quand la crypte est cachée ; souffle remis au calme (son coupé) en s'endormant | `--sans-opti-pieges` | rien à faire dehors en solo ; jamais en coop | 0,12 ms/pas au village (profil) |
 | Nœud `Reseau` gardé dans `ReseauMondeVivant._r`, `PauseCoop.R`, `CombatCoop.R`, `ReseauLieux.reseau` | — | même nœud (recherché à nouveau s'il quitte l'arbre) | micro-banc : `en_ligne()` 1,3 µs, appelé 3-4 fois par pas et par PNJ |
 
 ### A/B dans le même lancement (feu de camp, `--lieu=temoin --heure=12 --bascule=sans_opti,sans_etale`, 60 s, 2 autres Godot)
@@ -104,3 +105,31 @@ Sur la place (machine chargée, image ~30 ms : 2 pas de physique par image), cha
 
 Sous terre les PNJ du village sont gelés par le monde : le gain vient du HUD de combat (A −0,56 ms). Pas de régression.
 Lancement entier : dt méd 10,62 / p95 17,37 / p99 23,11 ms, 10 images > 33 ms sur 4 226, GPU méd 5,3 ms.
+
+## Planches (rendu identique)
+
+`C:\Users\lopezk19\Jeux\rendus\opti_2026-11-20\cpu_scripts\` : `hud_avant.png` (`--sans-opti-hud`) / `hud_apres.png`, place, 12 h,
+même pose ; `planche_boussole_x3.png` (boussole agrandie ×3, avant au-dessus) et `planche_barre_bas_x2.png` (raccourcis ×2) : identiques
+à l'œil ; les écarts de pixels mesurés (outil Python pur `cmp_png.py`) sont le ciel, la neige et le pavé éclairé DERRIÈRE le HUD
+(scène animée entre deux lancements), pas le HUD.
+Les autres optimisations ne touchent pas l'image (calculs exacts, ou position de PNJ immobiles / lointains mise à jour à 20 Hz sous le pixel).
+
+## Ce qui reste / pistes
+
+Dans mon domaine (petits postes, < 0,1 ms chacun) : `objets_vivants._viser` (rayon caméra par image, ~0,05 ms), `hud_combat._lire_etat`
+(raccourcis reconstruits une image sur deux, ~0,05 ms), `Hud._draw` hors bandeau (~0,2 ms en régime : graduations, lettres, marqueurs,
+objectif ; un redessin sur changement demanderait de suivre le lacet, la position, les marqueurs, les chiffres de dégâts…), `faune._tour`
+(2 Hz), `interieur.gd` (18 nœuds). `mains.gd` (0,65-0,88 ms) : coût réparti dans l'évaluation des poses de l'arme et des passifs — non
+touché (combat validé, risque sur la sensation).
+
+Hors domaine (relayé au coordinateur) :
+- **persos_anim** : PNJ gelés = −7,4 ms/image au feu de camp ; modificateurs de squelette (PiedsAuSol, SuiviTete, orientation) −3,1 ms,
+  squelettes complets −4,1 ms, ~2 ms dans la tranche rendu (mise à jour des os). AnimLod ne coupe pas les modificateurs hors champ.
+  AnimationPlayer/Tree 1,4-1,75 ms/image (87 mixers) ; groupe racine (AnimLod) 1,0-1,5 ms ; `corps_joueur.gd` 0,3-0,4 ms.
+- **physique_reseau_exe** : move_and_slide du joueur 187 µs/appel au village (gardes 97, villageois 74) ; rendu sur le fil principal
+  (tranche B 3-11 ms en série avec le process : `rendering/driver/threads/thread_model` non réglé) ; spirale pas de physique / image lente
+  (2 pas par image sur la place chargée) ; tests réseau à deux processus non lancés (ils exigent GODOT_MAX ≥ 2 simultanés sur la machine).
+- **saccades** : premier `EtalMarchand.actualiser()` (modèles chargés à la volée : une image de 11 s avec un cache de shaders neuf et une
+  machine saturée) ; `impact_corps` « préparation » 2,6 ms/image les premières secondes (lecture des maillages pour les sorts).
+- **effets_lumieres** : `flamme_torche.gd` 20-40 µs par torche et par image (ressort + vacillement) ; vacillement des lumières des
+  intérieurs (`interieur.gd`) et de la crypte (`tertre.gd` d.vaciller) à chaque image.
