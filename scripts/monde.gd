@@ -1543,6 +1543,7 @@ func _unhandled_input(e: InputEvent) -> void:
 			Jeu.relancer("continuer")   # l'écran titre du processus relancé charge aussitôt la partie
 
 func _exit_tree() -> void:
+	_suivre_autosauvegarde(true)   # une autosauvegarde en fil se termine avant la sortie
 	for v in _pnj_differes:   # villageois jamais nés (monde quitté avant leur naissance)
 		if is_instance_valid(v):
 			v.free()
@@ -1596,18 +1597,49 @@ func en_combat() -> bool:
 			return true
 	return false
 
-func autosauvegarder() -> bool:
+## `asynchrone` (chemin du jeu, _process) : l'écriture du fichier (fichier temporaire, relecture vérifiée, renommage : 10 à 15 ms mesurés,
+## 75-85 % de la sauvegarde) part dans un fil ; le contenu (export + texte JSON, ~3 ms) est figé ici sur le fil principal, comme avant.
+## Signal, avis et `derniere_autosauvegarde` quand le fichier est écrit (quelques images plus tard). Appel direct (tests) : synchrone.
+## `--sans-opti-sauvegarde` : tout sur le fil principal (avant).
+func autosauvegarder(asynchrone := false) -> bool:
+	if _sauv_fil >= 0:
+		return false        # une écriture est encore en cours : la demande reste posée (nouvel essai dans 2 s)
 	var raison := _autosauvegarde_demandee if _autosauvegarde_demandee != "" else "manuelle"
 	_autosauvegarde_demandee = ""
 	if joueur == null or joueur.mort:
 		return false
+	if asynchrone and not _arguments().has("sans-opti-sauvegarde") and not _invite_coop():
+		var chemin := Sauvegardes.fichier(Sauvegardes.AUTO)
+		var texte := JSON.stringify(SauvegardeMulti.fusionner(exporter_monde(), exporter_personnage()), "\t")
+		_sauv_resultat = [ERR_BUSY, raison, chemin]
+		var res := _sauv_resultat
+		_sauv_fil = WorkerThreadPool.add_task(func() -> void: res[0] = Sauvegardes.ecrire(chemin, texte), false, "autosauvegarde")
+		return true
 	var ok := sauvegarder(Sauvegardes.AUTO)
 	if ok:
-		derniere_autosauvegarde = raison
-		autosauvegarde_faite.emit(raison)
-		if hud != null:
-			hud.avis("Sauvegarde automatique")
+		_autosauvegarde_finie(raison)
 	return ok
+
+var _sauv_fil := -1           # tâche d'écriture de l'autosauvegarde en cours (-1 : aucune)
+var _sauv_resultat: Array = []   # [Error, raison, chemin] (le fil n'écrit que l'indice 0)
+
+func _autosauvegarde_finie(raison: String) -> void:
+	derniere_autosauvegarde = raison
+	autosauvegarde_faite.emit(raison)
+	if hud != null:
+		hud.avis("Sauvegarde automatique")
+
+## Fin d'une écriture en fil : à appeler du fil principal (chaque image) ; `attendre` : bloque jusqu'à la fin (sortie du monde).
+func _suivre_autosauvegarde(attendre := false) -> void:
+	if _sauv_fil < 0 or (not attendre and not WorkerThreadPool.is_task_completed(_sauv_fil)):
+		return
+	WorkerThreadPool.wait_for_task_completion(_sauv_fil)
+	_sauv_fil = -1
+	var err: int = _sauv_resultat[0]
+	if err == OK:
+		_autosauvegarde_finie(String(_sauv_resultat[1]))
+	else:
+		push_warning("Sauvegarde impossible (%s) : %s" % [error_string(err), _sauv_resultat[2]])
 
 ## Écrit la partie. `emplacement` : -1 = l'emplacement en cours (Sauvegardes.actif), 0 = automatique, 1 à 3 = manuels.
 ## Un emplacement manuel devient l'emplacement en cours ; l'automatique, non, et ne fait pas de copie de secours.
@@ -1861,7 +1893,8 @@ func _process(dt: float) -> void:
 		if _attente_autosauvegarde <= 0.0:
 			_attente_autosauvegarde = 2.0   # on réessaie toutes les 2 s tant qu'on est en combat
 			if _autosauvegarde_possible():
-				autosauvegarder()
+				autosauvegarder(true)
+	_suivre_autosauvegarde()
 
 ## Lot 7 : distance du brouillard variable. Creux et forêt dense : la brume se resserre (jusqu'à -35 %) ;
 ## crêtes : elle se dégage (jusqu'à +25 %), récompense d'exploration. Lissé sur ~1,5 s ; `net` = sans lissage (captures).
