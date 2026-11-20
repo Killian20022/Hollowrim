@@ -367,6 +367,21 @@ const LUEUR_VARIANTE := 0.12
 static func base_de(id: String) -> String:
 	return String(Inventaire.objet(id).get("base", id)) if Inventaire.connu(id) else id
 
+## Opti saccades (2026-11-20) : lit en tâche de fond le modèle porté de `id` (pièce montrée dans le menu : fiche du Sac, liste
+## « Changer » de l'Équipement), pour que le clic « Porter » ne fasse plus le load() du glb sur le fil principal (90 à 250 ms mesurés
+## par pièce, image figée dans le menu). La ressource lue reste tenue par le chargeur (une demande par pièce et par partie).
+## Rien en --headless ; `--sans-opti-armures` : ancien comportement.
+static var _demandes := {}
+static func precharger(id: String) -> void:
+	if id == "" or _demandes.has(id) or DisplayServer.get_name() == "headless" or OS.get_cmdline_user_args().has("--sans-opti-armures"):
+		return
+	_demandes[id] = true
+	if not Inventaire.connu(id) or String(Inventaire.objet(id).get("categorie", "")) != "armure":
+		return
+	var c := chemin_porte(id)
+	if ResourceLoader.exists(c) and not ResourceLoader.has_cached(c):
+		ResourceLoader.load_threaded_request(c)
+
 static func a_modele(id: String) -> bool:
 	return id != "" and ResourceLoader.exists(chemin_porte(id))
 

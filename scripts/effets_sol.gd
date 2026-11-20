@@ -124,6 +124,16 @@ func _process(dt: float) -> void:
 	elif _rect_actif:
 		_regler_rect(false)   # tout est effacé : le shader ne lit plus rien
 
+## Opti saccades (2026-11-20) : crée la couche de neige PENDANT le chargement (Monde, sous l'écran de chargement). Sinon elle naissait 1 s
+## après le 1er effet au sol, en pleine partie : variante « couche » du shader ps1 compilée, matériau, 36 tuiles (image de 230 ms
+## mesurée). Rien en --headless ; `--sans-opti-couche` : ancien comportement.
+static func preparer_couche(monde: Node) -> void:
+	if DisplayServer.get_name() == "headless" or OS.get_cmdline_user_args().has("--sans-opti-couche"):
+		return
+	var e := obtenir()
+	if e != null and (e._couche == null or not is_instance_valid(e._couche)):
+		e._couche = CoucheNeige.creer(monde)
+
 ## Couche de neige en relief : créée dès que le monde existe, visible (et la zone envoyée aux shaders) seulement tant qu'un relief vit.
 func _gerer_couche(dt: float) -> void:
 	if _couche == null or not is_instance_valid(_couche):

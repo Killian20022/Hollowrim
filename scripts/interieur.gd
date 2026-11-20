@@ -229,11 +229,29 @@ func decharger() -> void:
 	if not paresseux or not construit:
 		return
 	ObjetsVivants.liberer(racine)      # objets déplacés notés (sauvegarde) : reposés à l'identique au prochain chargement
-	for ch in racine.get_children():
-		ch.queue_free()
-	for cs in collisions:
-		if is_instance_valid(cs):
-			cs.queue_free()
+	if village != null and village.get("_a_poser") != null and not OS.get_cmdline_user_args().has("--sans-opti-decharge"):
+		# opti saccades (2026-11-20) : libération étalée sur les petites tâches de pose du village (un enfant, ou 24 collisions, par tâche),
+		# au lieu de tout le contenu (maillages, lumières, ~30 objets vivants, collisions) dans la même image ; le contenu est déjà invisible
+		# (au-delà de DIST_VISIBLE) et sorti des objets vivants. File commune : une reconstruction passe après ces libérations.
+		var taches: Array[Callable] = []
+		for ch in racine.get_children():
+			taches.append(func() -> void:
+				if is_instance_valid(ch):
+					ch.free())
+		var cols := collisions.duplicate()
+		for i in range(0, cols.size(), 24):
+			var paquet := cols.slice(i, i + 24)
+			taches.append(func() -> void:
+				for cs in paquet:
+					if is_instance_valid(cs):
+						cs.free())
+		(village.get("_a_poser") as Array).append_array(taches)
+	else:
+		for ch in racine.get_children():
+			ch.queue_free()
+		for cs in collisions:
+			if is_instance_valid(cs):
+				cs.queue_free()
 	collisions.clear()
 	lumieres.clear()
 	construit = false

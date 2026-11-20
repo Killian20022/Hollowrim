@@ -200,9 +200,22 @@ static func morceaux_quat(oid: String, contexte: String, anciens: Array, pq := "
 ## Crée les objets de `specs` sous `parent` (pièce d'un intérieur, étal…) ; `lieu` préfixe les identifiants (sauvegarde). Fil principal.
 static func peupler(parent: Node3D, specs: Array, lieu: String) -> Array:
 	var res := []
+	for f: Callable in peupler_par_lots(parent, specs, lieu, 1 << 30, res):
+		f.call()
+	return res
+
+## Même travail que `peupler`, découpé en tâches à appeler dans l'ordre (une par image, ou sous un budget) : une tâche par groupe crée son MultiMesh
+## (maillage compris) (instances masquées : visible_instance_count = 0), chacune des suivantes `par_lot` objets (corps, forme, état sauvegardé)
+## et montre leurs instances. Opti saccades (2026-11-20) : la pose d'un intérieur créait d'un coup ses ~30 objets (61 nœuds, 122 objets
+## moteur) dans UNE tâche de Village._planifier_pose. `res` (facultatif) reçoit les ObjetVivant créés.
+static func peupler_par_lots(parent: Node3D, specs: Array, lieu: String, par_lot := 4, res: Array = []) -> Array[Callable]:
+	var taches: Array[Callable] = []
 	if specs.is_empty() or parent == null:
-		return res
-	var groupes := {}          # apparence -> [morceaux, [[spec, ident]]]
+		return taches
+	# groupes (apparence) : clés seules ici (recherches de table) ; le visuel texturé (morceaux_quat, copie des sommets) et le maillage
+	# sont faits dans la tâche de son groupe
+	var groupes := {}          # clé -> [morceaux, [[spec, ident]], oid, pq « même modèle », quat]
+	var mms := {}              # clé -> MultiMesh (créé par la tâche de son groupe)
 	var compte := {}
 	var ctx := contexte_lieu(lieu)
 	for s: Dictionary in specs:
@@ -211,40 +224,58 @@ static func peupler(parent: Node3D, specs: Array, lieu: String) -> Array:
 		compte[g] = k + 1
 		var cle := _cle(g, s["morceaux"])
 		var oid := String(OBJETS.get(g, g))
-		var vis: Array = s["morceaux"]
-		if ObjetsQuat.a(oid) and not g.begins_with("pq_"):
-			var meme := ObjetsQuat.pq_de_ancien(g)       # prop texturé du même modèle que le décor posé (q_vase_4 -> pq_vase_4), sinon celui de la fiche
+		var quat := ObjetsQuat.a(oid) and not g.begins_with("pq_")
+		var meme := ""
+		if quat:
+			meme = ObjetsQuat.pq_de_ancien(g)       # prop texturé du même modèle que le décor posé (q_vase_4 -> pq_vase_4), sinon celui de la fiche
 			cle = "%s|quat:%s:%s" % [cle, meme if meme != "" else ObjetsQuat.id_de(oid), ctx]
-			vis = morceaux_quat(oid, ctx, s["morceaux"], meme)
 		if not groupes.has(cle):
-			groupes[cle] = [s["morceaux"], [], vis]
+			groupes[cle] = [s["morceaux"], [], oid, meme, quat]
 		(groupes[cle][1] as Array).append([s, "%s:%s:%d" % [lieu, g, k]])
 	for cle: String in groupes:
-		var morceaux: Array = groupes[cle][0]
-		var liste: Array = groupes[cle][1]
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = maillage(cle, groupes[cle][2])
-		mm.instance_count = liste.size()
-		var mmi := MultiMeshInstance3D.new()
-		mmi.name = "Vivants_" + cle.get_slice("|", 0)
-		mmi.multimesh = mm
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		mmi.visibility_range_end = PORTEE_ACTIVE
-		parent.add_child(mmi)
-		for i in liste.size():
-			var s: Dictionary = liste[i][0]
-			var o := _corps(s, morceaux)
-			o.ident = liste[i][1]
-			o.mm = mm
-			o.idx = i
-			o.name = "Vivant_%s_%d" % [String(s["genre"]), i]
-			parent.add_child(o)
-			mm.set_instance_transform(i, o.transform * o.visuel_local)
-			tous.append(o)
-			_appliquer(o)
-			res.append(o)
-	return res
+		taches.append(func() -> void:
+			var gr: Array = groupes[cle]
+			var vis: Array = morceaux_quat(gr[2], ctx, gr[0], gr[3]) if gr[4] and not _maillages.has(cle) else gr[0]
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = maillage(cle, vis)
+			mm.instance_count = (gr[1] as Array).size()
+			mm.visible_instance_count = 0
+			var mmi := MultiMeshInstance3D.new()
+			mmi.name = "Vivants_" + cle.get_slice("|", 0)
+			mmi.multimesh = mm
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mmi.visibility_range_end = PORTEE_ACTIVE
+			parent.add_child(mmi)
+			mms[cle] = mm)
+	# objets : dans l'ordre des groupes (ordre des clés du dictionnaire, comme avant), `par_lot` par tâche
+	var n := specs.size()
+	for debut in range(0, n, maxi(1, par_lot)):
+		taches.append(func() -> void:
+			var rang := 0
+			for cle: String in groupes:
+				var morceaux: Array = groupes[cle][0]
+				var liste: Array = groupes[cle][1]
+				var mm: MultiMesh = mms[cle]
+				for i in liste.size():
+					if rang >= debut and rang < debut + par_lot:
+						var s: Dictionary = liste[i][0]
+						var o := _corps(s, morceaux)
+						o.ident = liste[i][1]
+						o.mm = mm
+						o.idx = i
+						o.name = "Vivant_%s_%d" % [String(s["genre"]), i]
+						parent.add_child(o)
+						mm.set_instance_transform(i, o.transform * o.visuel_local)
+						tous.append(o)
+						_appliquer(o)
+						res.append(o)
+						mm.visible_instance_count = maxi(mm.visible_instance_count, i + 1)
+					rang += 1)
+	taches.append(func() -> void:
+		for cle: String in mms:
+			(mms[cle] as MultiMesh).visible_instance_count = -1)   # toutes visibles (valeur d'origine)
+	return taches
 
 ## Pièce exposée sur l'étal d'un marchand (EtalMarchand, visuel d'ObjetMonde déjà posé) : enveloppée d'un corps gelé à sa place.
 ## La prendre la retire du STOCK du marchand (le réassort de Marchand la ramène) ; pas d'état propre dans la sauvegarde.

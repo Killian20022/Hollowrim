@@ -88,6 +88,7 @@ func candidats(emp: String) -> Array:
 		var inv: Inventaire = joueur.inventaire
 		for id: String in inv.objets:
 			if Inventaire.emplacement_de(id) == emp:
+				ArmureVisible.precharger(id)   # opti saccades : glb porté lu en fil pendant le choix
 				var da := roundi(float(Inventaire.objet(id).get("armure", 0.0)) - float(Inventaire.objet(objet_de(emp)).get("armure", 0.0)))
 				res.append({"id": id, "nom": String(Inventaire.objet(id).get("nom", id)), "delta": "armure %+d" % da if da != 0 else "",
 					"couleur": Parchemin.VIGUEUR if da > 0 else Parchemin.RUBRIQUE})

@@ -17,6 +17,11 @@ const PISTES := {
 }
 
 var monde: Node3D
+## Opti saccades (2026-11-20) : les pistes (Ogg de 0,9 à 3,1 Mo) sont lues en tâche de fond dès le démarrage et GARDÉES ici ; avant, chaque
+## changement de situation (entrée au village, début d'un combat, descente dans la crypte) faisait un load() de la piste sur le fil principal,
+## et la piste quittée était libérée puis relue au retour. `--sans-opti-musique` : ancien comportement.
+var _flux := {}
+var _opti := not OS.get_cmdline_user_args().has("--sans-opti-musique")
 
 var piste := ""                 # situation en cours
 var _lecteurs: Array[AudioStreamPlayer] = []
@@ -34,6 +39,19 @@ func _ready() -> void:
 		add_child(l)
 		_lecteurs.append(l)
 	_prochaine_bete = randf_range(40.0, 90.0)
+	if _opti and DisplayServer.get_name() != "headless":
+		for l: Array in PISTES.values():
+			for c: String in l:
+				ResourceLoader.load_threaded_request(c, "AudioStream")
+	else:
+		_opti = false
+
+func _piste(chemin: String) -> AudioStream:
+	if not _opti:
+		return load(chemin)
+	if not _flux.has(chemin):
+		_flux[chemin] = ResourceLoader.load_threaded_get(chemin) as AudioStream if ResourceLoader.load_threaded_get_status(chemin) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE else load(chemin)
+	return _flux[chemin]
 
 ## Situation voulue d'après l'état du monde.
 func situation() -> String:
@@ -93,7 +111,7 @@ func _choisir() -> String:
 	return chemin
 
 func _lancer(l: AudioStreamPlayer, chemin: String) -> void:
-	l.stream = load(chemin)
+	l.stream = _piste(chemin)
 	l.volume_db = VOLUME_DB if l == _lecteurs[_actif] else SILENCE_DB
 	l.play()
 
@@ -109,7 +127,7 @@ func _changer(voulue: String) -> void:
 		_silence = randf_range(10.0, 30.0)
 		return
 	_silence = 0.0
-	nouveau.stream = load(_choisir())
+	nouveau.stream = _piste(_choisir())
 	nouveau.volume_db = SILENCE_DB
 	nouveau.play()
 	_fondu(nouveau, VOLUME_DB, false)

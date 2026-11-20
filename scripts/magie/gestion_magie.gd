@@ -3459,6 +3459,22 @@ func prechauffer() -> void:
 func vitrine_prechauffe(v: Node3D) -> void:
 	if couche != null:
 		couche.amorcer(v)
+	# opti saccades (2026-11-20) : runes en orbite (RunesOrbite : noyau d'école, fils, lueurs des mains) de chaque école, absentes de la
+	# vitrine : le 1er sort tenu de chaque école coûtait 60 à 120 ms (A, 22 maillages, 2 lumières, pipelines). `--sans-opti-runes` : non.
+	if not OS.get_cmdline_user_args().has("--sans-opti-runes"):
+		var xr := -0.9
+		for ec: String in RunesOrbite.ECOLES:
+			var ancre := Node3D.new()
+			v.add_child(ancre)
+			ancre.position = Vector3(xr, 1.0, -0.9)
+			xr += 0.45
+			var r := RunesOrbite.new()
+			r.name = "VitrineRunes_" + ec
+			r.ecole = ec
+			r.suivi = ancre
+			r.intensite = 1.0
+			r.charge = 0.6
+			ancre.add_child(r)
 	ImpactCorps.vitrine(self, v)   # émetteurs de surface et voile des corps (scripts/magie/impact_corps.gd)
 	var x := -1.0
 	var k := 0
