@@ -293,13 +293,24 @@ func _rayon(espace: PhysicsDirectSpaceState3D, o: Vector3, p: Vector3, max_cible
 ## Le volume balayé par un segment de lame entre deux échantillons (pyramide de l'œil) contient-il une cible (groupe ennemis /
 ## cibles_combat, hors cassables) PAS ENCORE TOUCHÉE par ce coup ? Pyramide presque plate (lame vue dans son axe, premier échantillon) : vrai (on lance
 ## les rayons, pas de volume fiable).
+const EPAISSEUR_MIN := 0.005
+
+## Hauteur de `c` au-dessus du plan (a, b) passant par l'origine ; 0 si a et b sont alignés (plan indéfini).
+static func _epaisseur(a: Vector3, b: Vector3, c: Vector3) -> float:
+	var n := a.cross(b)
+	var l := n.length()
+	return 0.0 if l < 1e-9 else absf(n.dot(c)) / l
+
 func _volume_cible(espace: PhysicsDirectSpaceState3D, sommets: Array, exclus: Array[RID]) -> bool:
 	var o: Vector3 = sommets[1]
 	var v1: Vector3 = sommets[2] - o
 	var v2: Vector3 = sommets[3] - o
 	var v3: Vector3 = sommets[4] - o
 	var v4: Vector3 = sommets[5] - o
-	if maxf(absf(v1.cross(v2).dot(v3)), absf(v2.cross(v4).dot(v3))) < 1e-5:
+	# Pyramide trop mince pour que Jolt en bâtisse l'enveloppe (« Hull building failed ») : la requête ne rendrait rien
+	# et le coup passerait à travers la cible. On juge l'ÉPAISSEUR réelle (hauteur d'un sommet au-dessus du plan des
+	# deux autres), pas un volume absolu : sous EPAISSEUR_MIN, on lance la nappe fine de rayons (sûr, un peu plus cher).
+	if maxf(_epaisseur(v1, v2, v3), _epaisseur(v2, v4, v3)) < EPAISSEUR_MIN:
 		return true
 	_volume.points = PackedVector3Array(sommets)
 	_requete_volume.shape = _volume
