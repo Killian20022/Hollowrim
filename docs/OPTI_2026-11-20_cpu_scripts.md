@@ -144,3 +144,13 @@ Hors domaine (relayé au coordinateur) :
   machine saturée) ; `impact_corps` « préparation » 2,6 ms/image les premières secondes (lecture des maillages pour les sorts).
 - **effets_lumieres** : `flamme_torche.gd` 20-40 µs par torche et par image (ressort + vacillement) ; vacillement des lumières des
   intérieurs (`interieur.gd`) et de la crypte (`tertre.gd` d.vaciller) à chaque image.
+
+## Tests lancés (`bash outils/tous_les_tests.sh <nom>`, Godot via godot_slot, sortie réelle)
+
+Lot 1 (après PNJ, étals, Vie) : OK test_gardes_village, test_villageois, test_vie, test_marchands, test_marche_pnj, test_pnj_village.
+Lot 2 (après HUD, musique, caches, cassables, réseau, étalement « immobiles ») : OK test_hud_combat, test_hud_l7, test_musique,
+test_cassables, test_stockage, test_rpg_objets, test_objets_monde, test_potions, test_progression, test_sommeil, test_crime,
+test_crime_sommeil, test_gardes_village, test_villageois. Lot 3 (pièges) : OK test_mecanismes.
+Non lancés : tests réseau à deux processus (`test_combat_coop.sh`, `test_resilience.sh`, `test_tout_reseau.sh`) — ils demandent
+GODOT_MAX ≥ 2 Godot SIMULTANÉS pour un seul test, interdit aujourd'hui ; les changements réseau de cette branche se limitent au cache
+du nœud Reseau (même résultat) et aux pièges endormis seulement HORS LIGNE.
