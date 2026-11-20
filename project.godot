@@ -31,6 +31,7 @@ Reseau="*res://scripts/reseau/reseau.gd"
 Replicateur="*res://scripts/reseau/replicateur.gd"
 Rejoindre="*res://scripts/reseau/rejoindre.gd"
 CompteurIps="*res://scripts/compteur_ips.gd"
+BancFps="*res://scripts/banc_fps.gd"
 
 [display]
 
