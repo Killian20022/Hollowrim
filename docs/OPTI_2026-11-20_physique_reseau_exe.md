@@ -56,8 +56,19 @@ principal (dt 28,8 ms pour un GPU à 11,4 ms) ; 1,7 pas physiques par image (60 
 | 630c923f | Replicateur (hôte) : n'encode que les entités qu'un pair recevra à ce tick ; envois identiques | 2,99 → 2,03 ms par tick d'envoi, 131 → 59 entités encodées (1 pair au joueur local) ; interrupteur `--sans-opti-replication` |
 
 ## 4. Rendu en fil séparé (`--render-thread separate`)
-Voir le rapport : mesure exe faite sur le témoin seulement ; tests de stabilité NON faits (délai) → **non activé**.
-Le moteur l'indique « expérimental, plantages connus avec les particules ». À essayer en exe avec `BANC_MOTEUR="--render-thread separate"`.
+Exe « avant », témoin 12 h, 15 s, UNE répétition par mode (non entrelacé, machine chargée) :
+
+| mode | FPS moy | 1 % bas | dt p99 | > 33 ms | GPU méd | autres Godot |
+|---|---|---|---|---|---|---|
+| `--render-thread safe` (actuel) | 25,6 | 11,0 | 63,4 | 338 | 12,7 | inconnu (lancement interrompu puis repris) |
+| `--render-thread separate` | 42,1 | 21,1 | 33,3 | 7 | 10,6 | 3 |
+
+Gain très net (+65 % de FPS, images > 33 ms quasi supprimées) MAIS 4 « free_rid can only be called from the render thread » dans
+le journal (à la fermeture du jeu, après la mesure ; RenderingDevice.free_rid appelé hors du fil de rendu) et le moteur l'indique « expérimental, plantages connus avec les
+particules ». Tests de stabilité NON faits (délai de la journée) → **non activé**. À faire : banc entrelacé 3 x (témoin, place,
+combat, grotte) avec `BANC_MOTEUR="--render-thread separate"` sur l'exe, puis stabilité (fils de fond qui créent des maillages,
+entrées/sorties d'intérieurs, grotte, crypte, F5/F9, test_menus, test_tout_reseau coop_proto/rejoindre) et chasse des free_rid ;
+s'il tient : `rendering/driver/threads/thread_model=2` dans project.godot, repli `--render-thread safe`.
 
 ## 5. Reste / pistes
 - Fil principal : TIME_PROCESS 24 ms au témoin (exe) dont 4 ms de scripts (le reste inclut le dessin du serveur de rendu et
