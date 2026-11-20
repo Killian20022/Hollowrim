@@ -21,7 +21,8 @@ SLOT=/tmp/godot_slot.sh
 if [[ "$EXE" == editeur ]]; then CMD=("$G" --path "$(wslpath -w "$ICI")"); else CMD=("$EXE"); fi
 nb_jeux() { tasklist.exe /fo csv /nh 2>/dev/null | tr -d '\r' | grep -aiE '^"(Godot|Hollowrim)' | grep -avic '_console.exe'; }
 pose_de() { case "$1" in temoin) echo "--pose=2.5,8.5,16,4";; place) echo "--pose=35,30,221,-8";; *) echo "";; esac; }
-for rep in $(seq 1 "$REPS"); do
+R0="${BANC_REP_DEBUT:-1}"   # numéro de la première répétition (A/B entrelacés à la main : un lancement par répétition)
+for rep in $(seq "$R0" $((R0 + REPS - 1))); do
 	for lieu in $LIEUX; do
 		for h in $HEURES; do
 			base="${lieu}_${h}_${rep}"; autres=$(nb_jeux)
