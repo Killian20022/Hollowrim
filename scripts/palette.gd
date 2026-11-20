@@ -198,13 +198,37 @@ static func shader_double_face() -> Shader:
 	return r
 
 static var _ps1_couche: Shader
+static var _ps1_sol: Shader
+static var _ps1_complet := _regler_ps1_complet()
+
+static func _regler_ps1_complet() -> bool:
+	if "--sans-opti-ps1-leger" in OS.get_cmdline_user_args():
+		var sh: Shader = PS1
+		sh.code = "#define SOL\n" + sh.code
+		return true
+	return false
+
+## Opti 2026-11-20 (gpu_rendu) : variante du TERRAIN (« #define SOL ») : seule à compiler le code du sol (cartes, sol v2,
+## effets_sol) ; ps1.gdshader sans SOL sert à tous les autres matériaux (branches de sol jamais prises : shader plus court).
+## --sans-opti-ps1-leger : le shader commun garde tout le code du sol, comme avant (A/B).
+static func shader_sol() -> Shader:
+	_mx_mats.lock()
+	if _ps1_sol == null:
+		if _ps1_complet:
+			_ps1_sol = PS1      # A/B : le shader commun a déjà tout le code du sol
+		else:
+			_ps1_sol = Shader.new()
+			_ps1_sol.code = "#define SOL\n" + PS1.code
+	var r := _ps1_sol
+	_mx_mats.unlock()
+	return r
 
 ## Variante pour la COUCHE de neige déformable (grille posée sur le sol, creusée dans le vertex shader). Le terrain, lui, reste sur le
 ## shader commun : un `discard` dans son fragment shader désactive le test de profondeur précoce et coûtait ×1,9 de GPU dehors.
 static func shader_couche() -> Shader:
 	if _ps1_couche == null:
 		_ps1_couche = Shader.new()
-		_ps1_couche.code = "#define RELIEF\n#define RELIEF_COUCHE\n" + PS1.code
+		_ps1_couche.code = "#define RELIEF\n#define RELIEF_COUCHE\n" + ("" if _ps1_complet else "#define SOL\n") + PS1.code
 	return _ps1_couche
 
 static func materiau(base: Texture2D, echelle_uv := Vector2.ONE, teinte := Color.WHITE, double_face := false) -> ShaderMaterial:

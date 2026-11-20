@@ -11,6 +11,8 @@ extends Node3D
 const TAILLE := 240.0           # côté du terrain (m)
 const CASES := 120              # cases par côté
 const MORCEAU := 30             # cases par morceau de terrain (4x4 morceaux)
+## Opti 2026-11-20 (gpu_rendu) : priorité de rendu du terrain (dessiné après les autres opaques, voir _terrain).
+const PRIORITE_SOL := 10
 const RAYON_CLAIRIERE := 9.0
 const CERCLE := Vector3(-38.0, 0.0, -34.0)  # cercle de pierres runiques
 const VILLAGE := Vector3(44.0, 0.0, 40.0)   # Skarnholt
@@ -581,6 +583,8 @@ func _terrasses_fermes(x: float, z: float, h: float) -> float:
 func _environnement() -> void:
 	var ciel := ShaderMaterial.new()
 	ciel.shader = CIEL
+	if _arguments().has("sans-opti-aurore"):
+		ciel.set_shader_parameter("aurore_saut", 0.0)   # A/B opti 2026-11-20 : toutes les couches de l'aurore calculées
 	var sky := Sky.new()
 	sky.sky_material = ciel
 	sky.radiance_size = Sky.RADIANCE_SIZE_32
@@ -661,11 +665,18 @@ func _terrain() -> void:
 	await _souffle()   # chargement étalé : une image après les hauteurs, puis entre les morceaux (sans effet hors chargement)
 
 	var m := Palette.materiau(tex_roche)
+	m.shader = Palette.shader_sol()   # opti 2026-11-20 : seule variante qui compile le code du sol (voir Palette.shader_sol)
 	m.set_shader_parameter("uv_monde", true)
 	m.set_shader_parameter("monde_echelle", 0.11)
 	m.set_shader_parameter("tex_macro", Palette.texture_macro())
 	m.set_shader_parameter("macro_force", 1.0)
 	mat_terrain = m
+	# opti 2026-11-20 (gpu_rendu, docs/OPTI_2026-11-20_gpu_rendu.md) : le terrain (shader de sol, le plus cher au pixel) est
+	# dessiné APRÈS les autres opaques : le test de profondeur précoce écarte le sol caché par le bâti, les arbres, les props
+	# et les personnages au lieu de le peindre puis de le recouvrir. Le test de profondeur décide toujours (image identique).
+	# --sans-opti-sol-dernier : ordre d'avant (A/B).
+	if not _arguments().has("sans-opti-sol-dernier"):
+		m.render_priority = PRIORITE_SOL
 	# terrain découpé en morceaux : chacun reçoit ses propres lumières (8 max par objet
 	# avec le rendu Mobile) et les morceaux hors champ ne sont pas dessinés
 	var corps := StaticBody3D.new()

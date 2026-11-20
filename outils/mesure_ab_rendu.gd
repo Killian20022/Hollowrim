@@ -105,6 +105,8 @@ func _lunes() -> Array:
 	return m.find_children("*", "DirectionalLight3D", true, false)
 
 func _memoriser() -> void:
+	if _arg("sans-mains") != "" and j.mains != null:
+		j.mains.visible = false     # planches : ni bras ni torche (images comparables)
 	var env: Environment = m._env
 	_orig["glow"] = env.glow_enabled
 	_orig["fen"] = DisplayServer.window_get_size()
@@ -132,6 +134,7 @@ func _appliquer(cfg: String) -> void:
 	env.glow_enabled = _orig["glow"]
 	env.fog_enabled = _orig["fog"]
 	env.background_mode = _orig["bg"]
+	m._ciel.set_shader_parameter("aurore_saut", 0.0 if _arg("sans-opti-aurore") != "" else 0.002)
 	if env.sky != null:
 		if env.sky.process_mode != _orig["ciel_mode"]:
 			env.sky.process_mode = _orig["ciel_mode"]
@@ -145,6 +148,7 @@ func _appliquer(cfg: String) -> void:
 		l.directional_shadow_split_1 = _orig["split1"]
 		l.directional_shadow_blend_splits = _orig["blend"]
 	RenderingServer.directional_shadow_atlas_set_size(_orig["atlas"], true)
+	RenderingServer.environment_glow_set_use_bicubic_upscale(int(ProjectSettings.get_setting("rendering/environment/glow/upscale_mode", 1)) == 1)
 	RenderingServer.directional_soft_shadow_filter_set_quality(_orig["filtre"])
 	if m.arriere_plan != null:
 		m.arriere_plan.visible = true
@@ -152,8 +156,9 @@ func _appliquer(cfg: String) -> void:
 		m.mat_terrain.set_shader_parameter("sol_carte", _orig["sol_carte"])
 		m.mat_terrain.render_priority = _orig["prio_sol"]
 	_post_visible(true)
-	if _ps1_code_orig != "" and Palette.PS1.code != _ps1_code_orig:
-		Palette.PS1.code = _ps1_code_orig
+	var ps1: Shader = Palette.PS1
+	if _ps1_code_orig != "" and ps1.code != _ps1_code_orig:
+		ps1.code = _ps1_code_orig
 	var couche_voulue := CoucheMagie.RETRO
 	var fen: Vector2i = _orig["fen"]
 	if _lum_eteintes:
@@ -168,6 +173,7 @@ func _appliquer(cfg: String) -> void:
 			"atlas2048": RenderingServer.directional_shadow_atlas_set_size(2048, true)
 			"atlas3072": RenderingServer.directional_shadow_atlas_set_size(3072, true)
 			"atlas1024": RenderingServer.directional_shadow_atlas_set_size(1024, true)
+			"atlas2560": RenderingServer.directional_shadow_atlas_set_size(2560, true)
 			"filtre_dur": RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_HARD)
 			"filtre_tresbas": RenderingServer.directional_soft_shadow_filter_set_quality(RenderingServer.SHADOW_QUALITY_SOFT_VERY_LOW)
 			"ortho":
@@ -180,9 +186,11 @@ func _appliquer(cfg: String) -> void:
 				for n in _lunes():
 					(n as DirectionalLight3D).directional_shadow_blend_splits = true
 			"glow0": env.glow_enabled = false
+			"glow_lin": RenderingServer.environment_glow_set_use_bicubic_upscale(false)
 			"brume0": env.fog_enabled = false
 			"ciel0":
 				env.background_mode = Environment.BG_COLOR
+			"aurore_avant": m._ciel.set_shader_parameter("aurore_saut", 0.0)
 			"ciel_inc": env.sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
 			"ciel_qual": env.sky.process_mode = Sky.PROCESS_MODE_QUALITY
 			"monts0":
@@ -202,9 +210,9 @@ func _appliquer(cfg: String) -> void:
 					m.mat_terrain.render_priority = -100
 			"ps1_complet":      # shader commun AVEC tout le code du sol (comme avant l'opti ps1 léger)
 				if _ps1_code_orig == "":
-					_ps1_code_orig = Palette.PS1.code
-				if not Palette.PS1.code.begins_with("#define SOL"):
-					Palette.PS1.code = "#define SOL\n" + _ps1_code_orig
+					_ps1_code_orig = ps1.code
+				if not ps1.code.begins_with("#define SOL"):
+					ps1.code = "#define SOL\n" + _ps1_code_orig
 			"post0": _post_visible(false)
 			"lum0": _lumieres_visibles(false)
 			"eleve": couche_voulue = CoucheMagie.ELEVE      # réglage par défaut du JEU (Options > Détail des sorts : Élevé)
