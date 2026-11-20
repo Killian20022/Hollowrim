@@ -46,11 +46,14 @@ var lod := 0                    # 0 : complet ; 1 : allégé (ni IK des pieds ni
 ## Opti cpu_scripts (2026-11-20) : en `lod` 1 (au-delà de 22 m de tout joueur), l'IA et move_and_slide ne tournent qu'un pas de physique
 ## sur PAS_ETALE, avec le temps cumulé (même trajet : la vitesse est mise à l'échelle le temps du move_and_slide). À 22 m, un pas de
 ## ronde de 1 m/s fait 5 cm en 3 pas de physique, sous le pixel du rendu 480x270 (~7 cm). Phase décalée par garde (charge étalée).
-## Jamais en alerte ni en conversation. `--sans-opti-pnj-etale` : un pas sur un, comme avant.
+## Aussi en lod 0 quand il est IMMOBILE (poste, halte) à plus de 8 m du joueur local. Jamais en alerte ni en conversation.
+## `--sans-opti-pnj-etale` : un pas sur un, comme avant.
 const PAS_ETALE := 3
+const DIST_IMMOBILE_ETALE := 8.0   # m : immobile (poste, halte) au-delà, étalé aussi en lod 0
 static var etale := not ("--sans-opti-pnj-etale" in OS.get_cmdline_user_args())
 var _dt_etale := 0.0
 var _n_etale := 0
+var _rot_etale := 0.0
 var blocages := 0               # nombre de fois où il a dû renoncer à un point (test_gardes_village)
 var dernier_blocage := Vector3.ZERO
 var parcouru := 0.0             # distance parcourue (m)
@@ -244,7 +247,9 @@ func _physics_process(dt: float) -> void:
 	if marionnette:
 		_interactions(_dist_locale(), dt)      # invité : seulement « E Parler » et les interpellations
 		return
-	if etale and lod == 1 and etat != ALERTE and not _en_conversation:
+	if etale and (lod == 1 or (velocity.x == 0.0 and velocity.z == 0.0 and rotation.y == _rot_etale and (etat == POSTE or etat == HALTE) \
+			and _dist_locale() > DIST_IMMOBILE_ETALE)) \
+			and etat != ALERTE and not _en_conversation:
 		_dt_etale += dt
 		_n_etale += 1
 		if (_n_etale + get_instance_id()) % PAS_ETALE != 0:
@@ -253,6 +258,7 @@ func _physics_process(dt: float) -> void:
 	else:
 		dt += _dt_etale
 	_dt_etale = 0.0
+	_rot_etale = rotation.y      # a-t-il pivoté pendant ce pas ? (alors le suivant est à plein régime)
 	_t += dt
 	if service == "vigie":
 		_vigie(dt)
@@ -496,7 +502,7 @@ func _regard_tete(dist: float) -> void:
 	if etat == ALERTE and _ennemi != null and is_instance_valid(_ennemi):
 		_tete.cible = _ennemi.global_position + Vector3.UP * 1.3
 		_tete.voulu = true
-	elif _cible_joueur() != null and (dist < DIST_TETE or _en_conversation):
+	elif (dist < DIST_TETE or _en_conversation) and _cible_joueur() != null:     # perf : la cible n'est cherchée que de près
 		var cj := _cible_joueur()
 		var cam: Camera3D = cj.camera if "camera" in cj else null
 		_tete.cible = cam.global_position if cam != null else cj.global_position + Vector3.UP * 1.6

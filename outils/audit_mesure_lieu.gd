@@ -49,6 +49,17 @@ func _appliquer_bascule(seg: int, oui: bool) -> void:
 	if seg == 0:
 		return
 	var b := bascule[seg - 1]
+	if b == "sans_opti" or b == "sans_etale":     # interrupteurs statiques de l'opti cpu_scripts, coupés à chaud le temps du segment
+		var liste := [["res://scripts/villageois.gd", "etale"], ["res://scripts/garde_village.gd", "etale"]]
+		if b == "sans_opti":
+			liste += [["res://scripts/hud_combat.gd", "opti_dessin"], ["res://scripts/musique.gd", "opti"], ["res://scripts/vie/vie.gd", "opti_menaces"],
+				["res://scripts/rpg/etal_marchand.gd", "_opti"], ["res://scripts/rpg/equipement_corps.gd", "opti_cache"], ["res://scripts/rpg/conteneur.gd", "opti_poids"]]
+		for e in liste:
+			var sc: GDScript = load(e[0])
+			sc.set(e[1], not oui)
+			if sc.get(e[1]) != (not oui):
+				push_error("bascule %s : %s.%s non réglé" % [b, e[0], e[1]])
+		return
 	if not oui:
 		for e in _memo_bascule:
 			if is_instance_valid(e[0]):
