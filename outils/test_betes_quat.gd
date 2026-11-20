@@ -53,6 +53,29 @@ func _tester() -> void:
 		var clips_ok := ap != null and ap.has_animation("Idle") and ap.has_animation("Walk") and ap.has_animation("Attack") and ap.has_animation("Death") and ap.has_animation("Death01")
 		_verif(sq != null and clips_ok, "%s : Skeleton3D + Animations (Idle, Walk, Attack, Death, alias Death01)" % id)
 		n.free()
+	# bêtes v2 (art/animaux_v2) : mêmes clips, maillage lointain « _loin » en relais, texture peinte posée
+	for esp: String in BeteQuat.ESPECES:
+		var idv2 := BeteQuat.modele_pq(esp)
+		_verif(idv2.ends_with("_v2"), "%s : modèle v2 choisi (%s)" % [esp, idv2])
+		var n2 := PersosQuat.creer(idv2)
+		var ap3 := n2.get_node_or_null("Animations") as AnimationPlayer
+		var sq3 := n2.find_child("Skeleton3D", true, false)
+		var mis := n2.find_children("*", "MeshInstance3D", true, false)
+		var proche := 0
+		var loin := 0
+		var tex_ok := true
+		for mi: MeshInstance3D in mis:
+			if String(mi.name).ends_with("_loin"):
+				loin += 1
+				tex_ok = tex_ok and mi.visibility_range_begin > 18.0
+			else:
+				proche += 1
+				tex_ok = tex_ok and mi.visibility_range_end > 18.0
+			var mt := mi.material_override as ShaderMaterial
+			tex_ok = tex_ok and mt != null and mt.get_shader_parameter("tex_base") is Texture2D and (mt.get_shader_parameter("tex_base") as Texture2D).get_width() >= 128
+		_verif(sq3 != null and ap3 != null and ap3.has_animation("Idle") and ap3.has_animation("Walk") and ap3.has_animation("Death") and proche >= 1 and loin == 1 and tex_ok,
+			"%s : Skeleton3D + clips, %d maillage(s) proche(s) + 1 « _loin » (LOD), texture peinte sur ps1_perso" % [idv2, proche])
+		n2.free()
 	for id: String in PersosQuat.HABITANTS:
 		var h := PersosQuat.creer(id)
 		var ap2 := h.get_node_or_null("Animations") as AnimationPlayer
