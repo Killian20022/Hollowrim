@@ -485,6 +485,8 @@ func _poudrerie(pos: Vector3, nombre := 40, force := 7.0) -> void:
 	p.global_position = pos
 	p.emitting = true
 	p.finished.connect(p.queue_free)
+	if not OS.get_cmdline_user_args().has("--sans-opti-sang-liberation"):   # `finished` pas toujours émis (voir Sang._burst) : libérée à 5 s (vie 1,8 s)
+		get_tree().create_timer(5.0, false).timeout.connect(p.queue_free)
 
 func _regler_souffle(portee: float, demi: float, degats: float) -> void:
 	_portee_souffle = portee

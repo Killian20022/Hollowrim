@@ -63,6 +63,10 @@ func _appliquer(cfg: String) -> void:
 					_cacher(m.neige)
 			"neige_turb0":
 				_regler(m.neige.process_material, "turbulence_enabled", false)
+			"neige_ombre0":
+				_regler(m.neige, "cast_shadow", GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+			"neige_fige":      # flocons figés (mêmes places d'une config à l'autre : captures comparables au pixel)
+				_regler(m.neige, "speed_scale", 0.0)
 			"neige_fps15":
 				_regler(m.neige, "fixed_fps", 15)
 			"neige_moitie":

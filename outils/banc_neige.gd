@@ -66,6 +66,7 @@ func _go() -> void:
 	ordre.append("base")
 	for k in 120:          # préchauffage (shaders, preprocess)
 		await process_frame
+	print("BANC_NEIGE diag : gpu=%.3f cpu=%.3f appels=%d prims=%d" % [RenderingServer.viewport_get_measured_render_time_gpu(rid), RenderingServer.viewport_get_measured_render_time_cpu(rid), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
 	_variante(ordre[0])
 	set_meta("pret", true)
 
