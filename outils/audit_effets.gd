@@ -11,7 +11,8 @@ extends "res://outils/audit_mesure_lieu.gd"
 var _series: PackedStringArray = []
 var _i_serie := 0
 var _caches: Array = []      # [nœud, visible d'avant] des coupes en cours
-var _res: Dictionary = {}    # config -> [ [gpu_med, dt_med, dt_p99, appels, prims, objets], ... ]
+var _res: Dictionary = {}
+var _ordre: Array = []       # [config, gpu_med, cpu_rendu] dans l'ordre des passages    # config -> [ [gpu_med, dt_med, dt_p99, appels, prims, objets], ... ]
 
 func _experience(e: String) -> void:
 	var s := _arg("series")
@@ -29,7 +30,16 @@ func _cacher(n: Node) -> void:
 	_caches.append([nd, true])
 	nd.visible = false
 
+var _props: Array = []       # [objet, propriété, valeur d'avant]
+func _regler(o: Object, prop: String, v: Variant) -> void:
+	_props.append([o, prop, o.get(prop)])
+	o.set(prop, v)
+
 func _retablir() -> void:
+	for pr: Array in _props:
+		if is_instance_valid(pr[0]):
+			(pr[0] as Object).set(pr[1], pr[2])
+	_props.clear()
 	for c: Array in _caches:
 		if is_instance_valid(c[0]):
 			(c[0] as Node3D).visible = c[1]
@@ -46,6 +56,14 @@ func _appliquer(cfg: String) -> void:
 			"neige":
 				if m.get("neige") != null:
 					_cacher(m.neige)
+			"neige_turb0":
+				_regler(m.neige.process_material, "turbulence_enabled", false)
+			"neige_fps15":
+				_regler(m.neige, "fixed_fps", 15)
+			"neige_moitie":
+				_regler(m.neige, "amount_ratio", 0.5)
+			"neige_petite":      # flocons de taille nulle : le dessin ne coûte plus que les sommets (sépare traitement et pixels)
+				_regler(m.neige.draw_pass_1, "size", Vector2(0.0005, 0.0005))
 			"particules":
 				for p in m.find_children("*", "GPUParticles3D", true, false):
 					_cacher(p)
@@ -104,13 +122,52 @@ func _ligne_serie(cfg: String) -> void:
 	for d in dts:
 		if d > 33.0:
 			s33 += 1
-	var v := [_pct(gpu, 0.5), _pct(dts, 0.5), _pct(dts, 0.99), appels / maxf(1, n), prims / maxf(1, n), objets / maxf(1, n), _pct(gpu, 0.95), s33]
+	var v := [_pct(gpu, 0.5), _pct(dts, 0.5), _pct(dts, 0.99), appels / maxf(1, n), prims / maxf(1, n), objets / maxf(1, n), _pct(gpu, 0.95), s33, _pct(cpu, 0.5)]
+	_ordre.append([cfg, v[0], v[8]])
 	if not _res.has(cfg):
 		_res[cfg] = []
 	(_res[cfg] as Array).append(v)
-	print("SERIE %-28s gpu_med=%.2f gpu_p95=%.2f dt_med=%.2f dt_p99=%.2f >33=%d appels=%d prims=%d objets=%d n=%d" % [cfg, v[0], v[6], v[1], v[2], s33, v[3], v[4], v[5], n])
+	print("SERIE %-28s cpu_rendu=%.2f gpu_med=%.2f gpu_p95=%.2f dt_med=%.2f dt_p99=%.2f >33=%d appels=%d prims=%d objets=%d n=%d" % [cfg, v[8], v[0], v[6], v[1], v[2], s33, v[3], v[4], v[5], n])
 
 func _bilan() -> void:
+	# écart APPARIÉ : chaque passage d'une coupe comparé à la moyenne des passages « base » qui l'encadrent (le bruit lent s'annule)
+	var ecarts := {}
+	for i in _ordre.size():
+		var c: String = _ordre[i][0]
+		if c == "base":
+			continue
+		var av := -1
+		var ap := -1
+		for k in range(i - 1, -1, -1):
+			if _ordre[k][0] == "base":
+				av = k
+				break
+		for k in range(i + 1, _ordre.size()):
+			if _ordre[k][0] == "base":
+				ap = k
+				break
+		if av < 0 and ap < 0:
+			continue
+		var bg := 0.0
+		var bc := 0.0
+		var nb := 0
+		for k in [av, ap]:
+			if k >= 0:
+				bg += _ordre[k][1]
+				bc += _ordre[k][2]
+				nb += 1
+		if not ecarts.has(c):
+			ecarts[c] = [PackedFloat32Array(), PackedFloat32Array()]
+		ecarts[c][0].append(_ordre[i][1] - bg / nb)
+		ecarts[c][1].append(_ordre[i][2] - bc / nb)
+	for c in ecarts:
+		var g: PackedFloat32Array = ecarts[c][0]
+		var cc: PackedFloat32Array = ecarts[c][1]
+		var gs := g.duplicate()
+		gs.sort()
+		var cs := cc.duplicate()
+		cs.sort()
+		print("ECART %-28s gpu (coupe - base) médiane=%+.2f ms [%s] | cpu_rendu médiane=%+.2f ms" % [c, gs[gs.size() / 2], ", ".join(Array(g).map(func(x): return "%+.2f" % x)), cs[cs.size() / 2]])
 	for cfg in _res:
 		var l: Array = _res[cfg]
 		var g := PackedFloat32Array()
