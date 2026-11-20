@@ -335,6 +335,8 @@ func _profil() -> void:
 			continue
 		if sc == null and not (nd is AnimationMixer or nd is GPUParticles3D):
 			nom = "(moteur " + nd.get_class() + ")"
+		if nom == "" and par.get("", [0])[0] < 6:      # script sans chemin (classe interne, script créé en code) : qui est-ce ?
+			print("PROFIL script sans chemin : %s (%s) process=%s physics=%s" % [nd.get_path(), nd.get_class(), pr, ph])
 		var e: Array = par.get(nom, [0, 0, 0])
 		e[0] += 1
 		e[1] += 1 if pr else 0
