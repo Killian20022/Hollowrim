@@ -56,7 +56,7 @@ entière coûtait −0,16 à −0,52 ms dans le monde contre ~0,1 ms hors ombres
 
 ## Tests lancés
 
-- `test_sang_v2` OK (590 s, file d'attente des créneaux comprise), `test_dragon` OK, `test_dragon_monde` OK.
+- `test_sang_v2` OK (590 s, file d'attente des créneaux comprise), `test_dragon` OK (26 s), `test_dragon_monde` OK (120 s), `test_grotte_acces` OK (161 s : neige éteinte puis rétablie sous terre).
 
 ## Ce qui reste / pistes
 
