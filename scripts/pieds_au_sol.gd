@@ -74,7 +74,7 @@ class Orienteur extends SkeletonModifier3D:
 	var pilote: PiedsAuSol
 	func _process_modification() -> void:
 		var sq := get_skeleton()
-		if sq == null or pilote == null:
+		if sq == null or pilote == null or get_influence() <= 0.0:     # influence 0 (AnimLod, PNJ lointain) : rien à calculer
 			return
 		if not pilote._opti:
 			_ancien(sq)
@@ -198,7 +198,7 @@ func _sol(depart: Vector3, bas: float, exclus: Array[RID]) -> Dictionary:
 
 func _process_modification_with_delta(delta: float) -> void:
 	var sq := get_skeleton()
-	if sq == null or corps == null or not corps.is_inside_tree() or not actif:
+	if sq == null or corps == null or not corps.is_inside_tree() or not actif or get_influence() <= 0.0:
 		return
 	if not _opti or not _chaine_directe:
 		_ancien(sq, delta)
