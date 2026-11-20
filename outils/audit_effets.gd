@@ -48,6 +48,11 @@ func _retablir() -> void:
 func _appliquer(cfg: String) -> void:
 	_retablir()
 	for x in cfg.split(",", false):
+		if x.begins_with("lum:"):      # lum:<script> : lumières dont le premier ancêtre scripté est <script>.gd (ex. lum:interieur)
+			for l in m.find_children("*", "Light3D", true, false):
+				if not (l is DirectionalLight3D) and _origine(l) == x.substr(4) + ".gd":
+					_cacher(l)
+			continue
 		match x:
 			"lumieres":
 				for l in m.find_children("*", "Light3D", true, false):
@@ -94,6 +99,8 @@ func _terminer() -> void:
 		super._terminer()
 		return
 	_ligne_serie(_series[_i_serie])
+	if _arg("png-series") != "":      # --png-series=<dossier Windows> : une image par passage, AVANT de rétablir (planches avant|après)
+		await capturer("%s/%02d_%s.png" % [_arg("png-series"), _i_serie, _series[_i_serie].replace(",", "+").replace(":", "-")])
 	_i_serie += 1
 	if _i_serie < _series.size():
 		_appliquer(_series[_i_serie])
@@ -309,6 +316,17 @@ func _inventaire() -> void:
 			e[2] += 1
 			e[3] += q
 		pscript[cle] = e
+	var orph := {}
+	for p in m.get_children():
+		if p is GPUParticles3D:
+			var gp := p as GPUParticles3D
+			var dm: Mesh = gp.draw_pass_1
+			var mt: Material = gp.material_override if gp.material_override != null else (dm.surface_get_material(0) if dm != null and dm.get_surface_count() > 0 else null)
+			var ms := mt.get_class() + ((":" + (mt as ShaderMaterial).shader.resource_path.get_file()) if mt is ShaderMaterial and (mt as ShaderMaterial).shader != null else "")
+			var k := "%s %s n=%d vie=%.2f one_shot=%s emet=%s fini_signal=%d" % [String(gp.name).get_slice("@", 1) if String(gp.name).begins_with("@") else String(gp.name), (dm.get_class() if dm != null else "-") + "/" + ms, gp.amount, gp.lifetime, str(gp.one_shot), str(gp.emitting), gp.finished.get_connections().size()]
+			orph[k] = int(orph.get(k, 0)) + 1
+	for k in orph:
+		print("EFFETS   racine: %3d x %s" % [orph[k], k])
 	print("EFFETS particules GPU : total=%d visibles=%d (quantité %.0f) dans le champ=%d (quantité %.0f) CPUParticles=%d" % [np, np_vis, quant, np_champ, quant_champ, m.find_children("*", "CPUParticles3D", true, false).size()])
 	for cle in pscript:
 		var e: Array = pscript[cle]
