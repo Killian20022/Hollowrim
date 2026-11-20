@@ -74,6 +74,8 @@ Tous les A/B : même séance, lancements alternés avant (tous les interrupteurs
 | 1er `equiper()` : Hrafn / claymore / verre (`mesure_equiper`, même séance) | 199 / 524 / 25 ms | 11 / 19 / 18 ms | cause : SangLame.shader_de |
 | Village, lot 3 : tout (+ lits un par image, collisions par 8) | 63 | 6 | pire 404 → 147 ms, >33 ms 1953 → 1222 ; méd. 31 / 25 ms |
 | Combat, 1er sort 2 (runes) | 64,6 ms | 26,8 ms | abc2 |
+| Combat final (tout), phase « épée de feu » (équipement + 6 coups) | pire 540 ms, p99 465, 11 sauts | pire 83 ms, p99 54, 3 sauts | abc3 ; méd. 28 / 24 ms |
+| Combat final (tout), parcours entier | 26 sauts, pire 540 ms | 15 sauts, pire 269 ms | reste : entrée sous l'écran noir, ragdolls des morts |
 | Couche de neige à la 1re empreinte | image de 287-305 ms | `creer()` 0,8 ms en partie | créée sous l'écran de chargement |
 | Entrée dans la crypte (sous l'écran noir) | 282 / 325 ms | 179 / 207 ms | 6 gardiens posés d'un coup (outil téléporté : voir §5) |
 
