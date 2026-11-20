@@ -533,8 +533,9 @@ func _planifier_pose(reel: Interieur, t: Interieur, colls: Array, vivants: Array
 		for l in t.lumieres:
 			(l[0] as OmniLight3D).visible = reel._allume
 		reel.lumieres.append_array(t.lumieres))
-	for i in range(0, colls.size(), 24):
-		var paquet := colls.slice(i, i + 24)
+	var pq := 8 if _plafond_noeuds and prets else 24    # opti saccades : 8 collisions par tâche en partie (24 dans une image : saut de 35-50 ms)
+	for i in range(0, colls.size(), pq):
+		var paquet := colls.slice(i, i + pq)
 		_a_poser.append(func() -> void:
 			for c in paquet:
 				var parent: Node3D = reel.racine if c[0] == t.racine else c[0]
