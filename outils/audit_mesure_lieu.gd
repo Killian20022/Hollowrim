@@ -27,6 +27,87 @@ var ennemis: Array = []
 var t_sort := 0.0
 var rac := 0
 var tp := PackedFloat32Array()
+## --tranches : temps par image découpé en A (signal process_frame -> frame_pre_draw : _process de tous les nœuds, animations, appels
+## différés, _draw des Control), B (frame_pre_draw -> frame_post_draw : dessin du serveur de rendu sur le fil principal, attente GPU
+## comprise) et C (frame_post_draw -> process_frame suivant : pas de physique, entrées, attente). --bascule=anim,modif,pnj,... : dans
+## le MÊME lancement, segments de SEGMENT s en boucle (normal, puis un segment par bascule) : chaque bascule coupe un poste le temps
+## de son segment ; médianes par segment (les 0,5 premières s de chaque segment sont ignorées).
+var bascule: PackedStringArray = []
+const SEGMENT := 3.0
+var _seg_cour := 0
+var _seg_debut := 0.0
+var _ta := PackedFloat32Array()
+var _tb := PackedFloat32Array()
+var _tc := PackedFloat32Array()
+var _tdt := PackedFloat32Array()
+var _tscr := PackedFloat32Array()
+var _tphy := PackedFloat32Array()
+var _tseg := PackedInt32Array()
+var _memo_bascule: Array = []
+
+func _appliquer_bascule(seg: int, oui: bool) -> void:
+	if seg == 0:
+		return
+	var b := bascule[seg - 1]
+	if not oui:
+		for e in _memo_bascule:
+			if is_instance_valid(e[0]):
+				(e[0] as Object).set(e[1], e[2])
+		_memo_bascule.clear()
+		for nd in _rph_noeuds:
+			if is_instance_valid(nd):
+				(nd as Node).set_physics_process(true)
+		_rph_noeuds.clear()
+		return
+	for nd in m.find_children("*", "", true, false):
+		var sc: Script = nd.get_script()
+		var f := sc.resource_path.get_file() if sc != null else ""
+		match b:
+			"anim":        # toutes les animations (AnimationPlayer / AnimationTree)
+				if nd is AnimationMixer:
+					_memo_bascule.append([nd, "active", nd.active]); nd.active = false
+			"modif":       # modificateurs de squelette (IK des pieds, tête, orientation des mains, ressorts…)
+				if nd is SkeletonModifier3D:
+					_memo_bascule.append([nd, "active", nd.active]); nd.active = false
+			"pnj":         # villageois, gardes, faune : nœuds entiers gelés (IA, animations, squelettes)
+				if f in ["villageois.gd", "garde_village.gd", "bete_quat.gd"]:
+					_memo_bascule.append([nd, "process_mode", nd.process_mode]); nd.process_mode = Node.PROCESS_MODE_DISABLED
+			"pnj_ia":      # seulement le _physics_process des PNJ (animations gardées)
+				if f in ["villageois.gd", "garde_village.gd", "bete_quat.gd"] and nd.is_physics_processing():
+					_rph_noeuds.append(nd); nd.set_physics_process(false)
+			"particules":
+				if nd is GPUParticles3D:
+					_memo_bascule.append([nd, "emitting", nd.emitting]); nd.emitting = false
+			"squelettes":  # mise à jour des squelettes : modificateurs + animations (ce qui les déforme)
+				if nd is AnimationMixer:
+					_memo_bascule.append([nd, "active", nd.active]); nd.active = false
+				elif nd is SkeletonModifier3D:
+					_memo_bascule.append([nd, "active", nd.active]); nd.active = false
+			"hud":
+				if nd is CanvasLayer:
+					_memo_bascule.append([nd, "visible", nd.visible]); nd.visible = false
+
+var _rph_noeuds: Array = []
+
+func _rapport_tranches() -> void:
+	if _ta.is_empty():
+		return
+	var noms := ["normal"] + Array(bascule)
+	for k in noms.size():
+		var a := PackedFloat32Array()
+		var b := PackedFloat32Array()
+		var c := PackedFloat32Array()
+		var d := PackedFloat32Array()
+		var sc := PackedFloat32Array()
+		var ph := PackedFloat32Array()
+		for i in _ta.size():
+			if _tseg[i] == k:
+				a.append(_ta[i]); b.append(_tb[i]); c.append(_tc[i]); d.append(_tdt[i]); sc.append(_tscr[i]); ph.append(_tphy[i])
+		if d.size() < 5:
+			continue
+		print("TRANCHES %-12s n=%4d dt_med=%.2f p95=%.2f | A(process+anim+draw UI)=%.2f B(rendu)=%.2f C(physique+attente)=%.2f | scripts_process=%.2f physique_moniteur=%.2f" % [
+			noms[k], d.size(), _pct(d, 0.5), _pct(d, 0.95), _pct(a, 0.5), _pct(b, 0.5), _pct(c, 0.5), _pct(sc, 0.5), _pct(ph, 0.5)])
+
 var _vie_ticks := PackedFloat32Array()
 var _vie_prec := -1.0
 var tph := PackedFloat32Array()
@@ -39,6 +120,7 @@ class Sonde extends Node:
 	var sonde_debut: Sonde
 	var cumul := PackedFloat32Array()
 	var actif := false
+	var dernier := 0.0
 	func _process(_dt: float) -> void:
 		_tic()
 	func _physics_process(_dt: float) -> void:
@@ -48,7 +130,8 @@ class Sonde extends Node:
 		if debut:
 			t0 = maintenant
 		elif actif:
-			cumul.append((maintenant - sonde_debut.t0) / 1000.0)
+			dernier = (maintenant - sonde_debut.t0) / 1000.0
+			cumul.append(dernier)
 
 ## Profil par script (--profil) : une sonde après chaque groupe de nœuds (priorité = rang du groupe × 10) ; la différence de deux horodatages = coût du groupe.
 class SondeGroupe extends Node:
@@ -107,6 +190,16 @@ func _grouper() -> void:
 		root.add_child(sd)
 
 func _rapport_groupes() -> void:
+	var tard: Dictionary = {}      # nœuds créés après _grouper (priorité 0 : comptés dans le groupe #1 « autres »)
+	for nd in root.find_children("*", "", true, false):
+		if nd.process_priority != 0 or not (nd.is_processing() or nd.is_physics_processing()) or nd is SondeGroupe or nd is Sonde:
+			continue
+		var sc: Script = nd.get_script()
+		var nom := sc.resource_path.get_file() if sc != null else "(" + nd.get_class() + ")"
+		tard[nom] = int(tard.get(nom, 0)) + 1
+	var cl := tard.keys()
+	cl.sort_custom(func(x, y): return tard[x] > tard[y])
+	print("PROFIL nœuds de priorité 0 actifs à la fin (groupe #1) : ", ", ".join(cl.slice(0, 15).map(func(k): return "%s x%d" % [k, tard[k]])))
 	var lst: Array = []
 	for g in range(1, etiquettes.size()):
 		lst.append(["#%d %s" % [g, etiquettes[g]], cout[0][g] / 1000.0 / n, cout[1][g] / 1000.0 / n])
@@ -169,7 +262,8 @@ func _go() -> void:
 	var t0 := Time.get_ticks_msec()
 	_t0_ms = t0
 	detail = _arg("detail") != ""
-	if detail:
+	bascule = _arg("bascule").split(",", false)
+	if detail or _arg("tranches") != "" or not bascule.is_empty():
 		process_frame.connect(func() -> void:
 			var nw := Time.get_ticks_usec()
 			if _t_post > 0:
@@ -443,6 +537,21 @@ func _process(dt: float) -> bool:
 	if lieu == "combat":
 		_sorts(dt)
 	var t_sync := Time.get_ticks_usec()
+	if t >= STAB and _t_pf > 0 and (bascule.is_empty() or t - _seg_debut >= 0.5):
+		_ta.append(_a)
+		_tb.append(_b)
+		_tc.append(_c)
+		_tseg.append(_seg_cour)
+		_tdt.append(d_ms)
+		_tscr.append(sondes_p[1].dernier if sondes_p.size() > 1 else 0.0)
+		_tphy.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
+	if not bascule.is_empty() and t >= STAB:
+		var k := int((t - STAB) / SEGMENT) % (bascule.size() + 1)    # segments : normal, puis chaque bascule, en boucle
+		if k != _seg_cour:
+			_appliquer_bascule(_seg_cour, false)
+			_seg_cour = k
+			_appliquer_bascule(_seg_cour, true)
+			_seg_debut = t
 	if detail:
 		RenderingServer.force_sync()      # file de commandes du serveur de rendu (travail des fils de fond exécuté ici)
 	var d_sync := (Time.get_ticks_usec() - t_sync) / 1000.0
@@ -582,6 +691,7 @@ func _pct(a: PackedFloat32Array, p: float) -> float:
 	return b[mini(b.size() - 1, int(b.size() * p))]
 
 func _fin() -> void:
+	_rapport_tranches()
 	if mesure_groupes:
 		_rapport_groupes()
 	var s16 := 0

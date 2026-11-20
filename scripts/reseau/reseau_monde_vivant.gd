@@ -12,8 +12,14 @@ extends Node
 
 ## Autoload Reseau, résolu à l'exécution : villageois.gd / garde_village.gd / cycle.gd dépendent de cette classe et sont parfois compilés
 ## (preload) par des tests en `-s` AVANT l'enregistrement des autoloads : un identifiant `Reseau` nu y serait une erreur de compilation.
+## Opti cpu_scripts (2026-11-20) : appelé plusieurs fois par pas et par PNJ ; le nœud Reseau (autoload) est gardé tant qu'il est dans
+## l'arbre (sinon recherché comme avant : même résultat).
+static var _reseau_garde: Node
 static func _r() -> Node:
-	return (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Reseau")
+	if is_instance_valid(_reseau_garde) and _reseau_garde.is_inside_tree():
+		return _reseau_garde
+	_reseau_garde = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Reseau")
+	return _reseau_garde
 
 static func en_ligne() -> bool:
 	var r := _r()

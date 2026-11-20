@@ -12,8 +12,14 @@ static var _sources: Array = []        # sources actives en coop (nœuds)
 static var _avait_dialogue := false    # en_dialogue valait déjà vrai quand la première source s'est ouverte
 
 ## Autoload « Reseau » par son chemin : les scripts de tests (--script) compilent avant les autoloads, l'identifiant global y est inconnu.
+## Opti cpu_scripts (2026-11-20) : appelé plusieurs fois par pas et par PNJ ; le nœud Reseau (autoload) est gardé tant qu'il est dans
+## l'arbre (sinon recherché comme avant : même résultat).
+static var _reseau_garde: Node
 static func R() -> Node:
-	return (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Reseau")
+	if is_instance_valid(_reseau_garde) and _reseau_garde.is_inside_tree():
+		return _reseau_garde
+	_reseau_garde = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Reseau")
+	return _reseau_garde
 
 static func coop() -> bool:
 	var r := R()
