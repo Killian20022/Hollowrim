@@ -60,3 +60,37 @@ suivi de tête, orientation — l'évaluation des clips seule ne coûte presque 
 | `hud_combat.gd` (process) | 0,17-0,24 ms/image | lecture de l'état une image sur deux |
 | `cassable.gd` (64-104 nœuds) | 0,06-0,11 ms/image | un `_process` par urne pour sonder « pillé » toutes les 0,75 s |
 | mécanismes de crypte (5, classes internes de piege.gd) | 0,12 ms/pas | tournent même quand le joueur est au village (piste) |
+
+## Ce qui est fait (une optimisation = un commit, interrupteur `--sans-opti-…` pour l'avant)
+
+| optimisation | interrupteur | exact ? | mesure |
+|---|---|---|---|
+| PNJ (villageois, gardes) au-delà de 22 m (`lod` 1) : IA + move_and_slide 1 pas de physique sur 3, temps cumulé, vitesse mise à l'échelle le temps du move_and_slide ; aussi en lod 0 quand ils sont IMMOBILES (poste / pause / halte, sans rotation au pas précédent) à plus de 8 m du joueur local. Jamais en alerte, conversation, causerie, course. | `--sans-opti-pnj-etale` | trajet identique ; mise à jour de position à 20 Hz à > 22 m (≤ 6,5 cm, sous le pixel) | place 21 h : gardes 1,33 → 0,73 ms/pas, villageois 1,10 → 0,87 (avant l'extension « immobiles ») ; feu de camp, même lancement : −0,66 ms/image |
+| `_regard_tete` : cible du regard cherchée seulement de près (ordre des conditions) | — | exact | — |
+| Étals : tri du stock refait seulement si `Marchand.stock()` change (`hash`) | `--sans-opti-etal` | exact | 0,46 ms/image moyen (pic de plusieurs ms toutes les 3 s) → hors du classement |
+| `Vie.tick` : menaces pré-filtrées par la boîte englobante des civils + 25 m pour `_annoncer` / `_danger_proche` | `--sans-opti-vie-menaces` | exact | vie.gd 0,38 → 0,07-0,09 ms/image ; tick médian 0,43-0,77 ms, max 2,8-4,1 ms |
+| HudCombat : `queue_redraw` seulement si l'état affiché change (signature ; opacités à 1/512 près ; clignotements = chaque image ; au moins toutes les 0,25 s) | `--sans-opti-hud` | même image (planche) | `_draw` 0,96 → 0,16 ms/image |
+| Hud : bandeau fixe de la boussole dans un nœud `FondBoussole` dessiné derrière, redessiné si taille / style changent | `--sans-opti-hud` | même image (planche) | ~80 draw_rect/textures de moins par image (boussole 0,39 ms) |
+| Musique : balayage des ennemis en combat 10 fois/s | `--sans-opti-musique` | ≤ 0,1 s de retard sous un fondu | 0,15-0,19 → 0,07 ms/image |
+| `Conteneur.poids()` et `EquipementCorps.effets_totaux()` gardés tant que le contenu ne change pas (`hash`) | `--sans-opti-cache-stats` | exact | le joueur relisait tout le sac à chaque pas (surcharge) et 3 fois les effets ; dans l'EXE (PERIODE_TEST_EQUIPEMENT : tout l'équipement dans le sac) c'est le plus gros gain |
+| Cassables intacts sans `_process` : un seul balayage statique de l'état « pillé » toutes les 0,75 s | `--sans-opti-cassables` | mêmes appels, même période | 64-104 `_process` en moins (0,06-0,11 ms/image) |
+| Nœud `Reseau` gardé dans `ReseauMondeVivant._r`, `PauseCoop.R`, `CombatCoop.R`, `ReseauLieux.reseau` | — | même nœud (recherché à nouveau s'il quitte l'arbre) | micro-banc : `en_ligne()` 1,3 µs, appelé 3-4 fois par pas et par PNJ |
+
+### A/B dans le même lancement (feu de camp, `--lieu=temoin --heure=12 --bascule=sans_opti,sans_etale`, 60 s, 2 autres Godot)
+
+| segment | dt méd. | dt p95 | A | B | C | physique (moniteur) |
+|---|---|---|---|---|---|---|
+| tout optimisé | **15,84** | **21,82** | 7,87 | 5,57 | 2,02 | 3,51 |
+| `sans_opti` (tous mes interrupteurs à chaud, sauf cassables et boussole) | 16,88 | 28,64 | 7,87 | 5,33 | 3,25 | 4,48 |
+| `sans_etale` | 16,50 | 21,67 | 7,32 | 5,53 | 3,17 | 4,30 |
+
+### A/B dans le même lancement (place, `--lieu=place --heure=12 --bascule=sans_opti,sans_etale`, 60 s, 2 autres Godot)
+
+| segment | dt méd. | dt p95 | A | B | C | physique (moniteur) |
+|---|---|---|---|---|---|---|
+| tout optimisé | **30,71** | **40,24** | 13,07 | 11,10 | 5,89 | 4,64 |
+| `sans_opti` | 34,87 | 60,33 | 14,18 | 11,79 | 8,71 | 5,45 |
+| `sans_etale` | 32,42 | 44,67 | 12,97 | 11,30 | 7,78 | 5,65 |
+
+Sur la place (machine chargée, image ~30 ms : 2 pas de physique par image), chaque ms gagnée par pas compte double : −4,2 ms en médiane,
+−20 ms au p95. Le gain en C (physique + attente : 8,71 → 5,89) est celui de la spirale « image lente → plus de pas de physique ».
