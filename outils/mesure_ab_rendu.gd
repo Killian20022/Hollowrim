@@ -134,7 +134,6 @@ func _appliquer(cfg: String) -> void:
 	env.glow_enabled = _orig["glow"]
 	env.fog_enabled = _orig["fog"]
 	env.background_mode = _orig["bg"]
-	m._ciel.set_shader_parameter("aurore_saut", 0.0 if _arg("sans-opti-aurore") != "" else 0.002)
 	if env.sky != null:
 		if env.sky.process_mode != _orig["ciel_mode"]:
 			env.sky.process_mode = _orig["ciel_mode"]
@@ -187,7 +186,6 @@ func _appliquer(cfg: String) -> void:
 			"brume0": env.fog_enabled = false
 			"ciel0":
 				env.background_mode = Environment.BG_COLOR
-			"aurore_avant": m._ciel.set_shader_parameter("aurore_saut", 0.0)
 			"ciel_inc": env.sky.process_mode = Sky.PROCESS_MODE_INCREMENTAL
 			"ciel_qual": env.sky.process_mode = Sky.PROCESS_MODE_QUALITY
 			"monts0":

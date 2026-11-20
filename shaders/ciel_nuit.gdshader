@@ -12,7 +12,6 @@ shader_type sky;
 uniform vec3 aurore_bas : source_color = vec3(0.15, 1.0, 0.55);
 uniform vec3 aurore_haut : source_color = vec3(0.55, 0.2, 0.95);
 uniform float aurore_force = 1.0;
-uniform float aurore_saut = 0.002;   // opti 2026-11-20 : seuil sous lequel une couche de l'aurore est sautée (0 = jamais)
 uniform float jour = 0.0;     // 0 nuit, 1 plein jour (couvert)
 uniform float crep = 0.0;     // lueur crépusculaire / aube, 0..1
 uniform float soleil = 0.0;   // l'astre dessiné : 0 lune, 1 soleil
@@ -178,11 +177,6 @@ vec3 aurore(vec3 d) {
 			+ (bruit(vec2(x * 0.9, TIME * 0.02)) - 0.5) * 1.6;
 		float ecart = q.y + 2.4 - courbe;
 		float bande = exp(-ecart * ecart * 5.0);
-		// opti 2026-11-20 (gpu_rendu) : hors de la bande (apport < 2e-4 en linéaire, bien sous un palier 15 bits du post),
-		// les stries (2 bruits) ne sont pas calculées. --sans-opti-aurore : sans ce saut (A/B, uniforme aurore_saut = 0).
-		if (bande < aurore_saut) {
-			continue;
-		}
 		// stries verticales qui ondulent
 		float stries = 0.35 + 0.65 * bruit(vec2(q.x * 5.0 + TIME * 0.25, k * 2.0));
 		stries *= 0.6 + 0.4 * bruit(vec2(q.x * 1.3 - TIME * 0.1, 7.0));
