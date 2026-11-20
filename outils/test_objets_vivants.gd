@@ -41,9 +41,21 @@ func _premier(l: Array, genre: String) -> ObjetVivant:
 	return null
 
 ## Place le joueur pour que sa caméra soit à ~1 m de `o`, un peu au-dessus, et la tourne vers lui.
+## Le point de vue est choisi parmi plusieurs directions autour de l'objet : le premier d'où un rayon vers l'objet le
+## touche LUI en premier (depuis les props v5 du 2026-11-19, un pain posé devant la chope masquait la direction +Z fixe).
 func _devant(j: CharacterBody3D, o: Node3D) -> void:
 	var cam: Camera3D = j.camera
 	var voulu := o.global_position + Vector3(0.0, 0.45, 0.9)
+	var espace := j.get_world_3d().direct_space_state
+	for k in 8:
+		var a := TAU * float(k) / 8.0
+		var p := o.global_position + Vector3(sin(a) * 0.9, 0.45, cos(a) * 0.9)
+		var q := PhysicsRayQueryParameters3D.create(p, o.global_position)
+		q.exclude = [j.get_rid()]
+		var r := espace.intersect_ray(q)
+		if not r.is_empty() and r["collider"] == o:
+			voulu = p
+			break
 	j.global_position += voulu - cam.global_position
 	j.velocity = Vector3.ZERO
 	await _images(2)
@@ -179,6 +191,9 @@ func _tester() -> void:
 	await _images(30)
 	var devant := cam.global_position - cam.global_transform.basis.z * ov._dist_tenu
 	_verif(lance.global_position.distance_to(devant) < 0.35, "l'objet suit le regard (%.2f m de la visée ; objet %s, visée %s)" % [lance.global_position.distance_to(devant), lance.global_position, devant])
+	# lancer vers le haut et le large (vu du dessus, l'objet partait droit dans la table où il était posé)
+	j.tete.rotation.x = 0.35
+	await _images(2)
 	ov.lancer()
 	await _images(3)
 	_verif(ov.objet_tenu() == null and lance.linear_velocity.length() > 3.0, "clic gauche : lancé à %.1f m/s" % lance.linear_velocity.length())
