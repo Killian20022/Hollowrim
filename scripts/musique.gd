@@ -55,10 +55,22 @@ func _menace() -> bool:
 			return true
 	return false
 
+## Opti cpu_scripts (2026-11-20) : _menace() parcourt tout le groupe « ennemis » (~100 nœuds, un appel en_combat() chacun) ; relu
+## 10 fois par seconde au lieu de chaque image (la musique de combat part au plus 0,1 s plus tard, sous son fondu).
+## `--sans-opti-musique` : chaque image.
+const PAS_MENACE := 0.1
+static var opti := not ("--sans-opti-musique" in OS.get_cmdline_user_args())
+var _t_menace := 0.0
+var _menace_vue := false
+
 func _process(dt: float) -> void:
 	if monde == null or monde.joueur == null:
 		return
-	if _menace():
+	_t_menace -= dt
+	if not opti or _t_menace <= 0.0:
+		_t_menace = PAS_MENACE
+		_menace_vue = _menace()
+	if _menace_vue:
 		_sortie_combat = SORTIE_COMBAT
 	else:
 		_sortie_combat = maxf(0.0, _sortie_combat - dt)
