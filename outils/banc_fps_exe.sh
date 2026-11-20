@@ -4,7 +4,9 @@
 #   bash outils/banc_fps_exe.sh <Hollowrim.exe> [dossier_sortie]
 #   bash outils/banc_fps_exe.sh editeur [dossier_sortie]        (même banc lancé par l'éditeur sur CE projet, pour comparer exe / éditeur)
 # Variables : BANC_REPS (3), BANC_DUREE (20 s de mesure après 10 s de stabilisation), BANC_LIEUX ("temoin place foret halle grotte crypte combat"),
-#   BANC_HEURES ("12 21"), GODOT (éditeur). Sortie : <dossier>/<lieu>_<heure>_<rep>.json (+ .charge = nombre maximal d'AUTRES Godot/Hollowrim
+#   BANC_HEURES ("12 21"), GODOT (éditeur), BANC_SORTS (eleve : le détail des sorts du joueur — options.cfg detail_sorts=2 ; les outils
+#   et audit_mesure_lieu.gd mesurent en « retro », Jeu.mode_outil, moins coûteux que ce que voit l'utilisateur), BANC_EXTRA (arguments du jeu en plus, après « -- »),
+#   BANC_MOTEUR (arguments du moteur, avant « -- », ex. "--rendering-driver d3d12" ou "--render-thread safe"). Sortie : <dossier>/<lieu>_<heure>_<rep>.json (+ .charge = nombre maximal d'AUTRES Godot/Hollowrim
 #   actifs pendant le lancement). Comparer deux dossiers : bash outils/compare_fps.sh <avant> <après>.
 set -u
 EXE="${1:?usage : banc_fps_exe.sh <exe|editeur> [dossier]}"
@@ -23,12 +25,12 @@ for rep in $(seq 1 "$REPS"); do
 	for lieu in $LIEUX; do
 		for h in $HEURES; do
 			base="${lieu}_${h}_${rep}"; autres=$(nb_jeux)
-			( sleep 40; echo $(( $(nb_jeux) - 1 )) > "$SORTIE/$base.mi" ) &
+			( mx=0; while true; do sleep 20; k=$(( $(nb_jeux) - 1 )); [[ $k -gt $mx ]] && mx=$k; echo $mx > "$SORTIE/$base.mi"; done ) &   # max pendant tout le lancement (attente du créneau comprise)
 			ECHANT=$!
-			args=(--nouvelle --banc-fps="$lieu,$h,$DUREE" --banc-sortie="${SW//\\//}/$base.json"); [[ "$lieu" != "combat" ]] && args+=(--paisible)
+			args=(--nouvelle --banc-fps="$lieu,$h,$DUREE" --banc-sortie="${SW//\\//}/$base.json" --detail-sorts="${BANC_SORTS:-eleve}" ${BANC_EXTRA:-}); [[ "$lieu" != "combat" ]] && args+=(--paisible)
 			p="$(pose_de "$lieu")"; [[ -n "$p" ]] && args+=("$p")
 			rm -f "$SORTIE/$base.json"
-			GODOT_TIMEOUT=480 bash "$SLOT" "${CMD[@]}" --disable-vsync -- "${args[@]}" > "$SORTIE/$base.log" 2>&1
+			GODOT_TIMEOUT=480 bash "$SLOT" "${CMD[@]}" --disable-vsync ${BANC_MOTEUR:-} -- "${args[@]}" > "$SORTIE/$base.log" 2>&1
 			rc=$?
 			kill "$ECHANT" 2>/dev/null; wait "$ECHANT" 2>/dev/null
 			apres=$(nb_jeux); mi=$(cat "$SORTIE/$base.mi" 2>/dev/null || echo 0); rm -f "$SORTIE/$base.mi"
