@@ -28,6 +28,7 @@ static func peut(modele: Node3D) -> bool:
 	return sq != null and sq.find_bone("Head") >= 0 and sq.find_bone("neck_01") >= 0
 
 static func decapiter(modele: Node3D, impulsion: Vector3, couleur: Color, sang := true, matiere := "chair") -> RigidBody3D:
+	FusionOmbre.retirer(modele)
 	if not peut(modele):
 		return null
 	var sq := modele.find_child("Skeleton3D", true, false) as Skeleton3D

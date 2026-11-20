@@ -240,6 +240,7 @@ func declencher(impulsion: Vector3, point: Vector3, os_touche := "", vitesse := 
 	if actif or simulateur == null:
 		return
 	actif = true
+	FusionOmbre.retirer(personnage)      # les pièces reprennent chacune leur ombre (le corps se défait)
 	for n in squelette.get_children():
 		if n.is_in_group("pieds_au_sol"):
 			n.call("appliquer_pose_finale")   # on part de la pose corrigée visible à l'écran

@@ -98,6 +98,8 @@ func _ready() -> void:
 	_t_choix = randf_range(2.0, 8.0)
 	_jouer("Idle", 0.0)
 	anim.seek(randf() * 2.0, true)
+	if not OS.get_cmdline_user_args().has("--sans-opti-anim-betes"):
+		AnimLod.inscrire(self, anim)     # opti 2026-11-20 : hors du champ, animée 1 image sur 4 comme les PNJ (la logique ne lit pas l'animation : minuteries)
 
 # ------------------------------------------------------------------ contrat
 

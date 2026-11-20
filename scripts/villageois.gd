@@ -49,7 +49,7 @@ class SuiviTete extends SkeletonModifier3D:
 
 	func _process_modification() -> void:
 		var sq := get_skeleton()
-		if sq == null:
+		if sq == null or influence <= 0.0:     # influence 0 : PNJ lointain (AnimLod), rien à calculer
 			return
 		if _tete < 0:
 			_tete = sq.find_bone("Head")
