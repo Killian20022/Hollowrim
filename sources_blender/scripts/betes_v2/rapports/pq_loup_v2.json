@@ -1,0 +1,11 @@
+{
+ "id": "pq_loup_v2",
+ "source": "pq_loup2",
+ "tris_source": 1962,
+ "tris_subdiv_decime": 2400,
+ "tris_touffes": 2436,
+ "tris_proche": 4836,
+ "tris_loin": 800,
+ "touffes": 360,
+ "texture": 256
+}

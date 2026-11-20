@@ -1,0 +1,160 @@
+{
+ "defaut": {
+  "subdiv": 1,
+  "tris_corps": 2400,
+  "tris_loin": 800,
+  "gonfle": 0.004,
+  "angle_lisse": 50,
+  "texture": 256,
+  "lissage": 4,
+  "seuil_detail": 0.1,
+  "palette": false,
+  "vc_corps": 1.0,
+  "ombre_racine": 0.84,
+  "pesanteur": 0.25,
+  "desordre": 0.25,
+  "face_libre": 0.55,
+  "bonus_dos": 0.5,
+  "bonus_ventre": 0.0,
+  "long_dos": 0.0,
+  "long_ventre": 0.0,
+  "largeur": 0.012,
+  "touffes": 400,
+  "poil": {
+   "meche_long": 9,
+   "meche_trav": 55,
+   "poil_long": 22,
+   "poil_trav": 170,
+   "tache": 4,
+   "amp_meche": 0.16,
+   "amp_poil": 0.1,
+   "amp_tache": 0.08
+  },
+  "zones": {},
+  "quantif": {
+   "pas_l": 0.045,
+   "pas_c": 0.012,
+   "sat": 0.75,
+   "froid": 0.004
+  }
+ },
+ "especes": {
+  "loup": {
+   "id": "pq_loup_v2",
+   "source": "pq_loup2",
+   "touffes": 360,
+   "tris_corps": 2400,
+   "ventre": 0.1,
+   "bonus_dos": 0.6,
+   "long_ventre": 0.4,
+   "zones": {
+    "cou": {
+     "densite": 11,
+     "longueur": 0.085,
+     "segments": 2,
+     "leve": 34,
+     "largeur": 0.0224,
+     "pointe": 0.95
+    },
+    "poitrail": {
+     "densite": 6,
+     "longueur": 0.065,
+     "segments": 2,
+     "leve": 28,
+     "largeur": 0.0208,
+     "pointe": 1.0
+    },
+    "tete": {
+     "densite": 2.5,
+     "longueur": 0.035,
+     "segments": 1,
+     "leve": 30,
+     "largeur": 0.016,
+     "pointe": 0.95
+    },
+    "tronc": {
+     "densite": 3,
+     "longueur": 0.045,
+     "segments": 1,
+     "leve": 22,
+     "largeur": 0.0192,
+     "pointe": 0.8
+    },
+    "queue": {
+     "densite": 10,
+     "longueur": 0.07,
+     "segments": 2,
+     "leve": 32,
+     "largeur": 0.0208,
+     "pointe": 0.78
+    },
+    "patte_haute": {
+     "densite": 1.4,
+     "longueur": 0.035,
+     "segments": 1,
+     "leve": 16,
+     "largeur": 0.016,
+     "pointe": 0.9
+    },
+    "patte_basse": {
+     "densite": 0.0
+    },
+    "oreille": {
+     "densite": 0.0
+    }
+   },
+   "manteau": [
+    {
+     "classes": [
+      "tronc",
+      "cou",
+      "queue"
+     ],
+     "ou": "dos",
+     "seuil": 0.15,
+     "vers": "#3d3e4a",
+     "part": 0.45
+    },
+    {
+     "classes": [
+      "tronc",
+      "poitrail",
+      "cou",
+      "patte_haute"
+     ],
+     "ou": "ventre",
+     "seuil": 0.1,
+     "vers": "#b9ae9f",
+     "part": 0.6
+    },
+    {
+     "classes": [
+      "poitrail"
+     ],
+     "ou": "face",
+     "seuil": 0.0,
+     "vers": "#a7a19b",
+     "part": 0.45
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "ventre",
+     "seuil": 0.0,
+     "vers": "#dbd0b6",
+     "part": 0.55
+    },
+    {
+     "classes": [
+      "patte_basse"
+     ],
+     "ou": "tout",
+     "vers": "#947c5e",
+     "part": 0.25
+    }
+   ],
+   "seuil_detail": 0.14
+  }
+ }
+}

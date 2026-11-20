@@ -21,7 +21,7 @@ enum { REPOS, ERRE, TRAQUE, ENCERCLE, ATTAQUE, TITUBE, FUITE, SUIT }
 ## Fiche de chaque espèce. vitesses en m/s ; ref_* : vitesse que suppose le clip (pieds qui ne glissent pas) ; portee : morsure ;
 ## detection : il voit le joueur (hostile) ou s'effraie (faune) en deçà ; biomes / heures : pour le futur système d'apparition.
 const ESPECES := {
-	"loup": {"pq": "pq_loup2", "nom": "Loup", "vie": 48.0, "degats": 9.0, "rayon": 0.32, "haut": 0.85, "profil": "loup", "hostile": true,
+	"loup": {"pq": "pq_loup2", "pq_v2": "pq_loup_v2", "nom": "Loup", "vie": 48.0, "degats": 9.0, "rayon": 0.32, "haut": 0.85, "profil": "loup", "hostile": true,
 		"marche": 1.25, "course": 6.4, "ref_marche": 1.15, "ref_course": 5.6, "detection": 20.0, "portee": 1.6, "impact": 0.55, "meute": true,
 		"biomes": ["foret", "plaine_neige"], "heures": "nuit+", "groupe": [3, 5]},
 	"araignee": {"pq": "pq_araignee", "nom": "Araignée des cavernes", "vie": 40.0, "degats": 11.0, "rayon": 0.55, "haut": 0.7, "profil": "araignee",
@@ -75,6 +75,11 @@ var dort := false             # domestique couché pour la nuit (posé par Faune
 var suit_joueur := false      # husky : suit le joueur tant que Faune l'autorise (état SUIT)
 var _t_rival := 0.0
 
+## Modèle de l'espèce : v2 (fourrure) si livré, sinon le v1 (PersosQuat.id_bete, --animaux-anciens).
+static func modele_pq(esp: String) -> String:
+	var f: Dictionary = ESPECES.get(esp, ESPECES["loup"])
+	return PersosQuat.id_bete(String(f["pq"]), String(f.get("pq_v2", "")))
+
 static func espece_de(nom_ia: String) -> String:
 	return nom_ia if ESPECES.has(nom_ia) else "loup"
 
@@ -88,7 +93,7 @@ func _ready() -> void:
 	taille = float(fiche["haut"]) / 1.8
 	var mod := EnnemisNordiques.modele_ia(espece, ident)
 	if mod == null:
-		mod = PersosQuat.creer(String(fiche["pq"]))
+		mod = PersosQuat.creer(modele_pq(espece))
 	_equiper(mod, ProfilCible.pour(String(fiche["profil"])), float(fiche["rayon"]), float(fiche["haut"]), false)
 	add_to_group("bete_quat")
 	if not bool(fiche["hostile"]):
