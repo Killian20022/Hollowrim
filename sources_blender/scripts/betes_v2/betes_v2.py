@@ -218,13 +218,23 @@ def positions_os(j):
             M = m(parent[i]) @ M
         cache[i] = M
         return M
+    MATS.update({i: m(i) for i in range(len(j["nodes"]))})
     return {n.get("name", str(i)): m(i)[:3, 3] for i, n in enumerate(j["nodes"])}, parent
 
 
+MATS = {}
+RMONDE = np.eye(3)        # rotation du noeud du maillage (repère maillage -> monde glTF, Y haut) : calculs en monde
+
+
 # ------------------------------------------------------------------ Blender : maillage retravaillé
-def b2g(v):            # repère Blender (Z haut, -Y avant) -> glTF (Y haut, +Z avant)
+AXES = [[0, 2, 1], [1, 1, -1]]      # (indices, signes) : repère Blender -> repère du maillage glTF ; choisi dans main()
+CANDIDATS = [([0, 2, 1], [1, 1, -1]), ([0, 1, 2], [1, 1, 1]), ([0, 2, 1], [1, -1, 1]), ([0, 1, 2], [1, -1, -1])]
+
+
+def b2g(v):            # repère Blender (Z haut, -Y avant) -> glTF (Y haut, +Z avant), ou autre selon l'armature du glb
     v = np.asarray(v)
-    return np.stack([v[..., 0], v[..., 2], -v[..., 1]], -1)
+    ix, sg = AXES
+    return np.stack([v[..., ix[0]] * sg[0], v[..., ix[1]] * sg[1], v[..., ix[2]] * sg[2]], -1)
 
 
 def tris_de(o):
@@ -333,7 +343,7 @@ def extraire(o, os_noms):
     me = o.data
     me.calc_loop_triangles()
     nv = len(me.vertices)
-    P = b2g(np.array([v.co[:] for v in me.vertices]))
+    P = b2g(np.array([v.co[:] for v in me.vertices])) @ RMONDE.T
     gid = {g.index: g.name for g in o.vertex_groups}
     W = np.zeros((nv, len(os_noms)))
     idx = {n: i for i, n in enumerate(os_noms)}
@@ -351,10 +361,10 @@ def extraire(o, os_noms):
     tri_v = np.array(tri_v)
     tri_l = np.array(tri_l)
     cn = np.array([me.corner_normals[i].vector[:] for i in range(len(me.loops))])
-    N = b2g(cn)
+    N = b2g(cn) @ RMONDE.T
     UV = np.array([uvl.data[i].uv[:] for i in range(len(me.loops))]) if uvl else np.zeros((len(me.loops), 2))
     UV = np.stack([UV[:, 0], 1.0 - UV[:, 1]], -1)     # glTF : v vers le bas
-    VN = b2g(np.array([v.normal[:] for v in me.vertices]))
+    VN = b2g(np.array([v.normal[:] for v in me.vertices])) @ RMONDE.T
     return dict(P=P, W=W, C=C, tri_v=tri_v, tri_l=tri_l, N=N, UV=UV, VN=VN)
 
 
@@ -494,7 +504,8 @@ def peindre(ex, flow_v, K_v, S):
     Cp0 = Cp.copy()
     lum0 = lumi(Cp)
     detail = lum0 < CFG.get("seuil_detail", 0.07)
-    Cp = manteau(Cp, Pp, Np, Kp)
+    bois0 = masque_bois(Pp, Kp)
+    Cp = np.where(bois0[:, None], Cp, manteau(Cp, Pp, Np, Kp))
     T1 = norm(np.cross(Np, Fp))
     f = CFG["poil"]
     ech = CFG.get("echelle_poil", 1.0)
@@ -503,7 +514,9 @@ def peindre(ex, flow_v, K_v, S):
     n1 = bruit(q1, 11)
     n2 = bruit(q2, 23)
     n3 = bruit(Pp * f["tache"] * ech, 37)               # variation lente de teinte (pelage pas uniforme)
-    lum = 1 + f["amp_meche"] * (n1 - 0.5) * 2 + f["amp_poil"] * (n2 - 0.5) * 2
+    bois = masque_bois(Pp, Kp)
+    am_ = np.where(bois, 0.25, 1.0)
+    lum = 1 + am_ * (f["amp_meche"] * (n1 - 0.5) * 2 + f["amp_poil"] * (n2 - 0.5) * 2)
     lum = lum * (1 + f["amp_tache"] * (n3 - 0.5) * 2)
     col = Cp * lum[:, None]
     chaud = np.array(CFG.get("teinte_tache", [1.04, 1.0, 0.95]))
@@ -511,13 +524,23 @@ def peindre(ex, flow_v, K_v, S):
     # pelage d'hiver : sous le ventre et l'intérieur des pattes un peu plus clair / plus sombre selon l'espèce
     vent = np.clip(-Np[:, 1], 0, 1)
     col = col * (1 + CFG.get("ventre", 0.0) * vent)[:, None]
-    col[detail] = Cp0[detail]                              # yeux, truffe : sans poil
+    col[detail] = Cp0[detail]
+    if YEUX:
+        # l'ancien œil (faces sombres en gribouillis) prend la couleur de la tête autour, puis on peint l'amande
+        for c_ in YEUX:
+            pres = (np.linalg.norm(Pp - c_, axis=1) < CFG["oeil"]["long"] * 1.6) & detail
+            loin_ = (np.linalg.norm(Pp - c_, axis=1) < CFG["oeil"]["long"] * 2.6) & ~detail
+            if pres.any() and loin_.any():
+                col[pres] = np.median(col[loin_], axis=0)
+        col = peindre_yeux(col, Pp, Np)                              # yeux, truffe : sans poil
     col = np.clip(col, 0, 1)
     if CFG.get("palette", False):
         col = accrocher(col)
     else:
         q = CFG.get("quantif", {})
         col = quantifier(col, q.get("pas_l", 0.045), q.get("pas_c", 0.012), q.get("sat", 0.85), q.get("froid", 0.008))
+    if YEUX:
+        col = peindre_yeux(col, Pp, Np)
     img[ij[:, 1], ij[:, 0]] = col
     rempli[ij[:, 1], ij[:, 0]] = True
     tuv = UV[tri_l]
@@ -540,6 +563,59 @@ def peindre(ex, flow_v, K_v, S):
         rempli |= nouv
     img[~rempli] = img[rempli].mean(0)
     return img
+
+
+YEUX = []
+
+
+def trouver_yeux(ex):
+    """Centres des yeux : coins de la couleur la plus sombre du modèle, sur la tête, groupés par côté (x < 0, x > 0)."""
+    o = CFG.get("oeil")
+    if not o:
+        return []
+    C, P, tl, tv = ex["C"], ex["P"], ex["tri_l"].ravel(), ex["tri_v"].ravel()
+    l = lumi(C[tl])
+    ki = [c for c, _ in CLASSES].index("tete")
+    m = (l < o.get("lum_max", 0.09)) & (ex["K"][tv, ki] > 0.5)
+    if m.sum() == 0:
+        return []
+    pts = P[tv[m]]
+    r = []
+    for sgn in (-1, 1):
+        q = pts[pts[:, 0] * sgn > 0.003]
+        if len(q):
+            r.append(q.mean(0))
+    return r
+
+
+def peindre_yeux(col, Pp, Np):
+    """Œil lisible à 480x270 : amande sombre nette (ellipsoïde : long vers l'avant, haut, profondeur) et un texel de reflet."""
+    o = CFG.get("oeil")
+    if not o:
+        return col
+    for c in YEUX:
+        d = Pp - c
+        sx = np.sign(c[0])
+        e = (d[:, 2] / o["long"]) ** 2 + (d[:, 1] / o["haut"]) ** 2 + (d[:, 0] / o.get("prof", 0.02)) ** 2
+        cote = Np[:, 0] * sx > 0.1
+        am = (e < 1.0) & cote
+        col[am] = H(o.get("couleur", "#14161a"))
+        rf = c + np.array([sx * 0.0, o["haut"] * 0.35, o["long"] * 0.35])
+        dr = np.linalg.norm(Pp - rf, axis=1)
+        k = np.nonzero(am)[0]
+        if len(k):
+            col[k[np.argmin(dr[k])]] = H(o.get("reflet", "#b3b0b4"))
+    return col
+
+
+def masque_bois(P, K):
+    """Bois du cerf, cornes des bovins : tête, au-dessus des yeux de dy, à plus de dx de l'axe -> ni mèches ni poil."""
+    b = CFG.get("bois")
+    if not b or not YEUX:
+        return np.zeros(len(P), bool)
+    ki = [c for c, _ in CLASSES].index("tete")
+    y0 = np.mean([y[1] for y in YEUX])
+    return (K[:, ki] > 0.4) & (P[:, 1] > y0 + b.get("dy", 0.06)) & (np.abs(P[:, 0]) > b.get("dx", 0.0))
 
 
 def manteau(C, P, N, K):
@@ -590,7 +666,24 @@ def semer_touffes(ex, flow_v, K_v, img):
     Nt = norm(N[tri_l].mean(1))
     Ct = C[tri_l].mean(1)
     lumt = Ct @ np.array([0.3, 0.59, 0.11])
-    dens = Kt @ dens_cl
+    hy = (P[:, 1].min(), np.ptp(P[:, 1]))
+    Pt = P[tri_v].mean(1)
+    dens = np.zeros(len(tri_v))
+    for ci, cn in enumerate(noms_cl):
+        zc = zones.get(cn, {})
+        if zc.get("densite", 0) <= 0:
+            continue
+        fz = np.ones(len(tri_v))
+        if zc.get("ou") == "dos":
+            fz *= np.clip((Nt[:, 1] - zc.get("seuil", 0.5)) / 0.2, 0, 1)
+        elif zc.get("ou") == "ventre":
+            fz *= np.clip((-Nt[:, 1] - zc.get("seuil", 0.3)) / 0.2, 0, 1)
+        if "haut_max" in zc:
+            fz *= ((Pt[:, 1] - hy[0]) / hy[1] < zc["haut_max"])
+        if "haut_min" in zc:
+            fz *= ((Pt[:, 1] - hy[0]) / hy[1] > zc["haut_min"])
+        dens += Kt[:, ci] * zc["densite"] * fz
+    dens = dens * np.where(masque_bois(Pt, Kt), 0.0, 1.0)
     dens = dens * (1 + CFG.get("bonus_dos", 0.0) * np.clip(Nt[:, 1], 0, 1)) * (1 + CFG.get("bonus_ventre", 0.0) * np.clip(-Nt[:, 1], 0, 1))
     face = Nt[:, 2]                                                    # tourné vers l'avant (museau, face)
     tete = Kt[:, noms_cl.index("tete")]
@@ -598,6 +691,9 @@ def semer_touffes(ex, flow_v, K_v, img):
     dens = dens * np.where(lumt < CFG.get("seuil_detail", 0.07), 0.0, 1.0)
     # jamais sous le sol (frange du ventre courte, sabots libres)
     dens = dens * np.where(P[tri_v].min(axis=(1, 2)) < CFG.get("sol_libre", 0.05), 0.0, 1.0) if False else dens
+    for c_ in YEUX:
+        dmin = np.linalg.norm(P[tri_v].mean(1) - c_, axis=1)
+        dens = dens * np.where(dmin < CFG.get("oeil", {}).get("libre", 0.045), 0.0, 1.0)
     poids = aire * dens
     if poids.sum() <= 0:
         return None
@@ -620,12 +716,14 @@ def semer_touffes(ex, flow_v, K_v, img):
         v = np.array([zones.get(c, {}).get(cle, defaut) for c in noms_cl])
         k = Kr * (dens_cl > 0)[None]
         return (k @ v) / np.maximum(k.sum(1), 1e-6)
-    L = param("longueur", 0.04) * RNG.uniform(0.7, 1.3, n)
-    lift = np.radians(param("leve", 25.0)) * RNG.uniform(0.7, 1.3, n)
+    vari = CFG.get("variation", 0.3)
+    L = param("longueur", 0.04) * RNG.uniform(1 - vari, 1 + vari, n)
+    lift = np.radians(param("leve", 25.0)) * RNG.uniform(1 - vari, 1 + vari, n)
     seg = param("segments", 1.0)
     larg = param("largeur", CFG.get("largeur", 0.012)) * RNG.uniform(0.8, 1.2, n)
     pointe = param("pointe", 0.9)
     racine = CFG.get("ombre_racine", 0.62)
+    pes = param("pesanteur", CFG.get("pesanteur", 0.25))
     # dos : la pointe de la frange du ventre et du dos un peu plus longue
     L = L * (1 + CFG.get("long_dos", 0.0) * np.clip(Nr[:, 1], 0, 1)) * (1 + CFG.get("long_ventre", 0.0) * np.clip(-Nr[:, 1], 0, 1))
     # jitter de direction (mèches pas toutes parallèles)
@@ -645,7 +743,7 @@ def semer_touffes(ex, flow_v, K_v, img):
         r = larg[i]
         base_c = p - nn * r * 0.35
         anneau0 = [base_c + w * r, base_c + th * r * 0.55, base_c - w * r]
-        pg = CFG.get("pesanteur", 0.25)
+        pg = pes[i]
         if seg[i] >= 1.5:
             d1 = norm(f * math.cos(lift[i] * 0.35) + nn * math.sin(lift[i] * 0.35) + grav * pg * 0.6)
             m = base_c + d0 * l * 0.5
@@ -722,8 +820,8 @@ def poids_top4(W):
 
 
 def ajouter_maillage(j, binr, parts, joints_de_os, mat):
-    P = np.concatenate([p["P"] for p in parts]).astype(np.float32)
-    N = norm(np.concatenate([p["N"] for p in parts])).astype(np.float32)
+    P = (np.concatenate([p["P"] for p in parts]) @ RMONDE).astype(np.float32)        # retour au repère du maillage
+    N = norm(np.concatenate([p["N"] for p in parts]) @ RMONDE).astype(np.float32)
     UV = np.concatenate([p["UV"] for p in parts]).astype(np.float32)
     C = np.concatenate([p["C"] for p in parts])
     W = np.concatenate([p["W"] for p in parts])
@@ -761,9 +859,19 @@ def main():
     corps = preparer_blender()
     t_orig, _ = tris_de(corps), 0
     # contrôle du repère : boîte du maillage Blender convertie == boîte de l'accessor d'origine
-    Pb = b2g(np.array([v.co[:] for v in corps.data.vertices]))
-    ecart = np.abs(Pb.min(0) - pos_orig.min(0)).max() + np.abs(Pb.max(0) - pos_orig.max(0)).max()
-    assert ecart < 1e-3, "repère inattendu (écart %.4f)" % ecart
+    Vb = np.array([v.co[:] for v in corps.data.vertices])
+    meilleur = None
+    for cand in CANDIDATS:
+        AXES[:] = [list(cand[0]), list(cand[1])]
+        Pb = b2g(Vb)
+        ecart = np.abs(Pb.min(0) - pos_orig.min(0)).max() + np.abs(Pb.max(0) - pos_orig.max(0)).max()
+        if meilleur is None or ecart < meilleur[0]:
+            meilleur = (ecart, cand)
+    AXES[:] = [list(meilleur[1][0]), list(meilleur[1][1])]
+    assert meilleur[0] < 1e-3, "repère inattendu (écart %.4f)" % meilleur[0]
+    R = MATS[node_m][:3, :3]
+    RMONDE[:] = R / np.linalg.norm(R, axis=0, keepdims=True)
+    print("REPERE", AXES, "rot_noeud", np.round(RMONDE, 3).tolist())
     t0, t1 = remodeler(corps)
     fixe = lisser_couleurs(corps)
     deplier(corps)
@@ -771,6 +879,9 @@ def main():
     KO = classes_os(os_noms)
     K_v = ex["W"] @ KO
     K_v = K_v / np.maximum(K_v.sum(1, keepdims=True), 1e-6)
+    ex["K"] = K_v
+    YEUX[:] = trouver_yeux(ex)
+    print("YEUX", [list(np.round(y, 3)) for y in YEUX])
     flow_v = sens_du_poil(ex["P"], norm(ex["VN"]), K_v, ex["W"], os_noms, pos_os)
     S = int(CFG["texture"])
     img = peindre(ex, flow_v, K_v, S)

@@ -1,0 +1,11 @@
+{
+ "id": "pq_cerf_v2",
+ "source": "pq_cerf2",
+ "tris_source": 2795,
+ "tris_subdiv_decime": 2399,
+ "tris_touffes": 2184,
+ "tris_proche": 4583,
+ "tris_loin": 799,
+ "touffes": 420,
+ "texture": 256
+}

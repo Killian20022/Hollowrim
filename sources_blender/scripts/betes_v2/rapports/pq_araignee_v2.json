@@ -1,0 +1,11 @@
+{
+ "id": "pq_araignee_v2",
+ "source": "pq_araignee",
+ "tris_source": 1500,
+ "tris_subdiv_decime": 2400,
+ "tris_touffes": 1560,
+ "tris_proche": 3960,
+ "tris_loin": 800,
+ "touffes": 520,
+ "texture": 256
+}
