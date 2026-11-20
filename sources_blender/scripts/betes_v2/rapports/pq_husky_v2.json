@@ -1,0 +1,11 @@
+{
+ "id": "pq_husky_v2",
+ "source": "pq_husky",
+ "tris_source": 1920,
+ "tris_subdiv_decime": 2400,
+ "tris_touffes": 2976,
+ "tris_proche": 5376,
+ "tris_loin": 800,
+ "touffes": 520,
+ "texture": 256
+}

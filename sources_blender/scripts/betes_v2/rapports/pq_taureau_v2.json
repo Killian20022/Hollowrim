@@ -1,0 +1,11 @@
+{
+ "id": "pq_taureau_v2",
+ "source": "pq_taureau",
+ "tris_source": 2418,
+ "tris_subdiv_decime": 2199,
+ "tris_touffes": 3462,
+ "tris_proche": 5661,
+ "tris_loin": 800,
+ "touffes": 560,
+ "texture": 256
+}

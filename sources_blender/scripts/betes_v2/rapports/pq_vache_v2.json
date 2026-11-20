@@ -1,0 +1,11 @@
+{
+ "id": "pq_vache_v2",
+ "source": "pq_vache",
+ "tris_source": 2450,
+ "tris_subdiv_decime": 2199,
+ "tris_touffes": 3438,
+ "tris_proche": 5637,
+ "tris_loin": 800,
+ "touffes": 560,
+ "texture": 256
+}

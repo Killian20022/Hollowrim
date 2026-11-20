@@ -1,0 +1,1822 @@
+{
+ "defaut": {
+  "subdiv": 1,
+  "tris_corps": 2400,
+  "tris_loin": 800,
+  "gonfle": 0.004,
+  "angle_lisse": 50,
+  "texture": 256,
+  "lissage": 4,
+  "seuil_detail": 0.1,
+  "palette": false,
+  "vc_corps": 1.0,
+  "ombre_racine": 0.84,
+  "pesanteur": 0.25,
+  "desordre": 0.25,
+  "face_libre": 0.55,
+  "bonus_dos": 0.5,
+  "bonus_ventre": 0.0,
+  "long_dos": 0.0,
+  "long_ventre": 0.0,
+  "largeur": 0.012,
+  "touffes": 400,
+  "poil": {
+   "meche_long": 9,
+   "meche_trav": 55,
+   "poil_long": 22,
+   "poil_trav": 170,
+   "tache": 4,
+   "amp_meche": 0.16,
+   "amp_poil": 0.1,
+   "amp_tache": 0.08
+  },
+  "zones": {},
+  "quantif": {
+   "pas_l": 0.045,
+   "pas_c": 0.012,
+   "sat": 0.75,
+   "froid": 0.004
+  },
+  "relief": {
+   "haut": 0.07,
+   "bas": 0.34,
+   "creux": 0.22,
+   "aine": 0.18
+  },
+  "fondu": 0.28
+ },
+ "especes": {
+  "loup": {
+   "id": "pq_loup_v2",
+   "source": "pq_loup2",
+   "touffes": 520,
+   "tris_corps": 2400,
+   "ventre": 0.1,
+   "bonus_dos": 0.6,
+   "long_ventre": 0.4,
+   "zones": {
+    "cou": {
+     "densite": 11,
+     "longueur": 0.085,
+     "segments": 2,
+     "leve": 28,
+     "largeur": 0.0224,
+     "pointe": 0.95
+    },
+    "poitrail": {
+     "densite": 9,
+     "longueur": 0.04,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.016,
+     "pointe": 0.92
+    },
+    "tete": {
+     "densite": 2.5,
+     "longueur": 0.035,
+     "segments": 1,
+     "leve": 30,
+     "largeur": 0.016,
+     "pointe": 0.95
+    },
+    "tronc": {
+     "densite": 6,
+     "longueur": 0.04,
+     "segments": 1,
+     "leve": 14,
+     "largeur": 0.02,
+     "pointe": 0.95
+    },
+    "queue": {
+     "densite": 10,
+     "longueur": 0.07,
+     "segments": 2,
+     "leve": 32,
+     "largeur": 0.0208,
+     "pointe": 0.9
+    },
+    "patte_haute": {
+     "densite": 1.4,
+     "longueur": 0.035,
+     "segments": 1,
+     "leve": 16,
+     "largeur": 0.016,
+     "pointe": 0.95
+    },
+    "patte_basse": {
+     "densite": 0.0
+    },
+    "oreille": {
+     "densite": 0.0
+    }
+   },
+   "manteau": [
+    {
+     "classes": [
+      "tronc",
+      "cou",
+      "queue"
+     ],
+     "ou": "dos",
+     "seuil": 0.15,
+     "vers": "#3d3e4a",
+     "part": 0.62
+    },
+    {
+     "classes": [
+      "tronc",
+      "poitrail",
+      "cou",
+      "patte_haute"
+     ],
+     "ou": "ventre",
+     "seuil": 0.1,
+     "vers": "#b9ae9f",
+     "part": 0.6
+    },
+    {
+     "classes": [
+      "poitrail"
+     ],
+     "ou": "face",
+     "seuil": 0.0,
+     "vers": "#a7a19b",
+     "part": 0.25
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "ventre",
+     "seuil": 0.0,
+     "vers": "#dbd0b6",
+     "part": 0.55
+    },
+    {
+     "classes": [
+      "patte_basse"
+     ],
+     "ou": "tout",
+     "vers": "#947c5e",
+     "part": 0.25
+    },
+    {
+     "classes": [
+      "oreille"
+     ],
+     "ou": "tout",
+     "facteur": 0.6,
+     "part": 1.0
+    }
+   ],
+   "seuil_detail": 0.14,
+   "variation": 0.18,
+   "desordre": 0.15,
+   "ombre_racine": 0.9,
+   "poil": {
+    "meche_long": 9,
+    "meche_trav": 55,
+    "poil_long": 22,
+    "poil_trav": 170,
+    "tache": 4,
+    "amp_meche": 0.11,
+    "amp_poil": 0.09,
+    "amp_tache": 0.06
+   },
+   "oeil": {
+    "lum_max": 0.09,
+    "long": 0.0208,
+    "haut": 0.0097,
+    "prof": 0.039,
+    "couleur": "#14161a",
+    "reflet": "#e8ecf4",
+    "libre": 0.0624,
+    "cerne": {
+     "couleur": "#8e8688",
+     "largeur": 1.6,
+     "trait": "#211e1c",
+     "trait_part": 0.5
+    },
+    "reflet_texels": 5
+   }
+  },
+  "husky": {
+   "id": "pq_husky_v2",
+   "source": "pq_husky",
+   "touffes": 520,
+   "seuil_detail": 0.16,
+   "variation": 0.18,
+   "desordre": 0.1,
+   "ombre_racine": 0.9,
+   "ventre": 0.08,
+   "bonus_dos": 0.5,
+   "long_ventre": 0.3,
+   "oeil": {
+    "lum_max": 0.09,
+    "long": 0.0169,
+    "haut": 0.0084,
+    "prof": 0.0304,
+    "couleur": "#3a2a2a",
+    "reflet": "#e8ecf4",
+    "libre": 0.050699999999999995,
+    "cerne": {
+     "couleur": "#efe7d0",
+     "largeur": 1.8,
+     "trait": "#14161a",
+     "trait_part": 0.4
+    },
+    "reflet_texels": 5
+   },
+   "poil": {
+    "meche_long": 9,
+    "meche_trav": 55,
+    "poil_long": 22,
+    "poil_trav": 170,
+    "tache": 4,
+    "amp_meche": 0.11,
+    "amp_poil": 0.09,
+    "amp_tache": 0.06
+   },
+   "manteau": [
+    {
+     "classes": [
+      "tronc",
+      "cou",
+      "queue",
+      "tete",
+      "patte_haute"
+     ],
+     "ou": "dos",
+     "seuil": -0.45,
+     "vers": "#211e1c",
+     "part": 0.88
+    },
+    {
+     "classes": [
+      "tronc",
+      "poitrail",
+      "cou",
+      "patte_haute",
+      "queue"
+     ],
+     "ou": "ventre",
+     "seuil": -0.05,
+     "vers": "#efe7d0",
+     "part": 0.92
+    },
+    {
+     "classes": [
+      "poitrail",
+      "patte_basse"
+     ],
+     "ou": "tout",
+     "vers": "#efe7d0",
+     "part": 0.9
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "face",
+     "seuil": 0.25,
+     "vers": "#efe7d0",
+     "part": 0.95
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "ventre",
+     "seuil": -0.2,
+     "vers": "#efe7d0",
+     "part": 0.95
+    },
+    {
+     "classes": [
+      "oreille"
+     ],
+     "ou": "tout",
+     "facteur": 0.45,
+     "part": 1.0
+    }
+   ],
+   "zones": {
+    "cou": {
+     "densite": 9,
+     "longueur": 0.045,
+     "segments": 2,
+     "leve": 22,
+     "largeur": 0.013,
+     "pointe": 0.95
+    },
+    "poitrail": {
+     "densite": 9,
+     "longueur": 0.035,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.015,
+     "pointe": 0.95
+    },
+    "tete": {
+     "densite": 2.5,
+     "longueur": 0.03,
+     "segments": 1,
+     "leve": 25,
+     "largeur": 0.01,
+     "pointe": 0.95
+    },
+    "tronc": {
+     "densite": 6,
+     "longueur": 0.028,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.016,
+     "pointe": 0.95
+    },
+    "queue": {
+     "densite": 18,
+     "longueur": 0.065,
+     "segments": 2,
+     "leve": 40,
+     "largeur": 0.015,
+     "pointe": 1.0,
+     "pesanteur": 0.0
+    },
+    "patte_haute": {
+     "densite": 1.5,
+     "longueur": 0.03,
+     "segments": 1,
+     "leve": 14,
+     "largeur": 0.01,
+     "pointe": 0.95
+    },
+    "patte_basse": {
+     "densite": 0
+    },
+    "oreille": {
+     "densite": 0
+    }
+   },
+   "quantif": {
+    "pas_l": 0.045,
+    "pas_c": 0.012,
+    "sat": 0.95,
+    "froid": 0.0
+   }
+  },
+  "renard": {
+   "id": "pq_renard_v2",
+   "source": "pq_renard",
+   "touffes": 480,
+   "seuil_detail": 0.14,
+   "variation": 0.18,
+   "desordre": 0.15,
+   "ombre_racine": 0.9,
+   "largeur": 0.008,
+   "gonfle": 0.0025,
+   "echelle_poil": 1.4,
+   "oeil": {
+    "lum_max": 0.125,
+    "long": 0.0117,
+    "haut": 0.0059,
+    "prof": 0.0211,
+    "couleur": "#14161a",
+    "reflet": "#e8ecf4",
+    "libre": 0.0351,
+    "cerne": {
+     "couleur": "#2b1a1e",
+     "largeur": 1.7
+    },
+    "reflet_texels": 5
+   },
+   "poil": {
+    "meche_long": 9,
+    "meche_trav": 55,
+    "poil_long": 22,
+    "poil_trav": 170,
+    "tache": 4,
+    "amp_meche": 0.11,
+    "amp_poil": 0.09,
+    "amp_tache": 0.06
+   },
+   "manteau": [
+    {
+     "classes": [
+      "tronc",
+      "poitrail",
+      "cou",
+      "patte_haute"
+     ],
+     "ou": "ventre",
+     "seuil": 0.1,
+     "vers": "#dbd0b6",
+     "part": 0.6
+    },
+    {
+     "classes": [
+      "poitrail"
+     ],
+     "ou": "face",
+     "vers": "#efe7d0",
+     "part": 0.5
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "ventre",
+     "vers": "#efe7d0",
+     "part": 0.6
+    },
+    {
+     "classes": [
+      "patte_basse"
+     ],
+     "ou": "tout",
+     "vers": "#2b1a1e",
+     "part": 0.5
+    },
+    {
+     "classes": [
+      "tronc",
+      "cou",
+      "tete",
+      "queue",
+      "patte_haute"
+     ],
+     "ou": "dos",
+     "seuil": -0.4,
+     "vers": "#9c5129",
+     "part": 0.6
+    },
+    {
+     "classes": [
+      "oreille"
+     ],
+     "ou": "tout",
+     "facteur": 0.45,
+     "part": 1.0
+    }
+   ],
+   "zones": {
+    "cou": {
+     "densite": 8,
+     "longueur": 0.04,
+     "segments": 2,
+     "leve": 26,
+     "largeur": 0.009,
+     "pointe": 0.95
+    },
+    "poitrail": {
+     "densite": 9,
+     "longueur": 0.022,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.009,
+     "pointe": 0.95
+    },
+    "tete": {
+     "densite": 2.5,
+     "longueur": 0.018,
+     "segments": 1,
+     "leve": 25,
+     "largeur": 0.006,
+     "pointe": 0.95
+    },
+    "tronc": {
+     "densite": 6,
+     "longueur": 0.022,
+     "segments": 1,
+     "leve": 14,
+     "largeur": 0.01,
+     "pointe": 0.95
+    },
+    "queue": {
+     "densite": 18,
+     "longueur": 0.055,
+     "segments": 2,
+     "leve": 32,
+     "largeur": 0.01,
+     "pointe": 0.95,
+     "pesanteur": 0.1
+    },
+    "patte_haute": {
+     "densite": 1.2,
+     "longueur": 0.018,
+     "segments": 1,
+     "leve": 14,
+     "largeur": 0.006,
+     "pointe": 0.95
+    },
+    "patte_basse": {
+     "densite": 0
+    },
+    "oreille": {
+     "densite": 0
+    }
+   },
+   "quantif": {
+    "pas_l": 0.045,
+    "pas_c": 0.012,
+    "sat": 1.0,
+    "froid": 0.0
+   }
+  },
+  "cerf": {
+   "id": "pq_cerf_v2",
+   "source": "pq_cerf2",
+   "touffes": 420,
+   "seuil_detail": 0.1,
+   "variation": 0.18,
+   "desordre": 0.15,
+   "ombre_racine": 0.9,
+   "largeur": 0.016,
+   "oeil": {
+    "lum_max": 0.07,
+    "long": 0.026,
+    "haut": 0.0117,
+    "prof": 0.0468,
+    "couleur": "#14161a",
+    "reflet": "#e8ecf4",
+    "libre": 0.078,
+    "cerne": {
+     "couleur": "#2b1a1e",
+     "largeur": 1.8
+    },
+    "reflet_texels": 5
+   },
+   "bois": {
+    "dy": 0.05,
+    "dx": 0.0
+   },
+   "poil": {
+    "meche_long": 7,
+    "meche_trav": 45,
+    "poil_long": 20,
+    "poil_trav": 150,
+    "tache": 3,
+    "amp_meche": 0.09,
+    "amp_poil": 0.08,
+    "amp_tache": 0.06
+   },
+   "manteau": [
+    {
+     "classes": [
+      "tronc",
+      "poitrail",
+      "patte_haute"
+     ],
+     "ou": "ventre",
+     "seuil": 0.2,
+     "vers": "#b9ae9f",
+     "part": 0.45
+    },
+    {
+     "classes": [
+      "cou"
+     ],
+     "ou": "tout",
+     "vers": "#3a261b",
+     "part": 0.3
+    },
+    {
+     "classes": [
+      "queue"
+     ],
+     "ou": "tout",
+     "vers": "#dbd0b6",
+     "part": 0.4
+    },
+    {
+     "classes": [
+      "tronc",
+      "queue",
+      "patte_haute"
+     ],
+     "ou": "arriere",
+     "seuil": 0.45,
+     "vers": "#dbd0b6",
+     "part": 0.75
+    },
+    {
+     "classes": [
+      "oreille"
+     ],
+     "ou": "tout",
+     "facteur": 0.72,
+     "part": 1.0
+    },
+    {
+     "classes": [
+      "tronc",
+      "cou"
+     ],
+     "ou": "dos",
+     "seuil": 0.3,
+     "vers": "#3a261b",
+     "part": 0.35
+    }
+   ],
+   "zones": {
+    "cou": {
+     "densite": 12,
+     "longueur": 0.08,
+     "segments": 2,
+     "leve": 22,
+     "largeur": 0.02,
+     "pointe": 0.95,
+     "ou": "ventre",
+     "seuil": -0.6
+    },
+    "poitrail": {
+     "densite": 7,
+     "longueur": 0.05,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.018,
+     "pointe": 0.95
+    },
+    "tete": {
+     "densite": 1,
+     "longueur": 0.02,
+     "segments": 1,
+     "leve": 20,
+     "largeur": 0.01,
+     "pointe": 0.95
+    },
+    "tronc": {
+     "densite": 3,
+     "longueur": 0.025,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.018,
+     "pointe": 0.95
+    },
+    "queue": {
+     "densite": 5,
+     "longueur": 0.035,
+     "segments": 1,
+     "leve": 25,
+     "largeur": 0.014,
+     "pointe": 0.95
+    },
+    "patte_haute": {
+     "densite": 0.8,
+     "longueur": 0.02,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.012,
+     "pointe": 0.95
+    },
+    "patte_basse": {
+     "densite": 0
+    },
+    "oreille": {
+     "densite": 0
+    }
+   },
+   "quantif": {
+    "pas_l": 0.045,
+    "pas_c": 0.012,
+    "sat": 0.92,
+    "froid": 0.004
+   }
+  },
+  "biche": {
+   "id": "pq_biche_v2",
+   "source": "pq_biche",
+   "touffes": 340,
+   "seuil_detail": 0.1,
+   "variation": 0.18,
+   "desordre": 0.15,
+   "ombre_racine": 0.9,
+   "largeur": 0.014,
+   "oeil": {
+    "lum_max": 0.075,
+    "long": 0.0234,
+    "haut": 0.0104,
+    "prof": 0.0421,
+    "couleur": "#14161a",
+    "reflet": "#e8ecf4",
+    "libre": 0.0702,
+    "cerne": {
+     "couleur": "#2b1a1e",
+     "largeur": 1.8
+    },
+    "reflet_texels": 5
+   },
+   "poil": {
+    "meche_long": 7,
+    "meche_trav": 45,
+    "poil_long": 20,
+    "poil_trav": 150,
+    "tache": 3,
+    "amp_meche": 0.09,
+    "amp_poil": 0.08,
+    "amp_tache": 0.06
+   },
+   "manteau": [
+    {
+     "classes": [
+      "tronc",
+      "poitrail",
+      "patte_haute"
+     ],
+     "ou": "ventre",
+     "seuil": 0.2,
+     "vers": "#dbd0b6",
+     "part": 0.45
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "ventre",
+     "vers": "#b9ae9f",
+     "part": 0.4
+    },
+    {
+     "classes": [
+      "queue"
+     ],
+     "ou": "tout",
+     "vers": "#efe7d0",
+     "part": 0.45
+    },
+    {
+     "classes": [
+      "tronc",
+      "queue",
+      "patte_haute"
+     ],
+     "ou": "arriere",
+     "seuil": 0.45,
+     "vers": "#dbd0b6",
+     "part": 0.75
+    },
+    {
+     "classes": [
+      "oreille"
+     ],
+     "ou": "tout",
+     "facteur": 0.72,
+     "part": 1.0
+    },
+    {
+     "classes": [
+      "tronc",
+      "cou"
+     ],
+     "ou": "dos",
+     "seuil": 0.3,
+     "vers": "#3a261b",
+     "part": 0.35
+    }
+   ],
+   "zones": {
+    "cou": {
+     "densite": 8,
+     "longueur": 0.055,
+     "segments": 2,
+     "leve": 22,
+     "largeur": 0.016,
+     "pointe": 0.95,
+     "ou": "ventre",
+     "seuil": -0.6
+    },
+    "poitrail": {
+     "densite": 6,
+     "longueur": 0.04,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.015,
+     "pointe": 0.95
+    },
+    "tete": {
+     "densite": 1,
+     "longueur": 0.018,
+     "segments": 1,
+     "leve": 20,
+     "largeur": 0.009,
+     "pointe": 0.95
+    },
+    "tronc": {
+     "densite": 2.5,
+     "longueur": 0.02,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.015,
+     "pointe": 0.95
+    },
+    "queue": {
+     "densite": 7,
+     "longueur": 0.035,
+     "segments": 1,
+     "leve": 25,
+     "largeur": 0.012,
+     "pointe": 0.95
+    },
+    "patte_haute": {
+     "densite": 0.6,
+     "longueur": 0.018,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.01,
+     "pointe": 0.95
+    },
+    "patte_basse": {
+     "densite": 0
+    },
+    "oreille": {
+     "densite": 0
+    }
+   },
+   "quantif": {
+    "pas_l": 0.045,
+    "pas_c": 0.012,
+    "sat": 0.92,
+    "froid": 0.004
+   }
+  },
+  "cheval": {
+   "id": "pq_cheval_v2",
+   "source": "pq_cheval",
+   "touffes": 640,
+   "seuil_detail": 0.1,
+   "variation": 0.22,
+   "desordre": 0.15,
+   "ombre_racine": 0.88,
+   "largeur": 0.03,
+   "tris_corps": 2200,
+   "oeil": {
+    "lum_max": 0.09,
+    "long": 0.0286,
+    "haut": 0.0143,
+    "prof": 0.0515,
+    "couleur": "#14161a",
+    "reflet": "#e8ecf4",
+    "libre": 0.0858,
+    "cerne": {
+     "couleur": "#211e1c",
+     "largeur": 1.5
+    },
+    "reflet_texels": 5
+   },
+   "poil": {
+    "meche_long": 7,
+    "meche_trav": 45,
+    "poil_long": 20,
+    "poil_trav": 150,
+    "tache": 3,
+    "amp_meche": 0.13,
+    "amp_poil": 0.1,
+    "amp_tache": 0.07
+   },
+   "bonus_dos": 0.0,
+   "manteau": [
+    {
+     "classes": [
+      "tronc",
+      "cou",
+      "tete",
+      "patte_haute",
+      "poitrail"
+     ],
+     "ou": "tout",
+     "vers": "#6a4229",
+     "part": 0.5
+    },
+    {
+     "classes": [
+      "cou"
+     ],
+     "ou": "dos",
+     "seuil": 0.05,
+     "vers": "#211e1c",
+     "part": 0.92
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "dos",
+     "seuil": 0.25,
+     "vers": "#211e1c",
+     "part": 0.8
+    },
+    {
+     "classes": [
+      "queue"
+     ],
+     "ou": "tout",
+     "vers": "#211e1c",
+     "part": 0.92
+    },
+    {
+     "classes": [
+      "patte_basse"
+     ],
+     "ou": "tout",
+     "vers": "#211e1c",
+     "part": 0.75
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "face",
+     "seuil": 0.5,
+     "vers": "#211e1c",
+     "part": 0.4
+    },
+    {
+     "classes": [
+      "tronc",
+      "cou"
+     ],
+     "ou": "dos",
+     "seuil": 0.35,
+     "vers": "#211e1c",
+     "part": 0.18
+    },
+    {
+     "classes": [
+      "oreille"
+     ],
+     "ou": "tout",
+     "facteur": 0.75,
+     "part": 1.0
+    }
+   ],
+   "zones": {
+    "cou": {
+     "densite": 60,
+     "longueur": 0.24,
+     "segments": 2,
+     "leve": 14,
+     "largeur": 0.04,
+     "pointe": 1.0,
+     "ou": "dos",
+     "seuil": 0.05,
+     "pesanteur": 0.85
+    },
+    "tete": {
+     "densite": 30,
+     "longueur": 0.14,
+     "segments": 2,
+     "leve": 10,
+     "largeur": 0.03,
+     "pointe": 1.0,
+     "ou": "dos",
+     "seuil": 0.25,
+     "pesanteur": 0.8
+    },
+    "queue": {
+     "densite": 30,
+     "longueur": 0.26,
+     "segments": 2,
+     "leve": 6,
+     "largeur": 0.03,
+     "pointe": 1.0,
+     "pesanteur": 0.9
+    },
+    "patte_basse": {
+     "densite": 60,
+     "longueur": 0.1,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.026,
+     "pointe": 1.0,
+     "haut_max": 0.17,
+     "pesanteur": 0.7
+    },
+    "poitrail": {
+     "densite": 7,
+     "longueur": 0.06,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.025,
+     "pointe": 0.95,
+     "pesanteur": 0.5
+    },
+    "tronc": {
+     "densite": 5,
+     "longueur": 0.06,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.025,
+     "pointe": 0.95,
+     "ou": "ventre",
+     "seuil": 0.2,
+     "pesanteur": 0.5
+    },
+    "patte_haute": {
+     "densite": 0
+    },
+    "oreille": {
+     "densite": 0
+    }
+   },
+   "quantif": {
+    "pas_l": 0.045,
+    "pas_c": 0.012,
+    "sat": 1.0,
+    "froid": 0.0
+   }
+  },
+  "cheval_blanc": {
+   "id": "pq_cheval_blanc_v2",
+   "source": "pq_cheval_blanc",
+   "touffes": 640,
+   "seuil_detail": 0.1,
+   "variation": 0.22,
+   "desordre": 0.15,
+   "ombre_racine": 0.88,
+   "largeur": 0.03,
+   "tris_corps": 2200,
+   "oeil": {
+    "lum_max": 0.09,
+    "long": 0.0286,
+    "haut": 0.0143,
+    "prof": 0.0515,
+    "couleur": "#14161a",
+    "reflet": "#e8ecf4",
+    "libre": 0.0858,
+    "cerne": {
+     "couleur": "#211e1c",
+     "largeur": 1.5
+    },
+    "reflet_texels": 5
+   },
+   "poil": {
+    "meche_long": 7,
+    "meche_trav": 45,
+    "poil_long": 20,
+    "poil_trav": 150,
+    "tache": 3,
+    "amp_meche": 0.13,
+    "amp_poil": 0.1,
+    "amp_tache": 0.07
+   },
+   "bonus_dos": 0.0,
+   "manteau": [
+    {
+     "classes": [
+      "cou"
+     ],
+     "ou": "dos",
+     "seuil": 0.05,
+     "vers": "#dbd0b6",
+     "part": 0.92
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "dos",
+     "seuil": 0.25,
+     "vers": "#dbd0b6",
+     "part": 0.8
+    },
+    {
+     "classes": [
+      "queue"
+     ],
+     "ou": "tout",
+     "vers": "#dbd0b6",
+     "part": 0.92
+    },
+    {
+     "classes": [
+      "patte_basse"
+     ],
+     "ou": "dessous",
+     "haut": 0.17,
+     "vers": "#b9ae9f",
+     "part": 0.4
+    },
+    {
+     "classes": [
+      "tronc",
+      "cou"
+     ],
+     "ou": "dos",
+     "seuil": 0.35,
+     "vers": "#211e1c",
+     "part": 0.18
+    },
+    {
+     "classes": [
+      "oreille"
+     ],
+     "ou": "tout",
+     "facteur": 0.75,
+     "part": 1.0
+    }
+   ],
+   "zones": {
+    "cou": {
+     "densite": 60,
+     "longueur": 0.24,
+     "segments": 2,
+     "leve": 14,
+     "largeur": 0.04,
+     "pointe": 1.0,
+     "ou": "dos",
+     "seuil": 0.05,
+     "pesanteur": 0.85
+    },
+    "tete": {
+     "densite": 30,
+     "longueur": 0.14,
+     "segments": 2,
+     "leve": 10,
+     "largeur": 0.03,
+     "pointe": 1.0,
+     "ou": "dos",
+     "seuil": 0.25,
+     "pesanteur": 0.8
+    },
+    "queue": {
+     "densite": 30,
+     "longueur": 0.26,
+     "segments": 2,
+     "leve": 6,
+     "largeur": 0.03,
+     "pointe": 1.0,
+     "pesanteur": 0.9
+    },
+    "patte_basse": {
+     "densite": 60,
+     "longueur": 0.1,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.026,
+     "pointe": 1.0,
+     "haut_max": 0.17,
+     "pesanteur": 0.7
+    },
+    "poitrail": {
+     "densite": 7,
+     "longueur": 0.06,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.025,
+     "pointe": 0.95,
+     "pesanteur": 0.5
+    },
+    "tronc": {
+     "densite": 5,
+     "longueur": 0.06,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.025,
+     "pointe": 0.95,
+     "ou": "ventre",
+     "seuil": 0.2,
+     "pesanteur": 0.5
+    },
+    "patte_haute": {
+     "densite": 0
+    },
+    "oreille": {
+     "densite": 0
+    }
+   },
+   "quantif": {
+    "pas_l": 0.045,
+    "pas_c": 0.012,
+    "sat": 1.0,
+    "froid": 0.0
+   }
+  },
+  "ane": {
+   "id": "pq_ane_v2",
+   "source": "pq_ane",
+   "touffes": 560,
+   "seuil_detail": 0.09,
+   "variation": 0.2,
+   "desordre": 0.18,
+   "ombre_racine": 0.88,
+   "largeur": 0.022,
+   "oeil": {
+    "lum_max": 0.09,
+    "long": 0.0234,
+    "haut": 0.0117,
+    "prof": 0.0421,
+    "couleur": "#14161a",
+    "reflet": "#e8ecf4",
+    "libre": 0.0702,
+    "cerne": {
+     "couleur": "#a7a19b",
+     "largeur": 1.6,
+     "trait": "#211e1c",
+     "trait_part": 0.45
+    },
+    "reflet_texels": 5
+   },
+   "poil": {
+    "meche_long": 7,
+    "meche_trav": 45,
+    "poil_long": 20,
+    "poil_trav": 150,
+    "tache": 3,
+    "amp_meche": 0.13,
+    "amp_poil": 0.1,
+    "amp_tache": 0.07
+   },
+   "manteau": [
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "face",
+     "seuil": 0.3,
+     "vers": "#b9ae9f",
+     "part": 0.6
+    },
+    {
+     "classes": [
+      "tronc",
+      "poitrail",
+      "patte_haute"
+     ],
+     "ou": "ventre",
+     "seuil": 0.2,
+     "vers": "#a7a19b",
+     "part": 0.45
+    },
+    {
+     "classes": [
+      "cou"
+     ],
+     "ou": "dos",
+     "seuil": 0.55,
+     "vers": "#211e1c",
+     "part": 0.7
+    },
+    {
+     "classes": [
+      "oreille"
+     ],
+     "ou": "tout",
+     "facteur": 0.6,
+     "part": 1.0
+    },
+    {
+     "classes": [
+      "patte_basse"
+     ],
+     "ou": "dessous",
+     "haut": 0.12,
+     "vers": "#211e1c",
+     "part": 0.5
+    }
+   ],
+   "zones": {
+    "cou": {
+     "densite": 50,
+     "longueur": 0.08,
+     "segments": 1,
+     "leve": 55,
+     "largeur": 0.028,
+     "pointe": 1.0,
+     "ou": "dos",
+     "seuil": 0.05,
+     "pesanteur": 0.1
+    },
+    "tronc": {
+     "densite": 6,
+     "longueur": 0.05,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.02,
+     "pointe": 0.95,
+     "ou": "ventre",
+     "seuil": 0.2,
+     "pesanteur": 0.5
+    },
+    "poitrail": {
+     "densite": 7,
+     "longueur": 0.05,
+     "segments": 1,
+     "leve": 12,
+     "largeur": 0.02,
+     "pointe": 0.95,
+     "pesanteur": 0.5
+    },
+    "patte_haute": {
+     "densite": 1.5,
+     "longueur": 0.03,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.012,
+     "pointe": 0.95
+    },
+    "queue": {
+     "densite": 10,
+     "longueur": 0.07,
+     "segments": 2,
+     "leve": 8,
+     "largeur": 0.014,
+     "pointe": 1.0,
+     "pesanteur": 0.8
+    },
+    "tete": {
+     "densite": 18,
+     "longueur": 0.06,
+     "segments": 1,
+     "leve": 30,
+     "largeur": 0.02,
+     "pointe": 1.0,
+     "ou": "dos",
+     "seuil": 0.3,
+     "pesanteur": 0.2
+    },
+    "patte_basse": {
+     "densite": 40,
+     "longueur": 0.06,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.018,
+     "pointe": 1.0,
+     "haut_max": 0.15,
+     "pesanteur": 0.6
+    },
+    "oreille": {
+     "densite": 0
+    }
+   }
+  },
+  "vache": {
+   "id": "pq_vache_v2",
+   "source": "pq_vache",
+   "touffes": 560,
+   "seuil_detail": 0.09,
+   "variation": 0.22,
+   "desordre": 0.2,
+   "ombre_racine": 0.88,
+   "tris_corps": 2200,
+   "largeur": 0.024,
+   "oeil": {
+    "lum_max": 0.09,
+    "long": 0.0299,
+    "haut": 0.0149,
+    "prof": 0.0575,
+    "couleur": "#14161a",
+    "reflet": "#e8ecf4",
+    "libre": 0.0897,
+    "efface": 0.05,
+    "cerne": {
+     "couleur": "#211e1c",
+     "largeur": 1.5
+    },
+    "reflet_texels": 5
+   },
+   "bois": {
+    "dy": 0.04,
+    "dx": 0.09
+   },
+   "poil": {
+    "meche_long": 9,
+    "meche_trav": 55,
+    "poil_long": 22,
+    "poil_trav": 170,
+    "tache": 4,
+    "amp_meche": 0.11,
+    "amp_poil": 0.09,
+    "amp_tache": 0.06
+   },
+   "long_ventre": 0.5,
+   "manteau": [
+    {
+     "classes": [
+      "tronc",
+      "poitrail"
+     ],
+     "ou": "ventre",
+     "seuil": 0.2,
+     "vers": "#3a261b",
+     "part": 0.25
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "face",
+     "seuil": 0.2,
+     "vers": "#b9ae9f",
+     "part": 0.45
+    },
+    {
+     "classes": [
+      "tronc",
+      "cou"
+     ],
+     "ou": "dos",
+     "seuil": 0.35,
+     "vers": "#211e1c",
+     "part": 0.2
+    },
+    {
+     "classes": [
+      "oreille"
+     ],
+     "ou": "tout",
+     "facteur": 0.7,
+     "part": 1.0
+    },
+    {
+     "classes": [
+      "patte_basse"
+     ],
+     "ou": "dessous",
+     "haut": 0.12,
+     "vers": "#211e1c",
+     "part": 0.45
+    }
+   ],
+   "zones": {
+    "tronc": {
+     "densite": 6,
+     "longueur": 0.075,
+     "segments": 1,
+     "leve": 14,
+     "largeur": 0.026,
+     "pointe": 0.92,
+     "pesanteur": 0.5
+    },
+    "cou": {
+     "densite": 9,
+     "longueur": 0.09,
+     "segments": 2,
+     "leve": 16,
+     "largeur": 0.026,
+     "pointe": 0.95,
+     "pesanteur": 0.5
+    },
+    "poitrail": {
+     "densite": 8,
+     "longueur": 0.1,
+     "segments": 2,
+     "leve": 10,
+     "largeur": 0.026,
+     "pointe": 0.95,
+     "pesanteur": 0.6
+    },
+    "tete": {
+     "densite": 5,
+     "longueur": 0.07,
+     "segments": 2,
+     "leve": 12,
+     "largeur": 0.02,
+     "pointe": 0.95,
+     "ou": "dos",
+     "seuil": 0.2,
+     "pesanteur": 0.6
+    },
+    "patte_haute": {
+     "densite": 3,
+     "longueur": 0.06,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.02,
+     "pointe": 0.95,
+     "pesanteur": 0.6
+    },
+    "queue": {
+     "densite": 4,
+     "longueur": 0.1,
+     "segments": 2,
+     "leve": 6,
+     "largeur": 0.018,
+     "pointe": 0.95,
+     "pesanteur": 0.9
+    },
+    "patte_basse": {
+     "densite": 1.5,
+     "longueur": 0.04,
+     "segments": 1,
+     "leve": 8,
+     "largeur": 0.016,
+     "pointe": 0.95,
+     "pesanteur": 0.6
+    },
+    "oreille": {
+     "densite": 0
+    }
+   },
+   "quantif": {
+    "pas_l": 0.045,
+    "pas_c": 0.012,
+    "sat": 0.9,
+    "froid": 0.002
+   }
+  },
+  "taureau": {
+   "id": "pq_taureau_v2",
+   "source": "pq_taureau",
+   "touffes": 560,
+   "seuil_detail": 0.09,
+   "variation": 0.22,
+   "desordre": 0.2,
+   "ombre_racine": 0.88,
+   "tris_corps": 2200,
+   "largeur": 0.024,
+   "oeil": {
+    "lum_max": 0.09,
+    "long": 0.0299,
+    "haut": 0.0149,
+    "prof": 0.0575,
+    "couleur": "#14161a",
+    "reflet": "#e8ecf4",
+    "libre": 0.0897,
+    "efface": 0.05,
+    "cerne": {
+     "couleur": "#211e1c",
+     "largeur": 1.5
+    },
+    "reflet_texels": 5
+   },
+   "bois": {
+    "dy": 0.04,
+    "dx": 0.09
+   },
+   "poil": {
+    "meche_long": 9,
+    "meche_trav": 55,
+    "poil_long": 22,
+    "poil_trav": 170,
+    "tache": 4,
+    "amp_meche": 0.11,
+    "amp_poil": 0.09,
+    "amp_tache": 0.06
+   },
+   "long_ventre": 0.5,
+   "manteau": [
+    {
+     "classes": [
+      "tronc",
+      "poitrail"
+     ],
+     "ou": "ventre",
+     "seuil": 0.2,
+     "vers": "#3a261b",
+     "part": 0.25
+    },
+    {
+     "classes": [
+      "tete"
+     ],
+     "ou": "face",
+     "seuil": 0.2,
+     "vers": "#b9ae9f",
+     "part": 0.45
+    },
+    {
+     "classes": [
+      "tronc",
+      "cou"
+     ],
+     "ou": "dos",
+     "seuil": 0.35,
+     "vers": "#211e1c",
+     "part": 0.2
+    },
+    {
+     "classes": [
+      "oreille"
+     ],
+     "ou": "tout",
+     "facteur": 0.7,
+     "part": 1.0
+    },
+    {
+     "classes": [
+      "patte_basse"
+     ],
+     "ou": "dessous",
+     "haut": 0.12,
+     "vers": "#211e1c",
+     "part": 0.45
+    }
+   ],
+   "zones": {
+    "tronc": {
+     "densite": 6,
+     "longueur": 0.075,
+     "segments": 1,
+     "leve": 14,
+     "largeur": 0.026,
+     "pointe": 0.92,
+     "pesanteur": 0.5
+    },
+    "cou": {
+     "densite": 9,
+     "longueur": 0.09,
+     "segments": 2,
+     "leve": 16,
+     "largeur": 0.026,
+     "pointe": 0.95,
+     "pesanteur": 0.5
+    },
+    "poitrail": {
+     "densite": 8,
+     "longueur": 0.1,
+     "segments": 2,
+     "leve": 10,
+     "largeur": 0.026,
+     "pointe": 0.95,
+     "pesanteur": 0.6
+    },
+    "tete": {
+     "densite": 5,
+     "longueur": 0.07,
+     "segments": 2,
+     "leve": 12,
+     "largeur": 0.02,
+     "pointe": 0.95,
+     "ou": "dos",
+     "seuil": 0.2,
+     "pesanteur": 0.6
+    },
+    "patte_haute": {
+     "densite": 3,
+     "longueur": 0.06,
+     "segments": 1,
+     "leve": 10,
+     "largeur": 0.02,
+     "pointe": 0.95,
+     "pesanteur": 0.6
+    },
+    "queue": {
+     "densite": 4,
+     "longueur": 0.1,
+     "segments": 2,
+     "leve": 6,
+     "largeur": 0.018,
+     "pointe": 0.95,
+     "pesanteur": 0.9
+    },
+    "patte_basse": {
+     "densite": 1.5,
+     "longueur": 0.04,
+     "segments": 1,
+     "leve": 8,
+     "largeur": 0.016,
+     "pointe": 0.95,
+     "pesanteur": 0.6
+    },
+    "oreille": {
+     "densite": 0
+    }
+   },
+   "quantif": {
+    "pas_l": 0.045,
+    "pas_c": 0.012,
+    "sat": 0.9,
+    "froid": 0.002
+   }
+  },
+  "araignee": {
+   "id": "pq_araignee_v2",
+   "source": "pq_araignee",
+   "touffes": 480,
+   "seuil_detail": 0.05,
+   "variation": 0.25,
+   "desordre": 0.3,
+   "ombre_racine": 0.65,
+   "gonfle": 0.0,
+   "largeur": 0.005,
+   "bonus_dos": 0.0,
+   "face_libre": 2.0,
+   "poil": {
+    "meche_long": 14,
+    "meche_trav": 14,
+    "poil_long": 60,
+    "poil_trav": 60,
+    "tache": 9,
+    "amp_meche": 0.22,
+    "amp_poil": 0.05,
+    "amp_tache": 0.28
+   },
+   "manteau": [
+    {
+     "classes": [
+      "abdomen"
+     ],
+     "ou": "dos",
+     "seuil": 0.2,
+     "vers": "#5b3d27",
+     "part": 0.35
+    },
+    {
+     "classes": [
+      "abdomen",
+      "tronc"
+     ],
+     "ou": "ventre",
+     "seuil": 0.2,
+     "vers": "#211e1c",
+     "part": 0.5
+    },
+    {
+     "classes": [
+      "patte_basse"
+     ],
+     "ou": "tout",
+     "vers": "#3a261b",
+     "part": 0.3
+    },
+    {
+     "classes": [
+      "abdomen"
+     ],
+     "ou": "dos",
+     "seuil": 0.6,
+     "vers": "#82723f",
+     "part": 0.45,
+     "fondu": 0.12
+    }
+   ],
+   "zones": {
+    "patte_haute": {
+     "densite": 8,
+     "longueur": 0.052500000000000005,
+     "segments": 1,
+     "leve": 50,
+     "largeur": 0.006999999999999999,
+     "pointe": 1.0,
+     "pesanteur": 0.0
+    },
+    "patte_basse": {
+     "densite": 9,
+     "longueur": 0.045,
+     "segments": 1,
+     "leve": 45,
+     "largeur": 0.0056,
+     "pointe": 1.0,
+     "pesanteur": 0.0
+    },
+    "abdomen": {
+     "densite": 6,
+     "longueur": 0.045,
+     "segments": 1,
+     "leve": 40,
+     "largeur": 0.0084,
+     "pointe": 1.0,
+     "pesanteur": 0.1
+    },
+    "tronc": {
+     "densite": 2,
+     "longueur": 0.03,
+     "segments": 1,
+     "leve": 40,
+     "largeur": 0.006999999999999999,
+     "pointe": 1.0
+    },
+    "tete": {
+     "densite": 0
+    }
+   },
+   "subdiv": 0,
+   "angle_lisse": 25,
+   "vc_corps": 0.7,
+   "eclaircir": 1.43,
+   "yeux_groupe_essai": {
+    "haut": 0.55,
+    "rayon": 0.07,
+    "couleur": "#08161a",
+    "reflet": "#b6fbf0",
+    "profondeur": 0.3,
+    "motif": [
+     [
+      -0.12,
+      0
+     ],
+     [
+      -0.04,
+      0.04
+     ],
+     [
+      0.04,
+      0.04
+     ],
+     [
+      0.12,
+      0
+     ],
+     [
+      -0.07,
+      -0.06
+     ],
+     [
+      0.07,
+      -0.06
+     ]
+    ],
+    "rayon3d": 0.085
+   }
+  }
+ }
+}

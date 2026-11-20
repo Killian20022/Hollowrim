@@ -1,0 +1,11 @@
+{
+ "id": "pq_renard_v2",
+ "source": "pq_renard",
+ "tris_source": 1848,
+ "tris_subdiv_decime": 2400,
+ "tris_touffes": 3390,
+ "tris_proche": 5790,
+ "tris_loin": 800,
+ "touffes": 480,
+ "texture": 256
+}

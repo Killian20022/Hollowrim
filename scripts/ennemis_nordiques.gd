@@ -204,7 +204,7 @@ static func _fabriquer_ia(nom: String) -> Node3D:
 		"troll_givre":
 			return TrollGivre.creer({})
 	if BeteQuat.ESPECES.has(nom):         # bêtes et faune Quaternius (scripts/bete_quat.gd)
-		return PersosQuat.creer(String(BeteQuat.ESPECES[nom]["pq"]))
+		return PersosQuat.creer(BeteQuat.modele_pq(nom))
 	return null
 
 ## Dans le fil de préchauffage (sous _bm : les fabriques ont des caches statiques, comme les archétypes).

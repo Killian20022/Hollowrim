@@ -1,0 +1,11 @@
+{
+ "id": "pq_ane_v2",
+ "source": "pq_ane",
+ "tris_source": 2000,
+ "tris_subdiv_decime": 2400,
+ "tris_touffes": 1800,
+ "tris_proche": 4200,
+ "tris_loin": 800,
+ "touffes": 560,
+ "texture": 256
+}

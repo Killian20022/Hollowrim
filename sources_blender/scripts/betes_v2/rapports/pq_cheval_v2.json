@@ -1,0 +1,11 @@
+{
+ "id": "pq_cheval_v2",
+ "source": "pq_cheval",
+ "tris_source": 2182,
+ "tris_subdiv_decime": 2200,
+ "tris_touffes": 3666,
+ "tris_proche": 5866,
+ "tris_loin": 800,
+ "touffes": 640,
+ "texture": 256
+}
