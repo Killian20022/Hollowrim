@@ -256,6 +256,7 @@ func _ready() -> void:
 	await _terminer_fonds()        # chargement étalé : donjon, ennemis, grotte et préchauffages FINIS ici, derrière l'écran de chargement
 	_prechauffer_rendu()
 	await _attendre_prechauffes()
+	EffetsSol.preparer_couche(self)   # opti saccades : couche de neige (variante de shader, 36 tuiles) sous l'écran de chargement
 	Chrono.total()
 	pret = true
 	if joueur != null and joueur.mains != null and joueur.mains.get("magie") != null and joueur.mains.magie.get("eq") != null:
