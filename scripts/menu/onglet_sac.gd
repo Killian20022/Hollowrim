@@ -410,6 +410,7 @@ static func _milliers(n: int) -> String:
 ## Contenu de la fiche de l'objet `id` : {titre, sous, rarete, extra, desc, lignes [[rubrique, valeur]], compare [texte, couleur, vs],
 ## poids, valeur, note, note_couleur, hors_sac}.
 func fiche(id: String) -> Dictionary:
+	ArmureVisible.precharger(id)   # opti saccades : le glb porté est lu en fil pendant que la fiche est lue
 	var eq := _eq()
 	var o := Inventaire.objet(id)
 	var inv := _inv()

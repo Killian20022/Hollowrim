@@ -44,11 +44,18 @@ func _go() -> void:
 					if d != null and d.get("modele") != null and String(d.get("modele")) != "":
 						l.append(String(d.get("modele")))
 			"armures": l = _fichiers("res://assets/modeles/armures/porte", ["glb"])
+		if _arg("precharge") != "":   # --precharge=1 : demandes en fil d'abord (comme l'opti), 3 s d'attente, puis le load() mesuré
+			for c: String in l:
+				if ResourceLoader.exists(c) and not ResourceLoader.has_cached(c):
+					ResourceLoader.load_threaded_request(c)
+			var tw := Time.get_ticks_msec()
+			while Time.get_ticks_msec() - tw < 3000 + 150 * l.size():
+				await process_frame
 		var tot := 0.0
 		var pire := 0.0
 		var n := 0
 		for c: String in l:
-			if not ResourceLoader.exists(c) or ResourceLoader.has_cached(c):
+			if not ResourceLoader.exists(c) or (ResourceLoader.has_cached(c) and _arg("precharge") == ""):
 				continue
 			var t0 := Time.get_ticks_usec()
 			var r: Resource = load(c)
