@@ -27,6 +27,8 @@ var ennemis: Array = []
 var t_sort := 0.0
 var rac := 0
 var tp := PackedFloat32Array()
+var _vie_ticks := PackedFloat32Array()
+var _vie_prec := -1.0
 var tph := PackedFloat32Array()
 
 ## Sonde de temps : deux nœuds de priorité extrême encadrent TOUS les _process / _physics_process (et animations internes) de l'arbre.
@@ -454,6 +456,10 @@ func _process(dt: float) -> bool:
 		sondes_p[1].actif = true
 		sondes_ph[1].actif = true
 	n += 1
+	var vie_n: Node = m.get("vie")
+	if vie_n != null and float(vie_n.get("tick_ms")) != _vie_prec:      # durée de chaque tick de Vie (2 Hz, tous les civils d'un coup)
+		_vie_prec = float(vie_n.get("tick_ms"))
+		_vie_ticks.append(_vie_prec)
 	var g := RenderingServer.viewport_get_measured_render_time_gpu(rid)
 	gpu.append(g)
 	cpu.append(RenderingServer.viewport_get_measured_render_time_cpu(rid))
@@ -589,6 +595,8 @@ func _fin() -> void:
 	print("LIEU scripts_process_med=%.2f p95=%.2f ms | scripts_physics_med=%.2f p95=%.2f ms (par pas ; %d pas) | moy process=%.2f" % [
 		_pct(sondes_p[1].cumul, 0.5), _pct(sondes_p[1].cumul, 0.95), _pct(sondes_ph[1].cumul, 0.5), _pct(sondes_ph[1].cumul, 0.95), sondes_ph[1].cumul.size(), _moy(sondes_p[1].cumul)])
 	print("LIEU temps_process_med=%.2f ms physics_med=%.2f ms (moniteurs Godot, p95 %.2f / %.2f)" % [_pct(tp, 0.5), _pct(tph, 0.5), _pct(tp, 0.95), _pct(tph, 0.95)])
+	if not _vie_ticks.is_empty():
+		print("LIEU vie.tick : %d ticks, med=%.2f ms p95=%.2f max=%.2f" % [_vie_ticks.size(), _pct(_vie_ticks, 0.5), _pct(_vie_ticks, 0.95), _pct(_vie_ticks, 1.0)])
 	print("LIEU physique 3D : objets actifs=%d paires=%d îlots=%d | nœuds animés=%d" % [Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS), Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS), Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT), 0])
 	print("LIEU mémoire statique=%.0f Mo vidéo=%.0f Mo textures=%.0f Mo tampons=%.0f Mo noeuds=%d objets=%d orphelins=%d" % [
 		Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
