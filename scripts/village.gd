@@ -86,6 +86,7 @@ var bati := false
 signal bati_fini
 
 func _ready() -> void:
+	Occultation.remettre()  # opti 2026-11-20 : occulteurs des bâtiments (vitrages notés pendant le bâti)
 	_monde = get_parent()   # avant tout : `_souffle` passe par le monde (VillageBati lit aussi v._monde)
 	rng.seed = 99
 	corps = StaticBody3D.new()
@@ -160,6 +161,7 @@ func _ready() -> void:
 	Chrono.marque("  village : bâti v2 (façades, tour, moulins, fermes)")
 	await _souffle()
 	_finaliser()
+	Occultation.construire(self)
 	Chrono.marque("  village : maillages fusionnés")
 	_lancer_fil()
 
@@ -347,6 +349,12 @@ func _ao_pied(y: float) -> float:
 func _ajouter(parent: Node3D, arrays: Array, xf: Transform3D, mat: Material, ao_sol := true) -> void:
 	if arrays.size() <= Mesh.ARRAY_NORMAL or arrays[Mesh.ARRAY_VERTEX] == null or arrays[Mesh.ARRAY_NORMAL] == null:
 		return   # tableau vide ou incomplet : rien à ajouter (jamais d'erreur de type)
+	if Occultation.actif and (mat == m_vitre_ext or mat == m_fenetre or mat == m_fen_pignon) and not FilVerrou.en_construction() and parent.is_inside_tree():
+		var gx := parent.global_transform * xf
+		var pts := PackedVector3Array()
+		for q: Vector3 in (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+			pts.append(gx * q)
+		Occultation.noter_vitrage(pts)      # trou dans l'occulteur du mur qui porte ce vitrage
 	var sombre := mat == m_colombage and m_colombage != null
 	if ao_sol and mat.has_meta("pq"):
 		ao_sol = false      # props texturés (pq_*) : pied sombre déjà cuit
@@ -1656,6 +1664,9 @@ func _maison(centre: Vector3, lacet: float, longueur: float, largeur: float, h_m
 		ib.contenu(id)
 		ib.finir())
 	_emprise(p, Vector2(longueur * 0.5 + 0.3, largeur * 0.5 + 0.3), Vector2.ZERO, ip)
+	# occulteur : murs de rondins du plancher (0,4) au haut des murs, porte (+Z) découpée ; fenêtres découpées par leurs vitrages
+	Occultation.batiment(p, Vector2(longueur * 0.5 - 0.15, largeur * 0.5 - 0.15), Vector2(longueur * 0.5 + 0.2, largeur * 0.5 + 0.2), 0.4, y0,
+		[[Vector3(0, 0.4, largeur * 0.5), Vector3.BACK, 1.6, 2.3]])
 	return p
 
 ## Maison enterable posée en coordonnées MONDE (x, z) sur le plateau, `lacet` monde (0 = porte vers +Z/sud).

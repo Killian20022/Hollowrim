@@ -25,39 +25,6 @@ static func _cone(parent: Node3D, r_bas: float, r_haut: float, h: float, cotes: 
 	parent.add_child(mi)
 	return mi
 
-## Opti 2026-11-20 (persos_anim) : les ~26 pièces fixes du manche et de la tête (cônes, boîtes) fusionnées en UN maillage par matière
-## (5 au lieu de 26 : bois, fer, tresse, chiffon, goudron), sommets et normales passés dans le repère du parent : même géométrie, mêmes
-## matières, même rendu ; 21 appels de dessin de moins par torche (joueur, gardes de ronde). --sans-opti-torche : pièces séparées.
-static func fusionner_pieces(parent: Node3D) -> void:
-	var par_mat := {}
-	var ordre: Array = []
-	for c in parent.get_children():
-		var mi := c as MeshInstance3D
-		if mi == null or mi.mesh == null or mi.material_override == null or mi.mesh.get_surface_count() != 1:
-			continue
-		var m := mi.material_override
-		if not par_mat.has(m):
-			par_mat[m] = []
-			ordre.append(m)
-		par_mat[m].append(mi)
-	for m: Material in ordre:
-		var l: Array = par_mat[m]
-		if l.size() < 2:
-			continue
-		var st := SurfaceTool.new()
-		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		for mi: MeshInstance3D in l:
-			st.append_from(mi.mesh, 0, mi.transform)
-		var fm := MeshInstance3D.new()
-		fm.name = "TorcheFusion"
-		fm.mesh = st.commit()
-		fm.material_override = m
-		fm.cast_shadow = (l[0] as MeshInstance3D).cast_shadow
-		parent.add_child(fm)
-		for mi: MeshInstance3D in l:
-			parent.remove_child(mi)
-			mi.queue_free()
-
 static func _mat(nom: String, uv: Vector2, teinte := Color.WHITE) -> ShaderMaterial:
 	var m := Palette.materiau(ObjetsTextures.tex(nom), uv, teinte)
 	m.set_shader_parameter("tex_neige", m.get_shader_parameter("tex_base"))
@@ -73,6 +40,35 @@ static func _boite(parent: Node3D, taille: Vector3, pos: Vector3, rot: Vector3, 
 	mi.rotation_degrees = rot
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
+
+## (Aussi pour les fissures du mur fragile, Mecanisme.Mur.) Fond toutes les MeshInstance3D enfants de `geo` (hors de l'arbre) en un seul maillage posé sous `parent` (une surface par matière,
+## dans l'ordre de première apparition), puis libère `geo`.
+static func _fondre(geo: Node3D, parent: Node3D, nom := "TorcheFixe") -> MeshInstance3D:
+	var sts := {}
+	var ordre: Array[Material] = []
+	for c in geo.get_children():
+		var mi := c as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		var m: Material = mi.material_override
+		if not sts.has(m):
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			sts[m] = st
+			ordre.append(m)
+		for s in mi.mesh.get_surface_count():
+			(sts[m] as SurfaceTool).append_from(mi.mesh, s, mi.transform)
+	var am := ArrayMesh.new()
+	for m in ordre:
+		(sts[m] as SurfaceTool).commit(am)
+		am.surface_set_material(am.get_surface_count() - 1, m)
+	var r := MeshInstance3D.new()
+	r.name = nom
+	r.mesh = am
+	r.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(r)
+	geo.free()
+	return r
 
 ## Braises : carrés NETS de 3 à 5 px (shader des gerbes de pixels), tons de la flamme ; monde (local_coords faux) : quand la torche
 ## avance, elles restent derrière et dessinent la traînée ; elles montent un peu, ralentissent puis s'éteignent par paliers.
@@ -153,40 +149,46 @@ static func construire(parent: Node3D) -> Dictionary:
 	var cuir := _mat("tresse", Vector2(2, 1))
 	var fer := _mat("fer", Vector2(1, 1), Color(0.8, 0.82, 0.9))
 
+	# opti 2026-11-20 (appels de dessin) : les ~28 pièces fixes (manche, bague, lanière, chiffons, goudron, braises) sont bâties sous un
+	# nœud hors de l'arbre puis fondues en UN maillage (une surface par matière) : ~6 appels par torche au lieu de ~28 (gardes de nuit,
+	# torche du joueur en vue 1re et 3e personne). Mêmes sommets dans le repère du porteur, mêmes matières : image identique.
+	# `-- --sans-opti-torche` : une MeshInstance3D par pièce, comme avant.
+	var fondre := not ("--sans-opti-torche" in OS.get_cmdline_user_args())
+	var geo: Node3D = Node3D.new() if fondre else parent
 	# manche : trois tronçons coniques à 8 pans, légèrement désaxés (noueux), nœud, pommeau
-	_cone(parent, 0.021, 0.024, 0.20, 8, 0.02, bois)
-	_cone(parent, 0.024, 0.027, 0.17, 8, 0.19, bois, Vector3(0.002, 0, 0.001), Vector3(2, 20, -3))
-	_cone(parent, 0.027, 0.031, 0.12, 8, 0.32, bois, Vector3(-0.001, 0, 0.002), Vector3(-2, 50, 3))
-	_cone(parent, 0.030, 0.026, 0.035, 8, 0.10, bois, Vector3.ZERO, Vector3(0, 35, 0))
-	_cone(parent, 0.017, 0.023, 0.03, 8, -0.075, bois)
-	_cone(parent, 0.024, 0.024, 0.008, 8, -0.058, fer)
+	_cone(geo, 0.021, 0.024, 0.20, 8, 0.02, bois)
+	_cone(geo, 0.024, 0.027, 0.17, 8, 0.19, bois, Vector3(0.002, 0, 0.001), Vector3(2, 20, -3))
+	_cone(geo, 0.027, 0.031, 0.12, 8, 0.32, bois, Vector3(-0.001, 0, 0.002), Vector3(-2, 50, 3))
+	_cone(geo, 0.030, 0.026, 0.035, 8, 0.10, bois, Vector3.ZERO, Vector3(0, 35, 0))
+	_cone(geo, 0.017, 0.023, 0.03, 8, -0.075, bois)
+	_cone(geo, 0.024, 0.024, 0.008, 8, -0.058, fer)
 	# lanière de cuir enroulée au-dessus du poing (tours inclinés)
 	for k in 3:
-		_cone(parent, 0.0275, 0.0275, 0.009, 8, 0.082 + k * 0.011, cuir, Vector3.ZERO, Vector3(0, k * 25, 4 if k % 2 == 0 else -4))
-	_boite(parent, Vector3(0.008, 0.045, 0.003), Vector3(0.026, 0.07, 0.006), Vector3(0, 0, -6), cuir)
+		_cone(geo, 0.0275, 0.0275, 0.009, 8, 0.082 + k * 0.011, cuir, Vector3.ZERO, Vector3(0, k * 25, 4 if k % 2 == 0 else -4))
+	_boite(geo, Vector3(0.008, 0.045, 0.003), Vector3(0.026, 0.07, 0.006), Vector3(0, 0, -6), cuir)
 	# bague de fer sous la tête, avec ses clous
-	_cone(parent, 0.034, 0.034, 0.014, 8, 0.352, fer)
+	_cone(geo, 0.034, 0.034, 0.014, 8, 0.352, fer)
 	for k in 4:
 		var a := k * PI * 0.5 + 0.4
-		_cone(parent, 0.005, 0.002, 0.006, 5, 0.352, fer, Vector3(cos(a) * 0.0355, 0, sin(a) * 0.0355))
+		_cone(geo, 0.005, 0.002, 0.006, 5, 0.352, fer, Vector3(cos(a) * 0.0355, 0, sin(a) * 0.0355))
 
 	# tête : bandes de chiffon empilées, de travers, puis goudron
-	_cone(parent, 0.034, 0.046, 0.045, 9, 0.385, chiffon, Vector3.ZERO, Vector3(0, 10, 0))
-	_cone(parent, 0.048, 0.050, 0.04, 9, 0.425, chiffon, Vector3(0.003, 0, -0.002), Vector3(4, 30, -5))
-	_cone(parent, 0.050, 0.044, 0.04, 9, 0.462, goudron, Vector3(-0.003, 0, 0.002), Vector3(-5, 60, 6))
-	_cone(parent, 0.046, 0.034, 0.035, 9, 0.497, goudron, Vector3(0.002, 0, 0.0), Vector3(3, 15, -4))
+	_cone(geo, 0.034, 0.046, 0.045, 9, 0.385, chiffon, Vector3.ZERO, Vector3(0, 10, 0))
+	_cone(geo, 0.048, 0.050, 0.04, 9, 0.425, chiffon, Vector3(0.003, 0, -0.002), Vector3(4, 30, -5))
+	_cone(geo, 0.050, 0.044, 0.04, 9, 0.462, goudron, Vector3(-0.003, 0, 0.002), Vector3(-5, 60, 6))
+	_cone(geo, 0.046, 0.034, 0.035, 9, 0.497, goudron, Vector3(0.002, 0, 0.0), Vector3(3, 15, -4))
 	# bouts de chiffon qui pendent et coulures de goudron
 	for k in 4:
 		var a := k * PI * 0.5 + 0.9
-		_boite(parent, Vector3(0.013, 0.07, 0.003), Vector3(cos(a) * 0.051, 0.40, sin(a) * 0.051), Vector3(0, -rad_to_deg(a) + 90.0, 14.0), chiffon)
-		_cone(parent, 0.007, 0.0, 0.05, 5, 0.43, goudron, Vector3(cos(a + 0.8) * 0.049, 0, sin(a + 0.8) * 0.049))
-	if not OS.get_cmdline_user_args().has("--sans-opti-torche"):
-		fusionner_pieces(parent)
+		_boite(geo, Vector3(0.013, 0.07, 0.003), Vector3(cos(a) * 0.051, 0.40, sin(a) * 0.051), Vector3(0, -rad_to_deg(a) + 90.0, 14.0), chiffon)
+		_cone(geo, 0.007, 0.0, 0.05, 5, 0.43, goudron, Vector3(cos(a + 0.8) * 0.049, 0, sin(a + 0.8) * 0.049))
 	# braises : calotte incandescente (sans éclairage, vacille)
 	var bm := ShaderMaterial.new()
 	bm.shader = BRAISE_SHADER
 	bm.set_shader_parameter("tex", ObjetsTextures.tex("braise"))
-	_cone(parent, 0.035, 0.022, 0.02, 9, 0.52, bm)
+	_cone(geo, 0.035, 0.022, 0.02, 9, 0.52, bm)
+	if fondre:
+		_fondre(geo, parent)
 
 	# flamme en gros pixels : un pilote (inertie, braises, lumière) au pied de la flamme, un quad au shader flamme_pixels ;
 	# halo net (anneaux posterisés) derrière

@@ -84,6 +84,10 @@ static func ouvrir(v, p: Node3D, s: Dictionary) -> Interieur:
 	p.add_child(ip)
 	v.interieurs.append(ip)
 	appliquer(ip, id, v)
+	if s.get("style", "") != "rond":      # opti 2026-11-20 : occulteur des murs (Occultation), porte découpée
+		var po: Dictionary = s["porte"]
+		Occultation.batiment(p, s["int"], s["ext"], float(s["y_sol"]), float(s["y_mur"]),
+			[[po["c"], po.get("n", Vector3.BACK), float(po["larg"]), maxf(float(po["haut"]), 1.95)]])
 	if s.has("masque") and s["masque"] != null:
 		ip.masques.append(s["masque"])
 	var F := Interieurs.F

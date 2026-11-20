@@ -699,6 +699,10 @@ class Mur extends Base:
 	## Indice visible (grotte) : fissures sombres en zigzag sur les deux faces, sans toucher à la collision ni à la solution.
 	func _fissurer() -> void:
 		var noir := Mecanisme.materiau(Palette.ROCHE, "meca_gravats", Vector2.ONE, Color(0.06, 0.06, 0.08))
+		# opti 2026-11-20 (appels de dessin) : les ~42 traits (une matière) fondus en un maillage, 1 appel au lieu de 42 ;
+		# `-- --sans-opti-fissures` : une boîte par trait comme avant
+		var fondre := not ("--sans-opti-fissures" in OS.get_cmdline_user_args())
+		var geo: Node3D = Node3D.new() if fondre else self
 		var rng := RandomNumberGenerator.new()
 		rng.seed = ident.hash()
 		for face in [1.0, -1.0]:
@@ -708,11 +712,13 @@ class Mur extends Base:
 				for j in 7:
 					var ang := rng.randf_range(-0.5, 0.5)
 					var l := rng.randf_range(0.28, 0.5)
-					Mecanisme.boite(self, Vector3(0.05, l, 0.02), Vector3(x, y - l * 0.5, face * (taille.z * 0.5 + 0.012)), noir, Vector3(0, 0, ang))
+					Mecanisme.boite(geo, Vector3(0.05, l, 0.02), Vector3(x, y - l * 0.5, face * (taille.z * 0.5 + 0.012)), noir, Vector3(0, 0, ang))
 					x += sin(-ang) * l
 					y -= cos(ang) * l
 					if y < -taille.y * 0.5 + 0.1:
 						break
+		if fondre:
+			Torche._fondre(geo, self, "Fissures")
 	func est_casse() -> bool:
 		return casse
 
