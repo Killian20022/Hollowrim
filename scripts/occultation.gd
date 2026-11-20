@@ -4,8 +4,10 @@ class_name Occultation
 ## de l'épaisseur du mur (entre la face intérieure et la face extérieure, donc dans la matière pleine), du seuil au haut des murs, avec
 ## la PORTE et TOUTES les fenêtres découpées (chaque vitrage posé dehors est noté au moment où il est bâti, vraie fenêtre ou non, + marge) :
 ## partout où un mur laisse voir à travers, l'occulteur a un trou. Pignons, toits et socles ne sont pas des occulteurs (prudent).
-## Effet : dedans, le dehors caché par les murs (végétation, autres maisons, feu, PNJ) n'est plus dessiné ; dehors, ce qui est entièrement
-## derrière une maison non plus. Seule la passe principale est concernée (les ombres restent) : image identique.
+## Effet : dedans, le dehors caché par les murs (végétation, autres maisons, feu, PNJ) n'est plus dessiné. Seule la passe principale est
+## concernée (les ombres restent) : image identique. L'occlusion du viewport n'est ALLUMÉE que la caméra dans un intérieur
+## (Interieur.camera_dedans) : dehors, le tramage des occulteurs coûtait +0,35 à +0,86 ms de CPU de rendu pour au plus 0,36 ms de GPU
+## gagné ; dedans il est neutre en CPU et rend 0,4 à 1,0 ms de GPU (outils/planche_occlusion.gd, 21 h).
 ## `-- --sans-opti-occlusion` : pas d'occulteur, occlusion du viewport coupée (comportement d'avant).
 
 static var actif := not ("--sans-opti-occlusion" in OS.get_cmdline_user_args())
@@ -18,6 +20,7 @@ static var _batiments: Array = []           # [Node3D pivot, Vector2 demi milieu
 static func remettre() -> void:
 	_vitrages.clear()
 	_batiments.clear()
+	_dedans.clear()
 
 ## Un vitrage du dehors : `pts` en coordonnées MONDE.
 static func noter_vitrage(pts: PackedVector3Array) -> void:
@@ -35,9 +38,22 @@ static func batiment(p: Node3D, int_: Vector2, ext: Vector2, y0: float, y1: floa
 	_batiments.append([p, (int_ + ext) * 0.5, y0, y1, portes])
 
 ## Pose les occulteurs (fin du bâti du village : tous les vitrages sont notés) et allume l'occlusion du viewport.
+static var _dedans := {}            # Interieur -> vrai : intérieurs où se trouve la caméra
+static var _vp: Viewport
+
+## Appelé par Interieur (toutes les 0,2 s, au changement) : allume l'occlusion tant que la caméra est dans un intérieur.
+static func camera_dedans(ip: Node, dedans: bool) -> void:
+	if dedans:
+		_dedans[ip] = true
+	else:
+		_dedans.erase(ip)
+	if _vp != null and is_instance_valid(_vp):
+		_vp.use_occlusion_culling = actif and not _dedans.is_empty()
+
 static func construire(v: Node3D) -> void:
-	if v.get_viewport() != null:
-		v.get_viewport().use_occlusion_culling = actif
+	_vp = v.get_viewport()
+	if _vp != null:
+		_vp.use_occlusion_culling = actif and not _dedans.is_empty()
 	if not actif:
 		return
 	var n := 0

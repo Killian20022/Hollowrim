@@ -88,6 +88,14 @@ func _repartition() -> void:
 		if gi.is_visible_in_tree():
 			tous.append(gi)
 	await _attendre(4)
+	# temps du rendu, image figée : médianes sur 90 images (GPU du viewport, CPU de rendu + préparation)
+	var g := PackedFloat32Array()
+	var cc := PackedFloat32Array()
+	for i in 90:
+		await process_frame
+		g.append(RenderingServer.viewport_get_measured_render_time_gpu(rid))
+		cc.append(RenderingServer.viewport_get_measured_render_time_cpu(rid) + RenderingServer.get_frame_setup_time_cpu())
+	print("APPELS temps fige gpu_med=%.2f gpu_p10=%.2f cpu_med=%.2f" % [_pct(g, 0.5), _pct(g, 0.1), _pct(cc, 0.5)])
 	var base := _lire()
 	print("APPELS total heure=%.1f pos=%s visibles: appels=%d prims=%d objets=%d | ombres: appels=%d prims=%d objets=%d | GI visibles dans l'arbre=%d" % [
 		m.cycle.heure, j.global_position, base[0], base[2], base[4], base[1], base[3], base[5], tous.size()])

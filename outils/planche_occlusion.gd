@@ -28,6 +28,7 @@ func _go() -> void:
 	current_scene = m
 	j = m.joueur
 	rid = root.get_viewport_rid()
+	RenderingServer.viewport_set_measure_render_time(rid, true)
 	var t0 := Time.get_ticks_msec()
 	while m.village.get("prets") != true and Time.get_ticks_msec() - t0 < 120000:
 		await process_frame
@@ -62,13 +63,25 @@ func _go() -> void:
 			var V := RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE
 			var D := RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME
 			var P := RenderingServer.VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME
-			res.append([RenderingServer.viewport_get_render_info(rid, V, D), RenderingServer.viewport_get_render_info(rid, V, P)])
+			var S := RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW
+			res.append([RenderingServer.viewport_get_render_info(rid, V, D), RenderingServer.viewport_get_render_info(rid, V, P), RenderingServer.viewport_get_render_info(rid, S, D), RenderingServer.viewport_get_render_info(rid, S, P)])
 			await RenderingServer.frame_post_draw
 			var im := root.get_viewport().get_texture().get_image()
 			im.convert(Image.FORMAT_RGB8)
 			im.save_png("%s/occ_%s_%s.png" % [sortie, p[0], "avec" if occ else "sans"])
+		# temps CPU du rendu (médiane), occlusion allumée / coupée en alternance par paquets de 10 images (même état figé)
+		var cpu := [PackedFloat32Array(), PackedFloat32Array()]
+		var gpu := [PackedFloat32Array(), PackedFloat32Array()]
+		for k in 12:
+			var occ := k % 2 == 0
+			root.get_viewport().use_occlusion_culling = occ
+			await _attendre(2)
+			for i in 10:
+				await process_frame
+				cpu[0 if occ else 1].append(RenderingServer.viewport_get_measured_render_time_cpu(rid) + RenderingServer.get_frame_setup_time_cpu())
+				gpu[0 if occ else 1].append(RenderingServer.viewport_get_measured_render_time_gpu(rid))
 		root.get_viewport().use_occlusion_culling = true
-		print("OCC %-12s pos=%s avec: appels=%d prims=%d | sans: appels=%d prims=%d" % [p[0], j.global_position, res[0][0], res[0][1], res[1][0], res[1][1]])
+		print("OCC %-12s pos=%s avec: appels=%d prims=%d ombres=%d/%d cpu=%.2f gpu=%.2f | sans: appels=%d prims=%d ombres=%d/%d cpu=%.2f gpu=%.2f" % [p[0], j.global_position, res[0][0], res[0][1], res[0][2], res[0][3], _med(cpu[0]), _med(gpu[0]), res[1][0], res[1][1], res[1][2], res[1][3], _med(cpu[1]), _med(gpu[1])])
 	quit(0)
 
 func _monde(x: float, z: float, lacet: float, tangage: float) -> void:
@@ -89,3 +102,8 @@ func _dedans(id: String, loc: Vector3, lacet: float, tangage: float) -> void:
 	j.rotation.y = ip.global_rotation.y + deg_to_rad(lacet)
 	j.tete.rotation.x = deg_to_rad(tangage)
 	await process_frame
+
+func _med(a: PackedFloat32Array) -> float:
+	var b := a.duplicate()
+	b.sort()
+	return b[b.size() / 2] if b.size() > 0 else 0.0

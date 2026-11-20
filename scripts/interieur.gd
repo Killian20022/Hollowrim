@@ -49,6 +49,7 @@ var _t := 0.0
 var _acc := 0.0
 var _allume := true
 var _tween: Tween
+var _cam_dedans := false
 
 func _init() -> void:
 	racine = Node3D.new()
@@ -81,6 +82,11 @@ func distance_emprise(p: Vector3) -> float:
 	var d := Vector2(maxf(absf(p.x) - demi.x, 0.0), maxf(absf(p.z) - demi.y, 0.0))
 	return d.length()
 
+func _exit_tree() -> void:
+	if _cam_dedans:
+		_cam_dedans = false
+		Occultation.camera_dedans(self, false)
+
 func _process(dt: float) -> void:
 	_t += dt
 	_acc += dt
@@ -91,6 +97,10 @@ func _process(dt: float) -> void:
 		if paresseux:
 			_gerer_chargement(c, d)
 		racine.visible = d < DIST_VISIBLE
+		var cam_dedans := dedans(c, 0.3)
+		if cam_dedans != _cam_dedans:      # opti 2026-11-20 : l'occlusion des murs ne sert (et ne se paie) que dedans (Occultation)
+			_cam_dedans = cam_dedans
+			Occultation.camera_dedans(self, cam_dedans)
 		var allume := d < DIST_LUMIERE or dedans(c, 0.5)
 		if allume != _allume:
 			_allume = allume
