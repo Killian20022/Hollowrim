@@ -183,7 +183,7 @@ func _place() -> void:
 ## centre et tour sur place (intérieurs paresseux construits en approche, libérés en s'éloignant : la marche suivante passe loin).
 func _village() -> void:
 	var ips: Array = m.village.interieurs
-	for passage in [1, 2]:
+	for passage in range(1, int(_arg("passages", "2")) + 1):
 		for ip: Interieur in ips:
 			var porte: Vector3 = ip.to_global(ip.porte_locale)
 			var centre: Vector3 = ip.to_global(Vector3(0, ip.sol_y + 0.05, 0))
