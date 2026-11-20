@@ -45,12 +45,6 @@ static func caches() -> void:
 	GerbePixels._preparer_ressources()   # gerbes de pixels du corps à corps (lot L6) : quads, shaders, matériaux de processus
 	EclatsOs._ressources()
 	EffetElementLame.prechauffer()       # effet passif des lames à élément : matériaux partagés (process + dessin) de chaque élément
-	# opti saccades (2026-11-20) : matières réalistes des armes (textures peintes par code, 2 variantes du shader ps1) faites ici et non au
-	# 1er équipement d'une épée longue / claymore / bouclier (mesuré : 1er equiper() 201 ms, les suivants 6-27). `--sans-opti-matieres-armes`.
-	if not OS.get_cmdline_user_args().has("--sans-opti-matieres-armes"):
-		EpeesLongues.materiaux()
-		ClaymoreMateriaux.materiaux()
-		BouclierNordique.materiaux()
 
 ## Lance le préchauffage rendu d'une vitrine posée en `lieu` (monde, sous le sol) : `soleil` exclu de la caméra si donné (sous
 ## terre), `env` = environnement du lieu (null = celui du monde). Renvoie la vitrine (libérée toute seule à la fin).
