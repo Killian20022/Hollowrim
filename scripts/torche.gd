@@ -41,9 +41,9 @@ static func _boite(parent: Node3D, taille: Vector3, pos: Vector3, rot: Vector3, 
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 
-## Fond toutes les MeshInstance3D enfants de `geo` (hors de l'arbre) en un seul maillage posé sous `parent` (une surface par matière,
+## (Aussi pour les fissures du mur fragile, Mecanisme.Mur.) Fond toutes les MeshInstance3D enfants de `geo` (hors de l'arbre) en un seul maillage posé sous `parent` (une surface par matière,
 ## dans l'ordre de première apparition), puis libère `geo`.
-static func _fondre(geo: Node3D, parent: Node3D) -> void:
+static func _fondre(geo: Node3D, parent: Node3D, nom := "TorcheFixe") -> MeshInstance3D:
 	var sts := {}
 	var ordre: Array[Material] = []
 	for c in geo.get_children():
@@ -63,11 +63,12 @@ static func _fondre(geo: Node3D, parent: Node3D) -> void:
 		(sts[m] as SurfaceTool).commit(am)
 		am.surface_set_material(am.get_surface_count() - 1, m)
 	var r := MeshInstance3D.new()
-	r.name = "TorcheFixe"
+	r.name = nom
 	r.mesh = am
 	r.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(r)
 	geo.free()
+	return r
 
 ## Braises : carrés NETS de 3 à 5 px (shader des gerbes de pixels), tons de la flamme ; monde (local_coords faux) : quand la torche
 ## avance, elles restent derrière et dessinent la traînée ; elles montent un peu, ralentissent puis s'éteignent par paliers.
