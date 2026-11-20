@@ -506,6 +506,19 @@ def peindre(ex, flow_v, K_v, S):
     detail = lum0 < CFG.get("seuil_detail", 0.07)
     bois0 = masque_bois(Pp, Kp)
     Cp = np.where(bois0[:, None], Cp, manteau(Cp, Pp, Np, Kp))
+    rl = CFG.get("relief")
+    if rl:
+        up = Np[:, 1]
+        fac = 1 + rl.get("haut", 0.15) * np.clip(up, 0, 1) - rl.get("bas", 0.3) * np.clip(-up, 0, 1) ** 0.8
+        noms_ = [c for c, _ in CLASSES]
+        pat = Kp[:, noms_.index("patte_haute")] + Kp[:, noms_.index("patte_basse")]
+        cx = np.median(Pp[:, 0])
+        dedans = np.clip(-(Np[:, 0]) * np.sign(Pp[:, 0] - cx + 1e-6), 0, 1)     # face interne des pattes (vers l'axe du corps)
+        fac = fac - rl.get("creux", 0.2) * pat * dedans
+        hy = (Pp[:, 1] - Pp[:, 1].min()) / max(np.ptp(Pp[:, 1]), 1e-6)
+        aine = Kp[:, noms_.index("patte_haute")] * np.clip(-up, 0, 1)            # aisselles / aine
+        fac = fac - rl.get("aine", 0.15) * aine
+        Cp = np.where(bois0[:, None], Cp, Cp * np.clip(fac, 0.4, 1.4)[:, None])
     T1 = norm(np.cross(Np, Fp))
     f = CFG["poil"]
     ech = CFG.get("echelle_poil", 1.0)
@@ -528,8 +541,14 @@ def peindre(ex, flow_v, K_v, S):
     if YEUX:
         # l'ancien œil (faces sombres en gribouillis) prend la couleur de la tête autour, puis on peint l'amande
         for c_ in YEUX:
-            pres = (np.linalg.norm(Pp - c_, axis=1) < CFG["oeil"]["long"] * 1.6) & detail
-            loin_ = (np.linalg.norm(Pp - c_, axis=1) < CFG["oeil"]["long"] * 2.6) & ~detail
+            ef = CFG["oeil"].get("efface", 0.0)            # > 0 : tout l'ancien œil (blanc, cerne, paupière) est repeint sur ce rayon
+            dd = np.linalg.norm(Pp - c_, axis=1)
+            if ef > 0:
+                pres = dd < ef
+                loin_ = (dd > ef) & (dd < ef * 1.7) & ~detail
+            else:
+                pres = (dd < CFG["oeil"]["long"] * 1.6) & detail
+                loin_ = (dd < CFG["oeil"]["long"] * 2.6) & ~detail
             if pres.any() and loin_.any():
                 col[pres] = np.median(col[loin_], axis=0)
         col = peindre_yeux(col, Pp, Np)                              # yeux, truffe : sans poil
@@ -542,6 +561,7 @@ def peindre(ex, flow_v, K_v, S):
         col = quantifier(col, q.get("pas_l", 0.045), q.get("pas_c", 0.012), q.get("sat", 0.85), q.get("froid", 0.008))
     if YEUX:
         col = peindre_yeux(col, Pp, Np)
+    col = yeux_araignee(col, Pp, Np, Kp)
     img[ij[:, 1], ij[:, 0]] = col
     rempli[ij[:, 1], ij[:, 0]] = True
     tuv = UV[tri_l]
@@ -599,13 +619,49 @@ def peindre_yeux(col, Pp, Np):
         sx = np.sign(c[0])
         e = (d[:, 2] / o["long"]) ** 2 + (d[:, 1] / o["haut"]) ** 2 + (d[:, 0] / o.get("prof", 0.02)) ** 2
         cote = Np[:, 0] * sx > 0.1
+        cr = o.get("cerne")
+        if cr:
+            l2 = cr.get("largeur", 1.7) ** 2
+            anneau = (e >= 1.0) & (e < l2) & cote
+            col[anneau] = H(cr["couleur"])
+            if cr.get("trait"):                           # liseré sombre net autour de l'amande, puis cerne (clair ou sombre)
+                tr = (e >= 1.0) & (e < 1.0 + (l2 - 1) * cr.get("trait_part", 0.5)) & cote
+                col[tr] = H(cr["trait"])
         am = (e < 1.0) & cote
         col[am] = H(o.get("couleur", "#14161a"))
         rf = c + np.array([sx * 0.0, o["haut"] * 0.35, o["long"] * 0.35])
         dr = np.linalg.norm(Pp - rf, axis=1)
         k = np.nonzero(am)[0]
         if len(k):
-            col[k[np.argmin(dr[k])]] = H(o.get("reflet", "#b3b0b4"))
+            ordre = k[np.argsort(dr[k])]
+            col[ordre[:o.get("reflet_texels", 2)]] = H(o.get("reflet", "#b3b0b4"))
+    return col
+
+
+def yeux_araignee(col, Pp, Np, Kp):
+    o = CFG.get("yeux_groupe")
+    if not o:
+        return col
+    ki = [c for c, _ in CLASSES].index("tete")
+    t = Kp[:, ki] > 0.5
+    if t.sum() < 10:
+        return col
+    Pt = Pp[t]
+    av = Pt[:, 2].max()
+    hy = Pt[:, 1].min(), Pt[:, 1].max()
+    lx = np.ptp(Pt[:, 0])
+    front = t & (Pp[:, 2] > av - o.get("profondeur", 0.25) * np.ptp(Pt[:, 2])) & (Np[:, 2] > 0.2)
+    cy = hy[0] + (hy[1] - hy[0]) * o.get("haut", 0.72)
+    r = o.get("rayon", 0.06) * lx
+    centres = []
+    for (fx, fy) in o.get("motif", [(-0.28, 0), (-0.1, 0.06), (0.1, 0.06), (0.28, 0), (-0.18, -0.12), (0.18, -0.12)]):
+        centres.append((fx * lx, cy + fy * lx))
+    for (x, y) in centres:
+        d = np.hypot(Pp[:, 0] - x, Pp[:, 1] - y)
+        m = front & (d < r)
+        col[m] = H(o.get("couleur", "#08161a"))
+        m2 = front & (d < r * 0.45) & (Pp[:, 1] > y)
+        col[m2] = H(o.get("reflet", "#b6fbf0"))
     return col
 
 
@@ -630,19 +686,28 @@ def manteau(C, P, N, K):
             k += K[:, noms.index(c)]
         ou = r.get("ou", "tout")
         s0 = r.get("seuil", 0.0)
+        fo = r.get("fondu", CFG.get("fondu", None))       # largeur de la transition : petite = démarcation franche
+        lg = fo if fo else (1 - s0)
         if ou == "dos":
-            o = np.clip((N[:, 1] - s0) / (1 - s0), 0, 1)
+            o = np.clip((N[:, 1] - s0) / lg, 0, 1)
         elif ou == "ventre":
-            o = np.clip((-N[:, 1] - s0) / (1 - s0), 0, 1)
+            o = np.clip((-N[:, 1] - s0) / lg, 0, 1)
         elif ou == "face":
-            o = np.clip((N[:, 2] - s0) / (1 - s0), 0, 1)
+            o = np.clip((N[:, 2] - s0) / lg, 0, 1)
+        elif ou == "arriere":
+            o = np.clip((-N[:, 2] - s0) / lg, 0, 1)
         elif ou == "dessous":                # sous une hauteur (fraction de la boîte) : bas des pattes
             h = (P[:, 1] - P[:, 1].min()) / max(np.ptp(P[:, 1]), 1e-6)
             o = np.clip((r.get("haut", 0.3) - h) / 0.12, 0, 1)
         else:
             o = np.ones(len(C))
+        if fo:
+            k = np.clip((k - 0.35) / 0.3, 0, 1)            # zone d'os franche aussi (pas de fondu sur toute la pondération)
         a = np.clip(k * o * r.get("part", 0.3), 0, 1)[:, None]
-        out = out * (1 - a) + np.array(H(r["vers"]))[None] * a
+        if "facteur" in r:
+            out = out * (1 - a + a * r["facteur"])
+        else:
+            out = out * (1 - a) + np.array(H(r["vers"]))[None] * a
     return out
 
 

@@ -3,8 +3,8 @@
  "source": "pq_loup2",
  "tris_source": 1962,
  "tris_subdiv_decime": 2400,
- "tris_touffes": 2790,
- "tris_proche": 5190,
+ "tris_touffes": 2814,
+ "tris_proche": 5214,
  "tris_loin": 800,
  "touffes": 520,
  "texture": 256

@@ -2,10 +2,10 @@
  "id": "pq_cheval_blanc_v2",
  "source": "pq_cheval_blanc",
  "tris_source": 2182,
- "tris_subdiv_decime": 2400,
- "tris_touffes": 2718,
- "tris_proche": 5118,
+ "tris_subdiv_decime": 2200,
+ "tris_touffes": 3654,
+ "tris_proche": 5854,
  "tris_loin": 800,
- "touffes": 420,
+ "touffes": 640,
  "texture": 256
 }

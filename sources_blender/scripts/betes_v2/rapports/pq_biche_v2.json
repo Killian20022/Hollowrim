@@ -3,8 +3,8 @@
  "source": "pq_biche",
  "tris_source": 2098,
  "tris_subdiv_decime": 2400,
- "tris_touffes": 1620,
- "tris_proche": 4020,
+ "tris_touffes": 1626,
+ "tris_proche": 4026,
  "tris_loin": 800,
  "touffes": 340,
  "texture": 256
