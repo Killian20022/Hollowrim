@@ -51,7 +51,23 @@ func a(id: String) -> bool:
 func nom(id: String) -> String:
 	return "pièces" if id == "pieces" else String(Inventaire.objet(id).get("nom", id))
 
+## Opti cpu_scripts (2026-11-20) : le joueur relit son poids à chaque pas de physique (surcharge) ; somme gardée tant que `objets`
+## ne change pas (empreinte Dictionary.hash : exacte même si un test modifie `objets` directement). `--sans-opti-cache-stats` : avant.
+static var opti_poids := not ("--sans-opti-cache-stats" in OS.get_cmdline_user_args())
+var _poids_cle := 0
+var _poids_val := -1.0
+
 func poids() -> float:
+	if opti_poids:
+		var h := objets.hash()
+		if _poids_val >= 0.0 and h == _poids_cle:
+			return _poids_val
+		_poids_cle = h
+		_poids_val = _poids_calcul()
+		return _poids_val
+	return _poids_calcul()
+
+func _poids_calcul() -> float:
 	var total := 0.0
 	for id in objets:
 		total += float(Inventaire.objet(id).get("poids", 0.0)) * objets[id]
