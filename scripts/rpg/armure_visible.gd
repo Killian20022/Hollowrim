@@ -753,6 +753,46 @@ static func _doublure_cotte() -> ShaderMaterial:
 		_cotte_teinte.set_shader_parameter("tex_neige", _cotte_teinte.get_shader_parameter("tex_base"))
 	return _cotte_teinte
 
+## Opti 2026-11-20 (persos_anim) : une pièce du corps ENTIÈREMENT recouverte garde des surfaces réduites au triangle sans aire [0, 0, 0]
+## (index des matériaux surchargés) : invisible, mais un appel de dessin par surface (et par passe d'ombre, et par contour next_pass).
+## On la cache tant qu'elle est vide (méta « cache_vide »), on la remontre dès qu'elle a de nouveau des triangles. Rendu identique.
+## --sans-opti-pieces-vides : comportement d'avant.
+static var opti_vides := not OS.get_cmdline_user_args().has("--sans-opti-pieces-vides")
+static var _vides := {}      # id du maillage -> vrai s'il n'a aucun triangle avec de l'aire
+
+static func sans_aire(m: Mesh) -> bool:
+	if m == null:
+		return false
+	var id := m.get_instance_id()
+	if _vides.has(id):
+		return _vides[id]
+	var vide := m.get_surface_count() > 0
+	for s in m.get_surface_count():
+		if not vide:
+			break
+		var a := m.surface_get_arrays(s)
+		var ix: PackedInt32Array = a[Mesh.ARRAY_INDEX] if a[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		if ix.is_empty():
+			vide = (a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() == 0
+			continue
+		for t in range(0, ix.size() - 2, 3):
+			if ix[t] != ix[t + 1] or ix[t] != ix[t + 2]:
+				vide = false
+				break
+	_vides[id] = vide
+	return vide
+
+func _cacher_si_vide(mi: MeshInstance3D) -> void:
+	if not opti_vides:
+		return
+	var vide := sans_aire(mi.mesh)
+	if vide and mi.visible:
+		mi.visible = false
+		mi.set_meta("cache_vide", true)
+	elif not vide and mi.get_meta("cache_vide", false):
+		mi.visible = true
+		mi.remove_meta("cache_vide")
+
 func _masquer() -> void:
 	var z := zones()
 	var lim := limites()
@@ -792,6 +832,7 @@ func _masquer() -> void:
 		var orig: Mesh = _originaux[mi]
 		if z.is_empty() or not _concerne(nom, z):
 			mi.mesh = orig
+			_cacher_si_vide(mi)
 			if nom == "tunique":
 				_doubler_manches(mi, false)
 			continue
@@ -799,6 +840,7 @@ func _masquer() -> void:
 		if not _filtres.has(cle):
 			_filtres[cle] = _filtrer(orig, nom, z, lim)
 		mi.mesh = _filtres[cle]
+		_cacher_si_vide(mi)
 		if nom == "tunique":
 			_doubler_manches(mi, z.has("torse") and not (porte("torse") in TORSES_MANCHES))
 

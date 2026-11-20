@@ -25,6 +25,39 @@ static func _cone(parent: Node3D, r_bas: float, r_haut: float, h: float, cotes: 
 	parent.add_child(mi)
 	return mi
 
+## Opti 2026-11-20 (persos_anim) : les ~26 pièces fixes du manche et de la tête (cônes, boîtes) fusionnées en UN maillage par matière
+## (5 au lieu de 26 : bois, fer, tresse, chiffon, goudron), sommets et normales passés dans le repère du parent : même géométrie, mêmes
+## matières, même rendu ; 21 appels de dessin de moins par torche (joueur, gardes de ronde). --sans-opti-torche : pièces séparées.
+static func fusionner_pieces(parent: Node3D) -> void:
+	var par_mat := {}
+	var ordre: Array = []
+	for c in parent.get_children():
+		var mi := c as MeshInstance3D
+		if mi == null or mi.mesh == null or mi.material_override == null or mi.mesh.get_surface_count() != 1:
+			continue
+		var m := mi.material_override
+		if not par_mat.has(m):
+			par_mat[m] = []
+			ordre.append(m)
+		par_mat[m].append(mi)
+	for m: Material in ordre:
+		var l: Array = par_mat[m]
+		if l.size() < 2:
+			continue
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for mi: MeshInstance3D in l:
+			st.append_from(mi.mesh, 0, mi.transform)
+		var fm := MeshInstance3D.new()
+		fm.name = "TorcheFusion"
+		fm.mesh = st.commit()
+		fm.material_override = m
+		fm.cast_shadow = (l[0] as MeshInstance3D).cast_shadow
+		parent.add_child(fm)
+		for mi: MeshInstance3D in l:
+			parent.remove_child(mi)
+			mi.queue_free()
+
 static func _mat(nom: String, uv: Vector2, teinte := Color.WHITE) -> ShaderMaterial:
 	var m := Palette.materiau(ObjetsTextures.tex(nom), uv, teinte)
 	m.set_shader_parameter("tex_neige", m.get_shader_parameter("tex_base"))
@@ -147,6 +180,8 @@ static func construire(parent: Node3D) -> Dictionary:
 		var a := k * PI * 0.5 + 0.9
 		_boite(parent, Vector3(0.013, 0.07, 0.003), Vector3(cos(a) * 0.051, 0.40, sin(a) * 0.051), Vector3(0, -rad_to_deg(a) + 90.0, 14.0), chiffon)
 		_cone(parent, 0.007, 0.0, 0.05, 5, 0.43, goudron, Vector3(cos(a + 0.8) * 0.049, 0, sin(a + 0.8) * 0.049))
+	if not OS.get_cmdline_user_args().has("--sans-opti-torche"):
+		fusionner_pieces(parent)
 	# braises : calotte incandescente (sans éclairage, vacille)
 	var bm := ShaderMaterial.new()
 	bm.shader = BRAISE_SHADER

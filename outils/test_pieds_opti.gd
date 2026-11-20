@@ -4,7 +4,10 @@ extends SceneTree
 ## les cibles des pieds, les pôles des genoux, les inclinaisons et la pose finale des jambes (repère du personnage) doivent coïncider.
 ##   godot --headless --path . --script res://outils/test_pieds_opti.gd
 ## Sortie « TEST_PIEDS_OPTI OK » ou « ECHEC » (code 1).
-const ECART := 0.0005      # m (ou rad) : arrondis flottants seulement
+const ECART := 0.0005      # (indicatif)
+## Seuils par grandeur : le témoin (--controle, les DEUX personnages sur l'ancienne version) montre déjà 0,0063 rad d'inclinaison de pied et
+## 0,0014 rad de rotation finale entre les deux pentes (normales de rayon légèrement différentes à x = 20 m) : on juge à 1 mm et 0,01 rad.
+const SEUILS := {"cible": 0.001, "pole": 0.001, "decal": 0.001, "finale_pos": 0.001, "rot": 0.01, "finale_rot": 0.01}
 
 var persos: Array = []     # [corps, PiedsAuSol]
 var k := 0
@@ -104,8 +107,10 @@ func _process(dt: float) -> bool:
 				_note("finale_pos", (g0.origin - g1.origin).length())
 				_note("finale_rot", g0.basis.get_rotation_quaternion().angle_to(g1.basis.get_rotation_quaternion()))
 	if k >= 420:
-		var ok := pire < ECART and a_finale()
-		print("TEST_PIEDS_OPTI %s : écart maximal %.6f sur %d images (seuil %.4f), finale remplie=%s" % ["OK" if ok else "ECHEC", pire, k, ECART, str(a_finale())], " ", detail)
+		var ok := a_finale()
+		for c in detail:
+			ok = ok and float(detail[c]) < float(SEUILS[c])
+		print("TEST_PIEDS_OPTI %s : écart maximal %.6f sur %d images (seuils %s), finale remplie=%s" % ["OK" if ok else "ECHEC", pire, k, str(SEUILS), str(a_finale())], " ", detail)
 		quit(0 if ok else 1)
 	return false
 
