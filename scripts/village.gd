@@ -531,8 +531,11 @@ func _planifier_pose(reel: Interieur, t: Interieur, colls: Array, vivants: Array
 				if paresseux:
 					reel.collisions.append(cs))
 	if not vivants.is_empty():      # petits objets vivants (ObjetsVivants) : après les collisions de la pièce (tables, étagères)
-		_a_poser.append(func() -> void:
-			ObjetsVivants.peupler(reel.racine, vivants, lieu_vivants(reel)))
+		if OS.get_cmdline_user_args().has("--sans-opti-vivants"):   # avant (A/B) : tous les objets de la pièce dans UNE tâche
+			_a_poser.append(func() -> void:
+				ObjetsVivants.peupler(reel.racine, vivants, lieu_vivants(reel)))
+		else:   # opti saccades : 4 objets par tâche, sous le budget des autres tâches de pose (avant : ~30 objets, 61 nœuds dans une image)
+			_a_poser.append_array(ObjetsVivants.peupler_par_lots(reel.racine, vivants, lieu_vivants(reel), 4))
 	_a_poser.append(func() -> void:
 		t.free()
 		if paresseux:
