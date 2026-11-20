@@ -17,6 +17,7 @@ static var _tex := {}
 static var _mats := {}
 static var _mat_part := {}
 static var _plan: PlaneMesh
+static var _liberation := not OS.get_cmdline_user_args().has("--sans-opti-sang-liberation")
 
 static func niveau() -> int:
 	if niveau_force >= 0:
@@ -135,6 +136,11 @@ static func _burst(n: Node, point: Vector3, dir: Vector3, nombre: int, ecart: fl
 	p.global_transform = Transform3D(_vers(dir), point)
 	p.emitting = true
 	p.finished.connect(p.queue_free)
+	# opti 2026-11-20 : `finished` n'est pas toujours émis (giclée que le rendu n'a pas traitée, hors champ) : sans ce minuteur, les
+	# giclées finies restaient dans la scène tout le combat (85 relevées après 1 min de combat à 6 ennemis). Toutes les particules
+	# sont mortes à 0,84 s (vie 0,8, explosivité 0,95) : rien de visible ne change. --sans-opti-sang-liberation : comportement d'avant.
+	if _liberation:
+		n.get_tree().create_timer(2.0, false).timeout.connect(p.queue_free)
 
 ## Base dont le +Y pointe vers `dir`.
 static func _vers(dir: Vector3) -> Basis:
