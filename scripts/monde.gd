@@ -104,6 +104,7 @@ func _ready() -> void:
 	Chrono.demarre()
 	PropsQuaternius.prechauffer_pq()      # matériaux des props texturés (pq_*) créés ici, pas dans les fils de construction
 	Prechargement.lancer()
+	Sons.precharger()                     # opti saccades : bruitages lus en tâche de fond (--sans-opti-sons : A/B)
 	if Jeu.chargement_etale and not _arguments().has("sans-fonds"):
 		GrotteAcces.prelancer()   # la grotte se bâtit en fil PENDANT la construction du monde (voir _terminer_fonds)
 	# variante du biome, lue AVANT toute génération (--biome=… ou set_meta("biome", …))
