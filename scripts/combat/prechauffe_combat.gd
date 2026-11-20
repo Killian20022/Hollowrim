@@ -45,6 +45,29 @@ static func caches() -> void:
 	GerbePixels._preparer_ressources()   # gerbes de pixels du corps à corps (lot L6) : quads, shaders, matériaux de processus
 	EclatsOs._ressources()
 	EffetElementLame.prechauffer()       # effet passif des lames à élément : matériaux partagés (process + dessin) de chaque élément
+	_variantes_sang_lame()
+
+## Opti saccades (2026-11-20) : variantes « sang sur la lame » (SangLame.shader_de) des shaders de lame des armes, faites et compilées
+## ici. Au 1er équipement d'un modèle (épée longue, claymore), SangLame.equiper fabriquait puis compilait la variante sur le fil principal :
+## 183-186 ms mesurés dans equiper() (outils/mesure_equiper.gd), les suivants < 1 ms. Les matériaux d'essai gardent les variantes en vie.
+## Rien en --headless ; `--sans-opti-sang-lame` : ancien comportement.
+static var _essais_sang := []
+static func _variantes_sang_lame() -> void:
+	if DisplayServer.get_name() == "headless" or OS.get_cmdline_user_args().has("--sans-opti-sang-lame"):
+		return
+	var bases := {}
+	for d: Dictionary in [EpeesLongues.materiaux(), ClaymoreMateriaux.materiaux()]:
+		for m in d.values():
+			if m is ShaderMaterial and (m as ShaderMaterial).shader != null:
+				bases[(m as ShaderMaterial).shader] = true
+	for b: Shader in bases:
+		var v := SangLame.shader_de(b)
+		if v == null or v == b:
+			continue
+		var mm := ShaderMaterial.new()
+		mm.shader = v
+		mm.set_shader_parameter("sang_quantite", 0.0)
+		_essais_sang.append(mm)
 
 ## Lance le préchauffage rendu d'une vitrine posée en `lieu` (monde, sous le sol) : `soleil` exclu de la caméra si donné (sous
 ## terre), `env` = environnement du lieu (null = celui du monde). Renvoie la vitrine (libérée toute seule à la fin).
