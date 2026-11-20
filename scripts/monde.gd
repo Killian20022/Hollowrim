@@ -102,10 +102,6 @@ var _t_audio := 0.0
 
 func _ready() -> void:
 	Chrono.demarre()
-	# opti 2026-11-20 (gpu_rendu) : atlas des ombres du soleil/de la lune réduit dans project.godot
-	# (rendering/lights_and_shadows/directional_shadow/size) ; --sans-opti-atlas remet l'atlas d'avant (4096).
-	if _arguments().has("sans-opti-atlas"):
-		RenderingServer.directional_shadow_atlas_set_size(4096, true)
 	PropsQuaternius.prechauffer_pq()      # matériaux des props texturés (pq_*) créés ici, pas dans les fils de construction
 	Prechargement.lancer()
 	if Jeu.chargement_etale and not _arguments().has("sans-fonds"):
