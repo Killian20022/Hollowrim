@@ -207,6 +207,7 @@ static func _accroche(modele: Node3D, os: String) -> Node3D:
 static func trancher(modele: Node3D, membre: String, impulsion: Vector3, couleur: Color, matiere_chair := "chair", mode := "coupe") -> RigidBody3D:
 	if not peut(modele, membre) or not modele.is_inside_tree():
 		return null
+	FusionOmbre.retirer(modele)
 	var sq := modele.find_child("Skeleton3D", true, false) as Skeleton3D
 	var d: Dictionary = MEMBRES[membre]
 	var racine := sq.find_bone(d["os"])

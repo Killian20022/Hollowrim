@@ -37,6 +37,9 @@ static func inscrire(pnj: Node3D, anim: AnimationPlayer) -> void:
 		_inst = AnimLod.new()
 		_inst.name = "AnimLod"
 		pnj.get_tree().root.add_child.call_deferred(_inst)
+	var racine := anim.get_node_or_null(anim.root_node) as Node3D
+	if racine != null:
+		FusionOmbre.equiper.call_deferred(racine)      # une seule ombre par personnage (fusion_ombre.gd)
 	_inst._items.append({"n": pnj, "a": anim, "acc": 0.0, "lent": false, "sk": null, "cad": 1, "mods": [], "autres": false, "nb": -1, "w": 1.0})
 
 ## Squelette animé par `a` (sous sa racine), mis en cache ; null si aucun.
