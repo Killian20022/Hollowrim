@@ -15,7 +15,7 @@ FONT=/mnt/c/Windows/Fonts/arial.ttf
 rendre() { # id prefixe etiquette
   local tex=""; [ -f "/mnt/c/Users/lopezk19/Jeux/nordique_animaux_v2/assets/modeles/persos_quat/$1.png" ] && tex="tex=$Q\\$1.png"
   (cd /tmp && timeout 1500 $BL -b --python "$WT\\sources_blender\\scripts\\betes_v2\\rendu_planche.py" -- "glb=$Q\\$1.glb" $tex "sortie=$TMPW\\$2" \
-    "anim=Walk:$WF;Run:$RF" "cadre_in=$TMPW\\cadre.json" "cadre_out=$TMPW\\cadre_$2.json" "etiquette=$3" "dist=${DIST:-1.0}" 2>&1 | grep -i "Traceback\|Error\|RENDU OK")
+    "anim=Walk:$WF;Run:$RF" "cadre_in=$TMPW\\cadre.json" "cadre_out=$TMPW\\cadre_$2.json" "etiquette=$3" "dist=${DIST:-1.0}" ${AXE:+"axe=$AXE"} 2>&1 | grep -i "Traceback\|Error\|RENDU OK")
 }
 rm -f "$TMP/cadre.json"
 rendre "$AV" av AVANT

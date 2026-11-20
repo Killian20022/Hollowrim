@@ -647,21 +647,56 @@ def yeux_araignee(col, Pp, Np, Kp):
     if t.sum() < 10:
         return col
     Pt = Pp[t]
-    av = Pt[:, 2].max()
+    # axe avant : du centre du corps vers la tête (à plat) ; axe latéral perpendiculaire
+    av_ = Pt.mean(0) - Pp.mean(0)
+    av_[1] = 0
+    av_ /= max(np.linalg.norm(av_), 1e-9)
+    lat = np.cross(np.array([0, 1.0, 0]), av_)
+    pa = Pp @ av_
+    pl = Pp @ lat
+    pat = Pt @ av_
     hy = Pt[:, 1].min(), Pt[:, 1].max()
-    lx = np.ptp(Pt[:, 0])
-    front = t & (Pp[:, 2] > av - o.get("profondeur", 0.25) * np.ptp(Pt[:, 2])) & (Np[:, 2] > 0.2)
-    cy = hy[0] + (hy[1] - hy[0]) * o.get("haut", 0.72)
+    lx = np.ptp(Pt @ lat)
+    cl = np.median(Pt @ lat)
+    front = t & (pa > pat.max() - o.get("profondeur", 0.25) * np.ptp(pat)) & (Np @ av_ > 0.2)
+    if front.sum() < 6:
+        return col
+    fl, fy_ = pl[front], Pp[front, 1]
+    lx = np.ptp(fl)                                  # le motif est posé dans la boîte de la face avant de la tête
+    cl = 0.5 * (fl.min() + fl.max())
+    cy = fy_.min() + np.ptp(fy_) * o.get("haut", 0.72)
     r = o.get("rayon", 0.06) * lx
     centres = []
     for (fx, fy) in o.get("motif", [(-0.28, 0), (-0.1, 0.06), (0.1, 0.06), (0.28, 0), (-0.18, -0.12), (0.18, -0.12)]):
-        centres.append((fx * lx, cy + fy * lx))
-    for (x, y) in centres:
-        d = np.hypot(Pp[:, 0] - x, Pp[:, 1] - y)
-        m = front & (d < r)
+        centres.append((cl + fx * lx, cy + fy * lx))
+    print("YEUX_ARAIGNEE avant=%s texels_front=%d" % (np.round(av_, 2), int(front.sum())))
+    # les bosses d'yeux modelées : sur chaque côté, le point le plus avancé du haut de la tête tourné vers l'avant
+    ty = Pp[t, 1]
+    cl0 = np.median(Pt @ lat)
+    lxh = np.ptp(Pt @ lat)
+    pres_axe = np.abs(pl - cl0) < o.get("largeur_axe", 0.22) * lxh
+    cand = t & (Np @ av_ > 0.5) & pres_axe
+    ycand = Pp[cand, 1]
+    haut_ = cand & (Pp[:, 1] > ty.min() + np.ptp(ty) * o.get("haut", 0.55))           # au-dessus des crochets
+    r3 = o.get("rayon3d", 0.045)
+    centres3 = []
+    for sg in (-1, 1):
+        c_ = haut_ & (np.sign(pl - np.median(Pt @ lat)) == sg)
+        if c_.any():
+            ii = np.nonzero(c_)[0]
+            centres3.append((Pp[ii[np.argmax(pa[ii])]], r3))
+    if len(centres3) == 2:                        # deux petits yeux au-dessus, entre les grands
+        m_ = 0.5 * (centres3[0][0] + centres3[1][0])
+        ii = np.nonzero(t)[0]
+        k1 = ii[np.argmin(np.linalg.norm(Pp[ii] - (m_ + np.array([0, r3 * 1.6, 0])), axis=1))]
+        centres3.append((Pp[k1], r3 * 0.55))
+    for q, rr in centres3:
+        d = np.linalg.norm(Pp - q, axis=1)
+        m = t & (d < rr)
         col[m] = H(o.get("couleur", "#08161a"))
-        m2 = front & (d < r * 0.45) & (Pp[:, 1] > y)
+        m2 = t & (d < rr * 0.38) & (Pp[:, 1] >= q[1])
         col[m2] = H(o.get("reflet", "#b6fbf0"))
+        print("OEIL_ARAIGNEE", np.round(q, 3), int(m.sum()), int(m2.sum()))
     return col
 
 

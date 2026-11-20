@@ -1783,12 +1783,39 @@
    "angle_lisse": 25,
    "vc_corps": 0.7,
    "eclaircir": 1.43,
-   "yeux_groupe": {
-    "haut": 0.7,
+   "yeux_groupe_essai": {
+    "haut": 0.55,
     "rayon": 0.07,
     "couleur": "#08161a",
     "reflet": "#b6fbf0",
-    "profondeur": 0.3
+    "profondeur": 0.3,
+    "motif": [
+     [
+      -0.12,
+      0
+     ],
+     [
+      -0.04,
+      0.04
+     ],
+     [
+      0.04,
+      0.04
+     ],
+     [
+      0.12,
+      0
+     ],
+     [
+      -0.07,
+      -0.06
+     ],
+     [
+      0.07,
+      -0.06
+     ]
+    ],
+    "rayon3d": 0.085
    }
   }
  }

@@ -119,7 +119,7 @@ if A.get("cadre_out"):
 CEN = (MN + MX) / 2
 TAILLE = max((MX - MN).x, (MX - MN).y, (MX - MN).z)
 # axe avant du glb : -Y Blender (glTF +Z) ; on le déduit de l'étendue : le plus long axe horizontal = longueur du corps
-long_y = (MX - MN).y >= (MX - MN).x
+long_y = (MX - MN).y >= (MX - MN).x if "axe" not in A else A["axe"] == "y"
 
 cam_d = bpy.data.cameras.new("cam")
 cam_d.lens = 50
