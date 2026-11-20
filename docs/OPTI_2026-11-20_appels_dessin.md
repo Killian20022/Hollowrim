@@ -31,6 +31,7 @@ Crypte (z −25) : 168 appels, 108 k prim. (déjà bon marché). Grotte (milieu 
 | Commit | Optimisation | Gain mesuré | Interrupteur |
 |---|---|---|---|
 | e65cb7e0 | Torche : ~28 pièces fixes fondues en 1 maillage (1 surface par matière) | place 21 h : 619 → 537 appels visibles (−82), prim. inchangées ; gardes 219 → 165, mains 38 → 11 | `--sans-opti-torche` |
+| 7d82036d | Mur fragile de la grotte : ~42 traits de fissure (1 matière) fondus en 1 maillage | grotte 21 h : 289 → 248 appels visibles (−41), prim. identiques (132 456) | `--sans-opti-fissures` |
 | f7c8129e | Occlusion culling des 16 bâtiments enterables (murs au milieu de l'épaisseur, porte + tous les vitrages découpés) | halle vers la porte 707 → 471 appels, 1 081 k → 781 k prim. ; h4 303 → 177 ; h1 234 → 171 ; halle table 313 → 239 ; devant h1 901 → 815 ; place 544 → 541 | `--sans-opti-occlusion` |
 
 ## Essais écartés
