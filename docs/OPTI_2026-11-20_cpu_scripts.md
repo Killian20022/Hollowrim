@@ -94,3 +94,13 @@ suivi de tête, orientation — l'évaluation des clips seule ne coûte presque 
 
 Sur la place (machine chargée, image ~30 ms : 2 pas de physique par image), chaque ms gagnée par pas compte double : −4,2 ms en médiane,
 −20 ms au p95. Le gain en C (physique + attente : 8,71 → 5,89) est celui de la spirale « image lente → plus de pas de physique ».
+
+### A/B dans le même lancement (combat : crypte, 6 ennemis + sorts, `--lieu=combat --heure=21 --bascule=sans_opti`, 48 s)
+
+| segment | dt méd. | dt p95 | A | B | C | physique (moniteur) |
+|---|---|---|---|---|---|---|
+| tout optimisé | **10,33** | 17,76 | 5,95 | 3,22 | 1,28 | 2,56 |
+| `sans_opti` | 10,93 | 17,30 | 6,51 | 3,22 | 1,30 | 2,34 |
+
+Sous terre les PNJ du village sont gelés par le monde : le gain vient du HUD de combat (A −0,56 ms). Pas de régression.
+Lancement entier : dt méd 10,62 / p95 17,37 / p99 23,11 ms, 10 images > 33 ms sur 4 226, GPU méd 5,3 ms.
