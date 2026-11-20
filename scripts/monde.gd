@@ -256,6 +256,8 @@ func _ready() -> void:
 	await _terminer_fonds()        # chargement étalé : donjon, ennemis, grotte et préchauffages FINIS ici, derrière l'écran de chargement
 	_prechauffer_rendu()
 	await _attendre_prechauffes()
+	if DisplayServer.get_name() != "headless" and not _arguments().has("sans-opti-runes"):
+		SonsMagie._n()   # opti saccades : nœud des sons de magie (20 lecteurs 3D) créé au chargement, pas au 1er sort
 	EffetsSol.preparer_couche(self)   # opti saccades : couche de neige (variante de shader, 36 tuiles) sous l'écran de chargement
 	Chrono.total()
 	pret = true
