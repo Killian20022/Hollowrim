@@ -6,7 +6,7 @@ extends SceneTree
 ## images > 16,7 ms et > 33 ms, appels de dessin, primitives, objets, mémoire (statique, vidéo, textures, tampons), nœuds, charge de la machine.
 ## « combat » : SANS --paisible ; 6 ennemis réveillés autour du joueur dans l'arène de la crypte + sorts maintenus (raccourcis 1 à 3 en rotation).
 const SCENE := preload("res://scenes/foret_test.tscn")
-const STAB := 10.0
+var STAB := 10.0   # --stab=N : stabilisation plus longue (cache de shaders froid, machine chargée)
 
 var m: Node3D
 var j: CharacterBody3D
@@ -61,10 +61,13 @@ var etiquettes: Array[String] = []
 var cout := [PackedFloat64Array(), PackedFloat64Array()]    # [process, physics] : µs cumulées par groupe
 var prec := [0, 0]
 var mesure_groupes := false
+var pas_groupes := 0      # pas de physique mesurés (coût physique « par pas », indépendant du rattrapage des images lentes)
 
 func tic(idx: int, ph: bool) -> void:
 	var now := Time.get_ticks_usec()
 	var k := 1 if ph else 0
+	if idx == 0 and ph and mesure_groupes:
+		pas_groupes += 1
 	if idx > 0 and mesure_groupes:
 		cout[k][idx] += now - prec[k]
 	prec[k] = now
@@ -111,9 +114,10 @@ func _rapport_groupes() -> void:
 	for e in lst:
 		tp_tot += e[1]
 		tph_tot += e[2]
-	print("PROFIL ===== coût moyen PAR IMAGE (ms) : process %.2f + physics %.2f (tous les pas de l'image) =====" % [tp_tot, tph_tot])
-	for e in lst.slice(0, 25):
-		print("PROFIL %-52s process=%.3f  physics=%.3f  total=%.3f ms" % [e[0], e[1], e[2], e[1] + e[2]])
+	var r_pas := float(n) / maxf(1.0, pas_groupes)     # physics par PAS = physics par image × images / pas
+	print("PROFIL ===== coût moyen PAR IMAGE (ms) : process %.2f + physics %.2f (tous les pas de l'image) ; physics PAR PAS %.2f (%d pas / %d images) =====" % [tp_tot, tph_tot, tph_tot * r_pas, pas_groupes, n])
+	for e in lst.slice(0, 30):
+		print("PROFIL %-52s process=%.3f  physics=%.3f  total=%.3f ms  (physics/pas=%.3f)" % [e[0], e[1], e[2], e[1] + e[2], e[2] * r_pas])
 
 var sondes_p: Array[Sonde] = []
 var sondes_ph: Array[Sonde] = []
@@ -158,6 +162,7 @@ func _arg(nom: String, defaut := "") -> String:
 
 func _go() -> void:
 	lieu = _arg("lieu", "temoin")
+	STAB = float(_arg("stab", "10"))
 	duree = float(_arg("duree", "20"))
 	var t0 := Time.get_ticks_msec()
 	_t0_ms = t0
