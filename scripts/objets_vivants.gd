@@ -204,38 +204,42 @@ static func peupler(parent: Node3D, specs: Array, lieu: String) -> Array:
 		f.call()
 	return res
 
-## Même travail que `peupler`, découpé en tâches à appeler dans l'ordre (une par image, ou sous un budget) : la 1re crée les MultiMesh
-## des groupes (instances masquées : visible_instance_count = 0), chacune des suivantes `par_lot` objets (corps, forme, état sauvegardé)
+## Même travail que `peupler`, découpé en tâches à appeler dans l'ordre (une par image, ou sous un budget) : une tâche par groupe crée son MultiMesh
+## (maillage compris) (instances masquées : visible_instance_count = 0), chacune des suivantes `par_lot` objets (corps, forme, état sauvegardé)
 ## et montre leurs instances. Opti saccades (2026-11-20) : la pose d'un intérieur créait d'un coup ses ~30 objets (61 nœuds, 122 objets
 ## moteur) dans UNE tâche de Village._planifier_pose. `res` (facultatif) reçoit les ObjetVivant créés.
 static func peupler_par_lots(parent: Node3D, specs: Array, lieu: String, par_lot := 4, res: Array = []) -> Array[Callable]:
 	var taches: Array[Callable] = []
 	if specs.is_empty() or parent == null:
 		return taches
-	var groupes := {}          # apparence -> [morceaux, [[spec, ident]], visuel]
-	var mms := {}              # clé -> MultiMesh (créés par la 1re tâche)
-	taches.append(func() -> void:
-		var compte := {}
-		var ctx := contexte_lieu(lieu)
-		for s: Dictionary in specs:
-			var g := String(s["genre"])
-			var k := int(compte.get(g, 0))
-			compte[g] = k + 1
-			var cle := _cle(g, s["morceaux"])
-			var oid := String(OBJETS.get(g, g))
-			var vis: Array = s["morceaux"]
-			if ObjetsQuat.a(oid) and not g.begins_with("pq_"):
-				var meme := ObjetsQuat.pq_de_ancien(g)       # prop texturé du même modèle que le décor posé (q_vase_4 -> pq_vase_4), sinon celui de la fiche
-				cle = "%s|quat:%s:%s" % [cle, meme if meme != "" else ObjetsQuat.id_de(oid), ctx]
-				vis = morceaux_quat(oid, ctx, s["morceaux"], meme)
-			if not groupes.has(cle):
-				groupes[cle] = [s["morceaux"], [], vis]
-			(groupes[cle][1] as Array).append([s, "%s:%s:%d" % [lieu, g, k]])
-		for cle: String in groupes:
+	# groupes (apparence) : clés seules ici (recherches de table) ; le visuel texturé (morceaux_quat, copie des sommets) et le maillage
+	# sont faits dans la tâche de son groupe
+	var groupes := {}          # clé -> [morceaux, [[spec, ident]], oid, pq « même modèle », quat]
+	var mms := {}              # clé -> MultiMesh (créé par la tâche de son groupe)
+	var compte := {}
+	var ctx := contexte_lieu(lieu)
+	for s: Dictionary in specs:
+		var g := String(s["genre"])
+		var k := int(compte.get(g, 0))
+		compte[g] = k + 1
+		var cle := _cle(g, s["morceaux"])
+		var oid := String(OBJETS.get(g, g))
+		var quat := ObjetsQuat.a(oid) and not g.begins_with("pq_")
+		var meme := ""
+		if quat:
+			meme = ObjetsQuat.pq_de_ancien(g)       # prop texturé du même modèle que le décor posé (q_vase_4 -> pq_vase_4), sinon celui de la fiche
+			cle = "%s|quat:%s:%s" % [cle, meme if meme != "" else ObjetsQuat.id_de(oid), ctx]
+		if not groupes.has(cle):
+			groupes[cle] = [s["morceaux"], [], oid, meme, quat]
+		(groupes[cle][1] as Array).append([s, "%s:%s:%d" % [lieu, g, k]])
+	for cle: String in groupes:
+		taches.append(func() -> void:
+			var gr: Array = groupes[cle]
+			var vis: Array = morceaux_quat(gr[2], ctx, gr[0], gr[3]) if gr[4] and not _maillages.has(cle) else gr[0]
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
-			mm.mesh = maillage(cle, groupes[cle][2])
-			mm.instance_count = (groupes[cle][1] as Array).size()
+			mm.mesh = maillage(cle, vis)
+			mm.instance_count = (gr[1] as Array).size()
 			mm.visible_instance_count = 0
 			var mmi := MultiMeshInstance3D.new()
 			mmi.name = "Vivants_" + cle.get_slice("|", 0)

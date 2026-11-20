@@ -485,8 +485,20 @@ func _construire_interieurs() -> void:
 		_mutex.unlock()
 	FilVerrou.rendre()
 
+## Plafond de nœuds ajoutés par image pendant la pose (opti saccades 2026-11-20) : le budget de temps ne voit que l'appel add_child,
+## pas ce qu'il coûte ensuite dans la même image (instances de rendu, formes physiques à intégrer) : 3 lits de 16-24 maillages, ou
+## 36 maillages + 17 collisions, passaient dans une image (sauts de 45 à 100 ms, machine chargée). `--sans-opti-pose` : temps seul.
+const PLAFOND_NOEUDS := 24
+var _plafond_noeuds := not OS.get_cmdline_user_args().has("--sans-opti-pose")
+var _ajoutes := 0             # nœuds entrés dans l'arbre (déplacés du temporaire compris : get_tree().node_added) pendant la pose
+func _compter_ajout(_n: Node) -> void:
+	_ajoutes += 1
+
 func _poser_interieurs() -> void:
 	var debut := Time.get_ticks_usec()
+	if _plafond_noeuds and prets and not get_tree().node_added.is_connected(_compter_ajout):
+		get_tree().node_added.connect(_compter_ajout)
+	_ajoutes = 0
 	while true:
 		if _a_poser.is_empty():
 			_mutex.lock()
@@ -498,6 +510,8 @@ func _poser_interieurs() -> void:
 		else:
 			_a_poser.pop_front().call()
 		if Time.get_ticks_usec() - debut > BUDGET_INT_US:
+			break
+		if _plafond_noeuds and prets and _ajoutes >= PLAFOND_NOEUDS:
 			break
 	if Chrono.actif:
 		print("CHRONO pose interieurs : %.2f ms (reste %d taches, %d faits, %d poses)" % [(Time.get_ticks_usec() - debut) / 1000.0, _a_poser.size(), _faits.size(), _nb_poses])
