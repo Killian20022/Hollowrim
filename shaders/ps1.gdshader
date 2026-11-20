@@ -562,10 +562,6 @@ void fragment() {
 	vec3 neige = texture(tex_neige, uv).rgb;
 	ALBEDO = mix(neige, base, step(0.5, COLOR.a)) * COLOR.rgb * teinte.rgb;
 	float macro_sol = 1.0;
-#ifdef SOL
-	// opti 2026-11-20 (gpu_rendu) : tout le sol (cartes, sol v2, effets) n'est compilé que dans la variante du TERRAIN
-	// (Palette.shader_sol / shader_couche : « #define SOL ») ; les autres matériaux (sol_carte = false : branches jamais
-	// prises) ont un shader bien plus court (moins de registres, plus de fragments en vol). Image identique.
 	// dérivées calculées hors de toute branche (textureGrad plus bas)
 	vec2 ddx_sol = dFdx(pos_monde);
 	vec2 ddy_sol = dFdy(pos_monde);
@@ -747,17 +743,14 @@ void fragment() {
 			NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 		}
 	}
-#endif
 	if (macro_force > 0.0) {
 		float m = texture(tex_macro, uv_macro).r;
 		ALBEDO *= mix(1.0, 0.8 + m * 0.36, macro_force * macro_sol);
 	}
 	ALBEDO = mix(vec3(dot(ALBEDO, vec3(0.3, 0.59, 0.11))), ALBEDO, saturation);
-#ifdef SOL
 	if (sol_carte && effets_rect.w > 0.5 && normale_monde.y > 0.5) {
 		effets_sol(ALBEDO, pos_monde);
 	}
-#endif
 #ifdef RELIEF_COUCHE
 	{
 		// normale du relief : celle du sol + la pente de la profondeur (différences finies bilinéaires du masque)

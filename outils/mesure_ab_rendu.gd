@@ -156,9 +156,6 @@ func _appliquer(cfg: String) -> void:
 		m.mat_terrain.set_shader_parameter("sol_carte", _orig["sol_carte"])
 		m.mat_terrain.render_priority = _orig["prio_sol"]
 	_post_visible(true)
-	var ps1: Shader = Palette.PS1
-	if _ps1_code_orig != "" and ps1.code != _ps1_code_orig:
-		ps1.code = _ps1_code_orig
 	var couche_voulue := CoucheMagie.RETRO
 	var fen: Vector2i = _orig["fen"]
 	if _lum_eteintes:
@@ -208,11 +205,6 @@ func _appliquer(cfg: String) -> void:
 			"sol_premier":
 				if m.mat_terrain != null:
 					m.mat_terrain.render_priority = -100
-			"ps1_complet":      # shader commun AVEC tout le code du sol (comme avant l'opti ps1 léger)
-				if _ps1_code_orig == "":
-					_ps1_code_orig = ps1.code
-				if not ps1.code.begins_with("#define SOL"):
-					ps1.code = "#define SOL\n" + _ps1_code_orig
 			"post0": _post_visible(false)
 			"lum0": _lumieres_visibles(false)
 			"eleve": couche_voulue = CoucheMagie.ELEVE      # réglage par défaut du JEU (Options > Détail des sorts : Élevé)
@@ -233,7 +225,6 @@ func _post_visible(v: bool) -> void:
 		if c is ColorRect and (c as ColorRect).material == m.post:
 			(c as ColorRect).visible = v
 
-var _ps1_code_orig := ""
 var _lum_cache: Array = []
 var _lum_eteintes := false
 func _lumieres_visibles(v: bool) -> void:

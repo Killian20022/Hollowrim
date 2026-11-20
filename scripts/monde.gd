@@ -665,7 +665,6 @@ func _terrain() -> void:
 	await _souffle()   # chargement étalé : une image après les hauteurs, puis entre les morceaux (sans effet hors chargement)
 
 	var m := Palette.materiau(tex_roche)
-	m.shader = Palette.shader_sol()   # opti 2026-11-20 : seule variante qui compile le code du sol (voir Palette.shader_sol)
 	m.set_shader_parameter("uv_monde", true)
 	m.set_shader_parameter("monde_echelle", 0.11)
 	m.set_shader_parameter("tex_macro", Palette.texture_macro())
