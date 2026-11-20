@@ -19,7 +19,7 @@ G="${GODOT:-/mnt/c/Users/lopezk19/Outils/godot/Godot_v4.7.2-stable_win64_console
 SLOT=/tmp/godot_slot.sh
 [[ -f "$SLOT" ]] || cp "$ICI/../godot_slot.sh" "$SLOT" 2>/dev/null
 if [[ "$EXE" == editeur ]]; then CMD=("$G" --path "$(wslpath -w "$ICI")"); else CMD=("$EXE"); fi
-nb_jeux() { tasklist.exe /fo csv /nh 2>/dev/null | tr -d '\r' | grep -aiE '^"(Godot|Hollowrim)' | grep -avic console; }
+nb_jeux() { tasklist.exe /fo csv /nh 2>/dev/null | tr -d '\r' | grep -aiE '^"(Godot|Hollowrim)' | grep -avic '_console.exe'; }
 pose_de() { case "$1" in temoin) echo "--pose=2.5,8.5,16,4";; place) echo "--pose=35,30,221,-8";; *) echo "";; esac; }
 for rep in $(seq 1 "$REPS"); do
 	for lieu in $LIEUX; do
