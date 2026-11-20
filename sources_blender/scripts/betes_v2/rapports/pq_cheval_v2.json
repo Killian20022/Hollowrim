@@ -3,8 +3,8 @@
  "source": "pq_cheval",
  "tris_source": 2182,
  "tris_subdiv_decime": 2400,
- "tris_touffes": 3066,
- "tris_proche": 5466,
+ "tris_touffes": 2724,
+ "tris_proche": 5124,
  "tris_loin": 800,
  "touffes": 420,
  "texture": 256

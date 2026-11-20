@@ -533,6 +533,7 @@ def peindre(ex, flow_v, K_v, S):
             if pres.any() and loin_.any():
                 col[pres] = np.median(col[loin_], axis=0)
         col = peindre_yeux(col, Pp, Np)                              # yeux, truffe : sans poil
+    col = col * CFG.get("eclaircir", 1.0)          # avec vc_corps < 1 : le corps garde sa teinte, les pointes des mèches sont plus claires
     col = np.clip(col, 0, 1)
     if CFG.get("palette", False):
         col = accrocher(col)
