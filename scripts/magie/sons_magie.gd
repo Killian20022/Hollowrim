@@ -89,6 +89,7 @@ static func tous_les_noms() -> Array:
 	l.append(TK_TENUE)
 	l.append_array(ES_ONDE)
 	l.append_array([ES_VORTEX, ES_VORTEX_FIN, ES_EMPRISE])
+	l.append_array(FOUDRE_CLAQUES)
 	return l
 
 static func _chemin(nom: String) -> String:
@@ -227,6 +228,13 @@ static func aura(main: Node3D, ecole: String, intensite: float) -> void:
 	if not _actif() or main == null:
 		return
 	_n().boucle(main.get_instance_id() * 2, main, _t(ecole_sure(ecole))["charge"], intensite, true)
+
+## FOUDRE v2 : claquement sec à chaque nouvelle forme des arcs (outils/sons_magie/generer_foudre.sh) ; au plus ~14 /s,
+## par-dessus la boucle de crépitement du jet (jet_electricite).
+const FOUDRE_CLAQUES := ["magie/foudre_claque_1", "magie/foudre_claque_2", "magie/foudre_claque_3"]
+static func claquement(pos: Vector3, k := 1.0) -> void:
+	_compter("claquement")
+	_coup(_variante(FOUDRE_CLAQUES), pos, 0.55 * k, randf_range(0.9, 1.15), "foudre_claque", 0.07)
 
 ## Boucle de jet : à appeler chaque image tant que `actif` (s'éteint seule 0,25 s après le dernier appel).
 static func jet(ecole: String, origine: Node3D, actif: bool) -> void:

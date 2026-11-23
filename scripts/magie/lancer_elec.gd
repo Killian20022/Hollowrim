@@ -143,26 +143,30 @@ func _gen_tension(g: GestionMagie, traits: Array, o: Vector3) -> Array:
 	# le bout avance de la source vers la cible en 0,12 s ; l'arc reste tendu, puis s'efface
 	var front := src + d * l * avance
 	var n := 3 + (1 if double else 0)   # double : un seul faisceau plus épais (pas une pelote blanche au point de fusion)
+	if not GestionMagie.foudre_v1:
+		n = 1 + (1 if double else 0)   # FOUDRE v2 : un trait net (le sort qui suit porte les branches), pas une pelote près de l'œil
 	for i in n:
 		var av := traits.size()
 		var dec := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * (0.045 if double else 0.03)
-		g.foudre_ramifiee(traits, src + dec - o, front - o, l * avance * 0.07 + 0.03, (2.4 if double else 2.0) if i == 0 else 1.2, 2, 4)
+		g.foudre_ramifiee(traits, src + dec - o, front - o, l * avance * (0.07 if GestionMagie.foudre_v1 else 0.035) + 0.02, (2.4 if double else 2.0) if i == 0 else 1.2, 2 if GestionMagie.foudre_v1 else 0, 4)
 		for q in range(av, traits.size()):
 			traits[q][2] = float(traits[q][2]) * fade
 	return traits
 
 func _gen_reforme(g: GestionMagie, traits: Array, o: Vector3) -> Array:
 	var p := clampf(t / 0.32, 0.0, 1.0)
-	var r := lerpf(0.34, 0.02, p * p)
-	var fade := 1.0 - smoothstep(0.7, 1.0, p)
-	for _k in 6:
+	var v1 := GestionMagie.foudre_v1
+	# v2 : reflux allégé (3 arcs plus courts et plus pâles, 1 étincelle finale au lieu de 6 + 3)
+	var r := lerpf(0.34 if v1 else 0.2, 0.02, p * p)
+	var fade := (1.0 - smoothstep(0.7, 1.0, p)) * (1.0 if v1 else 0.6)
+	for _k in (6 if v1 else 3):
 		var d := Vector3(randf_range(-1, 1), randf_range(-0.5, 1), randf_range(-1, 1)).normalized()
 		var a := d * r
 		var b := d * r * 0.35
 		var tr := g.foudre(a, b, r * 0.18, 3)
 		traits.append([tr, 1.0, fade])
 	if p > 0.85:
-		for _k in 3:
+		for _k in (3 if v1 else 1):
 			traits.append([g.foudre(Vector3.ZERO, Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized() * 0.1, 0.03, 3), 1.0, 0.8])
 	return traits
 

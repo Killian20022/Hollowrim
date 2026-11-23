@@ -154,6 +154,8 @@ const CRISTAUX := {
 	"soin": ["#3a5a1a", "#8ab040", "#f0d070", "#fff4c0"],
 	"protection": ["#1a3050", "#3a6a9a", "#b8e0f0", "#eaf8ff"],
 }
+## Teinte de l'éclair en cours de génération (FOUDRE v2 : foudre() suit le bruit fractal pour l'électricité).
+var _teinte_gen := ""
 ## Éclairs : [halo, cœur] par teinte.
 const ARCS := {
 	"electricite": ["#4a3ad0", "#f0f2ff"], "tenebres": ["#6a1aa0", "#f0c8ff"], "glace": ["#2f5fb8", "#e8f6ff"],
@@ -162,6 +164,8 @@ const ARCS := {
 }
 
 static var instance: GestionMagie
+## Rendu de la foudre : false = FoudreV2 (scripts/magie/foudre_v2.gd, docs/MAGIE_FOUDRE_V2.md) ; `-- --foudre-v1` remet l'ancien rendu.
+static var foudre_v1: bool = "--foudre-v1" in OS.get_cmdline_user_args()
 
 var horloge := 0.0
 var rng := RandomNumberGenerator.new()
@@ -296,7 +300,15 @@ static func regler_detail(niveau: int) -> void:
 		instance.couche.regler(niveau)
 		instance._pms.clear()
 
+## (perf) temps cumulé de _process en µs (mesure A/B outils/film_foudre.gd --perf)
+static var prof_us := 0
+
 func _process(dt: float) -> void:
+	var t_prof := Time.get_ticks_usec()
+	_process_corps(dt)
+	prof_us += Time.get_ticks_usec() - t_prof
+
+func _process_corps(dt: float) -> void:
 	horloge += dt
 	fin_actif = forcer_fin or (couche != null and couche.fine())
 	_maj_auras()
@@ -307,13 +319,14 @@ func _process(dt: float) -> void:
 	_maj_zones()
 	_maj_double()
 	_maj_eclairs()
+	_maj_chaines()
 	_maj_pics()
 	_maj_disques()
 	_maj_bouffees()
 	_maj_emetteurs()
 	_maj_lumieres()
 	_maj_teinte(dt)
-	if couche != null and (not _emetteurs.is_empty() or not _eclairs.is_empty() or not _pics.is_empty() or not _disques.is_empty() or not _projectiles.is_empty() or not _auras.is_empty() or not _bouffees.is_empty() or not _jets.is_empty()):
+	if couche != null and (not _emetteurs.is_empty() or not _eclairs.is_empty() or not _pics.is_empty() or not _disques.is_empty() or not _projectiles.is_empty() or not _chaines.is_empty() or not _auras.is_empty() or not _bouffees.is_empty() or not _jets.is_empty()):
 		couche.demander()
 
 ## Compteurs (tests, débogage).
@@ -385,6 +398,8 @@ func emettre(nom: String, parent: Node, xf: Transform3D, persistant := false, k_
 		return null
 	fin_actif = forcer_fin or (couche != null and couche.fine())
 	var f: Dictionary = PresetsMagie.fin(nom) if fin_actif else {}
+	if not foudre_v1 and (nom.begins_with("elec_") or nom == "choc" or nom == "enchant_elec") and nom != "elec_paume":
+		k_n *= 0.35   # FOUDRE v2 : les arcs structurés portent l'effet ; quelques étincelles seulement, plus de nuée de pixels
 	var n := maxi(1, int(round(float(d.n) * k_n * float(f.get("n", 1.0)))))
 	if _emetteurs.size() >= (MAX_EMETTEURS_FIN if fin_actif else MAX_EMETTEURS):
 		if persistant or not _liberer_ponctuel():
@@ -803,7 +818,10 @@ func eclair(parent: Node, teinte: String, largeur: float, duree: float, regen: f
 		mi.mesh = ImmediateMesh.new()
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.extra_cull_margin = 2.0
-	mi.material_override = _mat_trait(teinte, largeur)
+	var v2 := teinte == "electricite" and not foudre_v1
+	# FOUDRE v2 : largeurs plafonnées (halo 3 à 5 px, cœur 1 à 2 px, comme le tronc de la canalisation) : plus de barres épaisses
+	mi.material_override = _mat_trait(teinte, largeur) if not v2 else FoudreV2.materiau(clampf(2.0 + 1.5 * largeur, 3.0, 5.0), clampf(roundf(largeur * 0.67), 1.0, 2.0), 1.6)
+	mi.layers = CoucheMagie.CALQUE if v2 else mi.layers
 	var cible: Node = parent if parent != null else self
 	if mi.get_parent() != cible:
 		if mi.get_parent() != null:
@@ -812,7 +830,7 @@ func eclair(parent: Node, teinte: String, largeur: float, duree: float, regen: f
 	mi.transform = Transform3D.IDENTITY
 	mi.visible = true
 	# dessiné au prochain passage de _maj_eclairs (même image : ce nœud passe après les mains et la logique)
-	var e := {"mi": mi, "fin": INF if duree < 0.0 else horloge + duree, "regen": regen, "prochain": 0.0, "gen": gen}
+	var e := {"mi": mi, "fin": INF if duree < 0.0 else horloge + duree, "regen": regen, "prochain": 0.0, "gen": gen, "v2": v2, "img": 0}
 	_eclairs.append(e)
 	return e
 
@@ -837,7 +855,9 @@ func _eclair_dessiner(e: Dictionary) -> void:
 	var mi: MeshInstance3D = e.mi
 	var im: ImmediateMesh = mi.mesh
 	im.clear_surfaces()
+	_teinte_gen = "electricite" if bool(e.get("v2", false)) else ""
 	var traits: Array = (e.gen as Callable).call()
+	_teinte_gen = ""
 	var vide := true
 	for t in traits:
 		if (t[0] as PackedVector3Array).size() >= 2:
@@ -850,6 +870,7 @@ func _eclair_dessiner(e: Dictionary) -> void:
 		var pts: PackedVector3Array = t[0]
 		var w := float(t[1])
 		var a := float(t[2])
+		var niv := float(t[3]) if t.size() > 3 else -1.0
 		for i in range(1, pts.size()):
 			var p0 := pts[i - 1]
 			var p1 := pts[i]
@@ -858,19 +879,22 @@ func _eclair_dessiner(e: Dictionary) -> void:
 				continue
 			d = d.normalized()
 			for couche in [0.0, 1.0]:
-				_sommet_trait(im, p0, d, couche, -1.0, w, a)
-				_sommet_trait(im, p0, d, couche, 1.0, w, a)
-				_sommet_trait(im, p1, d, couche, 1.0, w, a)
-				_sommet_trait(im, p0, d, couche, -1.0, w, a)
-				_sommet_trait(im, p1, d, couche, 1.0, w, a)
-				_sommet_trait(im, p1, d, couche, -1.0, w, a)
+				if niv >= 2.0 and couche == 0.0:
+					continue   # filament (v2) : cœur seul
+				_sommet_trait(im, p0, d, couche, -1.0, w, a, niv)
+				_sommet_trait(im, p0, d, couche, 1.0, w, a, niv)
+				_sommet_trait(im, p1, d, couche, 1.0, w, a, niv)
+				_sommet_trait(im, p0, d, couche, -1.0, w, a, niv)
+				_sommet_trait(im, p1, d, couche, 1.0, w, a, niv)
+				_sommet_trait(im, p1, d, couche, -1.0, w, a, niv)
 	im.surface_end()
 
-static func _sommet_trait(im: ImmediateMesh, p: Vector3, d: Vector3, couche: float, cote: float, w: float, a: float) -> void:
+static func _sommet_trait(im: ImmediateMesh, p: Vector3, d: Vector3, couche: float, cote: float, w: float, a: float, niv := -1.0) -> void:
 	im.surface_set_normal(d)
 	im.surface_set_color(Color(1, 1, 1, a))
 	im.surface_set_uv(Vector2(couche, cote))
-	im.surface_set_uv2(Vector2(w, 0))
+	# UV2.y : niveau du trait pour foudre_v2.gdshader (tronc, branche, filament ; ignoré par magie_trait)
+	im.surface_set_uv2(Vector2(w, niv if niv >= 0.0 else (0.0 if w >= 0.9 else (1.0 if w >= 0.45 else 2.0))))
 	im.surface_add_vertex(p)
 
 func _maj_eclairs() -> void:
@@ -889,12 +913,28 @@ func _maj_eclairs() -> void:
 					add_child(mi)
 				_libres_eclairs.append(mi)
 		elif horloge >= e.prochain:
-			e.prochain = horloge + float(e.regen)
+			var rg := float(e.regen)
+			if bool(e.get("v2", false)):
+				# FOUDRE v2 : nouvelle forme par à-coups, toutes les 2 à 4 images (plus lent si le réglage l'est déjà)
+				rg = float(rng.randi_range(FoudreV2.REGEN_MIN, FoudreV2.REGEN_MAX)) / 60.0 if rg < 0.06 else rg * rng.randf_range(0.8, 1.5)
+				e.img = Engine.get_process_frames()
+			e.prochain = horloge + rg
 			_eclair_dessiner(e)
+			if bool(e.get("v2", false)):
+				(mi as MeshInstance3D).set_instance_shader_parameter("eclat", 1.0)
+		elif bool(e.get("v2", false)):
+			var age := Engine.get_process_frames() - int(e.img)
+			(mi as MeshInstance3D).set_instance_shader_parameter("eclat", FoudreV2.ECLAT_AGE[mini(age, FoudreV2.ECLAT_AGE.size() - 1)])
 		i -= 1
 
 ## Polyligne d'éclair de a à b : déplacement du milieu (perpendiculaire au hasard), `prof` subdivisions.
 func foudre(a: Vector3, b: Vector3, ampl: float, prof := 4) -> PackedVector3Array:
+	if _teinte_gen == "electricite":
+		# FOUDRE v2 : nervure d'un bruit fractal cohérent (une direction générale, coudes nets), plus de déplacement du
+		# point milieu au hasard dans tous les sens
+		var n := clampi(1 << (prof + (1 if fin_actif else 0)), 4, FoudreV2.MAX_POINTS_TRONC)
+		var l := a.distance_to(b)
+		return FoudreV2.nervure(a, a.lerp(b, 0.5), b, minf(ampl * 1.05, l * 0.22), n, rng.randi(), horloge * 0.9)
 	if fin_actif:
 		prof += 1   # couche fine : un niveau de zigzag de plus (traits de 1 à 2 pixels fins)
 	var pts := PackedVector3Array([a, b])
@@ -915,6 +955,9 @@ func foudre(a: Vector3, b: Vector3, ampl: float, prof := 4) -> PackedVector3Arra
 
 ## Ajoute à `traits` un éclair de a à b et `ramifs` branches courtes.
 func foudre_ramifiee(traits: Array, a: Vector3, b: Vector3, ampl: float, largeur: float, ramifs: int, prof := 4) -> void:
+	if _teinte_gen == "electricite":
+		_foudre_arbre(traits, a, b, ampl, largeur, ramifs)
+		return
 	var p := foudre(a, b, ampl, prof)
 	traits.append([p, largeur, 1.0])
 	var l := a.distance_to(b)
@@ -937,6 +980,26 @@ func foudre_ramifiee(traits: Array, a: Vector3, b: Vector3, ampl: float, largeur
 			var o2 := br[br.size() / 2]
 			var fin2 := o2 + (fin - o).normalized().slerp(dev, 0.5) * l * rng.randf_range(0.05, 0.12)
 			traits.append([foudre(o2, fin2, l * 0.025, 1), 0.5, 0.6])
+
+## FOUDRE v2 : éclair ramifié = l'arbre de la canalisation (tronc, 1 à 3 branches tournées vers l'avant, filaments), bruit
+## fractal cohérent ; traits [points, largeur, alpha, niveau] (niveau : 0 tronc, 1 branche, 2 filament au cœur seul).
+func _foudre_arbre(traits: Array, a: Vector3, b: Vector3, ampl: float, largeur: float, ramifs: int) -> void:
+	var l := a.distance_to(b)
+	if l < 0.02:
+		return
+	var bs := FoudreV2.base_perp(b - a)
+	var ang := rng.randf() * TAU
+	var c := a.lerp(b, 0.45) + (bs.x * cos(ang) + bs.y * sin(ang)) * l * 0.06
+	var tr := FoudreV2.arbre(a, c, b, rng, horloge * 0.9 + rng.randf() * 3.0, {"ampl": minf(ampl * 0.6, l * 0.09),
+		"branches": clampi(ramifs, 0, 3), "filaments": 0.5 if ramifs > 0 else 0.0, "pas": 0.13 if largeur >= 1.5 else 0.18})
+	for t in tr:
+		var ia: PackedFloat32Array = t.a
+		var al := 0.0
+		for v in ia:
+			al += v
+		al /= maxf(ia.size(), 1)
+		var nv := int(t.niv)
+		traits.append([t.p, largeur if nv == 0 else (maxf(1.0, largeur - 1.0) if nv == 1 else 0.5), clampf(al * 1.15, 0.2, 1.0), float(nv)])
 
 # ====================================================================== cristaux (MultiMesh)
 
@@ -994,10 +1057,24 @@ func _maj_pics() -> void:
 
 ## Disque : `reglages` = paramètres du shader magie_sol (couleur, coeur, anneau, epaisseur, remplissage, runes,
 ## spirale, eclat, texels, tourne) ; rayon r0 → r1 en `duree` s ; opacité qui s'éteint sur la fin (`fondu` part).
+## FOUDRE v2 : disques des sorts électriques (impact, orage, tempête) : plus de runes en gros pixels, anneau fin et net
+## (texels doublés), remplissage et éclat réduits.
+const DISQUES_ELEC := ["#7a7af0", "#4a3ad0", "#6a5af0"]
+static func _disque_v2(r: Dictionary) -> Dictionary:
+	var o := r.duplicate()
+	o["runes"] = 0.0
+	o["texels"] = minf(float(r.get("texels", 48.0)) * 2.0, 128.0)
+	o["epaisseur"] = float(r.get("epaisseur", 0.06)) * 0.5
+	o["remplissage"] = float(r.get("remplissage", 0.0)) * 0.4
+	o["eclat"] = float(r.get("eclat", 1.0)) * 0.6
+	return o
+
 func disque(pos: Vector3, normale: Vector3, r0: float, r1: float, duree: float, reglages: Dictionary, mix := false, face_camera := false, fondu := 0.4) -> Dictionary:
 	if _disques.size() >= MAX_DISQUES:
 		refus += 1
 		return {}
+	if not foudre_v1 and String(reglages.get("couleur", "")) in DISQUES_ELEC:
+		reglages = _disque_v2(reglages)
 	var mi := MeshInstance3D.new()
 	mi.mesh = _quad_sol if face_camera else _plan
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -1249,7 +1326,7 @@ func _aura_creer(main: Node3D, ecole: String) -> Dictionary:
 		# faisait la même boule lumineuse.
 		a.boule = _aura_fine(ancre, ecole, AURA_BOULE, 2)
 		a.extra.append(a.boule)
-	elif fin_actif and not noyau:
+	elif fin_actif and not noyau and not (ecole == "electricite" and not foudre_v1):
 		# couche fine : l'aura est d'abord un motif procédural au pixel (flammes, givre, plasma, vortex) ; les
 		# particules et les arcs en font les éclats autour
 		a.fine = _aura_fine(ancre, ecole, AURA_RAYON.get(ecole, 0.09))
@@ -1325,6 +1402,8 @@ func eclair_noyau(parent: Node3D, etat: Callable) -> Dictionary:
 func _gen_noyau_arcs(etat: Callable) -> Array:
 	var traits: Array = []
 	var st: Dictionary = etat.call()
+	if not foudre_v1 and st.get("n") != null and valide(st.n):
+		return _gen_main_v2(st.n, st.get("centre", Vector3.ZERO), float(st.ch), false)
 	var r := float(st.r)
 	var ch := float(st.ch)
 	var n := 6 + int(ch * 6.0) + (1 if rng.randf() < 0.5 else 0)
@@ -1349,6 +1428,9 @@ func _gen_noyau_arcs(etat: Callable) -> Array:
 
 func _gen_aura_arcs(a: Dictionary) -> Array:
 	var traits: Array = []
+	if not foudre_v1 and valide(a.main):
+		var anc: Node3D = a.ancre
+		return _gen_main_v2(a.main, anc.global_position, float(a.i), valide(a.main) and _jets.has((a.main as Node).get_instance_id()), anc)
 	var i := float(a.i)
 	var dbl: bool = _double.get(a.ecole, false)
 	var n := 3 + int(i * 5.0) + (2 if dbl else 0)
@@ -1360,6 +1442,56 @@ func _gen_aura_arcs(a: Dictionary) -> Array:
 		var o := Vector3(rng.randf_range(-1, 1), rng.randf_range(-1, 1), rng.randf_range(-1, 1)).normalized() * 0.015
 		var b := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.6, 1), rng.randf_range(-1, 1)).normalized() * rng.randf_range(0.05, 0.11) * (1.0 + 0.4 * i)
 		traits.append([foudre(o, b, 0.025, 3), 1.0 if rng.randf() < 0.5 else 0.6, 1.0])
+	return traits
+
+## FOUDRE v2 : main au repos (ou sous l'arc) : 1 à 3 petits arcs qui courent d'un doigt à l'autre, d'un doigt au poignet,
+## parfois aucun (crépitement) ; coordonnées relatives à `centre` (repère du nœud porteur de l'éclair, éventuellement mis à
+## l'échelle : `repere`).
+func _gen_main_v2(porteur: Node3D, centre: Vector3, i: float, sous_jet: bool, repere: Node3D = null) -> Array:
+	var traits: Array = []
+	if rng.randf() < (0.3 if not sous_jet else 0.45):
+		return traits
+	var cam := get_viewport().get_camera_3d()
+	var dvis := -cam.global_basis.z if cam != null else Vector3.FORWARD
+	var d := FoudreV2.bouts_doigts(porteur, dvis)
+	if d.size() < 2:
+		return traits
+	var paume := porteur.global_position
+	var poignet := paume + (paume - (d[2] if d.size() > 2 else d[0])) * 0.8
+	var n := (1 + int(minf(i, 1.0) * 1.6) + (1 if rng.randf() < 0.4 else 0)) if not sous_jet else 1
+	for _k in n:
+		var ia := rng.randi_range(0, d.size() - 1)
+		var a: Vector3 = d[ia]
+		var b: Vector3
+		var r := rng.randf()
+		if r < 0.55:
+			b = d[clampi(ia + (1 if rng.randf() < 0.5 else -1) * rng.randi_range(1, 2), 0, d.size() - 1)]
+		elif r < 0.8:
+			b = poignet
+		else:
+			b = paume
+		if a.distance_to(b) < 0.01:
+			continue
+		var bombe := ((a + b) * 0.5 - paume).normalized() * a.distance_to(b) * 0.35
+		var tr := FoudreV2.arbre(a, (a + b) * 0.5 + bombe, b, rng, horloge * 0.9, {"branches": rng.randi_range(0, 1), "filaments": 0.4, "ampl": a.distance_to(b) * 0.12, "largeur": 0.75})
+		for t in tr:
+			var pts: PackedVector3Array = t.p
+			for q in pts.size():
+				pts[q] = repere.to_local(pts[q]) if repere != null else pts[q] - centre
+			traits.append([pts, 0.75 if int(t.niv) == 0 else 0.4, 0.9 if int(t.niv) == 0 else 0.6])
+	# charge (orage runique, tempête) : des arcs partent des bouts des doigts et CONVERGENT sur un point devant la paume
+	# (l'énergie se concentre dans la main), de plus en plus nombreux avec la charge
+	if not sous_jet and i > 0.15:
+		var foyer := paume + dvis * 0.07 + (paume - poignet).normalized() * 0.02
+		for _k in int(i * 2.5 + rng.randf()):
+			var a: Vector3 = d[rng.randi_range(0, d.size() - 1)]
+			var tr := FoudreV2.arbre(a, a.lerp(foyer, 0.5) + (a - paume).normalized() * a.distance_to(foyer) * 0.25, foyer, rng, horloge * 0.9,
+				{"branches": 0, "filaments": 0.3, "ampl": a.distance_to(foyer) * 0.1, "largeur": 0.75})
+			for t in tr:
+				var pts: PackedVector3Array = t.p
+				for q in pts.size():
+					pts[q] = repere.to_local(pts[q]) if repere != null else pts[q] - centre
+				traits.append([pts, 0.75 if int(t.niv) == 0 else 0.4, 0.95 if int(t.niv) == 0 else 0.6])
 	return traits
 
 func _aura_eteindre(a: Dictionary) -> void:
@@ -1493,6 +1625,9 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 		# réellement dans l'espace (elles grossissent, montent, roulent, refroidissent puis fument)
 		j.vague = _vague_creer(dbl)
 		j.ecart = ecart
+	elif ecole == "electricite" and not foudre_v1:
+		# FOUDRE v2 : arcs structurés des doigts au corps (scripts/magie/foudre_v2.gd), en couche fine comme en rétro
+		j.foudre = FoudreV2.Canal.new(self, dbl)
 	elif fin_actif and ecole == "electricite":
 		j.decharge = _decharge_creer(dbl)
 		# avec le faisceau épais, moins d'éclats (sinon, en double, deux jets empilent un gros blanc sur la cible)
@@ -1542,11 +1677,13 @@ func _jet_creer(ecole: String, origine: Node3D, portee: float, largeur: float, d
 						p.set_meta("v_jet", vm / kv)
 					j.emit.append(p)
 		"electricite":
-			if j.get("decharge") != null:
+			if j.get("foudre") != null:
+				pass   # v2 : les arcs sont ceux du Canal
+			elif j.get("decharge") != null:
 				j.eclair = eclair(null, "electricite", 1.5 if dbl else 1.0, -1.0, 0.033, _gen_jet_arc_vif.bind(j))
 			else:
 				j.eclair = eclair(null, "electricite", 2.4 if dbl else 2.0, -1.0, 0.033, _gen_jet_arc.bind(j))
-			var pe := emettre("elec_paume", null, Transform3D.IDENTITY, true, kn)
+			var pe := emettre("elec_paume", null, Transform3D.IDENTITY, true, kn * (0.5 if j.get("foudre") != null else 1.0))
 			if pe != null:
 				j.emit.append(pe)
 			# éclat aveuglant dans la paume (sphère additive qui papillote)
@@ -1747,6 +1884,32 @@ func _faisceaux_force_placer(j: Dictionary, o: Vector3, l: float) -> void:
 		m.set_shader_parameter("touche", 1.0)
 		m.set_shader_parameter("force", clampf((horloge - float(j.debut) - 0.02 * k) / 0.08, 0.0, 1.0))
 		m.set_shader_parameter("jour", _jour())
+
+## FOUDRE v2 : place les arcs du Canal (doigts -> corps), étincelles et convulsions au rythme des nouvelles formes.
+func _foudre_placer(j: Dictionary, o: Vector3, fin: Vector3, vers: Vector3) -> void:
+	var cn: FoudreV2.Canal = j.foudre
+	if cn._img == Engine.get_process_frames():
+		return
+	var origine: Node3D = j.origine
+	var espace: PhysicsDirectSpaceState3D = null
+	var excl: Array[RID] = []
+	if origine.is_inside_tree():
+		espace = origine.get_world_3d().direct_space_state
+		if not j.has("foudre_excl"):
+			j.foudre_excl = _exclus_depuis(origine)   # (perf) une fois par jet
+		excl = j.foudre_excl
+	var montee := clampf((horloge - float(j.debut)) / 0.06, 0.0, 1.0)
+	cn.maj(origine, o, fin, vers, j.cible if valide(j.cible) else null, j.touche, espace, excl, montee * (1.15 if j.dbl else 1.0))
+	if cn.formes_image > 0 and not cn.points_touches.is_empty():
+		# éclats au point d'accroche, quelques-uns seulement (une forme sur deux environ)
+		if rng.randf() < 0.45:
+			var pt: Vector3 = cn.points_touches[rng.randi() % cn.points_touches.size()]
+			emettre("elec_etincelles", null, Transform3D(base_normale(-vers), pt), false, 0.3)
+		if valide(j.cible):
+			FoudreV2.convulser(j.cible, 1.0 if not j.dbl else 1.3)
+		SonsMagie.claquement(cn.points_touches[0] if not cn.points_touches.is_empty() else fin, 0.8)
+	elif cn.formes_image > 0 and rng.randf() < 0.35:
+		SonsMagie.claquement(o + vers * 0.3, 0.5)
 
 func _gen_drain(j: Dictionary) -> Array:
 	var traits: Array = []
@@ -2005,8 +2168,8 @@ func _decharge_placer(j: Dictionary, o: Vector3, l: float) -> void:
 ## Décharge PONCTUELLE (chaîne d'éclairs, impact) : émetteur à courbe fixe qui crépite `duree` s après `delai` s, puis
 ## s'éteint et se libère seul. `eclat` : o = c = b = point touché, traits en étoile autour de `normale`.
 func _decharge_ponctuelle(o: Vector3, b: Vector3, duree: float, delai := 0.0, n := 40, force := 1.0, eclat := false, normale := Vector3.UP) -> void:
-	if sans_procedural or not fin_actif:
-		return
+	if sans_procedural or not fin_actif or not foudre_v1:
+		return   # FOUDRE v2 : plus de formes d'atlas en gros pixels (les arcs structurés et leurs éclats les remplacent)
 	var p := _decharge_creer(false)
 	p.amount = n
 	p.emitting = delai <= 0.0
@@ -2453,12 +2616,15 @@ func _jet_placer(j: Dictionary) -> void:
 	if j.get("faisceau") != null and is_instance_valid(j.faisceau):
 		_faisceau_placer(j, o, l)
 		_faisceaux_force_placer(j, o, l)
+	if j.get("foudre") != null:
+		_foudre_placer(j, o, fin, vers)
 	if not j.bouclier.is_empty():
 		var d: Dictionary = j.bouclier
 		d.pos = o + dir * 0.35
 		d.base = GestionMagie.base_normale(dir)
 	if j.flash != null and is_instance_valid(j.flash):
-		(j.flash as Node3D).transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * rng.randf_range(0.012, 0.026) * (1.3 if j.dbl else 1.0)), o)
+		var kf: float = rng.randf_range(0.012, 0.026) if j.get("foudre") == null else 0.008 + 0.012 * float((j.foudre as FoudreV2.Canal).eclat)
+		(j.flash as Node3D).transform = Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * kf * (1.3 if j.dbl else 1.0)), o)
 	_jet_gerbe(j)
 	_jet_eclabousse(j, fin)
 	# feu / glace / électricité : léchage au point touché
@@ -2473,7 +2639,7 @@ func _jet_placer(j: Dictionary) -> void:
 			"electricite":
 				# avec le faisceau (couche fine), les étincelles de la décharge (genre 2, ramifiées) suffisent : les
 				# traits droits étirés de l'ancien système faisaient des bâtons blancs autour de la cible
-				if j.get("faisceau") == null:
+				if j.get("faisceau") == null and j.get("foudre") == null:
 					emettre("elec_etincelles", null, Transform3D(bn, fin), false, 0.7)
 	# lumière : forte sur la main (un peu devant, pour éclairer main et sol) et à l'arrivée, couleur de l'école
 	var c: Color = LUMIERE[j.ecole]
@@ -2486,7 +2652,8 @@ func _jet_placer(j: Dictionary) -> void:
 		kd = 1.0 if tro.meneuse else 0.0
 	var sc := 1.0
 	if j.ecole == "electricite":
-		sc = 0.55 + 0.9 * rng.randf()
+		# v2 : la lumière clignote AVEC les arcs (pleine à chaque nouvelle forme, puis retombe par paliers)
+		sc = 0.55 + 0.9 * rng.randf() if j.get("foudre") == null else 0.35 + 1.1 * float((j.foudre as FoudreV2.Canal).eclat)
 	elif j.ecole == "feu":
 		sc = 0.9 + 0.15 * sin(horloge * 21.0) * sin(horloge * 6.0)
 	var id := origine.get_instance_id()
@@ -2534,6 +2701,9 @@ func _jet_arreter(j: Dictionary) -> void:
 		get_tree().create_timer(VAGUE_VIE + 0.15, false).timeout.connect(vg.queue_free)
 	j.vague = null
 	_decharge_arreter(j)
+	if j.get("foudre") != null:
+		(j.foudre as FoudreV2.Canal).liberer()
+		j.erase("foudre")
 	if j.get("faisceau") != null and is_instance_valid(j.faisceau):
 		(j.faisceau as Node).queue_free()
 	j.erase("faisceau")
@@ -2948,6 +3118,85 @@ func chaine(ecole: String, points: Array) -> void:
 	var dbl: bool = _double.get("electricite", false)
 	var t0 := horloge
 	var pas := 0.06
+	if teinte == "electricite" and not foudre_v1:
+		_chaine_v2(pts, sur_corps, dbl, pas)
+	else:
+		_chaine_v1(teinte, pts, sur_corps, dbl, t0, pas)
+	var sp := "elec_impact" if teinte == "electricite" else "violet_etincelles"
+	for i in range(1, pts.size()):
+		var xf := Transform3D(Basis.IDENTITY, pts[i])
+		var kk := 0.5 if foudre_v1 or teinte != "electricite" else 0.3
+		if i == 1:
+			emettre(sp, null, xf, false, kk)
+		else:
+			get_tree().create_timer(pas * (i - 1), false).timeout.connect(func() -> void: emettre(sp, null, xf, false, kk))
+	lumiere("chaine%d" % rng.randi(), pts[0].lerp(pts[pts.size() - 1], 0.5), LUMIERE.get(ecole, LUMIERE.electricite), 8.0, 9.0, 7.0, 0.45)
+
+## FOUDRE v2 : chaîne d'éclairs. Chaque saut apparaît 0,06 s après le précédent : une image d'éclat franc (le trait net
+## qui frappe), puis l'arc se reforme par à-coups (2-4 images, rémanence d'une image), s'éteint par paliers avec des
+## trous (il « hoquette » sur la fin). Tronc + 2-4 branches + filaments (FoudreV2.arbre), un arc compagnon plus fin.
+var _chaines: Array = []
+const CHAINE_LIEN := 0.42
+
+func _chaine_v2(pts: Array[Vector3], sur_corps: Array, dbl: bool, pas: float) -> void:
+	var racine := Node3D.new()
+	racine.name = "FoudreChaine"
+	add_child(racine)
+	var arcs: Array = []
+	for i in range(1, pts.size()):
+		arcs.append([FoudreV2.Arc.new(racine, FoudreV2.materiau(6.0 if dbl else 5.0, 2.0, 1.8)), FoudreV2.Arc.new(racine, FoudreV2.materiau(3.0, 1.0, 1.4))])
+	_chaines.append({"racine": racine, "arcs": arcs, "pts": pts, "corps": sur_corps, "t0": horloge, "pas": pas, "dbl": dbl,
+		"duree": CHAINE_LIEN + pas * (pts.size() - 2) + 0.05, "lat": rng.randf() * TAU})
+
+func _maj_chaines() -> void:
+	var img := Engine.get_process_frames()
+	var i := _chaines.size() - 1
+	while i >= 0:
+		var c: Dictionary = _chaines[i]
+		var age := horloge - float(c.t0)
+		if age > float(c.duree) or not is_instance_valid(c.racine):
+			if is_instance_valid(c.racine):
+				(c.racine as Node).queue_free()
+			_chaines.remove_at(i)
+			i -= 1
+			continue
+		var pts: Array = c.pts
+		for k in (c.arcs as Array).size():
+			var paire: Array = c.arcs[k]
+			var ti := age - float(c.pas) * k
+			var a: Vector3 = pts[k]
+			var b: Vector3 = pts[k + 1]
+			if ti < 0.0:
+				for arc in paire:
+					(arc as FoudreV2.Arc).placer(a, b, img, 0.0)
+				continue
+			var vie := ti / CHAINE_LIEN
+			var l := a.distance_to(b)
+			var bs := FoudreV2.base_perp(b - a)
+			for q in paire.size():
+				var arc: FoudreV2.Arc = paire[q]
+				if arc.a_refaire(img):
+					var trou := vie > 0.45 and rng.randf() < 0.25 + 0.5 * vie
+					if trou or (q == 1 and rng.randf() < 0.3):
+						arc.former([], a, b, img, rng)
+					else:
+						var lat := float(c.lat) + k * 2.1 + q * PI + rng.randf_range(-0.6, 0.6)
+						var ctrl := a.lerp(b, 0.5) + (bs.x * cos(lat) + bs.y * sin(lat)) * l * (0.05 if q == 0 else 0.1)
+						var tr := FoudreV2.arbre(a, ctrl, b, rng, horloge * 0.9 + k * 7.0 + q * 3.0, {
+							"branches": rng.randi_range(2, 4) if q == 0 else rng.randi_range(0, 1),
+							"filaments": 0.7 if q == 0 else 0.3, "largeur": 1.0 if q == 0 else 0.6,
+							"ampl": clampf(l * (0.035 if k == 0 else 0.05), 0.03, 0.3), "branche_min": 0.4 if k == 0 else 0.14})
+						arc.former(tr, a, b, img, rng)
+						if q == 0 and arc.formes > 1 and rng.randf() < 0.3:
+							SonsMagie.claquement(b, 0.6)
+				# première image : le trait net qui frappe (éclat plein), puis paliers qui baissent jusqu'à la fin du lien
+				var force := 1.35 if ti < 0.034 else lerpf(1.05, 0.4, clampf(vie, 0.0, 1.0))
+				if vie >= 1.0:
+					force = 0.0
+				arc.placer(a, b, img, force * (1.0 if q == 0 else 0.7))
+		i -= 1
+
+func _chaine_v1(teinte: String, pts: Array[Vector3], sur_corps: Array, dbl: bool, t0: float, pas: float) -> void:
 	# propagation VISIBLE : chaque saut part 0,06 s après le précédent ; arcs épais, ramifiés
 	eclair(null, teinte, 3.0 if dbl else 2.0, 0.45 + pas * (pts.size() - 2), 0.05, func() -> Array:
 		var traits: Array = []
@@ -2965,14 +3214,6 @@ func chaine(ecole: String, points: Array) -> void:
 		var total := 0.45 + pas * (pts.size() - 2)
 		for i in range(1, pts.size()):
 			_decharge_ponctuelle(pts[i - 1], pts[i], total - pas * (i - 1), pas * (i - 1), 36, 1.35 if dbl else 1.0)
-	var sp := "elec_impact" if teinte == "electricite" else "violet_etincelles"
-	for i in range(1, pts.size()):
-		var xf := Transform3D(Basis.IDENTITY, pts[i])
-		if i == 1:
-			emettre(sp, null, xf, false, 0.5)
-		else:
-			get_tree().create_timer(pas * (i - 1), false).timeout.connect(func() -> void: emettre(sp, null, xf, false, 0.5))
-	lumiere("chaine%d" % rng.randi(), pts[0].lerp(pts[pts.size() - 1], 0.5), LUMIERE.get(ecole, LUMIERE.electricite), 8.0, 9.0, 7.0, 0.45)
 
 # ====================================================================== décharges des sorts à charge
 
@@ -2989,7 +3230,8 @@ func _orage(depart: Vector3, fin: Vector3, k: float, normale: Vector3) -> void:
 	var t0 := horloge
 	var espace := get_world_3d().direct_space_state if is_inside_tree() else null
 	var dist := depart.distance_to(fin)
-	var n_app := 3 + int(kk * 3.0)
+	var v2 := not foudre_v1
+	var n_app := (3 + int(kk * 3.0)) if not v2 else (2 + int(kk * 1.5))   # FOUDRE v2 : moins d'éclairs d'appoint, plus lisibles
 	var rayon_sol := 1.2 + 1.3 * kk
 	eclair(null, "electricite", 3.0, duree, 0.033, func() -> Array:
 		var traits: Array = []
@@ -2998,7 +3240,7 @@ func _orage(depart: Vector3, fin: Vector3, k: float, normale: Vector3) -> void:
 		var garde := 1.0 if age < 0.5 else clampf(1.0 - (age - 0.5) * 1.6, 0.0, 1.0)
 		if rng.randf() < garde:
 			foudre_ramifiee(traits, depart, fin, dist * 0.06, 3.0, 3, 5)
-		if rng.randf() < garde:
+		if rng.randf() < garde * (1.0 if not v2 else 0.5):
 			foudre_ramifiee(traits, depart, fin + Vector3(rng.randf_range(-0.3, 0.3), 0, rng.randf_range(-0.3, 0.3)), dist * 0.1, 1.5, 1, 5)
 		for _i in n_app:
 			if rng.randf() > garde:
@@ -3029,8 +3271,17 @@ func _orage(depart: Vector3, fin: Vector3, k: float, normale: Vector3) -> void:
 	_decharge_ponctuelle(depart, fin, duree, 0.0, 40, 1.0)
 	lumiere("orage_impact", fin + normale.normalized() * 1.2, Color(0.7, 0.65, 1.0), 4.5 * kk, 8.0 + 2.0 * kk, 10.0, duree)
 	lumiere("orage_main", depart, Color(0.7, 0.65, 1.0), 2.5, 4.0, 8.0, 0.3)
-	disque(fin, normale, 0.3, rayon_sol, 1.6, {"couleur": "#6a5af0", "coeur": "#f0f2ff", "anneau": 0.9, "epaisseur": 0.06, "remplissage": 0.15, "texels": 56.0, "eclat": 0.9}, false, false, 0.5)
-	disque(fin, normale, 0.2, rayon_sol * 0.7, 3.5, {"couleur": "#1a1230", "coeur": "#06030c", "anneau": 0.0, "remplissage": 0.7, "texels": 48.0, "eclat": 0.6, "opacite": 0.6}, true, false, 0.7)
+	var p_disque := fin
+	var n_disque := normale
+	if v2 and espace != null:
+		# FOUDRE v2 : l'onde se pose au SOL sous le point touché (plus de grand disque dressé face au lanceur sur un corps)
+		var q := PhysicsRayQueryParameters3D.create(fin + Vector3.UP * 0.3, fin + Vector3.DOWN * 3.0, 1)
+		var r := espace.intersect_ray(q)
+		if not r.is_empty():
+			p_disque = r.position
+			n_disque = r.normal
+	disque(p_disque, n_disque, 0.3, rayon_sol, 1.6, {"couleur": "#6a5af0", "coeur": "#f0f2ff", "anneau": 0.9, "epaisseur": 0.06, "remplissage": 0.15, "texels": 56.0, "eclat": 0.9}, false, false, 0.5)
+	disque(p_disque, n_disque, 0.2, rayon_sol * 0.7, 3.5, {"couleur": "#1a1230", "coeur": "#06030c", "anneau": 0.0, "remplissage": 0.7, "texels": 48.0, "eclat": 0.6, "opacite": 0.6}, true, false, 0.7)
 	_teinte_demande("electricite", 0.8)
 
 # ====================================================================== statuts des cibles
@@ -3204,6 +3455,8 @@ func enchant_arme(arme: Node3D, ecole: String, actif: bool) -> void:
 		if p != null:
 			e.emit.append(p)
 	var voile: Array = {"feu": [1, "#ec6a1f", "#fff0a8", 0.75], "glace": [2, "#5f9fe8", "#e8f6ff", 0.6], "electricite": [3, "#7a7af0", "#f0f2ff", 0.8], "tenebres": [4, "#7a2ad0", "#d08aff", 0.6], "soin": [0, "#b8d060", "#fff4c0", 0.5], "protection": [0, "#7ab0d8", "#eaf8ff", 0.5]}[ecole]
+	if ecole == "electricite" and not foudre_v1:
+		voile[3] = 0.4   # FOUDRE v2 : voile de la lame plus discret, les arcs structurés font l'effet
 	e.voiles = _voiler(arme, voile[0], Color(voile[1]), Color(voile[2]), voile[3], e.axe, 0.4)
 	if ecole == "electricite":
 		e.eclair = eclair(null, "electricite", 1.0, -1.0, 0.06, _gen_lame_arcs.bind(e))
@@ -3220,6 +3473,13 @@ func _gen_lame_arcs(e: Dictionary) -> Array:
 	var demi := absf(ext.dot(ax.abs()))
 	var a := xf * (c - ax * demi * rng.randf_range(0.6, 1.0))
 	var b := xf * (c + ax * demi * rng.randf_range(0.7, 1.0))
+	if _teinte_gen == "electricite":
+		# FOUDRE v2 : un arc le long du fil (tronc + 1 branche + filament) et une griffe qui saute de la lame
+		foudre_ramifiee(traits, a, b, 0.02, 1.0, 1)
+		if rng.randf() < 0.5:
+			var o := xf * (c + ax * demi * rng.randf_range(-0.6, 0.9))
+			foudre_ramifiee(traits, o, o + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.3, 1), rng.randf_range(-1, 1)).normalized() * rng.randf_range(0.08, 0.16), 0.03, 1.0, 0)
+		return traits
 	traits.append([foudre(a, b, 0.015, 4), 1.0, 1.0])
 	for _k in 2:
 		var o := xf * (c + ax * demi * rng.randf_range(-1.0, 1.0))

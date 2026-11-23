@@ -197,9 +197,12 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	var reste := tr * (1.0 - actif)            # phase « traces » : plus rien de vif
 	# ------------------------------------------------ forme des arcs (accrochés aux points : le shader les suit)
 	var pas := PAS_JET if maxf(kj, ks) > 0.3 else PAS_CHOC
+	if not GestionMagie.foudre_v1:
+		pas = float(d.get("pas_v2", 0.05))   # FOUDRE v2 : nouvelle forme par à-coups, toutes les 2 à 4 images
 	var _p0 := Time.get_ticks_usec()
 	if h - float(d.t_forme) >= pas:
 		d.t_forme = h
+		d.pas_v2 = float(ic.rng.randi_range(FoudreV2.REGEN_MIN, FoudreV2.REGEN_MAX)) / 60.0
 		_former(ic, f, kj, ks, kc, reste)
 	ImpactCorps.prof("elec former", _p0); _p0 = Time.get_ticks_usec()
 	ic.arcs_regler(f)
@@ -217,10 +220,13 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	ic.regler_foyers(f, maxf(kc, reste * 0.6), minf(s.bas, 0.0) + 0.02, fo)
 	for k in f.em.size():
 		var r := maxf(SOUS_JET[k] * maxf(kj, ks), maxf(CHOC[k] * kc, TRACES[k] * reste))
+		if not GestionMagie.foudre_v1 and k < 4:
+			r *= 0.0 if k == 0 else 0.35   # FOUDRE v2 : étincelles et ions discrets (les arcs du Canal portent l'impact)
 		ic.activer(f.em[k], r)
 	# ------------------------------------------------ voile et coque : contour qui crépite, veines, traces
 	# (le papillotement est fait par le shader : les canaux ne changent pas à chaque image → pas réécrits)
-	ic.ecoles(f, 0.0, snappedf(clampf(maxf(maxf(kj, ks), kc * 0.75), 0.0, 1.0), 0.05), 0.0, snappedf(tr * (0.35 + 0.65 * (1.0 - actif)), 0.02), 0.0, org + imp, 0.0)
+	var k_coque := 1.0 if GestionMagie.foudre_v1 else 0.45   # FOUDRE v2 : contour et veines de la coque plus discrets
+	ic.ecoles(f, 0.0, snappedf(clampf(maxf(maxf(kj, ks), kc * 0.75) * k_coque, 0.0, 1.0), 0.05), 0.0, snappedf(tr * (0.35 + 0.65 * (1.0 - actif)), 0.02), 0.0, org + imp, 0.0)
 	ImpactCorps.prof("elec reste", _p0)
 	# le corps éclaire le décor par à-coups pendant le choc (sous le jet, la lumière du jet est déjà au contact)
 	# (2026-10-28, budget) une seule lumière par CORPS : sous la brûlure, celle du feu reste (pas une 2e omni par corps)
@@ -244,7 +250,8 @@ static func _former(ic: ImpactCorps, f: ImpactCorps.Foyer, kj: float, ks: float,
 	if s.nb > 8:
 		if vif > 0.05 and imp >= 0:
 			var dbl: bool = d.dbl
-			var n_rampes := (4 if fin else 3) + (1 if dbl else 0)
+			var v2 := not GestionMagie.foudre_v1   # FOUDRE v2 : les arcs du Canal accrochent déjà le corps, moins de rampes
+			var n_rampes := ((4 if fin else 3) + (1 if dbl else 0)) if not v2 else (1 + (1 if dbl else 0))
 			for k in n_rampes:
 				# une part du point touché, les autres d'un point voisin (l'impact « s'étale » sans s'entasser au centre)
 				var dep := imp if k == 0 else _voisin(s, imp, 0.14, 0.45, Vector3.ZERO, rng)
@@ -253,20 +260,20 @@ static func _former(ic: ImpactCorps, f: ImpactCorps.Foyer, kj: float, ks: float,
 				var bout := _ramper(ic, f, dep, rng.randi_range(4, 7), g + k * 9.1, 1.0 if k < 2 else 0.7, 1.0 if k < 2 else 0.67)
 				anc.append(bout)
 			# sauts entre os (bras ↔ torse, bouclier ↔ bras) et descentes au sol
-			for k in (3 if fin else 2):
+			for k in ((3 if fin else 2) if not v2 else 1):
 				var a := _voisin(s, imp, 0.0, 0.6, Vector3.ZERO, rng)
 				var b := _autre_os(s, a, 0.18, 0.62, rng) if a >= 0 else -1
 				if b >= 0:
 					ic.arc(f, a, b, 4, 4, g + 40.0 + k, 0.8, 0.85)
 					anc.append(b)
-			for k in (2 if fin else 1):
+			for k in ((2 if fin else 1) if not v2 else 1):
 				var p := _point_bas(s, rng)
 				if p >= 0:
 					ic.arc(f, p, -1, 1, 4, g + 60.0 + k, 0.8, 0.85)
 		elif kc > 0.05:
 			# statut choc : petites décharges qui parcourent le corps et papillotent (une forme sur quatre est vide)
 			if rng.randf() < 0.75:
-				for k in (3 if fin else 2):
+				for k in ((3 if fin else 2) if GestionMagie.foudre_v1 else 1):
 					var dep := _point_au_hasard(s, rng, 0.0)
 					var bout := _ramper(ic, f, dep, rng.randi_range(2, 4), g + k * 7.3, 0.7, 0.67 if k > 0 else 1.0)
 					anc.append(dep)
