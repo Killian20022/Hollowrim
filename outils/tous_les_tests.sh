@@ -167,6 +167,7 @@ TESTS=(
 	"test_onglet_carte|--nouvelle"   # onglet Carte (rpg/carte) : registre Lieux (positions, découverte, cibles de quête), maquette 3D du terrain, zoom, déplacement, centrage, touches de la coquille
 	"test_rythme_joueur|--nouvelle"   # retours exe 5 (2026-11-05) : coups du joueur plus lourds (JOUEUR_LENTEUR), combo strict gardé
 	"test_factions|--nouvelle --test"   # retours exe 5 : table data/factions.json, aucun repaire hostile à < 15 m, bandit contre araignée, draugr et araignée neutres
+	"test_cassables_partout|--nouvelle"   # cassables partout (2026-11-23) : mobilier léger physique, telekinesable, casse par choc (seuils par matière), éclats gelés, sauvegarde, sommeil
 	"test_objets_vivants|--nouvelle"   # retours exe 5 : décor physique (chute, sommeil, lame, sort), prendre / voler, saisir / lancer, sauvegarde, réassort
 	"test_crime|--nouvelle"   # retours exe 5 : témoins, prime, propriétaire, garde solidaire, amende / geôle / résistance, sauvegarde
 	"test_crochetage|--nouvelle --demo-crime"   # retours exe 5 : mini-jeu de crochetage, crochets, verrous 1-4, intrusion vue
