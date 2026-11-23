@@ -230,7 +230,7 @@ func _go() -> void:
 	l.position = Vector2(10, 500)
 	calque.add_child(l)
 	# --- mise en place : murs, ennemis, objets de la crypte
-	var mur := _mur(3.6, 5.5)
+	var mur := _mur(3.6, 8.0)
 	print("mur : ", mur)
 	var tonneau := _cassable("tonneau", [])
 	var urne := _cassable("urne", [tonneau])
@@ -253,6 +253,10 @@ func _go() -> void:
 	# 3. épée qui transperce un draugr et le cloue au mur
 	if not mur.is_empty():
 		var dir: Vector3 = mur["dir"]
+		await _regarder(Vector3(mur["point"]) + Vector3.UP * 0.4, 0.6)
+		# quelques pas vers le mur : on le lance à ~4 m (le corps cloué se lit)
+		if j.global_position.distance_to(Vector3(mur["point"])) > 4.4:
+			await _approcher(Vector3(mur["point"]), 4.0, 1.0)
 		j.rotation.y = float(mur["cap"])
 		await _attendre(0.1)
 		var draugr_b := _ennemi("guerrier", Vector3(mur["point"]) - dir * 0.42, 15.0)
