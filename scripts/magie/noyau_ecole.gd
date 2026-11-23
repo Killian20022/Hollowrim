@@ -345,11 +345,11 @@ func _process(dt: float) -> void:
 		# FOUDRE v2 : petite lueur et arcs entre les doigts (GestionMagie._gen_main_v2), plus de grosse boule d'arcs
 		var v2 := not GestionMagie.foudre_v1
 		var sous_canal := v2 and runes.transition != null and runes.transition.canal > 0.5
-		_quad.set_instance_shader_parameter("rayon", float(RAYON[ecole]) * larg_k * ((0.22 if sous_canal else 0.42) if v2 else 1.0))
+		_quad.set_instance_shader_parameter("rayon", float(RAYON[ecole]) * larg_k * ((0.16 if sous_canal else 0.42) if v2 else 1.0))
 		_quad.set_instance_shader_parameter("force", forc * (0.6 if v2 else 1.0))
 		_quad.set_instance_shader_parameter("charge", ch)
 		_etat_arcs = {"r": larg_k, "ch": ch, "f": forc, "n": runes.suivi if v2 else null, "centre": global_position}
-		_maj_plasma(ch, vit, vif * (0.45 if v2 else 1.0), larg_k * (0.55 if v2 else 1.0))
+		_maj_plasma(ch, vit, vif * ((0.12 if sous_canal else 0.45) if v2 else 1.0), larg_k * (0.55 if v2 else 1.0))
 	else:
 		_maj_tenebres(ch, vit, vif, haut_k, larg_k, conv)
 

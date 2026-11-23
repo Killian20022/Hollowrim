@@ -61,7 +61,7 @@ void fragment() {
 		// halo : 2 paliers dans le travers (milieu bleu, bord violet), plus sombre sur les branches
 		float x = abs(cote);
 		c = x < 0.45 ? halo_milieu.rgb : halo_bord.rgb;
-		a *= 0.62 - 0.17 * niveau;
+		a *= 0.85 - 0.25 * niveau;
 	}
 	// paliers d'intensité (pas de dégradé continu, pas de tramage) : quarts
 	a = ceil(clamp(a, 0.0, 1.5) * 4.0 - 0.1) / 4.0;

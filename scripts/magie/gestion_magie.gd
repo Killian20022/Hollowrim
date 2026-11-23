@@ -3119,7 +3119,7 @@ func _maj_chaines() -> void:
 						var tr := FoudreV2.arbre(a, ctrl, b, rng, horloge * 0.9 + k * 7.0 + q * 3.0, {
 							"branches": rng.randi_range(2, 4) if q == 0 else rng.randi_range(0, 1),
 							"filaments": 0.7 if q == 0 else 0.3, "largeur": 1.0 if q == 0 else 0.6,
-							"ampl": clampf(l * 0.05, 0.03, 0.3)})
+							"ampl": clampf(l * (0.035 if k == 0 else 0.05), 0.03, 0.3), "branche_min": 0.4 if k == 0 else 0.14})
 						arc.former(tr, a, b, img, rng)
 						if q == 0 and arc.formes > 1 and rng.randf() < 0.3:
 							SonsMagie.claquement(b, 0.6)

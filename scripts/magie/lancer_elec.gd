@@ -143,10 +143,12 @@ func _gen_tension(g: GestionMagie, traits: Array, o: Vector3) -> Array:
 	# le bout avance de la source vers la cible en 0,12 s ; l'arc reste tendu, puis s'efface
 	var front := src + d * l * avance
 	var n := 3 + (1 if double else 0)   # double : un seul faisceau plus épais (pas une pelote blanche au point de fusion)
+	if not GestionMagie.foudre_v1:
+		n = 1 + (1 if double else 0)   # FOUDRE v2 : un trait net (le sort qui suit porte les branches), pas une pelote près de l'œil
 	for i in n:
 		var av := traits.size()
 		var dec := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * (0.045 if double else 0.03)
-		g.foudre_ramifiee(traits, src + dec - o, front - o, l * avance * 0.07 + 0.03, (2.4 if double else 2.0) if i == 0 else 1.2, 2, 4)
+		g.foudre_ramifiee(traits, src + dec - o, front - o, l * avance * (0.07 if GestionMagie.foudre_v1 else 0.035) + 0.02, (2.4 if double else 2.0) if i == 0 else 1.2, 2 if GestionMagie.foudre_v1 else 0, 4)
 		for q in range(av, traits.size()):
 			traits[q][2] = float(traits[q][2]) * fade
 	return traits

@@ -218,7 +218,7 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	for k in f.em.size():
 		var r := maxf(SOUS_JET[k] * maxf(kj, ks), maxf(CHOC[k] * kc, TRACES[k] * reste))
 		if not GestionMagie.foudre_v1 and k < 4:
-			r *= 0.4   # FOUDRE v2 : étincelles et ions discrets (les arcs du Canal portent l'impact)
+			r *= 0.0 if k == 0 else 0.35   # FOUDRE v2 : étincelles et ions discrets (les arcs du Canal portent l'impact)
 		ic.activer(f.em[k], r)
 	# ------------------------------------------------ voile et coque : contour qui crépite, veines, traces
 	# (le papillotement est fait par le shader : les canaux ne changent pas à chaque image → pas réécrits)
@@ -247,7 +247,7 @@ static func _former(ic: ImpactCorps, f: ImpactCorps.Foyer, kj: float, ks: float,
 		if vif > 0.05 and imp >= 0:
 			var dbl: bool = d.dbl
 			var v2 := not GestionMagie.foudre_v1   # FOUDRE v2 : les arcs du Canal accrochent déjà le corps, moins de rampes
-			var n_rampes := ((4 if fin else 3) + (1 if dbl else 0)) if not v2 else (2 + (1 if dbl else 0))
+			var n_rampes := ((4 if fin else 3) + (1 if dbl else 0)) if not v2 else (1 + (1 if dbl else 0))
 			for k in n_rampes:
 				# une part du point touché, les autres d'un point voisin (l'impact « s'étale » sans s'entasser au centre)
 				var dep := imp if k == 0 else _voisin(s, imp, 0.14, 0.45, Vector3.ZERO, rng)

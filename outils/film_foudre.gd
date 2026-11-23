@@ -195,7 +195,7 @@ func _go() -> void:
 func _film() -> void:
 	var rendu := "AVANT (v1)" if GestionMagie.foudre_v1 else "APRÈS (v2)"
 	magie.equiper("gauche", "arc_electrique")
-	var d := _draugr(_libre(4.6, 0.3), "guerrier")
+	var d := _draugr(_libre(3.8, 0.3), "guerrier")
 	var d2 := _draugr(_libre(7.0, -2.4), "squelette")
 	var d3 := _draugr(_libre(7.6, 2.2), "guerrier")
 	await _attendre(0.5)

@@ -26,7 +26,7 @@ const MAX_POINTS_TRONC := 40
 const ECLAT_AGE := [1.0, 0.8, 0.7, 0.62, 0.55]
 const REMANENCE := [0.5, 0.25]
 ## Os du corps où les arcs s'accrochent (noms des squelettes Mixamo / Tripo / ancien corps), doigts et orteils exclus.
-const OS_CORPS := ["spine", "chest", "neck", "head", "shoulder", "clavicle", "upperarm", "arm", "forearm", "hand", "pelvis", "hips", "thigh", "upleg", "calf", "leg"]
+const OS_CORPS := ["spine", "chest", "neck", "head", "shoulder", "clavicle", "upperarm", "arm", "forearm", "hand", "pelvis", "hips", "thigh", "upleg"]
 const OS_EXCLUS := ["finger", "thumb", "index", "middle", "ring", "pinky", "toe", "foot_end", "end", "twist", "ik", "pole", "eye", "jaw"]
 
 ## Dernière image d'un Canal (tests, outils) : paume, bouts des doigts, départs et bouts des arcs.
@@ -107,7 +107,7 @@ static func arbre(a: Vector3, c: Vector3, b: Vector3, rng: RandomNumberGenerator
 	var nb: int = o.get("branches", rng.randi_range(2, 4))
 	var ang := rng.randf() * TAU
 	for k in nb:
-		var ts := rng.randf_range(0.14, 0.78)
+		var ts := rng.randf_range(float(o.get("branche_min", 0.14)), 0.78)
 		var i0 := clampi(int(ts * n), 1, n - 1)
 		var p0 := tronc[i0]
 		var tan := (tronc[i0 + 1] - tronc[i0 - 1]).normalized()
