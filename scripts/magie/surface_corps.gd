@@ -32,7 +32,7 @@ const MAX_PAR_MAILLAGE := 72
 ## Triangles tirés au hasard pour estimer l'aire d'un maillage (pas de boucle sur tous les triangles).
 const TIRAGES_AIRE := 320
 ## Pièces ignorées (trop petites ou à l'intérieur de la tête).
-const IGNORES := ["Eyes", "Eyebrows"]
+const IGNORES := ["Eyes", "Eyebrows", "OmbreFusion"]   # (OmbreFusion : maillage d ombre seule de FusionOmbre, retiré de l arbre à la mort : jamais voilé)
 
 ## Cache des échantillons par signature de maillage : {"b": PackedInt32Array (bind du skin, -1 = rigide),
 ## "p": PackedVector3Array (repère du maillage), "n": PackedVector3Array}.
@@ -430,7 +430,7 @@ func actualiser(origine: Vector3, normales := true) -> void:
 	for i in _g_os.size():
 		var base := _g_base[i]
 		if base != base_prec:
-			if not is_instance_valid(base):
+			if not is_instance_valid(base) or not base.is_inside_tree():
 				continue
 			base_prec = base
 			xf_base = base.global_transform
@@ -531,7 +531,8 @@ static func image() -> Image:
 func point_vise(o: Vector3, d: Vector3, pas := 2) -> int:
 	var meilleur := -1
 	var score := INF
-	for i in range(0, nb, pas):
+	# (nor peut être plus court que nb : normales de l'image précédente, avant qu'un groupe sauté ne revienne)
+	for i in range(0, mini(nb, mini(nor.size(), pos.size())), pas):
 		var n := nor[i]
 		if n.dot(d) > 0.15:
 			continue

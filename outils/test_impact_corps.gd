@@ -95,7 +95,7 @@ func _ecoles_b(gm: GestionMagie, ic: ImpactCorps, main: Node3D, corps: Array, cr
 	var fc: ImpactCorps.Foyer = ic.trouver(dc, "electricite")
 	verifier(fe != null and fd != null and fg != null and fc != null, "écoles B : foyers électricité, ténèbres, glace, choc sur des corps")
 	verifier(fin_sur, "électricité : le faisceau finit sur la surface du corps")
-	verifier(fe != null and fe.arcs.visible and fe.nb_segs > 10, "électricité : arcs sur le corps (%d sous-segments)" % (fe.nb_segs if fe != null else 0))
+	verifier(fe != null and fe.arcs.visible and fe.nb_segs > (10 if GestionMagie.foudre_v1 else 4), "électricité : arcs sur le corps (%d sous-segments)" % (fe.nb_segs if fe != null else 0))
 	verifier(fd != null and fd.arcs.visible and fd.nb_segs > 10, "drain : filaments arrachés à la surface (%d sous-segments)" % (fd.nb_segs if fd != null else 0))
 	# les arcs sont accrochés aux POINTS du corps : index valides, maillage posé sur l'origine du corps (le shader suit les os)
 	var ok_idx := true

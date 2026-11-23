@@ -49,11 +49,8 @@ void vertex() {
 }
 
 void fragment() {
-	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
-		ALBEDO = vec3(0.0);
-		ALPHA = 0.0;
-		return;
-	}
+	// (pas de « return » dans fragment() : refusé par le compilateur de shaders de Godot 4.7, le matériau n'était pas créé)
+	bool cache = magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX);
 	float a = COLOR.a * eclat;
 	vec3 c;
 	if (couche > 0.5) {
@@ -67,11 +64,7 @@ void fragment() {
 	}
 	// paliers d'intensité (pas de dégradé continu, pas de tramage) : quarts
 	a = ceil(clamp(a, 0.0, 1.5) * 4.0 - 0.1) / 4.0;
-	if (a <= 0.0) {
-		ALBEDO = vec3(0.0);
-		ALPHA = 0.0;
-		return;
-	}
-	ALBEDO = c * force * a;   // additif en prémultiplié (voir magie_part_add)
+	// additif en prémultiplié (voir magie_part_add) ; masqué par le décor ou éteint : noir additif = rien
+	ALBEDO = (cache || a <= 0.0) ? vec3(0.0) : c * force * a;
 	ALPHA = 0.0;
 }

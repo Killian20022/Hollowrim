@@ -1118,7 +1118,7 @@ func _maj() -> void:
 				f.arcs.global_position = o
 		for k in (f.voiles.size() if f.avec_coque else 0):
 			var mi: Variant = f.voiles[k]
-			if is_instance_valid(mi):
+			if is_instance_valid(mi) and (mi as Node3D).is_inside_tree():   # (un maillage retiré de l'arbre à la mort/au démembrement n'a plus de transformée)
 				var xf: Transform3D = (mi as Node3D).global_transform
 				var c: MeshInstance3D = f.coques[k]
 				if not xf.is_equal_approx(f.xf_coques[k]):
@@ -1128,6 +1128,8 @@ func _maj() -> void:
 					var vis := (mi as Node3D).is_visible_in_tree()
 					if c.visible != vis:
 						c.visible = vis
+			elif is_instance_valid(mi) and (f.coques[k] as MeshInstance3D).visible:
+				(f.coques[k] as MeshInstance3D).visible = false   # maillage sorti de l'arbre : sa coque ne reste pas figée
 		_t_sections[1] += Time.get_ticks_usec() - ta
 		if not a_jour:
 			continue
