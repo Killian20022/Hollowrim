@@ -88,6 +88,15 @@ const MATIERES := {
 	# eau de fonte d'un bloc de glace : gouttes bleues qui tombent
 	"goutte": {"couleurs": ["#e8f6ff", "#a8d8f8", "#5f9fe8", "#5f9fe8"], "n": 3, "taille": [0.02, 0.035],
 		"vitesse": [0.1, 0.5], "ecart": 90.0, "gravite": 9.0, "amorti": 0.5, "duree": 0.7, "eclair": [1.0, 1.0]},
+	# cassables partout (CasseObjets) : terre cuite (cruche, jarre), verre (bouteille, fiole), œuf, contenu d'un tonneau ou d'une jarre
+	"poterie": {"couleurs": ["#d89a6a", "#b8754a", "#9a5a36", "#7a4428", "#4a2a18"], "n": 16, "taille": [0.03, 0.07],
+		"vitesse": [1.4, 3.8], "ecart": 60.0, "gravite": 9.0, "amorti": 3.0, "duree": 0.75, "eclair": [1.8, 1.3]},
+	"verre": {"couleurs": ["#f4fbff", "#cfe6e0", "#9cc4b8", "#5e8a7a", "#2e4a40"], "n": 18, "taille": [0.02, 0.045],
+		"vitesse": [1.8, 4.6], "ecart": 70.0, "gravite": 9.0, "amorti": 3.4, "duree": 0.6, "eclair": [2.2, 1.5], "rendu": "trait"},
+	"oeuf": {"couleurs": ["#fff4d8", "#f6d070", "#e8a83a", "#f2ead8"], "n": 10, "taille": [0.02, 0.045],
+		"vitesse": [0.8, 2.2], "ecart": 70.0, "gravite": 10.0, "amorti": 2.0, "duree": 0.6, "eclair": [1.3, 1.1]},
+	"liquide": {"couleurs": ["#c8862e", "#a06a22", "#7a4c18", "#5a3410", "#e0b060"], "n": 20, "taille": [0.025, 0.06],
+		"vitesse": [1.2, 3.4], "ecart": 55.0, "gravite": 11.0, "amorti": 1.6, "duree": 0.8, "eclair": [1.3, 1.1]},
 }
 const FORCES := {"leger": 1.0, "moyen": 1.3, "lourd": 1.8, "critique": 2.3, "finisher": 2.8}
 

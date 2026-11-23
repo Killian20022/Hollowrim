@@ -56,6 +56,36 @@ const FORMES := {"q_pomme": "sphere", "q_pomme_verte": "sphere", "q_chou": "sphe
 	"pq_chope": "cyl", "pq_bouteille": "cyl", "pq_vase_2": "cyl", "pq_vase_4": "cyl", "pq_seau_bois": "cyl", "pq_seau_fer": "cyl", "pq_marmite": "cyl",
 	"pq_assiette": "cyl", "pq_chandelier_table": "cyl", "pq_potion_1": "cyl", "pq_potion_4": "cyl"}
 
+## CASSABLES PARTOUT (2026-11-23) : MOBILIER LÉGER rendu physique par la même fabrique (corps gelé + MultiMesh partagé) :
+## prop -> [matière (CasseObjets.MATIERES), masse kg, forme, contenu versé à la casse (table de butin ou ""), bloque le passage, liquide].
+## Le gros mobilier (tables, lits, armoires, coffres, établis, étagères) reste du décor fixe (navigation des PNJ).
+const MEUBLES := {
+	"q_tonneau": ["tonneau", 40.0, "cyl", "tonneau", true, true], "q_tonneau_2": ["tonneau", 32.0, "cyl", "tonneau", true, true],
+	"pq_tonneau": ["tonneau", 40.0, "cyl", "tonneau", true, true], "q_tonneau_pommes": ["tonneau", 35.0, "cyl", "tonneau", true, false],
+	"pq_tonneau_pommes": ["tonneau", 35.0, "cyl", "tonneau", true, false],
+	"q_caisse": ["bois", 16.0, "boite", "caisse", true, false], "q_caisse_2": ["bois_ferre", 22.0, "boite", "caisse", true, false],
+	"pq_caisse": ["bois", 16.0, "boite", "caisse", true, false], "q_caisse_village": ["bois", 16.0, "boite", "caisse", true, false],
+	"pq_caisse_village": ["bois", 16.0, "boite", "caisse", true, false],
+	"q_caisse_fer": ["bois_ferre", 26.0, "boite", "caisse", true, false], "pq_caisse_fer": ["bois_ferre", 26.0, "boite", "caisse", true, false],
+	"q_cageot_vide": ["bois_leger", 2.5, "boite", "", false, false], "pq_cageot_vide": ["bois_leger", 2.5, "boite", "", false, false],
+	"q_cageot_pommes": ["bois_leger", 6.0, "boite", "", false, false], "pq_cageot_pommes": ["bois_leger", 6.0, "boite", "", false, false],
+	"q_cageot_carottes": ["bois_leger", 6.0, "boite", "", false, false], "pq_cageot_carottes": ["bois_leger", 6.0, "boite", "", false, false],
+	"q_tabouret": ["bois_leger", 4.0, "cyl", "", true, false], "pq_tabouret": ["bois_leger", 4.0, "cyl", "", true, false],
+	"q_chaise": ["bois_leger", 6.0, "boite", "", true, false], "q_chaise_2": ["bois_leger", 6.0, "boite", "", true, false],
+	"pq_chaise": ["bois_leger", 6.0, "boite", "", true, false],
+	"q_banc": ["bois", 22.0, "boite", "", true, false], "pq_banc": ["bois", 22.0, "boite", "", true, false],
+	"q_jarre": ["poterie", 4.0, "cyl", "", false, true], "pq_jarre": ["poterie", 4.0, "cyl", "", false, true],
+	"q_vase_5": ["poterie", 6.0, "cyl", "", false, false],
+	"q_sac": ["tissu", 25.0, "boite", "", false, false], "q_sac_debout": ["tissu", 25.0, "boite", "", false, false],
+	"pq_sac": ["tissu", 25.0, "boite", "", false, false],
+}
+## Petits objets FRAGILES (fiche du registre -> matière) : ils cassent sous un choc ; les autres (étain, bois, nourriture) rebondissent.
+const FRAGILES := {"cruche": "poterie", "pot_argile": "poterie", "hydromel": "verre", "potion_soin": "verre", "potion_mana": "verre",
+	"oeuf": "oeuf", "chandelier": "fer", "assiette_etain": "fer", "seau_fer": "fer"}
+## Portée d'affichage du mobilier (le MultiMesh remplace un lot du décor visible plus loin que les petits objets).
+const PORTEE_MEUBLES := 55.0
+const EV_CASSE := "objet_casse"     ## réseau : (ident, {"p": point, "v": vitesse}) ; l'évènement ne revient pas à l'émetteur
+
 static var tous: Array = []          ## ObjetVivant créés (les libérés sont retirés au passage)
 static var _eveilles: Array = []
 ## État de la partie : ident -> {"pris": heure de jeu} ou {"p": [x, y, z, qx, qy, qz, qw]} (repère du parent).
@@ -93,6 +123,48 @@ class Visee extends Node3D:
 
 static func capte(nom: String) -> bool:
 	return actif and OBJETS.has(nom) and Inventaire.connu(String(OBJETS[nom]))
+
+## Mobilier léger rendu physique et cassable (MEUBLES) ; rien avec `--sans-cassables-partout` ni `--sans-objets-vivants`.
+static func capte_meuble(nom: String) -> bool:
+	return actif and CasseObjets.actif and MEUBLES.has(nom)
+
+## Spec d'un meuble : comme spec(), avec la portée d'affichage et l'ombre portée du lot qu'il remplace.
+static func spec_meuble(genre: String, xf: Transform3D, morceaux: Array, portee := PORTEE_MEUBLES, ombre := true) -> Dictionary:
+	return {"genre": genre, "xf": xf, "morceaux": morceaux, "portee": portee, "ombre": ombre}
+
+## Morceaux d'un prop en atlas texturé (pq_*) pour un contexte (« exterieur » : patine et neige v5 à l'échelle de la pose, sans
+## position : tous les tonneaux d'un même modèle partagent un maillage) ; q_* sans pq_* : `choisir` (matière -> Material).
+static var _morceaux_ctx := {}
+static func morceaux_contexte(nom: String, contexte: String, ech: Vector3, choisir: Callable) -> Array:
+	var cle := nom + "|" + contexte      # un maillage par modèle et contexte (le MultiMesh ne garde que le premier) : calculé une fois
+	if _morceaux_ctx.has(cle):
+		return _morceaux_ctx[cle]
+	var res := _morceaux_contexte(nom, contexte, ech, choisir)
+	_morceaux_ctx[cle] = res
+	return res
+
+static func _morceaux_contexte(nom: String, contexte: String, ech: Vector3, choisir: Callable) -> Array:
+	var res := []
+	var id := PropsQuaternius.pq_de(nom) if not nom.begins_with("pq_") else nom
+	if id != "" and PropsQuaternius.existe(id):
+		var patine := PropsQuaternius.v5 and contexte == "exterieur"
+		for m: Array in PropsQuaternius.morceaux(id):
+			var a: Array = m[1]
+			if patine and PropsQuaternius.est_pq(String(m[0])):
+				a = PropsQuaternius.patine_v5(a, String(m[0]), Transform3D(Basis.from_scale(ech), Vector3.ZERO), not PropsQuaternius.SANS_NEIGE_V5.has(id))
+			var mt: Material = PropsQuat.materiau(String(m[0]), contexte) if PropsQuaternius.est_pq(String(m[0])) else choisir.call(String(m[0]))
+			if String(m[0]) == "pq_fer":
+				CasseObjets.noter_fer(mt)
+			res.append([a, mt])
+		if patine:
+			PropsQuat.neige_exterieur()
+		return res
+	for m: Array in PropsQuaternius.morceaux(nom, {}, false):
+		var mq: Material = choisir.call(String(m[0]))
+		if String(m[0]) == "fer":
+			CasseObjets.noter_fer(mq)
+		res.append([m[1], mq])
+	return res
 
 ## Spec d'un objet : `genre` (prop), `xf` (repère du futur parent, échelle comprise), `morceaux` = [[arrays, Material]] (repère du prop).
 static func spec(genre: String, xf: Transform3D, morceaux: Array) -> Dictionary:
@@ -229,8 +301,11 @@ static func peupler_par_lots(parent: Node3D, specs: Array, lieu: String, par_lot
 		if quat:
 			meme = ObjetsQuat.pq_de_ancien(g)       # prop texturé du même modèle que le décor posé (q_vase_4 -> pq_vase_4), sinon celui de la fiche
 			cle = "%s|quat:%s:%s" % [cle, meme if meme != "" else ObjetsQuat.id_de(oid), ctx]
+		if MEUBLES.has(g):
+			quat = false
+			cle = _cle(g, s["morceaux"]) + "|meuble"
 		if not groupes.has(cle):
-			groupes[cle] = [s["morceaux"], [], oid, meme, quat]
+			groupes[cle] = [s["morceaux"], [], oid, meme, quat, float(s.get("portee", PORTEE_ACTIVE)), bool(s.get("ombre", false))]
 		(groupes[cle][1] as Array).append([s, "%s:%s:%d" % [lieu, g, k]])
 	for cle: String in groupes:
 		taches.append(func() -> void:
@@ -239,13 +314,17 @@ static func peupler_par_lots(parent: Node3D, specs: Array, lieu: String, par_lot
 			var mm := MultiMesh.new()
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.mesh = maillage(cle, vis)
+			var g0 := String(((gr[1] as Array)[0][0] as Dictionary)["genre"])      # découpe de casse préparée dans un fil de fond
+			var mat_c := String((MEUBLES[g0] as Array)[0]) if MEUBLES.has(g0) else String(FRAGILES.get(gr[2], ""))
+			if CasseObjets.actif and mat_c != "":
+				CasseObjets.preparer(mm.mesh, vis, mat_c)
 			mm.instance_count = (gr[1] as Array).size()
 			mm.visible_instance_count = 0
 			var mmi := MultiMeshInstance3D.new()
 			mmi.name = "Vivants_" + cle.get_slice("|", 0)
 			mmi.multimesh = mm
-			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			mmi.visibility_range_end = PORTEE_ACTIVE
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if gr[6] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mmi.visibility_range_end = gr[5]
 			parent.add_child(mmi)
 			mms[cle] = mm)
 	# objets : dans l'ordre des groupes (ordre des clés du dictionnaire, comme avant), `par_lot` par tâche
@@ -311,10 +390,29 @@ static func _corps(s: Dictionary, morceaux: Array) -> ObjetVivant:
 	o.genre = g
 	o.oid = String(OBJETS.get(g, g))
 	o.mass = clampf(float(Inventaire.objet(o.oid).get("poids", 0.3)), 0.05, 4.0)
+	var forme := String(FORMES.get(g, "boite"))
+	if MEUBLES.has(g):
+		var d: Array = MEUBLES[g]
+		o.meuble = true
+		o.oid = ""
+		o.matiere = String(d[0])
+		o.mass = float(d[1]) * clampf(sc.x * sc.y * sc.z, 0.4, 2.5)
+		forme = String(d[2])
+		o.contenu = String(d[3])
+		o.bloque = bool(d[4])
+		o.liquide = bool(d[5])
+		o.angular_damp = 3.0
+		o.linear_damp = 0.4
+		if o.bloque:
+			o.collision_layer = Cassable.CALQUE | 1
+	elif CasseObjets.actif and FRAGILES.has(o.oid):
+		o.matiere = String(FRAGILES[o.oid])
+	if CasseObjets.actif:
+		o.seuil_casse = CasseObjets.seuil(o.matiere)
 	o.visuel_local = Transform3D(Basis.from_scale(sc), -c)
 	o.depart = Transform3D(r, xf.origin + r * c)
 	o.transform = o.depart
-	o.monter_forme(String(FORMES.get(g, "boite")), bb.size * sc * 0.94)
+	o.monter_forme(forme, bb.size * sc * 0.94)
 	return o
 
 # ------------------------------------------------------------------------------------------------ état (sauvegarde)
@@ -325,10 +423,10 @@ static func exporter() -> Dictionary:
 	for o: ObjetVivant in _vivants():
 		vivants[o.ident] = true
 	for ident: String in etats:      # objets pris, et états d'objets pas encore créés (intérieurs posés après le chargement)
-		if (etats[ident] as Dictionary).has("pris") or not vivants.has(ident):
+		if (etats[ident] as Dictionary).has("pris") or (etats[ident] as Dictionary).has("casse") or not vivants.has(ident):
 			d[ident] = etats[ident]
 	for o: ObjetVivant in _vivants():
-		if o.has_meta("pris"):
+		if o.has_meta("pris") or o.casse:
 			continue
 		if not o.freeze:
 			o.endormir()
@@ -360,7 +458,7 @@ static func liberer(parent: Node) -> void:
 			r.append(o)
 			continue
 		_eveilles.erase(o)
-		if o.has_meta("pris"):
+		if o.has_meta("pris") or o.casse:
 			continue
 		if not o.freeze:
 			o.endormir()
@@ -381,6 +479,18 @@ static func _vivants() -> Array:
 ## Applique l'état connu (pris, déplacé, ou à sa place d'origine) à un objet créé.
 static func _appliquer(o: ObjetVivant) -> void:
 	var st: Dictionary = etats.get(o.ident, {})
+	if st.has("casse"):
+		if not o.casse:
+			o.casser(false, o.global_position if o.is_inside_tree() else o.position)
+		return
+	if o.casse:      # partie neuve / autre sauvegarde : l'objet brisé revient entier
+		o.casse = false
+		o.process_mode = Node.PROCESS_MODE_INHERIT
+		o.visible = true
+		o.collision_mask = 1 | Cassable.CALQUE
+		o.collision_layer = Cassable.CALQUE | (1 if o.bloque else 0)
+		o.transform = o.depart
+		o.deplace = false
 	if st.has("pris"):
 		if _revient(o, float(st["pris"])):
 			etats.erase(o.ident)
@@ -426,7 +536,7 @@ static func _retirer(o: ObjetVivant) -> void:
 
 static func _restaurer(o: ObjetVivant) -> void:
 	o.remove_meta("pris")
-	o.collision_layer = Cassable.CALQUE
+	o.collision_layer = Cassable.CALQUE | (1 if o.bloque else 0)
 	o.collision_mask = 1 | Cassable.CALQUE
 	o.process_mode = Node.PROCESS_MODE_INHERIT
 	o.visible = true
@@ -434,6 +544,41 @@ static func _restaurer(o: ObjetVivant) -> void:
 	o.deplace = false
 	if o.mm != null:
 		o.mm.set_instance_transform(o.idx, o.transform * o.visuel_local)
+
+## Objet brisé : retenu par la sauvegarde (il ne revient pas), retiré des objets éveillés.
+static func noter_casse(o: ObjetVivant) -> void:
+	if o.ident != "" and not o.has_meta("marchand"):
+		etats[o.ident] = {"casse": true}
+	_eveilles.erase(o)
+
+## Coop : la casse est un évènement (l'hôte le relaie aux autres invités) ; les morceaux et effets sont rejoués chez chacun.
+static func diffuser_casse(o: ObjetVivant, point: Vector3, vitesse: Vector3) -> void:
+	var r := ReseauLieux.reseau()
+	if r == null or not r.est_en_ligne() or o.ident == "":
+		return
+	_abonner_reseau()
+	r.envoyer_evenement(EV_CASSE, o.ident, {"p": point, "v": vitesse})
+
+static var _abonne := false
+static func _abonner_reseau() -> void:
+	var r := ReseauLieux.reseau()
+	if _abonne or r == null:
+		return
+	_abonne = true
+	r.abonner(EV_CASSE, ObjetsVivants._sur_casse)
+
+static func _sur_casse(expediteur: int, ident: Variant, d: Variant) -> void:
+	var dd: Dictionary = d if d is Dictionary else {}
+	for o: ObjetVivant in _vivants():
+		if o.ident == String(ident):
+			if not o.casse:
+				o.casser(o.is_inside_tree(), dd.get("p", o.global_position), dd.get("v", Vector3.ZERO), true)
+			break
+	if not (String(ident) in etats):
+		etats[String(ident)] = {"casse": true}
+	var r := ReseauLieux.reseau()
+	if r != null and r.est_hote() and expediteur != r.mon_id():      # l'hôte relaie aux autres invités (l'émetteur ignore : déjà brisé)
+		r.envoyer_evenement(EV_CASSE, ident, d)
 
 static func eveille(o: ObjetVivant) -> void:
 	if not _eveilles.has(o):
@@ -459,6 +604,7 @@ static func creer(monde: Node) -> ObjetsVivants:
 	g.dialogue = monde.get("dialogue")
 	g.hud = monde.get("hud")
 	monde.add_child(g)
+	_abonner_reseau()
 	return g
 
 func _ready() -> void:
@@ -496,7 +642,7 @@ func _viser() -> void:
 		var o := cam.global_position
 		var q := PhysicsRayQueryParameters3D.create(o, o - cam.global_transform.basis.z * PORTEE_PRISE, 1 | Cassable.CALQUE, [joueur.get_rid()])
 		var r := get_world_3d().direct_space_state.intersect_ray(q)
-		if not r.is_empty() and r["collider"] is ObjetVivant and not (r["collider"] as Node).has_meta("pris"):
+		if not r.is_empty() and r["collider"] is ObjetVivant and not (r["collider"] as Node).has_meta("pris") and not (r["collider"] as ObjetVivant).meuble:
 			v = r["collider"]
 	_visee = v
 	if v != null:
@@ -665,7 +811,7 @@ func _physics_process(dt: float) -> void:
 				if not is_instance_valid(x):
 					continue
 				var o: ObjetVivant = x
-				if not o.freeze or o.coince or o.has_meta("pris"):
+				if not o.freeze or o.coince or o.meuble or o.has_meta("pris"):
 					continue
 				var p := o.global_position
 				var h := p.y - pj.y

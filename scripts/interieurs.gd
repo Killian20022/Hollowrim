@@ -358,7 +358,7 @@ func q(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}, solide_ :=
 		push_error("Interieurs : prop %s absent de %s" % [nom, PropsQuaternius.DAT])
 		return
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(Vector3.ONE * e), pos)
-	if not solide_ and _vivant(nom, xf, mats):
+	if _meuble(nom, xf, mats) or not solide_ and _vivant(nom, xf, mats):
 		return
 	for m: Array in PropsQuaternius.morceaux(nom, mats):
 		var cible: String = mats.get(m[0], MATS_Q.get(m[0], "bois"))
@@ -387,7 +387,7 @@ func qf(nom: String, pos: Vector3, lacet: float, taille: Vector3, mats := {}, so
 	pos = _sol(pos)
 	PropsQuaternius.compter("interieurs")
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(sc), pos)
-	if not solide_ and _vivant(nom, xf, mats):
+	if _meuble(nom, xf, mats) or not solide_ and _vivant(nom, xf, mats):
 		return
 	for m: Array in PropsQuaternius.morceaux(nom, mats):
 		var cible: String = mats.get(m[0], MATS_Q.get(m[0], "bois"))
@@ -400,6 +400,23 @@ func _vivant(nom: String, xf: Transform3D, mats: Dictionary) -> bool:
 	if not ObjetsVivants.capte(nom):
 		return false
 	vivants.append(ObjetsVivants.spec(nom, xf, ObjetsVivants.morceaux_q(nom, func(m: String) -> Material: return M[mats.get(m, MATS_Q.get(m, "bois"))])))
+	return true
+
+## Mobilier léger rendu PHYSIQUE et cassable (ObjetsVivants.MEUBLES : tonneau, caisse, cageot, tabouret, chaise, banc, jarre, sac) :
+## rangé dans `vivants` avec le même modèle et les mêmes matières que le lot (pq_* compris) ; son corps remplace le solide du décor.
+func _meuble(nom: String, xf: Transform3D, mats: Dictionary) -> bool:
+	if not ObjetsVivants.capte_meuble(nom):
+		return false
+	var morceaux := []
+	for m: Array in PropsQuaternius.morceaux(nom, mats):
+		var mt: Material = M[mats.get(m[0], MATS_Q.get(m[0], "bois"))]
+		if String(m[0]) in ["pq_fer", "fer"]:
+			CasseObjets.noter_fer(mt)      # cerclages, ferrures : un morceau entier à la casse
+		morceaux.append([m[1], mt])
+	if morceaux.is_empty():
+		return false
+	vivants.append(ObjetsVivants.spec_meuble(nom, xf, morceaux, 30.0, false))
+	PropsQuaternius.compter("meubles_interieurs")
 	return true
 
 ## Prop posé par une transformation complète (repère de la pièce), sans recalage au sol.
@@ -770,7 +787,7 @@ func banc(pos: Vector3, long: float, lacet := 0.0, haut := 0.46, prof := 0.34, s
 	pos = _sol(pos)
 	if rempl("q_banc"):
 		lacet += PropsRealisme.biais(pos, 0.045)      # props/realisme_v5 : bancs pas tout à fait d'équerre
-		if solide_:
+		if solide_ and not ObjetsVivants.capte_meuble("q_banc"):      # banc physique : son corps tient lieu de solide
 			solide(pos + Vector3(0, haut - 0.04, 0), Vector3(long, 0.08, prof), lacet)
 		qf("q_banc", pos, lacet, Vector3(long, haut, prof))
 		return
@@ -785,7 +802,8 @@ func tabouret(pos: Vector3, haut := 0.45) -> void:
 	pos = _sol(pos)
 	if rempl("q_tabouret"):
 		qf("q_tabouret", pos, lacet_libre(pos), Vector3(0, haut, 0))
-		solide_cyl(pos + Vector3(0, haut * 0.5, 0), 0.2, haut)
+		if not ObjetsVivants.capte_meuble("q_tabouret"):
+			solide_cyl(pos + Vector3(0, haut * 0.5, 0), 0.2, haut)
 		return
 	modele("tabouret_" + variante(pos, 2), pos, lacet_libre(pos), Vector3(1.0, haut / 0.45, 1.0))
 	solide_cyl(pos + Vector3(0, haut * 0.5, 0), 0.2, haut)
@@ -806,7 +824,7 @@ func coffre(pos: Vector3, lacet := 0.0, taille := Vector3(0.9, 0.46, 0.55), _ouv
 func tonneau(pos: Vector3, h := 0.9, r := 0.34, solide_ := true) -> void:
 	pos = _sol(pos)
 	if rempl("q_tonneau"):
-		if solide_:
+		if solide_ and not ObjetsVivants.capte_meuble("q_tonneau"):
 			solide_cyl(pos + Vector3(0, h * 0.5, 0), r, h)
 		qf("q_tonneau", pos, lacet_libre(pos), Vector3(r * 2.0, h, r * 2.0))
 		return

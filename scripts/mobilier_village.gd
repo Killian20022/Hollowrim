@@ -297,6 +297,8 @@ var _lumieres: Array = []    # [OmniLight3D, énergie, phase]
 var _t := 0.0
 ## Denrées VIVANTES des trois étals du marché (ObjetsVivants) : étal -> [specs] ; propriétaires et réassort ci-dessous.
 var _vivants := {}
+## Cassables partout : specs du mobilier léger public (POSES et POSES_D), peuplées sous « MeublesVillage ».
+var _meubles: Array = []
 const PROPRIETAIRES_ETALS := ["etal_maraicher", "etal_boucher", "etal_poissonnier"]
 const REASSORT_JOURS := 3.0
 static var _mats_cache := {}
@@ -570,6 +572,8 @@ func _construire() -> void:
 			tris += PuitsTripo.poser(self, _corps, xf, to_global(Vector3(x, _sol(x, z), z)).y, num)
 			continue
 		var sub := substitut(mod)
+		if _capter_meubles(sub, xf):      # cassables partout : tonneaux, caisses, bancs, sacs PHYSIQUES (leur corps tient lieu de collision)
+			continue
 		var garde: Array = SUBST_GARDE.get(mod, [])
 		# Retours exe 5 (« des drapeaux suspendus, d'un certain angle ») : le mât d'une bannière n'est plus fondu dans le maillage de
 		# TOUT le mobilier. Ce maillage unique est masqué à PORTEE de SON centre (le milieu du village) alors que chaque tissu l'est à
@@ -687,6 +691,11 @@ func _construire() -> void:
 		mi.material_override = _materiau(mat)
 		mi.visibility_range_end = PORTEE
 		add_child(mi)
+	if not _meubles.is_empty():      # mobilier léger public (place, ruelles) : un nœud, mêmes MultiMesh par modèle
+		var nm := Node3D.new()
+		nm.name = "MeublesVillage"
+		add_child(nm)
+		ObjetsVivants.peupler(nm, _meubles, "village")
 	for i: int in _vivants:      # un nœud par étal : meta « proprietaire » (prendre = voler) et « reassort_jours » (les denrées reviennent)
 		var etal := Node3D.new()
 		etal.name = "EtalVivant_%d" % i
@@ -697,6 +706,22 @@ func _construire() -> void:
 	print("MobilierVillage : %d props Quaternius (%d triangles)" % [nq.y, nq.x])
 	print("PropsQuaternius : remplacements ", PropsQuaternius.compte, " ; pq_* posés (cumul) ", PropsQuaternius.nb_pq)
 	print("MobilierVillage : %d poses, %d triangles, %d matières, %d tissus, %d collisions, %d ms" % [POSES.size(), tris, fusion.size(), _tissus.size(), _corps.get_child_count(), Time.get_ticks_msec() - t0])
+
+## Cassables partout : un module dont TOUS les remplaçants sont du mobilier léger (ObjetsVivants.MEUBLES) devient des objets physiques
+## (même modèle pq_* texturé et patiné que le lot) ; faux = posé comme avant (fondu, collision du module).
+func _capter_meubles(sub: Array, xf: Transform3D) -> bool:
+	if sub.is_empty():
+		return false
+	for e: Array in sub:
+		if e.size() > 3 or String(e[0]) == "" or not ObjetsVivants.capte_meuble(String(e[0])):
+			return false
+	for e: Array in sub:
+		var nom := PropsQuaternius.ext_v5(String(e[0]), e[2])
+		var x := xf * (e[1] as Transform3D)
+		var mats: Dictionary = e[2]
+		_meubles.append(ObjetsVivants.spec_meuble(nom if ObjetsVivants.MEUBLES.has(nom) else String(e[0]), x, ObjetsVivants.morceaux_contexte(nom, "exterieur", x.basis.get_scale(),
+			func(m: String) -> Material: return _mat_cache(String(mats.get(m, MATS_Q.get(m, "planches_h")))))))
+	return true
 
 ## Pose les remplaçants Quaternius d'un module (substitut()) dans les SurfaceTool par matière, sous la transformation `xf` du module.
 func _poser_sub(fusion: Dictionary, sub: Array, xf: Transform3D, _mod: String) -> int:
@@ -762,6 +787,17 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 			if e.size() > 7:      # pose suspendue : rotation propre à la pièce (os en haut…) et échelle avant le x1,3
 				xf.basis = xf.basis * (e[6] as Basis) * Basis.from_scale(e[7] as Vector3)
 			xf.basis = xf.basis.scaled(Vector3.ONE * 1.3)      # lot 4 : nourriture des étals un peu plus grosse (lisible en vue de jeu)
+		if e.size() <= 5 and ObjetsVivants.capte_meuble(nom):      # cassables partout : tonneau, caisse, cageot, jarre, sac physiques
+			var nme := PropsQuaternius.ext_v5(nom)
+			var sp := ObjetsVivants.spec_meuble(nme if ObjetsVivants.MEUBLES.has(nme) else nom, xf, ObjetsVivants.morceaux_contexte(nme, "exterieur", xf.basis.get_scale(),
+				func(m: String) -> Material: return _mat_cache(_mat_q(nom, m, est_l4, e))))
+			if e[1] >= 0:      # réserve d'un étal : bien du marchand
+				if not _vivants.has(e[1]):
+					_vivants[e[1]] = []
+				(_vivants[e[1]] as Array).append(sp)
+			else:
+				_meubles.append(sp)
+			continue
 		if e[1] >= 0 and not e[4] and e.size() <= 7 and ObjetsVivants.capte(nom):      # denrée posée sur un étal : objet vivant (pas les pièces pendues)
 			if not _vivants.has(e[1]):
 				_vivants[e[1]] = []
