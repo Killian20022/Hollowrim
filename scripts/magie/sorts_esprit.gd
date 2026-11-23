@@ -587,14 +587,14 @@ func _essayer_emprise(m: String, e: Node3D, s: DonneesSort, paume: Node3D, oeil:
 	_noter("emprise %s P=%.2f coût %.1f" % [e.name, p, cout])
 
 ## Point (ses pieds) où l'ennemi tenu est attiré : son centre sur la ligne du regard, à `dist`, les pieds au moins HAUTEUR_TENUE
-## au-dessus du sol d'où il a été arraché (il ne retouche pas terre), au plus 1,6 m au-dessus (pas collé au plafond).
+## au-dessus du sol d'où il a été arraché (il ne retouche pas terre), au plus 1,1 m au-dessus (pas collé au plafond).
 func _point_tenue(em: Dictionary, f: Dictionary) -> Vector3:
 	var oeil: Vector3 = em["oeil"]
 	var avant: Vector3 = em["avant"]
 	var c := oeil + avant * float(em["dist"])
 	var pieds := c - Vector3.UP * float(f["h"])
 	var sol := float(em.get("sol", pieds.y - HAUTEUR_TENUE))
-	pieds.y = clampf(pieds.y, sol + HAUTEUR_TENUE, sol + 1.6)
+	pieds.y = clampf(pieds.y, sol + HAUTEUR_TENUE, sol + 1.1)
 	return pieds
 
 func _em_de(e: Node) -> Dictionary:

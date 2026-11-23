@@ -422,7 +422,7 @@ ragdoll prend le relais. Pas d'IA bloquée (test_sorts_esprit, « il s'est relev
 - **Contrôles** (raccourcis de test, main gauche comme `X` ; remappables dans Options > Touches ; second appui = main d'avant) :
   `G` Répulsion, `N` Lévitation, `U` Attraction. Clic droit pour la main gauche.
 - **Répulsion** (type CHARGE, geste capturé `charge` puis départ) : maintenir charge (1,2 s), relâcher = onde de choc en cône (demi-angle
-  35°) devant la main, portée 4 m (tap) à 8 m (pleine charge). Ennemis : vitesse `lerp(6, 15, charge) × k / √P` (k : 1 près, 0,45 au
+  35°) devant la main, portée 4 m (tap) à 8 m (pleine charge). Ennemis : vitesse `lerp(6, 11, charge) × k × clamp(1/√P, 0,3, 1,15)` (k : 1 près, 0,45 au
   bout ; P : puissance, voir plus bas), un tiers vers le haut ; moins de 3,5 m/s = simple recul ; chefs ×0,25 (ébranlés, pas envolés).
   Dégâts directs `12 × lerp(0,4, 1, charge) × k` contondant + choc. Objets (groupe `telekinesable`, objets vivants, cassables) :
   `1,25 × force × k × clamp((4/masse)^0,3)` m/s, suivis par la télékinésie pour leurs impacts (ImpactsLances, `recevoir_choc` : ils
@@ -431,7 +431,7 @@ ragdoll prend le relais. Pas d'IA bloquée (test_sorts_esprit, « il s'est relev
   surface, à partir de 4,5 m/s ; 12 m/s ≈ 17), stagger 32 ; contre un autre ennemi : les deux encaissent (×0,8 pour l'autre, emporté s'il
   n'est pas un chef) ; contre un cassable : `recevoir_choc(v, 70 kg × P, point)` ; chute : `(vy − 7) × 3` au-delà de 7 m/s.
 - **Lévitation d'ennemi** (type CANALISE, geste `jet` tenu puis `lance`) : maintenir en visant un ennemi (aide 9°, portée 16 m, pas à
-  travers un mur, surbrillance de la cible) : il est arraché (0,4 s de montée), puis suit le regard à ~3 m, 0,55 m au-dessus du sol, par un
+  travers un mur, surbrillance de la cible) : il est arraché (0,4 s de montée), puis suit le regard à 3-4,2 m (son centre sur la ligne du regard, pieds 0,45 à 1,1 m au-dessus du sol d'où il a été arraché), par un
   ressort LOURD (raideur 4,2, amorti 5,5, vitesse max 8 / √P m/s) ; il tangue, rejoue ses coups encaissés, ses membres battent
   (ReactionOs), lueur et fil d'énergie à trois brins. Relâcher = projeté vers le réticule (aide 8° vers un autre ennemi) à
   `lerp(9, 17, charge) × clamp(1/√P, 0,4, 1,3)` m/s (charge = tenue − 0,3 s sur 1 s). Appui bref : il retombe.
@@ -441,15 +441,16 @@ ragdoll prend le relais. Pas d'IA bloquée (test_sorts_esprit, « il s'est relev
 
 | Ennemi | PV max | poids | P | saisie | drain /s | emprise |
 |---|---|---|---|---|---|---|
-| Squelette | 65 | 0,8 | 0,52 | 17,7 | 7,3 | illimitée |
-| Draugr chétif (sbire) | 60 | 1,0 | 0,60 | 18,4 | 7,6 | illimitée |
+| Squelette | 65 | 0,8 | 0,52 | 17,8 | 7,3 | illimitée |
+| Draugr chétif (sbire) | 60 | 1,0 | 0,60 | 18,9 | 7,8 | illimitée |
 | Draugr / bandit | 104 | 1,0 | 1,04 | 24,5 | 10,2 | illimitée |
-| Draugr guerrier | 135 | 1,1 | 1,49 | 30,0 | 12,6 | illimitée |
-| Mage nordique | 70 | 0,9 | 0,63 | 18,8 | 7,8 | illimitée |
+| Draugr ancien (guerrier) | 135 | 1,1 | 1,49 | 29,6 | 12,4 | illimitée |
+| Mage nordique | 70 | 0,9 | 0,63 | 19,3 | 7,9 | illimitée |
 | Troll de givre (mini-chef) | 420 | 2,0 | 8,40 | 86,9 | 37,5 | 0,95 s |
 | Chefs (Svanhild, Hrafn, Jarl), dragon | — | — | — | refus | — | — |
 
-  Repère : 100 de mana tiennent un squelette ~11 s, un draugr guerrier ~5,5 s ; un troll ne fait que décoller. Un squelette lancé à
+  Repère : 100 de mana tiennent un squelette ~11 s, un draugr ancien ~5,7 s ; un troll ne fait que décoller (0,35 s avec 100 de
+  mana ; avec 200, il brise l'emprise après 0,95 s). Un squelette lancé à
   ~20 m/s contre un mur : ~32 dégâts (≈ 1,3 dégât par point de mana, plus le contrôle ; comparable au jet de flammes).
 - **Attraction** (type RAPIDE, geste `lance`, recharge 4 s) : un point d'énergie (orbe d'étincelles) part à 16 m/s vers le réticule et
   s'arrête au premier obstacle (sur un ennemi visé : sur lui), à au moins 1,2 m du sol ; il s'ouvre en VORTEX 3 s (rayon 5,5 m) :
@@ -458,7 +459,7 @@ ragdoll prend le relais. Pas d'IA bloquée (test_sorts_esprit, « il s'est relev
   (et ceux qu'on ne peut plus payer) sont seulement tirés au sol (`_recul`, comme ZoneMagie.attirer). Les objets tournent sans gravité et
   s'entrechoquent au centre. À la fin, tout est RELÂCHÉ d'un coup : petite explosion (éclat, disque, lumière, claquement), 10 dégâts
   contondants, ennemis projetés à 11 / √P m/s, objets à ~13 m/s (suivis : ils cassent). Coût 30 + supplément `3 × P^0,75` par ennemi
-  aspiré (squelette 1,8, draugr 3,1, troll 14,8).
+  aspiré (squelette 1,8, draugr 3,1, draugr ancien 4,0, troll 14,8).
 - **Sons** (`outils/sons_magie/generer_sorts_esprit.sh`, synthèse + CC0) : `esprit_onde_1/2`, boucle `esprit_vortex`, `esprit_vortex_fin`,
   `esprit_emprise` ; tenue et lancer de la lévitation : ceux de la télékinésie. `SonsMagie.esprit_onde / esprit_emprise / esprit_vortex /
   esprit_vortex_fin`.

@@ -281,7 +281,6 @@ func _film_repulsion() -> void:
 
 func _film_levitation() -> void:
 	magie.equiper("gauche", "levitation")
-	var urnes := _cassables_vers([_devant(5.0, -2.4), _devant(5.6, -2.0), _devant(4.6, -2.9)])
 	var sq := _draugr(_libre(4.5, -0.3), "squelette")
 	var dr := _draugr(_libre(6.5, 2.0), "guerrier")
 	await _attendre(0.4)
@@ -293,30 +292,40 @@ func _film_levitation() -> void:
 	await _attendre(0.6)
 	await _capture("souleve")
 	_texte("il se débat et suit le regard")
-	await _regarder(Elements._centre(sq) + _gauche() * 1.6 + Vector3.UP * 0.4, 0.8)
-	await _regarder(Elements._centre(dr) + Vector3.UP * 0.6, 0.8)
+	var oeil_y: float = j.camera.global_position.y
+	var p1 := _devant(4.0, -1.6)
+	p1.y = oeil_y - 0.1
+	await _regarder(p1, 0.8)
+	var p2 := Elements._centre(dr)
+	p2.y = maxf(p2.y, oeil_y - 0.35)
+	await _regarder(p2, 0.8)
 	await _capture("tenu")
 	_texte("relâcher : projeté sur le draugr")
-	await _regarder(Elements._centre(dr), 0.35)
+	await _regarder(Elements._centre(dr), 0.3)
 	magie.relacher("gauche")
 	await _attendre(0.5)
 	await _capture("percute")
 	await _attendre(1.0)
-	# le draugr soulevé à son tour, jeté dans les urnes
+	# le draugr soulevé à son tour, jeté dans des urnes
 	j.mana = j.mana_max
+	var urnes: Array = []
 	if SortsEsprit.vivant(dr):
 		_texte("Lévitation : un draugr ancien coûte plus")
 		await _regarder(Elements._centre(dr), 0.45)
 		magie.appuyer("gauche")
-		await _attendre(0.9)
-		var cible: Vector3 = Telekinesie.centre(urnes[0]) if not urnes.is_empty() else _devant(6.0, -2.6)
-		await _regarder(cible + Vector3.UP * 0.5, 0.7)
+		await _attendre(0.7)
+		var vise := _devant(6.5, -1.8)
+		urnes = _cassables_vers([vise, vise + _gauche() * 0.55, vise - _gauche() * 0.55, vise + (vise - j.global_position).normalized() * 0.6])
+		var cible: Vector3 = Telekinesie.centre(urnes[0]) if not urnes.is_empty() else vise
+		var haut := cible
+		haut.y = oeil_y - 0.2
+		await _regarder(haut, 0.7)
 		_texte("relâcher : dans les urnes")
-		await _regarder(cible, 0.3)
+		await _regarder(cible + Vector3.UP * 0.2, 0.3)
 		magie.relacher("gauche")
 		await _attendre(0.5)
 		await _capture("urnes")
-		await _attendre(1.3)
+		await _attendre(1.1)
 	# troll : un mage aguerri (200 de mana) le soulève à peine, il brise l'emprise
 	j.mana_max = 200.0
 	j.mana = j.mana_max
@@ -339,7 +348,7 @@ func _gauche() -> Vector3:
 
 func _film_attraction() -> void:
 	magie.equiper("gauche", "attraction")
-	var centre := _libre(9.0, 0.0)
+	var centre := _libre(6.8, 0.0)
 	var urnes := _cassables_vers([centre + _gauche() * 2.4 + Vector3(0, 0, 0), centre - _gauche() * 2.2, centre + (centre - j.global_position).normalized() * 2.0, centre + _gauche() * 1.4 - (centre - j.global_position).normalized() * 1.6])
 	var c1 := CorpsTelekinesie.creer("pq_chaise", s, Transform3D(Basis(Vector3.UP, 1.1), _sol(centre - _gauche() * 1.6 - (centre - j.global_position).normalized() * 1.4)))
 	var c2 := CorpsTelekinesie.creer("pq_tabouret", s, Transform3D(Basis(), _sol(centre + _gauche() * 2.0 + (centre - j.global_position).normalized() * 1.2)))
@@ -347,17 +356,18 @@ func _film_attraction() -> void:
 	var b := _draugr(centre - _gauche() * 1.5 + (centre - j.global_position).normalized() * 0.8, "squelette")
 	var c := _draugr(centre + (centre - j.global_position).normalized() * 2.2, "sbire")
 	await _attendre(0.4)
+	await _regarder(centre + Vector3.UP * 0.6, 0.1)
 	await _debut("Attraction (U) : lancer un point au milieu du groupe")
+	await _attendre(0.3)
 	for d in [a, b, c]:
 		_ia(d)
-	await _regarder(centre + Vector3.UP * 0.6, 0.5)
 	magie.appuyer("gauche")
 	await _attendre(0.1)
 	magie.relacher("gauche")
 	await _attendre(0.5)
 	var vx: Dictionary = es.vortex[0] if not es.vortex.is_empty() else {}
 	var p_vx: Vector3 = vx.get("cible", centre + Vector3.UP * 1.6)
-	await _regarder(p_vx + Vector3.DOWN * 0.3, 0.4)
+	await _regarder(p_vx + Vector3.DOWN * 0.8, 0.4)
 	await _capture("ouvert")
 	_texte("…il aspire ennemis et objets")
 	await _attendre(1.2)
@@ -366,5 +376,5 @@ func _film_attraction() -> void:
 	_texte("puis relâche tout d'un coup")
 	await _attendre(0.5)
 	await _capture("relache")
-	await _attendre(2.6)
+	await _attendre(1.7)
 	print("FILM urnes cassées : %d / %d ; chaises %s %s" % [urnes.filter(func(x): return (x as Cassable).casse).size(), urnes.size(), is_instance_valid(c1), is_instance_valid(c2)])
