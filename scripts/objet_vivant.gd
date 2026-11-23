@@ -35,6 +35,18 @@ var _son_t := 0
 ## une impulsion reçue dans la même image).
 var elan := Vector3.ZERO
 var couple := Vector3.ZERO
+## Cassables partout (2026-11-23) : matière (CasseObjets.MATIERES) et seuil d'énergie de casse ; `meuble` = mobilier léger (tonneau,
+## caisse, chaise…) : pas d'invite « Prendre », pas poussé par le joueur, et s'il `bloque` il est sur le calque 1 (le joueur et les PNJ
+## s'y heurtent comme à l'ancien solide du décor). `contenu` : table de butin versée à la casse (« caisse », « tonneau »…) ;
+## `liquide` : une flaque s'étale. `casse` : brisé (état sauvegardé, clé « casse » d'ObjetsVivants.etats).
+var matiere := ""
+var seuil_casse := INF
+var meuble := false
+var bloque := false
+var contenu := ""
+var liquide := false
+var casse := false
+var _v_prec := Vector3.ZERO
 
 func _init() -> void:
 	collision_layer = Cassable.CALQUE
@@ -50,6 +62,8 @@ func _init() -> void:
 	pm.bounce = 0.05
 	physics_material_override = pm
 	add_to_group("objets_vivants")
+	if CasseObjets.actif:
+		add_to_group("telekinesable")
 	body_entered.connect(_contact)
 
 ## Forme simple : boîte, cylindre ou sphère de la taille `t` (m), centrée.
@@ -155,6 +169,7 @@ func actualiser_visuel() -> void:
 ## Pas encore immobile : compteur de repos (appelé par ObjetsVivants pour les objets réveillés, à chaque pas de physique).
 func veiller(dt: float) -> bool:
 	actualiser_visuel()
+	_v_prec = linear_velocity
 	if elan != Vector3.ZERO or couple != Vector3.ZERO:
 		apply_central_impulse(elan)
 		apply_torque_impulse(couple)
@@ -174,8 +189,12 @@ func veiller(dt: float) -> bool:
 
 ## Un voisin endormi touché par un objet en mouvement se réveille (pile d'assiettes, chopes renversées en chaîne).
 func _contact(autre: Node) -> void:
-	if freeze:
+	if freeze or casse:
 		return
+	if seuil_casse < INF and not tenu:      # chute, choc contre le décor : casse si l'énergie perdue dépasse le seuil de la matière
+		var dv := _v_prec - linear_velocity
+		if dv.length() > 2.0 and recevoir_choc(dv, mass, global_position):
+			return
 	var v := linear_velocity.length()
 	if autre is ObjetVivant and (autre as ObjetVivant).freeze and v > 0.25:
 		(autre as ObjetVivant).reveiller()
@@ -205,15 +224,23 @@ func legerete() -> float:
 
 ## Coup de lame (TraceLame, mains._resoudre_impact « cassable ») : l'objet est projeté, la lame continue (vrai).
 func frapper(puissant: bool, origine: Vector3) -> bool:
+	if casse:
+		return false
+	if seuil_casse < INF and (CasseObjets.COUP_PUISSANT if puissant else CasseObjets.COUP_LEGER) >= seuil_casse:
+		casser(true, origine, (global_position - origine).normalized() * 3.0)
+		return true
 	if not reveiller():
 		return false
 	var d := global_position - origine
 	d.y = 0.0
 	d = d.normalized() if d.length() > 0.01 else Vector3.FORWARD
-	var v := (3.5 if puissant else 2.2) * legerete()
+	var v := (3.5 if puissant else 2.2) * legerete() * (clampf(6.0 / mass, 0.08, 1.0) if meuble else 1.0)
 	elan += (d * v + Vector3.UP * v * 0.45) * mass
 	couple += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * 0.02 * mass
-	Sons.jouer_a(self, ["impactPlate_medium_000", "impactPlate_medium_001"], global_position, -12.0)
+	if meuble:
+		CasseObjets.son_choc(self, matiere, global_position, CasseObjets.COUP_PUISSANT if puissant else CasseObjets.COUP_LEGER)
+	else:
+		Sons.jouer_a(self, ["impactPlate_medium_000", "impactPlate_medium_001"], global_position, -12.0)
 	return true
 
 ## Souffle d'un sort (point d'impact `de`, force en m/s pour 1 kg, atténuée par la distance).
@@ -223,7 +250,7 @@ func souffle(de: Vector3, force: float, rayon: float) -> void:
 	if not reveiller():
 		return
 	d = d.normalized() if d.length() > 0.01 else Vector3.UP
-	var v := force * k * legerete()
+	var v := force * k * legerete() * (clampf(10.0 / mass, 0.15, 1.0) if meuble else 1.0)
 	elan += (d + Vector3.UP * 0.6).normalized() * v * mass
 	couple += Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * 0.03 * mass
 
@@ -233,3 +260,89 @@ func pousser(vitesse: Vector3) -> void:
 		return
 	var v := Vector3(vitesse.x, 0.0, vitesse.z)
 	elan += v.limit_length(2.5) * 0.6 * mass + Vector3.UP * 0.4 * mass
+
+# ------------------------------------------------------------------------------------------------ télékinésie et casse (contrats)
+
+## Masse vue par la télékinésie (kg) : le gros mobilier fixe n'est pas un ObjetVivant ; ici c'est la vraie masse.
+func masse_telekinesie() -> float:
+	return mass
+
+## Saisi (ou relâché) par la télékinésie : réveillé même coincé dans le décor, ne se rendort pas tant qu'il est tenu.
+func saisi_telekinesie(saisi: bool) -> void:
+	if casse or has_meta("pris"):
+		return
+	if saisi:
+		reveiller(true)
+		tenu = true
+		_repos = 0.0
+		_errance = 0.0
+	else:
+		tenu = false
+
+## Choc (ImpactsLances.objet_touche, chute) : énergie ½·m·v² contre le seuil de la matière. Vrai si l'objet est brisé.
+## Sous le seuil : simple bruit de choc (bois qui cogne, fer qui sonne) si le choc est notable.
+func recevoir_choc(vitesse: Vector3, masse_choc: float, point: Vector3) -> bool:
+	if casse or has_meta("pris") or not CasseObjets.actif:
+		return false
+	var e := CasseObjets.energie(vitesse, masse_choc)
+	if e < seuil_casse:
+		if e > 15.0 and Time.get_ticks_msec() - _son_t > 200:
+			_son_t = Time.get_ticks_msec()
+			CasseObjets.son_choc(self, matiere, point, e)
+		return false
+	casser(true, point, vitesse)
+	return true
+
+func est_casse() -> bool:
+	return casse
+
+## Brise l'objet : son instance du MultiMesh disparaît, ses morceaux (découpe du modèle) sont projetés, gerbe, poussière, son, contenu
+## versé (butin, liquide). `avec_effets` faux : état relu d'une sauvegarde ou d'un instantané (rien ne vole). `distant` : la casse vient
+## d'un autre joueur (pas renvoyée sur le réseau).
+func casser(avec_effets: bool, point: Vector3, vitesse := Vector3.ZERO, distant := false) -> void:
+	if casse:
+		return
+	casse = true
+	var t_debut := Time.get_ticks_usec()
+	var xf := global_transform * visuel_local      # repère du modèle (échelle comprise) avant de le cacher
+	var v_objet := linear_velocity if not freeze else Vector3.ZERO
+	var centre := global_position
+	var pied := Vector3(centre.x, centre.y - _taille.y * 0.5, centre.z)
+	tenu = false
+	if not freeze:
+		endormir()
+	ObjetsVivants.noter_casse(self)
+	if is_inside_tree() and process_mode != Node.PROCESS_MODE_DISABLED:
+		reveiller_voisins()      # ce qui reposait dessus retombe
+	collision_layer = 0
+	collision_mask = 0
+	process_mode = Node.PROCESS_MODE_DISABLED
+	visible = false
+	if mm != null and idx >= 0:
+		mm.set_instance_transform(idx, Transform3D(Basis.from_scale(Vector3.ZERO), transform.origin))
+	if not avec_effets:
+		return
+	var parent := get_parent() as Node3D
+	var t0 := Time.get_ticks_usec()
+	CasseObjets.eclater(parent, mm.mesh if mm != null else null, xf, matiere, mass, point, v_objet + vitesse * 0.35, ident.hash())
+	var t1 := Time.get_ticks_usec()
+	CasseObjets.effets(parent, centre, pied, point, matiere, maxf(_taille.x, maxf(_taille.y, _taille.z)), liquide)
+	var t2 := Time.get_ticks_usec()
+	if contenu != "":
+		CasseObjets.verser_butin(parent, ident, contenu, pied)
+	CasseObjets.derniere_mesure = {"avant_ms": (t0 - t_debut) / 1000.0, "eclats_ms": (t1 - t0) / 1000.0, "effets_ms": (t2 - t1) / 1000.0, "butin_ms": (Time.get_ticks_usec() - t2) / 1000.0}
+	var proprio := proprietaire()
+	if proprio != "" and not distant:      # bien d'un PNJ brisé : comme un vol (témoins, prime), règles du lot crime ; à l'image suivante
+		var crime := get_tree().get_first_node_in_group("crime")      # (le calcul des témoins ne s'ajoute pas au coût de la casse)
+		if crime != null and crime.has_method("signaler_vol"):
+			var moi := self
+			get_tree().process_frame.connect(func() -> void:
+				var t := Time.get_ticks_usec()
+				if is_instance_valid(crime):
+					crime.signaler_vol(moi, proprio, centre)
+				CasseObjets.derniere_mesure["crime_ms"] = (Time.get_ticks_usec() - t) / 1000.0, CONNECT_ONE_SHOT)
+	var t3 := Time.get_ticks_usec()
+	if not distant:
+		ObjetsVivants.diffuser_casse(self, point, vitesse)
+	CasseObjets.derniere_mesure["reseau_ms"] = (Time.get_ticks_usec() - t3) / 1000.0
+	CasseObjets.derniere_mesure["total_ms"] = (Time.get_ticks_usec() - t_debut) / 1000.0

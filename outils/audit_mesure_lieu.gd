@@ -97,6 +97,17 @@ func _appliquer_bascule(seg: int, oui: bool) -> void:
 			"hud":
 				if nd is CanvasLayer:
 					_memo_bascule.append([nd, "visible", nd.visible]); nd.visible = false
+			"meubles_vis", "meubles":      # cassables partout : MultiMesh du mobilier léger cachés
+				if nd is MultiMeshInstance3D and String(nd.name).begins_with("Vivants_") and ObjetsVivants.MEUBLES.has(String(nd.name).trim_prefix("Vivants_")):
+					_memo_bascule.append([nd, "visible", nd.visible]); nd.visible = false
+				if b == "meubles" and nd is CollisionShape3D and nd.get_parent() is ObjetVivant and (nd.get_parent() as ObjetVivant).meuble:
+					_memo_bascule.append([nd, "disabled", nd.disabled]); nd.disabled = true
+			"meubles_corps":     # cassables partout : formes de collision du mobilier léger coupées
+				if nd is CollisionShape3D and nd.get_parent() is ObjetVivant and (nd.get_parent() as ObjetVivant).meuble:
+					_memo_bascule.append([nd, "disabled", nd.disabled]); nd.disabled = true
+			"vivants_corps":     # toutes les formes des objets vivants coupées (petits objets compris)
+				if nd is CollisionShape3D and nd.get_parent() is ObjetVivant:
+					_memo_bascule.append([nd, "disabled", nd.disabled]); nd.disabled = true
 
 var _rph_noeuds: Array = []
 
