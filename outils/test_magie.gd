@@ -174,7 +174,7 @@ func _mana() -> void:
 
 func _sorts() -> void:
 	var ids := ["jet_flammes", "boule_feu", "explosion_incendiaire", "eclat_glace", "lance_givre", "nova_gelee", "souffle_givre", "arc_electrique",
-		"chaine_eclairs", "tempete_statique", "trait_ombre", "drain_vie", "explosion_obscure", "orage_runique", "rayon_neant"]
+		"chaine_eclairs", "tempete_statique", "trait_ombre", "drain_vie", "explosion_obscure", "orage_runique", "rayon_neant", "rayon_noir"]
 	for id in ids:
 		magie.equiper("gauche", "vide")
 		magie.equiper("droite", id)
