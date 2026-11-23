@@ -196,5 +196,38 @@ func _lancer() -> void:
 	await _attendre(30)
 	ok(ImpactsLances.plantee(e7), "hachette pointe en avant : plantée (%s)" % ImpactsLances.dernier.get("issue", "?"))
 
+	# --- 8. tué devant un mur : « brochette », cloué au mur par l'épée (mur à x = -3,05 ; zone libérée par le squelette du cas 2)
+	for n in s.get_children():
+		if n is RigidBody3D and n != e2:
+			n.queue_free()
+	sq.queue_free()
+	e2.queue_free()
+	var dc := _ennemi("guerrier", Vector3(-1.9, 0, 1.0), 10.0)
+	await _attendre(20)
+	var c8 := dc.global_position + Vector3(0, 1.25, 0)
+	var e8 := jeter(s, "epee_soldat", c8 + Vector3(4.0, 0.0, 0.0), c8, 18.0, j)
+	await _attendre(12)
+	ok(String(ImpactsLances.dernier.get("issue", "")) == "cloue", "draugr tué devant le mur : cloué (%s)" % ImpactsLances.dernier.get("issue", "?"))
+	var cl: Variant = ImpactsLances.dernier.get("clouage")
+	await _attendre(180)
+	if cl is Node and is_instance_valid(cl):
+		var pbc: PhysicalBone3D = cl.pb
+		var cible_os: Vector3 = cl.cible()
+		ok(pbc.global_position.distance_to(cible_os) < 0.1, "3 s après : l'os %s reste épinglé (écart %.3f m)" % [ImpactsLances.dernier.get("os_cloue", "?"), pbc.global_position.distance_to(cible_os)])
+		ok(pbc.global_position.x > -3.05, "l'os ne traverse pas le mur (x %.2f, mur -3,05)" % pbc.global_position.x)
+		var ab8 := ImpactsLances.axe_monde(e8, e8.donnees_arme())
+		ok(Vector3(ab8[1]).x < -3.05 and Vector3(ab8[0]).x > -3.05, "pointe dans le mur, garde devant le corps (pointe x %.2f, prise x %.2f)" % [Vector3(ab8[1]).x, Vector3(ab8[0]).x])
+		var bassin: PhysicalBone3D = (cl.rd as Ragdoll).os.get("pelvis")
+		ok(bassin != null and bassin.global_position.y < pbc.global_position.y, "le bas du corps pend sous l'os cloué")
+	else:
+		ok(false, "clouage introuvable")
+	# --- 9. pas tué devant le mur : plantée, pas clouée
+	var dn := _ennemi("guerrier", Vector3(-1.9, 0, -0.2), 300.0)
+	await _attendre(20)
+	var c9 := dn.global_position + Vector3(0, 1.25, 0)
+	var e9 := jeter(s, "epee_soldat", c9 + Vector3(4.0, 0.0, 0.0), c9, 18.0, j)
+	await _attendre(20)
+	ok(String(ImpactsLances.dernier.get("issue", "")) == "plantee" and ImpactsLances.plantee(e9), "pas tué devant le mur : plantée, pas clouée (%s)" % ImpactsLances.dernier.get("issue", "?"))
+
 	print("ECHECS : %d" % echecs)
 	quit(1 if echecs > 0 else 0)

@@ -39,6 +39,12 @@ const FAMILLES_CONTONDANTES := ["masse", "marteau", "bouclier"]
 const MASSES := {"dague": 0.5, "une_main": 1.3, "epee_longue": 1.6, "deux_mains": 3.0, "masse": 2.0, "marteau": 2.6, "bouclier": 4.0}
 const EV_PLANTE := "lance_plante"
 const EV_MUR := "lance_plante_mur"
+const EV_CLOUE := "lance_cloue"
+const MUR_MAX := 3.0               # m derrière la sortie : un mur plus loin ne cloue pas
+## Clouage au mur d'un ennemi tué (désactivable pour comparer).
+static var clouage_actif := true
+## Os du squelette (Plaies) → os physique du ragdoll qui le porte.
+const OS_RAGDOLL := {"spine_02": "spine_01", "neck_01": "spine_03"}
 const CALQUE_PLANTEE := 64         # Cassable.CALQUE : visible des sorts / de la visée, franchissable par le joueur et les PNJ
 
 static var _option := -1
@@ -232,6 +238,11 @@ static func _arme_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3,
 		RetourImpact.son(ennemi, "os_brise", point, -2.0)
 	elif _saigne(p):
 		RetourImpact.son(ennemi, "dechirure", point, -3.0)
+	# tué avec un mur derrière (≤ 3 m dans l'axe du vol) : la lame reste dans le corps et le CLOUE au mur (« brochette »)
+	if res == "tue" and clouage_actif:
+		var mur := _mur_derriere(objet, ennemi, vc["sortie"], dir)
+		if not mur.is_empty() and _clouer(objet, ennemi, point, dir, v, p, vc, mur):
+			return
 	if traverse:
 		_traverser(objet, ennemi, point, dir, v, masse, e, seuil, p, lanceur, vc)
 	else:
@@ -239,7 +250,7 @@ static func _arme_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3,
 
 ## Arme fichée dans un corps : accrochée à l'os le plus proche (Plaies : BoneAttachment3D qui suit animation et ragdoll) par un
 ## RemoteTransform3D (l'arme reste dans le monde : si le cadavre est retiré, elle tombe au sol au lieu de disparaître avec lui).
-static func planter_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3, dir: Vector3, v: float, p: ProfilCible, cadavre: bool, reseau := true, vc := {}) -> void:
+static func planter_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3, dir: Vector3, v: float, p: ProfilCible, cadavre: bool, reseau := true, vc := {}, prof_force := -1.0) -> void:
 	if vc.is_empty():
 		vc = visee_corps(ennemi, point, dir)
 		point = vc["entree"]
@@ -255,6 +266,8 @@ static func planter_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3, di
 	# profondeur : la pointe passe juste au-delà de l'axe de l'os touché (elle est DANS le corps, sans ressortir), la garde reste dehors
 	var prof := float(vc.get("vers_axe", 0.14)) + clampf(0.03 + 0.05 * v / 20.0, 0.03, 0.08)
 	prof = clampf(prof, 0.08, minf(longueur * 0.6, float(vc.get("vers_axe", 0.14)) + float(vc.get("rayon", 0.15)) * 0.8))
+	if prof_force > 0.0:
+		prof = minf(prof_force, longueur * 0.85)
 	var pointe_loc := objet.global_transform.affine_inverse() * Vector3(ab[1])
 	var xf := Transform3D(b, Vector3.ZERO)
 	xf.origin = point + dir * prof - b * pointe_loc
@@ -285,6 +298,7 @@ static func planter_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3, di
 	if reseau and CombatCoop.en_ligne() and ennemi.get("ident") != null:
 		var local := accroche.global_transform.affine_inverse() * xf
 		CombatCoop.R().envoyer_evenement(EV_PLANTE, CombatCoop.id_de(ennemi), {"os": os, "xf": _xf_vers(local), "arme": d.id if d else "", "sang": sang})
+	dernier["prof"] = prof
 
 ## Demi-épaisseur du corps autour de chaque os (m) : où la lame entre / ressort.
 const RAYONS_OS := {"Head": 0.11, "neck_01": 0.07, "spine_03": 0.15, "spine_02": 0.14, "spine_01": 0.14, "pelvis": 0.15,
@@ -423,6 +437,204 @@ static func _arme_rebond(objet: RigidBody3D, ennemi: Node3D, point: Vector3, nor
 	objet.linear_velocity = dir.bounce(n) * v * 0.25 + Vector3.UP * 1.2
 	objet.angular_velocity = Vector3(randf_range(-10, 10), randf_range(-10, 10), randf_range(-10, 10))
 	RetourImpact.son(ennemi, "metal_blocage", point, -6.0, 1.1)
+
+# ------------------------------------------------------------------------------------------------ clouage au mur
+
+## Mur (corps fixe) derrière la sortie, dans l'axe du vol, à moins de MUR_MAX : {point, normale, collider} ou {}.
+static func _mur_derriere(objet: RigidBody3D, ennemi: Node3D, sortie: Vector3, dir: Vector3) -> Dictionary:
+	var q := PhysicsRayQueryParameters3D.create(sortie - dir * 0.05, sortie + dir * MUR_MAX, 1)
+	var ex: Array[RID] = [objet.get_rid()]
+	if ennemi is CollisionObject3D:
+		ex.append((ennemi as CollisionObject3D).get_rid())
+	q.exclude = ex
+	var r := objet.get_world_3d().direct_space_state.intersect_ray(q)
+	if r.is_empty():
+		return {}
+	var c: Object = r["collider"]
+	var n: Vector3 = r["normal"]
+	if not (c is StaticBody3D or c is CSGShape3D) or dir.dot(-n) < 0.4:
+		return {}
+	return r
+
+static func _ragdoll_de(ennemi: Node) -> Ragdoll:
+	var rd: Variant = ennemi.get("_ragdoll")
+	if rd is Ragdoll and is_instance_valid(rd):
+		return rd
+	var m := _modele(ennemi)
+	return m.get_node_or_null("Ragdoll") as Ragdoll if m != null else null
+
+static func os_ragdoll(rd: Ragdoll, os: String) -> String:
+	if rd.os.has(os):
+		return os
+	var o := String(OS_RAGDOLL.get(os, ""))
+	if rd.os.has(o):
+		return o
+	return "spine_03" if rd.os.has("spine_03") else ""
+
+## « Brochette » : l'arme traverse le corps et le cloue au mur. Elle est plantée dans l'os traversé (pointe 12 cm hors du dos), l'os
+## physique du ragdoll devient CINÉMATIQUE et glisse avec elle jusqu'au mur (Clouage), où il reste fixé : le reste du corps pend
+## (articulations du ragdoll), se balance puis s'endort (Ragdoll.endormir_apres). Renvoie false s'il n'y a pas de ragdoll.
+static func _clouer(objet: RigidBody3D, ennemi: Node3D, point: Vector3, dir: Vector3, v: float, p: ProfilCible, vc: Dictionary, mur: Dictionary) -> bool:
+	var rd := _ragdoll_de(ennemi)
+	if rd == null or not rd.actif:
+		return false
+	var nom := os_ragdoll(rd, String(vc.get("os", "")))
+	if nom == "":
+		return false
+	var pb: PhysicalBone3D = rd.os[nom]
+	var epaisseur := maxf((Vector3(vc["sortie"]) - point).dot(dir), 0.1)
+	var prof := epaisseur + 0.12
+	planter_corps(objet, ennemi, point, dir, v, p, false, false, vc, prof)
+	var w: Vector3 = mur["position"]
+	var n: Vector3 = mur["normal"]
+	# translation qui amène la pointe 10 cm dans le mur (le dos du corps arrive contre la paroi)
+	var pointe := point + dir * prof
+	var delta := (w + dir * 0.1) - pointe
+	var c := Clouage.new()
+	c.name = "Clouage"
+	c.rd = rd
+	c.pb = pb
+	c.depart = pb.global_transform
+	c.delta = delta
+	c.vitesse = clampf(v * 0.5, 6.0, 14.0)
+	c.mur = w
+	c.normale = n
+	c.dir = dir
+	c.couleur = _couleur(p)
+	c.sang = _saigne(p)
+	c.os_matiere = _os(p)
+	c.objet = objet
+	ennemi.add_child(c)
+	PhysicsServer3D.body_set_mode(pb.get_rid(), PhysicsServer3D.BODY_MODE_KINEMATIC)
+	pb.linear_velocity = Vector3.ZERO
+	pb.angular_velocity = Vector3.ZERO
+	rd.endormir_apres(3.5)
+	objet.set_meta("cloue", {"dans": weakref(ennemi), "os": nom, "mur": w})
+	dernier["issue"] = "cloue"
+	dernier["os_cloue"] = nom
+	dernier["mur"] = w
+	dernier["cible_os"] = c.depart.origin + delta
+	dernier["clouage"] = c
+	if CombatCoop.en_ligne() and ennemi.get("ident") != null:
+		var d: DonneesArme = objet.donnees_arme() if objet.has_method("donnees_arme") else null
+		CombatCoop.R().envoyer_evenement(EV_CLOUE, CombatCoop.id_de(ennemi), {"os": nom, "os_arme": String(vc.get("os", "")),
+			"xf_os": _xf_vers(Transform3D(c.depart.basis, c.depart.origin + delta)), "xf_arme": _xf_vers(Transform3D(objet.global_basis, objet.global_position + delta)),
+			"arme": d.id if d else "", "mur": [w.x, w.y, w.z], "n": [n.x, n.y, n.z], "sang": c.sang})
+	return true
+
+## Nœud du clouage (enfant de l'ennemi) : glisse l'os cinématique jusqu'au mur, puis l'y tient ; impact au mur (son, étincelles, sang
+## qui coule sous le corps, flaque au pied).
+class Clouage extends Node:
+	var rd: Ragdoll
+	var pb: PhysicalBone3D
+	var depart := Transform3D.IDENTITY
+	var delta := Vector3.ZERO
+	var vitesse := 10.0
+	var mur := Vector3.ZERO
+	var normale := Vector3.BACK
+	var dir := Vector3.FORWARD
+	var couleur := Color(0.3, 0.03, 0.025)
+	var sang := true
+	var os_matiere := false
+	var objet: RigidBody3D
+	var arrive := false
+	var _t := 0.0
+	var _tenu := 0.0
+
+	func _ready() -> void:
+		process_physics_priority = -5
+
+	func cible() -> Vector3:
+		return depart.origin + delta
+
+	func _physics_process(dt: float) -> void:
+		if not is_instance_valid(pb) or not is_instance_valid(rd):
+			queue_free()
+			return
+		_t += dt
+		var k := clampf(_t * vitesse / maxf(delta.length(), 0.01), 0.0, 1.0)
+		var xf := Transform3D(depart.basis, depart.origin + delta * k)
+		if rd.est_fige():
+			set_physics_process(false)
+			return
+		pb.global_transform = xf
+		PhysicsServer3D.body_set_state(pb.get_rid(), PhysicsServer3D.BODY_STATE_TRANSFORM, xf)
+		if k >= 1.0 and not arrive:
+			arrive = true
+			_au_mur()
+		if arrive:
+			_tenu += dt
+
+	func _au_mur() -> void:
+		var n := normale
+		RetourImpact.son(pb, "pierre", mur, -1.0, 0.9)
+		RetourImpact.son(pb, "metal_blocage", mur, -7.0, 0.75)
+		RetourImpact.son(pb, "os" if os_matiere else "chair_gore", mur, -3.0, 0.8)
+		GerbePixels.emettre(pb, mur, (n * 0.8 - dir * 0.2).normalized(), "etincelles", 0.6)
+		GerbePixels.emettre(pb, mur, n, "poussiere", 0.7)
+		if os_matiere:
+			EclatsOs.lancer(pb, mur + n * 0.15, (n + Vector3.UP * 0.5).normalized(), 3, 0.8)
+		if not sang or not Sang.actif():
+			return
+		var bas := Vector3.DOWN - n * Vector3.DOWN.dot(n)
+		var d := bas.normalized() if bas.length() > 0.2 else Vector3.DOWN
+		Sang.trace(pb, mur + n * 0.004, n, d, 0.32, couleur, "giclure")
+		# coulure qui descend du point d'impact sous le corps, puis flaque au pied du mur
+		Sang.trace(pb, mur + n * 0.005 + d * 0.35, n, d, 0.55, couleur, "trainee", 2.5, 0.4)
+		var g := Plaies.sang_couleur_goutte(couleur)
+		for i in 5:
+			GouttesSang.lacher(pb, mur + n * 0.06 + d * randf_range(0.1, 0.4) + Vector3(randf_range(-0.05, 0.05), 0, randf_range(-0.05, 0.05)), g, Vector3.ZERO, true)
+		var sol := Sang.sol_sous(pb, mur + n * 0.3, 0.2, 3.0)
+		if not sol.is_empty():
+			Sang.flaque(pb, Vector3(sol["position"]) + n * 0.05, couleur, 0.75, 6.0)
+
+static func _sur_cloue(_exp: int, id: Variant, d: Variant) -> void:
+	if not (d is Dictionary):
+		return
+	var e := CombatCoop.ennemi(String(id)) as Node3D
+	if e == null:
+		return
+	# le cadavre (mort reçue par CombatCoop) passe en ragdoll : on attend un peu qu'il existe
+	await (Engine.get_main_loop() as SceneTree).create_timer(0.1).timeout
+	if not is_instance_valid(e):
+		return
+	var rd := _ragdoll_de(e)
+	if rd == null or not rd.actif or not rd.os.has(String(d.get("os", ""))):
+		return
+	var pb: PhysicalBone3D = rd.os[String(d["os"])]
+	var cible := _xf_de(d.get("xf_os", []))
+	var c := Clouage.new()
+	c.rd = rd
+	c.pb = pb
+	c.depart = pb.global_transform
+	c.depart.basis = cible.basis
+	c.delta = cible.origin - pb.global_position
+	var m: Array = d.get("mur", [0, 0, 0])
+	var nn: Array = d.get("n", [0, 0, 1])
+	c.mur = Vector3(m[0], m[1], m[2])
+	c.normale = Vector3(nn[0], nn[1], nn[2])
+	c.sang = bool(d.get("sang", true))
+	c.couleur = _couleur(_profil(e))
+	e.add_child(c)
+	PhysicsServer3D.body_set_mode(pb.get_rid(), PhysicsServer3D.BODY_MODE_KINEMATIC)
+	rd.endormir_apres(3.5)
+	# copie visuelle de l'arme, accrochée à l'os du squelette comme chez le lanceur
+	var a := ArmeLancee.creer(String(d.get("arme", "")))
+	if a != null:
+		e.get_parent().add_child(a)
+		var modele := _modele(e)
+		Plaies.preparer(modele)
+		var acc := modele.find_child("Plaies_" + String(d.get("os_arme", "")), true, false) as Node3D
+		var xa := _xf_de(d.get("xf_arme", []))
+		_figer(a, xa)
+		if acc != null:
+			var rt := RemoteTransform3D.new()
+			rt.update_scale = false
+			acc.add_child(rt)
+			# l'os n'a pas encore glissé : l'arme est posée à sa place finale moins le trajet
+			rt.global_transform = Transform3D(xa.basis, xa.origin - c.delta)
+			rt.remote_path = rt.get_path_to(a)
+			a.set_meta("plantee", {"dans": weakref(e), "rt": rt, "sang": c.sang, "couleur": c.couleur})
 
 # ------------------------------------------------------------------------------------------------ objet quelconque
 
@@ -588,6 +800,7 @@ static func _installer_reseau() -> void:
 	_reseau_pret = true
 	r.abonner(EV_PLANTE, Callable(ImpactsLances, "_sur_plante"))
 	r.abonner(EV_MUR, Callable(ImpactsLances, "_sur_mur"))
+	r.abonner(EV_CLOUE, Callable(ImpactsLances, "_sur_cloue"))
 
 static func _sur_plante(_exp: int, id: Variant, d: Variant) -> void:
 	if not (d is Dictionary):
