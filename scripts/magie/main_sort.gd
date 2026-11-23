@@ -93,6 +93,10 @@ var gestes := GestesMagie.new()
 var tk: Telekinesie
 ## Main gauche d'avant le raccourci de test de la télékinésie (touche X), rendue au second appui.
 var _avant_tk := ""
+## Sorts de l'esprit (Répulsion, Lévitation d'ennemi, Attraction ; scripts/magie/sorts_esprit.gd) : null avec --sans-sorts-esprit.
+var esprit: SortsEsprit
+## Raccourcis de test des sorts de l'esprit (action -> id du sort), main gauche comme la télékinésie.
+const RACCOURCIS_ESPRIT := {"repulsion": KEY_G, "levitation": KEY_N, "attraction": KEY_U}
 ## Pôle du coude de chaque main (lissé : pas de saut du coude entre un geste capturé et une pose fixe).
 var _pole := {"gauche": Vector3(-0.75, -0.55, 0.25), "droite": Vector3(0.75, -0.55, 0.25)}
 
@@ -114,6 +118,9 @@ func _ready() -> void:
 	if Telekinesie.actif:
 		tk = Telekinesie.new(self)
 		add_child(tk)
+	if SortsEsprit.actif:
+		esprit = SortsEsprit.new(self)
+		add_child(esprit)
 	_signaler()
 
 ## Actions reconfigurables (InputMap) : main_droite, main_gauche, raccourci_1 … raccourci_0.
@@ -130,6 +137,13 @@ func _actions() -> void:
 		var et := InputEventKey.new()
 		et.physical_keycode = KEY_X
 		InputMap.action_add_event("telekinesie", et)
+	if SortsEsprit.actif:
+		for a in RACCOURCIS_ESPRIT:
+			if not InputMap.has_action(a):   # raccourcis de test (Touches : remappables)
+				InputMap.add_action(a)
+				var ek := InputEventKey.new()
+				ek.physical_keycode = RACCOURCIS_ESPRIT[a]
+				InputMap.action_add_event(a, ek)
 	var touches := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0]
 	for i in touches.size():
 		var a := "raccourci_%d" % ((i + 1) % 10)
@@ -152,6 +166,11 @@ func intercepter(e: InputEvent) -> bool:
 			if tk != null and InputMap.has_action("telekinesie") and e.is_action_pressed("telekinesie"):
 				raccourci_telekinesie()
 				return true
+			if esprit != null:
+				for a in RACCOURCIS_ESPRIT:
+					if InputMap.has_action(a) and e.is_action_pressed(a):
+						raccourci_sort_gauche(a)
+						return true
 		if e is InputEventKey:
 			return false
 	# télékinésie : la molette rapproche / éloigne l'objet tenu
@@ -228,6 +247,21 @@ func raccourci_telekinesie() -> void:
 	_avant_tk = actuel
 	equiper("gauche", "telekinesie")
 	_noter("raccourci télékinésie")
+
+## Raccourci de test d'un sort de l'esprit (touches G / N / U) : dans la main gauche ; un second appui rend la main d'avant.
+func raccourci_sort_gauche(id: String) -> void:
+	if eq.sort_par_id(id) == null:
+		return
+	if not eq.sorts_connus.has(id):
+		eq.sorts_connus.append(id)   # période de test : le sort s'apprend d'office avec son raccourci
+	var actuel := String(eq.mains["gauche"].get("id", "vide"))
+	if actuel == id:
+		equiper("gauche", _avant_tk if _avant_tk != "" and _avant_tk != id else "vide")
+		return
+	if not (actuel in SortsEsprit.IDS or actuel == "telekinesie"):
+		_avant_tk = actuel
+	equiper("gauche", id)
+	_noter("raccourci %s" % id)
 
 ## Utilise un consommable (raccourci 1-0) : avis « Potion de soin (reste 2) » ou refus dans le HUD. "" ou la raison.
 func utiliser_conso(id: String) -> String:
@@ -341,6 +375,9 @@ func _couper(main: String, interruption: bool) -> void:
 	var s := i.sort
 	if tk != null and Telekinesie.est_sort(s):
 		tk.lacher(main)   # coupée (coup reçu, mana, changement de main) : l'objet tombe
+	elif esprit != null and SortsEsprit.est_sort(s):
+		if SortsEsprit.est_canalise(s):
+			esprit.lacher(main)   # lévitation coupée : l'ennemi retombe
 	else:
 		lanceur.arreter_jet(s, _p(main), main)
 	if i.double:
@@ -490,6 +527,8 @@ func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 			i.changer(Incantation.REPOS)
 		if tk != null:
 			tk.oublier_visee(m)
+		if esprit != null:
+			esprit.oublier_visee(m)
 		_aura_vers(m, "", 0.0, dt)
 		return
 	if i.sort != null and i.sort != s and i.etat != Incantation.REPOS:
@@ -571,6 +610,21 @@ func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 					i.depuis_lancement = 0.0
 				_couper(m, false)
 				_noter("fin télékinésie %s" % m)
+		Incantation.CANALISE when esprit != null and SortsEsprit.est_canalise(s):
+			# lévitation d'ennemi : emprise / tenue (mana payé par SortsEsprit), relâcher = projeter (geste capturé « lance »)
+			var vue_es := _vue()
+			var r_es := esprit.maintenir(m, s, _p(m), vue_es[0], vue_es[1], dt)
+			if r_es != "":
+				_couper(m, false)
+				_refuser(m, r_es)
+				return
+			t_sans_sort = 0.0
+			if not i.tenu and i.t >= 0.0:
+				if esprit.relacher(m, s, vue_es[0], vue_es[1]):
+					gestes.forcer(m, "lance", "depart")
+					i.depuis_lancement = 0.0
+				_couper(m, false)
+				_noter("fin lévitation %s" % m)
 		Incantation.CANALISE:
 			var mult := float(regles.get("simultane", {}).get("mult_deux_canalisations", 1.15)) if deux_canal else 1.0
 			var cout := sd.cout_par_seconde * dt * mult * Progression.facteur_cout_sort(s.ecole, i.double)   # perks de coût (lot B)
@@ -594,6 +648,12 @@ func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 			tk.survoler(m, vue_s[0], vue_s[1], s, false)   # surbrillance de ce que la main saisirait
 		elif not Telekinesie.est_sort(s) or i.etat == Incantation.RECUPERATION:
 			tk.oublier_visee(m)
+	if esprit != null:
+		if SortsEsprit.est_canalise(s) and i.etat == Incantation.REPOS:
+			var vue_v := _vue()
+			esprit.survoler(m, vue_v[0], vue_v[1], s)   # surbrillance de l'ennemi que la main soulèverait
+		elif not SortsEsprit.est_canalise(s) or i.etat == Incantation.RECUPERATION:
+			esprit.oublier_visee(m)
 	_aura_vers(m, s.ecole, _intensite(i, s), dt)
 	_cercle_neant(m, s, i)
 	if i.double and i.etat in [Incantation.RECUPERATION, Incantation.REPOS]:
@@ -742,7 +802,14 @@ func _lancer(m: String, s: DonneesSort, charge: float) -> void:
 		_enchanter(s)
 	else:
 		var vue := _vue()
-		lanceur.lancer(s, _p(m), vue[0], vue[1], charge, (transitions[m] as TransitionSort).source)
+		if esprit != null and SortsEsprit.est_sort(s):
+			# sorts de l'esprit lancés : onde de choc (Répulsion, charge) ou point qui aspire (Attraction)
+			if s.portee_mode == DonneesSort.Portee.REPULSION:
+				esprit.repulsion(s, charge, _p(m), vue[0], vue[1])
+			else:
+				esprit.attraction(s, _p(m), vue[0], vue[1])
+		else:
+			lanceur.lancer(s, _p(m), vue[0], vue[1], charge, (transitions[m] as TransitionSort).source)
 		t_sans_sort = 0.0
 	if s.recharge > 0.0:
 		recharges[s.id] = s.recharge

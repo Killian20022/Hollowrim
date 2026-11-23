@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_dfdie"]
+
+[resource]
+script = ExtResource("1_dfdie")
+id = "repulsion"
+nom = "Répulsion"
+ecole = "esprit"
+type = 2
+portee_mode = 8
+description = "Maintenir pour charger, relâcher : une onde de choc en cône projette ennemis et objets (plus loin et plus fort chargée). Contre un mur, un ennemi projeté encaisse le choc ; les objets fragiles cassent."
+cout = 28.0
+cout_charge_min = 0.4
+incantation = 0.12
+temps_charge = 1.2
+recuperation = 0.5
+degats = 12.0
+degats_charge_min = 0.4
+type_degats = "contondant"
+stagger = 30.0
+portee = 8.0
+double = {}
+profil = "paume"
+angle_cone = 35.0
+portee_min = 4.0
+force_min = 6.0
+force_max = 11.0

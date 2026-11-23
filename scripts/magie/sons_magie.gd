@@ -86,6 +86,8 @@ static func tous_les_noms() -> Array:
 	l.append_array(TK_SAISIE)
 	l.append_array(TK_LANCER)
 	l.append(TK_TENUE)
+	l.append_array(ES_ONDE)
+	l.append_array([ES_VORTEX, ES_VORTEX_FIN, ES_EMPRISE])
 	return l
 
 static func _chemin(nom: String) -> String:
@@ -254,6 +256,35 @@ static func telekinesie_tenue(objet: Node3D, intensite: float) -> void:
 	if not _actif() or objet == null:
 		return
 	_n().boucle(objet.get_instance_id() * 2, objet, TK_TENUE, intensite, true)
+
+# ------------------------------------------------------------------ sorts de l'esprit (scripts/magie/sorts_esprit.gd)
+## Sons faits par outils/sons_magie/generer_sorts_esprit.sh (synthèse ffmpeg + sons CC0 de protection retaillés, assets/LICENCES.md).
+const ES_ONDE := ["magie/esprit_onde_1", "magie/esprit_onde_2"]
+const ES_VORTEX := "magie/esprit_vortex"
+const ES_VORTEX_FIN := "magie/esprit_vortex_fin"
+const ES_EMPRISE := "magie/esprit_emprise"
+
+## Onde de choc de la Répulsion (`k` : 0,7 sans charge, 1,3 à pleine charge).
+static func esprit_onde(pos: Vector3, k := 1.0) -> void:
+	_compter("esprit_onde")
+	_coup(_variante(ES_ONDE), pos, VOL_LANCER + 1.0 + 2.5 * clampf(k - 1.0, -0.5, 0.5), randf_range(0.95, 1.05) * (1.1 - 0.15 * k), "es_onde", 0.1)
+
+## Emprise de la Lévitation d'ennemi (saisie grave).
+static func esprit_emprise(pos: Vector3) -> void:
+	_compter("esprit_emprise")
+	_coup(ES_EMPRISE, pos, VOL_LANCER, randf_range(0.95, 1.05), "es_emprise", 0.1)
+
+## Souffle tournant du vortex d'Attraction (boucle suivie par son nœud ; 0 = fondu de sortie).
+static func esprit_vortex(noeud: Node3D, intensite: float) -> void:
+	_compter("esprit_vortex")
+	if not _actif() or noeud == null:
+		return
+	_n().boucle(noeud.get_instance_id() * 2, noeud, ES_VORTEX, intensite, true)
+
+## Relâchement du vortex (implosion puis claquement).
+static func esprit_vortex_fin(pos: Vector3) -> void:
+	_compter("esprit_vortex_fin")
+	_coup(ES_VORTEX_FIN, pos, VOL_LANCER + 2.0, randf_range(0.96, 1.04), "es_vortex_fin", 0.1)
 
 static func tout_arreter() -> void:
 	if _noeud != null and is_instance_valid(_noeud):
