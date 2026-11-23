@@ -151,7 +151,7 @@ func _approcher(p: Vector3, reste: float, duree: float) -> void:
 	var n := maxi(1, roundi(duree / DT))
 	for k in n:
 		j.global_position = a.lerp(b, smoothstep(0.0, 1.0, float(k + 1) / n))
-		var v := p + Vector3.UP * 1.0 - j.camera.global_position
+		var v: Vector3 = p + Vector3.UP * 1.0 - j.camera.global_position
 		j.rotation.y = atan2(-v.x, -v.z)
 		j.tete.rotation.x = atan2(v.y, Vector2(v.x, v.z).length())
 		await process_frame
