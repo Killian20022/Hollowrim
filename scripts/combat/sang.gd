@@ -348,7 +348,7 @@ static func flaque(n: Node3D, pos: Vector3, couleur: Color, taille := 0.9, crois
 	var t := taille if niveau() == 2 else taille * 0.45
 	if SangV3.actif:
 		# v3 : la flaque s'étale LENTEMENT (le sang s'écoule du corps pendant ~20 s), un peu plus large
-		return trace(n, r["position"], r["normal"], Vector3.ZERO, t * 1.15, couleur, "flaque", maxf(croissance * 4.0, 14.0))
+		return trace(n, r["position"], r["normal"], Vector3.ZERO, t * 1.25, couleur, "flaque", maxf(croissance * 2.4, 12.0))
 	return trace(n, r["position"], r["normal"], Vector3.ZERO, t, couleur, "flaque", croissance)
 
 # ------------------------------------------------------------------ traces collées
@@ -475,7 +475,10 @@ static func _trace_v3(n: Node, pos: Vector3, normale: Vector3, direction: Vector
 	var allonge := {"trainee": 2.6, "giclure": 1.35, "coulure": 2.0}.get(sorte, 1.0) as float
 	var neige := SangV3.sur_neige(pos, y)
 	var ordre := float(l.size() % 16) * 0.0009   # traces superposées : pas de scintillement
-	var origine := pos + y * ((0.02 if neige else 0.01) + ordre)
+	# sol : le shader ps1 du sol (neige qui tient, relief) dessine la surface ~2 cm AU-DESSUS de sa collision : à 1 cm la trace
+	# était enterrée (invisible) ; murs : 1,2 cm suffisent
+	var leve := (0.035 if y.y > 0.6 else 0.012) + ordre
+	var origine := pos + y * leve
 	var xf_unite := Transform3D(Basis(x, y, z), origine)
 	var forme := sorte if sorte in ["flaque", "giclure", "trainee", "coulure", "goutte"] else "giclure"
 	var neuf := mi == null
@@ -483,11 +486,14 @@ static func _trace_v3(n: Node, pos: Vector3, normale: Vector3, direction: Vector
 		mi = MeshInstance3D.new()
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# petite tache (goutte) : plan sans sonde (le relief ne se voit pas à cette taille)
-	mi.mesh = SangV3.maille_projetee(n as Node3D if n is Node3D and taille * allonge > 0.14 else null, xf_unite, taille * allonge * 0.5, taille * 0.5)
+	mi.mesh = SangV3.maille_projetee(n as Node3D if n is Node3D and taille * allonge > 0.14 else null, xf_unite, taille * allonge * 0.5, taille * 0.5, leve)
 	mi.material_override = SangV3.materiau_trace(forme, randi() % 3, couleur, neige)
 	var parent: Node = support if is_instance_valid(support) and support.is_inside_tree() else g
 	if neuf:
 		parent.add_child(mi)
+		# uniformes d'instance posés APRÈS l'entrée dans l'arbre (sinon le rendu lit une valeur non initialisée : trace invisible)
+		mi.set_instance_shader_parameter("seche", 0.0)
+		mi.set_instance_shader_parameter("efface", 0.0)
 	elif parent != g:
 		mi.reparent(parent, false)
 	l.append(mi)
@@ -496,7 +502,7 @@ static func _trace_v3(n: Node, pos: Vector3, normale: Vector3, direction: Vector
 	if croissance > 0.0 or delai > 0.0:
 		var tw := mi.create_tween()
 		mi.set_meta("tween", tw)
-		var depart := 0.15 if croissance > 0.0 else 0.6
+		var depart := 0.3 if croissance > 0.0 else 0.6
 		var fin := mi.scale
 		mi.scale = Vector3(depart, 1.0, depart) * fin
 		mi.visible = delai <= 0.0

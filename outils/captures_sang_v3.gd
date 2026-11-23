@@ -204,11 +204,13 @@ func _lancer_epee(de: Vector3, cible: CharacterBody3D, vitesse := 14.0, tue := f
 		var acc := BoneAttachment3D.new()
 		acc.bone_name = "spine_03"
 		(sq[0] as Skeleton3D).add_child(acc)
-		await process_frame
+		# repère de l'os calculé ici (l'attache ne se met à jour qu'à la pose suivante du squelette)
+		var sk := sq[0] as Skeleton3D
+		var xf_os := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("spine_03"))
 		var xf := e.global_transform
 		s.remove_child(e)
 		acc.add_child(e)
-		e.global_transform = xf
+		e.transform = xf_os.affine_inverse() * xf
 	if tue:
 		cible.vie = 1.0
 		cible.combat.profil.chance_blocage = 0.0

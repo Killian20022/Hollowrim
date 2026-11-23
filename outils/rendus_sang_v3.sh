@@ -11,7 +11,7 @@ mkdir -p "$SORTIE"
 lancer() { GODOT_TIMEOUT=900 bash /tmp/godot_slot.sh "$G" "$@"; }
 
 if [[ "$QUOI" == planches || "$QUOI" == tout ]]; then
-	for lieu in interieur neige; do
+	for lieu in ${LIEUX:-interieur neige}; do
 		for v in avant apres; do
 			d="$SORTIE/_vues_${lieu}_${v}"; rm -rf "$d"; mkdir -p "$d"
 			extra=(); [[ $v == avant ]] && extra=(--sans-sang-v3)

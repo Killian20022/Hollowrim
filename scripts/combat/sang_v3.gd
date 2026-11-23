@@ -27,8 +27,8 @@ const GOUTTES_MAX := 9
 
 const PALETTES := {
 	# frais : sang qui vient de couler ; sec : brun-noir après séchage ; halo : sang dilué dans la neige ; vol : particules en vol
-	"vif": {"frais": Color(0.29, 0.028, 0.022), "sec": Color(0.12, 0.03, 0.024), "halo": Color(0.55, 0.19, 0.19), "vol": Color(0.34, 0.032, 0.026), "brille": 0.75},
-	"draugr": {"frais": Color(0.15, 0.04, 0.034), "sec": Color(0.075, 0.05, 0.045), "halo": Color(0.36, 0.25, 0.24), "vol": Color(0.18, 0.045, 0.038), "brille": 0.6},
+	"vif": {"frais": Color(0.38, 0.03, 0.024), "sec": Color(0.12, 0.03, 0.024), "halo": Color(0.55, 0.19, 0.19), "vol": Color(0.34, 0.032, 0.026), "brille": 0.75},
+	"draugr": {"frais": Color(0.19, 0.05, 0.042), "sec": Color(0.075, 0.05, 0.045), "halo": Color(0.36, 0.25, 0.24), "vol": Color(0.18, 0.045, 0.038), "brille": 0.6},
 	"troll": {"frais": Color(0.22, 0.035, 0.065), "sec": Color(0.10, 0.035, 0.05), "halo": Color(0.48, 0.24, 0.32), "vol": Color(0.26, 0.04, 0.075), "brille": 0.65},
 	"araignee": {"frais": Color(0.20, 0.24, 0.06), "sec": Color(0.11, 0.12, 0.045), "halo": Color(0.48, 0.52, 0.30), "vol": Color(0.24, 0.28, 0.07), "brille": 0.7},
 }
@@ -246,10 +246,13 @@ static func _traces(n: Node, point: Vector3, dir: Vector3, k: float, c: Color, n
 	# au pied : une giclure dans le sens du coup
 	var plat := Vector3(dir.x, 0, dir.z)
 	plat = plat.normalized() if plat.length() > 0.05 else Vector3.FORWARD
-	var de := point + plat * (0.45 + 0.25 * clampf(k, 0.5, 2.0))
-	var r2 := Sang.sol_sous(n as Node3D, de, 0.4, 3.0)
-	if not r2.is_empty():
-		Sang.trace(n, r2["position"], r2["normal"], plat, randf_range(0.3, 0.42) * clampf(k, 0.6, 1.6) * (1.0 if niv == 2 else 0.6), c, "giclure", 0.0, 0.14)
+	# au sol, dans le sens du coup : 1 à 3 giclures de plus en plus loin et petites (là où tombe le gros du jet)
+	var nb_sol := clampi(1 + int(k * 0.6), 1, 3) if niv == 2 else 1
+	for j in nb_sol:
+		var de := point + plat * (0.4 + j * 0.45 * clampf(k, 0.6, 2.0)) + plat.cross(Vector3.UP) * randf_range(-0.18, 0.18)
+		var r2 := Sang.sol_sous(n as Node3D, de, 0.4, 3.0)
+		if not r2.is_empty():
+			Sang.trace(n, r2["position"], r2["normal"], plat, randf_range(0.3, 0.42) * clampf(k, 0.6, 1.6) * (1.0 - j * 0.22) * (1.0 if niv == 2 else 0.6), c, "giclure", 0.0, 0.12 + j * 0.07)
 
 # ------------------------------------------------------------------ traces : matériau, relief
 
@@ -306,7 +309,7 @@ void fragment() {
 	// séchage : un texel sèche quand l'âge dépasse son épaisseur (les bords minces avant le cœur)
 	float s = step(ep * 0.85 + 0.1, seche);
 	vec3 c = mix(frais, sec, s);
-	c *= mix(1.12, 0.84, ep);                      // film mince un peu plus clair, cœur épais plus sombre (caillot)
+	c *= mix(1.15, 0.94, ep);                      // film mince un peu plus clair, cœur épais plus sombre (caillot)
 	c = mix(c, halo, lisere);
 	ALBEDO = c;
 	ALPHA = garde;
@@ -323,7 +326,7 @@ void fragment() {
 const GRILLE := 5
 static var _plan: PlaneMesh
 
-static func maille_projetee(n: Node3D, xf: Transform3D, demi_x: float, demi_z: float) -> Mesh:
+static func maille_projetee(n: Node3D, xf: Transform3D, demi_x: float, demi_z: float, leve := 0.0) -> Mesh:
 	if _plan == null:
 		_plan = PlaneMesh.new()
 		_plan.size = Vector2.ONE
@@ -339,8 +342,8 @@ static func maille_projetee(n: Node3D, xf: Transform3D, demi_x: float, demi_z: f
 		var p := o + x * u * demi_x + z * v * demi_z
 		var q := PhysicsRayQueryParameters3D.create(p + y * 0.18, p - y * 0.3, 1, exclus)
 		var r := espace.intersect_ray(q)
-		if r.is_empty():
-			return null
+		if r.is_empty() or r["collider"] is PhysicalBone3D or r["collider"] is CharacterBody3D:
+			return null   # un corps (ragdoll) n'est pas le sol : la flaque passe dessous, elle ne le recouvre pas
 		return (r["position"] as Vector3 - p).dot(y)
 	# la trace flotte un peu au-dessus de la surface (décalage anti-scintillement) : on compare chaque coin au centre
 	var h0: Variant = sonde.call(0.0, 0.0)
@@ -363,7 +366,8 @@ static func maille_projetee(n: Node3D, xf: Transform3D, demi_x: float, demi_z: f
 			var u := float(i) / (GRILLE - 1) * 2.0 - 1.0
 			var v := float(j) / (GRILLE - 1) * 2.0 - 1.0
 			var h: Variant = sonde.call(u, v)
-			hauts[j * GRILLE + i] = clampf(float(h), -0.3, 0.18) if h != null else 0.0
+			# chaque sommet sur la surface, relevé de `leve` (le décalage de la trace au-dessus de sa surface)
+			hauts[j * GRILLE + i] = clampf(float(h) + leve, -0.3, 0.18) if h != null else 0.0
 	var m := grille(hauts)
 	prof["us_grilles"] += Time.get_ticks_usec() - tg
 	return m
