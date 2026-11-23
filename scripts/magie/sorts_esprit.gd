@@ -492,6 +492,8 @@ func _chocs_objets(f: Dictionary, centre: Vector3, v: Vector3) -> void:
 		var oc := Telekinesie.centre(o)
 		if touches.has(o.get_instance_id()) or Vector2(oc.x - centre.x, oc.z - centre.z).length() > 0.45 + Telekinesie.rayon(o) or absf(oc.y - centre.y) > h + 0.3:
 			continue
+		if o is RigidBody3D and not (o as RigidBody3D).freeze and (o as RigidBody3D).linear_velocity.length() > 4.0:
+			continue   # objet déjà projeté (relâchement du vortex, onde) : il vole de son côté, ses propres chocs comptent
 		touches[o.get_instance_id()] = true
 		_noter("choc objet %s v=%.1f" % [o.name, v.length()])
 		var casse := false
