@@ -35,3 +35,17 @@ La logique des sorts (dégâts, coûts, portées, statut choc, coop) n'est pas t
 - Film / mesure (fenêtre hors écran via godot_slot.sh) : `outils/film_foudre.gd` (`--perf` : alternance v1/v2 dans la
   même séance, FPS repos / canalisation).
 - Sons : `bash outils/sons_magie/generer_foudre.sh`.
+
+## Extension à tous les sorts électriques (2026-11-23)
+
+Tout passe par les mêmes briques, coupées par `--foudre-v1` :
+- `GestionMagie.foudre_ramifiee` → `_foudre_arbre` (FoudreV2.arbre) : orage runique, tempête statique, impact électrique,
+  lame d'orage ; traits [points, largeur, alpha, niveau] ; largeurs du matériau plafonnées (halo 3-5 px, cœur 1-2 px).
+- disques électriques (`DISQUES_ELEC`, `_disque_v2`) : sans runes, texels doublés, anneau fin ; orage : onde posée au sol.
+- particules `elec_*`, `choc`, `enchant_elec` : ×0,35 ; `_decharge_ponctuelle` (formes d'atlas) supprimée en v2.
+- charge en main (noyau_ecole + `_gen_main_v2`) : la lueur ne gonfle plus, des arcs des doigts convergent devant la paume.
+- lame d'orage : voile 0,4, arcs le long du fil en arbre ; lame électrique passive (effet_element_lame) : arcs v2, étincelles
+  moitié moins nombreuses et plus fines ; statut choc sur le corps (elec_corps) : 1 décharge, formes toutes les 2-4 images,
+  coque ×0,45.
+- Le mage ennemi ne lance aucun sort électrique (givre, ombre, pics) : rien à changer.
+- Film : `outils/film_foudre.gd --tous` ; mesure : `--perf --tous --tours=N`.

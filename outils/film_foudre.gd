@@ -348,6 +348,31 @@ func _film_tous() -> void:
 
 # ------------------------------------------------------------------ mesure
 
+## --perf --tous : orage runique (1,2 s après le relâchement) et tempête statique (3 s de zone), v1 / v2 entrelacés.
+func _mesure_tous(d: Node3D) -> void:
+	for tour in int(_arg("tours", "4")):
+		GestionMagie.foudre_v1 = tour % 2 == 0
+		var nom := "v1" if GestionMagie.foudre_v1 else "v2"
+		await _regarder(Vector3.ZERO, 0.3, d, -0.2)
+		magie.equiper("gauche", "orage_runique")
+		await _attendre(0.4)
+		magie.appuyer("gauche")
+		await _attendre(1.1)
+		magie.relacher("gauche")
+		await _attendre(DT * 2)
+		var orage := await _fenetre(1.2, d)
+		await _attendre(1.0)
+		magie.equiper("gauche", "tempete_statique")
+		await _attendre(0.4)
+		magie.appuyer("gauche")
+		await _attendre(0.75)
+		magie.relacher("gauche")
+		await _attendre(0.4)
+		var tempete := await _fenetre(3.0, d)
+		await _attendre(2.5)
+		print("PERF %s orage %.1f ips (gpu %.2f ms) tempete %.1f ips (gpu %.2f ms)" % [nom, orage[0], orage[1], tempete[0], tempete[1]])
+
+
 func _fenetre(duree: float, suivre: Node3D) -> Array:
 	var vp := root.get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(vp, true)
@@ -372,6 +397,9 @@ func _mesure() -> void:
 	magie.equiper("gauche", "arc_electrique")
 	var d := _draugr(_libre(4.6, 0.3), "guerrier")
 	await _attendre(1.5)
+	if _arg("tous") != "":
+		await _mesure_tous(d)
+		return
 	for tour in int(_arg("tours", "6")):
 		GestionMagie.foudre_v1 = tour % 2 == 0
 		var nom := "v1" if GestionMagie.foudre_v1 else "v2"
