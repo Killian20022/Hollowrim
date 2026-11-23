@@ -36,6 +36,7 @@ void vertex() {
 }
 
 void fragment() {
+	do {
 	float bord = 1.0 - abs(normalize(n_vue).z);
 	// bord en deux paliers (silhouette seulement : le bois, le fer restent lisibles au centre)
 	float a = step(0.68, bord) * 0.25 + step(0.9, bord) * 0.25;
@@ -53,8 +54,9 @@ void fragment() {
 	if (a <= 0.0) {
 		ALBEDO = vec3(0.0);
 		ALPHA = 0.0;
-		return;
+		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	ALBEDO = mix(couleur.rgb, coeur.rgb, clamp(mote * clign + step(0.92, bord) * 0.4, 0.0, 1.0));
 	ALPHA = clamp(a, 0.0, 0.8) * 0.8;
+} while (false);
 }

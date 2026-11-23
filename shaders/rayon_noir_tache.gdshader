@@ -15,10 +15,11 @@ uniform float fondu = 1.0;     // 1 tenue, → 0 laissée qui s'efface
 uniform float graine = 0.0;
 
 void fragment() {
+	do {
 	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
 		ALBEDO = vec3(0.0);
 		ALPHA = 0.0;
-		return;
+		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	vec2 p = UV * 2.0 - 1.0;
 	float r = length(p);
@@ -31,7 +32,7 @@ void fragment() {
 	if (d > 0.16) {
 		ALBEDO = vec3(0.0);
 		ALPHA = 0.0;
-		return;
+		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	float vif = smoothstep(0.0, 0.5, fondu);   // le liseré s'éteint d'abord
 	float liseret = (1.0 - smoothstep(0.0, 0.06, abs(d + 0.022))) * vif * (0.8 + 0.2 * sin(TIME * 5.0 + ang * 3.0));
@@ -56,4 +57,5 @@ void fragment() {
 	a *= 0.82 + 0.18 * mbruit(p * 9.0 + graine);
 	ALBEDO = c;
 	ALPHA = clamp(a * smoothstep(0.0, 0.35, fondu), 0.0, 1.0);
+} while (false);
 }

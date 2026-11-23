@@ -66,17 +66,18 @@ void vertex() {
 }
 
 void fragment() {
+	do {
 	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
 		ALBEDO = vec3(0.0);
 		ALPHA = 0.0;
-		return;
+		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	float tete = clamp(vie / 0.1, 0.0, 1.0);
 	float k = rk();
 	if (k < 0.03) {
 		ALBEDO = vec3(0.0);
 		ALPHA = 0.0;
-		return;
+		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	// distance entre le rayon de vue (depuis l'œil, espace vue) et l'axe du tir
 	vec3 D = -normalize(VIEW);
@@ -104,7 +105,7 @@ void fragment() {
 	if (x > GROS || u_c > tete) {
 		ALBEDO = vec3(0.0);
 		ALPHA = 0.0;
-		return;
+		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 
 	float n = mfbm2(vec2(tc * 0.9 - TIME * 6.0, v_th * 1.3 + graine));
@@ -139,7 +140,7 @@ void fragment() {
 		if (a < 0.05) {
 			ALBEDO = vec3(0.0);
 			ALPHA = 0.0;
-			return;
+			break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 		}
 	}
 	// brins de fumée enroulés en hélice (3) : ils filent le long du tir, surtout dans la fumée et au bord
@@ -161,4 +162,5 @@ void fragment() {
 	float fin_fade = 1.0 - smoothstep(0.96, 1.0, u_c);
 	ALBEDO = c;
 	ALPHA = clamp(a * tete_fade * fin_fade * mix(0.5, 1.0, k), 0.0, 1.0);
+} while (false);
 }

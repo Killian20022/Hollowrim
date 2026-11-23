@@ -53,10 +53,11 @@ void vertex() {
 }
 
 void fragment() {
+	do {
 	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
 		ALBEDO = vec3(0.0);
 		ALPHA = 1.0;
-		return;
+		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	float k = rk();
 	float tete = clamp(vie / 0.1, 0.0, 1.0);
@@ -80,14 +81,14 @@ void fragment() {
 	if (k < 0.03 || u_c > tete || v_u < 0.003) {
 		ALBEDO = vec3(0.0);
 		ALPHA = 1.0;
-		return;
+		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	float rr = max(rayon_en(clamp(tc, 0.0, longueur)), 0.001);
 	float x = rho / rr;
 	if (x > GROS || x < 0.62) {
 		ALBEDO = vec3(0.0);
 		ALPHA = 1.0;
-		return;
+		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	float ph = fract((tc - TIME * flux_vit) / flux_pas + graine);
 	float pv = pow(1.0 - smoothstep(0.0, 0.22, min(ph, 1.0 - ph) * 2.0), 2.0);   // impulsions qui filent (comme le faisceau)
@@ -97,4 +98,5 @@ void fragment() {
 	float bouts = smoothstep(0.0, 0.06, u_c) * (1.0 - smoothstep(0.97, 1.0, u_c)) * smoothstep(0.0, 0.05, tete - u_c);
 	ALBEDO = bord * f * force_halo * eclat * k * bouts;
 	ALPHA = 1.0;
+} while (false);
 }
