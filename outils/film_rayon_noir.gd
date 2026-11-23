@@ -42,6 +42,8 @@ func _go() -> void:
 	if cip != null:
 		cip.visible = false
 		cip.process_mode = Node.PROCESS_MODE_DISABLED
+	if _arg("perf") != "":
+		Engine.max_fps = 0   # mesure : pas de plafond (option « limite d'IPS »)
 	if _arg("zoom") != "":
 		j.camera.fov = float(_arg("zoom"))
 	if _arg("sans-lumiere-film") == "":
@@ -160,7 +162,7 @@ func _film() -> void:
 	await _regarder(Vector3.ZERO, 0.6, dr)
 	await _capture("draugr")
 	_texte("l'ombre ronge le draugr (corruption)")
-	await _regarder(Vector3.ZERO, 1.6, dr)
+	await _regarder(Vector3.ZERO, 2.1, dr)
 	await _capture("draugr_runes")
 	# 2) balayage vers le squelette
 	_phase = "squelette"
@@ -178,7 +180,7 @@ func _film() -> void:
 	var murs := _mur()   # cherché ICI (le joueur a pu être poussé par les ennemis)
 	_texte("il s'arrête au premier obstacle")
 	await _regarder(murs[0], 0.5)
-	await _attendre(0.5)
+	await _attendre(1.0)
 	await _capture("mur")
 	await _regarder(murs[1], 1.4)
 	await _capture("balayage")
