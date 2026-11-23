@@ -79,3 +79,28 @@ le même contenu (tiré de l'identifiant). Gouttes, coulures et flaques sont cos
 
 - Test : `outils/test_liquides.gd` (dans `tous_les_tests.sh`).
 - Film / planche / banc : `outils/film_liquides.gd -- --sortie=<dossier> [--planche] [--banc] [--sans-liquides]`.
+
+## Mesures (2026-11-23, machine partagée avec 3-4 autres Godot : le bruit dépasse ±30 FPS, seules les tendances comptent)
+
+Fenêtre 640x360 hors écran, sans vsync, A/B entrelacés.
+
+| Banc | avec liquides | `--sans-liquides` |
+|---|---|---|
+| combat intérieur (`captures_sang_v3.gd --banc --lieu=interieur`, 6 ennemis, un coup / 0,18 s, 12 s), 3 passes | 153 / 107 / 133 FPS (1 % bas 46 / 26 / 38) | 168 / 114 / 103 FPS (1 % bas 55 / 16 / 24) |
+| casse de 5 tonneaux de bière d'un coup (`film_liquides.gd --banc`, 8 s), 2 passes | 326 / 376 FPS (1 % bas 91 / 155) | 270 / 395 FPS (1 % bas 96 / 211) |
+
+Moyennes : combat 131 contre 128 FPS, tonneaux 351 contre 333 FPS : aucun écart mesurable sur la moyenne ; le 1 % bas de la casse de
+5 tonneaux est un peu plus bas avec les liquides (123 contre 153 FPS en moyenne : reconstructions de flaques). Coût CPU du système :
+~25-30 ms par seconde pendant la casse de 5 tonneaux (140 L versés), rien au repos. Avant les réglages de perf (éclaboussures et gerbes
+selon la place du pool, taches plates, cumul des petites gouttes) : 1 % bas 29 FPS sur la même casse.
+
+## Limites
+
+- Les étincelles de sang du sang v3 (GPUParticles3D en pool : jet, gouttelettes, brume) restent des particules sans collision : elles
+  passent sous le sol et s'éteignent (cachées par la profondeur) ; ce sont les vraies gouttes de GouttesSang qui tachent.
+- Pas de pluie dans le jeu : la dilution par la pluie n'est pas faite (l'eau d'un lac / d'une rivière dilue, elle).
+- La matière d'une surface est devinée (méta `surface_liquide` sinon lieu : intérieur = bois, souterrain = pierre, dehors = terre /
+  neige) : un sol dallé d'intérieur passe pour du bois tant qu'il n'a pas la méta.
+- Une flaque posée sur un prop mobile (table renversée, tonneau) n'existe pas : sur un RigidBody, seulement des taches qui le suivent.
+- Coop : gouttes, coulures, flaques ne sont pas répliquées une à une (chaque poste rejoue la casse avec le même contenu).
+- Empreintes : seulement pour le joueur (EffetsSol.empreinte_pas) ; les PNJ ne marchent pas dans les flaques.
