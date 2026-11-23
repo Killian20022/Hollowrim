@@ -567,6 +567,7 @@ static func _fenetre(b: Interieurs, pl: Dictionary, f: Dictionary) -> void:
 	var h: float = f["h"]
 	var y: float = f["y"]
 	var prof := 0.2
+	b.ouverture(xf * Vector3(u, y, 0.03), -(xf.basis.z).normalized(), w, h, "fenetre" if f["vraie"] else "volets")      # lumière v2
 	for sx in [-1.0, 1.0]:
 		b.bx(xf * Vector3(u + sx * (w * 0.5 + 0.04), y, -prof * 0.5 + 0.03), Vector3(0.09, h + 0.18, prof + 0.06), "bois_sombre", lacet)
 	b.bx(xf * Vector3(u, y + h * 0.5 + 0.05, -prof * 0.5 + 0.03), Vector3(w + 0.16, 0.1, prof + 0.06), "bois_sombre", lacet)
@@ -589,6 +590,7 @@ static func _cadre_porte(b: Interieurs, pl: Dictionary) -> void:
 	var u := _t_mur("+Z", pl["xd"])
 	var w: float = pl["larg_porte"]
 	var h: float = float(pl["haut_porte"]) - 0.05
+	b.ouverture(xf * Vector3(u, F + h * 0.5, 0.06), -(xf.basis.z).normalized(), w, h, "porte")      # lumière v2
 	for sx in [-1.0, 1.0]:
 		b.bx(xf * Vector3(u + sx * (w * 0.5 + 0.05), F + h * 0.5, -0.04), Vector3(0.12, h, 0.2), "bois_sombre", lacet)
 	b.bx(xf * Vector3(u, F + h + 0.06, -0.04), Vector3(w + 0.34, 0.14, 0.22), "bois_sombre", lacet)

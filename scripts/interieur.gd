@@ -111,6 +111,9 @@ func _process(dt: float) -> void:
 			deverrouille = false
 		_maj_verrou()
 	if _allume and racine.visible:
+		if _v2:
+			_vaciller_v2()
+			return
 		for l in lumieres:
 			var ph: float = l[2]
 			if ph < 0.0:
@@ -119,6 +122,45 @@ func _process(dt: float) -> void:
 			var h := fposmod(sin(pas * 12.9898 + ph) * 43758.5453, 1.0)
 			var f := 0.88 + sin(_t * 6.3 + ph) * 0.05 + sin(_t * 15.1 + ph * 2.0) * 0.03 + (h - 0.5) * 0.1
 			(l[0] as OmniLight3D).light_energy = l[1] * f
+
+## Lumière v2 : vacillement de flamme crédible. Énergie = respiration lente + bruit de valeur à 2 échelles (pas de sinus
+## régulier) + rares baisses brèves (souffle d'air) ; la couleur rougit quand la flamme faiblit ; la lumière bouge de 2 à 4 cm
+## (les reflets et la lueur glissent sur les murs comme une vraie flamme). Pas de 1/30 s (crédible, et 2x moins de mises à jour
+## des lumières que chaque image à 60 IPS).
+var _v2 := RaisInterieur.actif()
+var _t_vac := 0.0
+
+static func _bruit1(x: float) -> float:
+	var i := floorf(x)
+	var f := x - i
+	var a := fposmod(sin(i * 12.9898) * 43758.5453, 1.0)
+	var b := fposmod(sin((i + 1.0) * 12.9898) * 43758.5453, 1.0)
+	return lerpf(a, b, f * f * (3.0 - 2.0 * f))
+
+func _vaciller_v2() -> void:
+	if _t - _t_vac < 1.0 / 30.0:
+		return
+	_t_vac = _t
+	for l in lumieres:
+		var ph: float = l[2]
+		if ph < 0.0:
+			continue
+		var ol := l[0] as OmniLight3D
+		if not is_instance_valid(ol):
+			continue
+		if l.size() < 5:
+			l.append(ol.position)
+			l.append(ol.light_color)
+		var t := _t + ph * 7.0
+		var lent := _bruit1(t * 1.3) * 2.0 - 1.0
+		var vif := _bruit1(t * 9.0 + 31.0) * 2.0 - 1.0
+		var souffle := smoothstep(0.82, 1.0, _bruit1(t * 0.7 + 77.0))
+		var f := 0.9 + lent * 0.07 + vif * 0.07 - souffle * 0.22
+		ol.light_energy = float(l[1]) * f
+		var c0: Color = l[4]
+		ol.light_color = c0.lerp(Color(1.0, 0.42, 0.16), clampf((0.92 - f) * 1.6, 0.0, 0.45))
+		var p0: Vector3 = l[3]
+		ol.position = p0 + Vector3(_bruit1(t * 3.1 + 5.0) - 0.5, (_bruit1(t * 4.3 + 9.0) - 0.5) * 1.4, _bruit1(t * 2.7 + 13.0) - 0.5) * 0.07
 
 ## Ouvre ou ferme la porte (animation de 0,5 s, bruit de porte).
 func basculer(ouvrir: bool, bruit := true) -> void:

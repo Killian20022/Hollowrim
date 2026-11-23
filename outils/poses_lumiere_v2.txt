@@ -1,0 +1,11 @@
+# Lumière intérieure v2 (2026-11-23) : 5 intérieurs, vues de jour (14 h) et de nuit (21 h) ; captures_interieurs.sh ajoute heure=12 → on fixe l'heure ici
+halle_a interieur 0,3.0,0,-6 bat=halle
+halle_b interieur -5.8,0.2,-90,-8 bat=halle
+auberge_a interieur 0,1.2,-90,-12 bat=h2
+auberge_b interieur 0,0,180,-10 bat=h2
+forge_a interieur 1.4,1.5,0,-6 bat=forge
+forge_b interieur -0.2,0.0,146,-4 bat=forge
+sigrun_a interieur 0,2.0,0,-6 bat=sigrun
+sigrun_b interieur 3.0,1.5,115,-8 bat=sigrun
+h1_a interieur 0,0,0,-12 bat=h1
+h1_b interieur 0,0,180,-12 bat=h1
