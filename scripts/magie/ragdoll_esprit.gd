@@ -179,7 +179,8 @@ func prendre(e: CharacterBody3D, v: Vector3, s: DonneesSort, cosmetique := false
 		pb.angular_damp = 3.0
 		pb.friction = FROTTEMENT
 		pb.can_sleep = false   # un os endormi ne suivrait plus son corps si la racine bouge (coop : position répliquée)
-		PhysicsServer3D.body_set_enable_continuous_collision_detection(pb.get_rid(), true)   # main à 17 m/s : pas à travers le mur
+		# CCD seulement aux extrémités fines (mains, avant-bras, pieds, tête : une main à 17 m/s ne traverse pas le mur) ; le tronc est assez épais
+		PhysicsServer3D.body_set_enable_continuous_collision_detection(pb.get_rid(), pb.name.begins_with("hand") or pb.name.begins_with("lowerarm") or pb.name.begins_with("foot") or pb.name == "Head")
 	tp = _prof("prendre_ccd_reglages", tp)
 	fi["pose_ref"] = _pose_relative(rd)
 	_pousser(fi, v, false)
@@ -339,7 +340,8 @@ func _vol(fi: Dictionary, dt: float) -> void:
 		for pb: PhysicalBone3D in rd.os.values():
 			pb.linear_damp = 0.9
 			pb.angular_damp = 5.0
-	_tonus(fi, dt)
+	if tour % 2 == 0:
+		_tonus(fi, dt * 2.0)   # perf : une image sur deux (même correction par seconde)
 	# repos (ou délai dépassé) : il se relève ; l'invité attend le relevé de l'hôte (repli au bout de ATTENTE_HOTE s)
 	if float(fi["t"]) > TEMPS_MIN and vc.length() < REPOS_V and float(cm[2]) < REPOS_OS:
 		fi["t_repos"] = float(fi["t_repos"]) + dt

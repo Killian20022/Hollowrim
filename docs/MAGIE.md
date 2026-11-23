@@ -514,10 +514,16 @@ percuté par un autre) et `SortsEsprit.lacher` (Lévitation lâchée / mana épu
   local cosmétique (sans dégâts ni chocs) puis le même relevé à la place choisie par l'hôte (repli : il se relève seul après 5 s). LIMITES :
   non essayé à 2 PC ; les trajectoires ne sont que voisines (la place finale est celle de l'hôte, le fondu absorbe l'écart) ; pendant le vol
   la racine de l'ennemi reste où il a décollé (position répliquée inchangée).
-- **Perf** (crypte, 6 ennemis, Répulsion pleine charge toutes les 4 s, 960x540 sans vsync, `film_ragdoll_esprit.gd --mesure`, machine
-  partagée avec d'autres Godot : mesures bruitées, 3 essais entrelacés) : FPS moyen en combat 53 / 71 / 103 avec le ragdoll contre 72 / 74 / 72
-  sans (pas d'écart net) ; 1 % bas 11 / 22 / 25 FPS contre 32 / 30 / 34 : à-coups plus marqués avec 6 ragdolls (pics à l'impulsion et au
-  relevé : capture de pose, ombre refusionnée). Au repos, rien ne tourne (repos 91-144 FPS dans les deux cas). À reprendre au calme.
+- **Perf** (crypte, 6 ennemis, Répulsion pleine charge toutes les 4 s, 960x540 sans vsync, `film_ragdoll_esprit.gd --mesure`, A/B
+  entrelacé ; machine partagée avec d'autres Godot). Profil par étape (`PROFIL …`) : construire un ragdoll ~1,6 ms (x6 la même image = le
+  gros à-coup d'origine), 1re image du clip de relevé ~0,8 ms, vol ~0,3 ms par corps et par image, le reste < 0,3 ms. Correctifs :
+  ragdolls construits D'AVANCE quand un sort de l'esprit est en main (`SortsEsprit.preparer_ragdolls`, un par image, os en veille sans
+  collision : `Ragdoll.mettre_en_veille`, l'impulsion ne coûte plus que 7 µs de construction) ; ombre fusionnée GARDÉE pendant le vol
+  (`declencher(…, garder_ombre)`, plus de refusion au relevé) ; un relevé par image ; balayages du vol (ennemis, objets) une image sur
+  deux, sol une sur trois, tonus une sur deux ; CCD seulement aux mains, avant-bras, pieds, tête.
+  Résultat, combat (avec / sans ragdoll), FPS moyen et 1 % bas : 111 / 115 et 46 / 56 ; 117 / 114 et 54 / 55 (séries précédentes, même
+  version sauf CCD et tonus : 103 / 121 et 53 / 66 ; 109 / 114 et 53 / 59). Avant les correctifs : 1 % bas 11-25 contre ~32.
+  Au repos rien ne tourne (repos 147-165 FPS dans les deux cas).
 - **Interrupteur** : `-- --sans-ragdoll-esprit` (vol cinématique et chute Death01 d'avant).
 - **Test** : `bash outils/tous_les_tests.sh test_ragdoll_esprit` (28 vérifications) ; `test_sorts_esprit` adapté. **Film / mesure** :
   `outils/film_ragdoll_esprit.gd` (`--plans=normal,ralenti,levitation`, `--mesure`), rendus dans
