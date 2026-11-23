@@ -514,6 +514,10 @@ percuté par un autre) et `SortsEsprit.lacher` (Lévitation lâchée / mana épu
   local cosmétique (sans dégâts ni chocs) puis le même relevé à la place choisie par l'hôte (repli : il se relève seul après 5 s). LIMITES :
   non essayé à 2 PC ; les trajectoires ne sont que voisines (la place finale est celle de l'hôte, le fondu absorbe l'écart) ; pendant le vol
   la racine de l'ennemi reste où il a décollé (position répliquée inchangée).
+- **Perf** (crypte, 6 ennemis, Répulsion pleine charge toutes les 4 s, 960x540 sans vsync, `film_ragdoll_esprit.gd --mesure`, machine
+  partagée avec d'autres Godot : mesures bruitées, 3 essais entrelacés) : FPS moyen en combat 53 / 71 / 103 avec le ragdoll contre 72 / 74 / 72
+  sans (pas d'écart net) ; 1 % bas 11 / 22 / 25 FPS contre 32 / 30 / 34 : à-coups plus marqués avec 6 ragdolls (pics à l'impulsion et au
+  relevé : capture de pose, ombre refusionnée). Au repos, rien ne tourne (repos 91-144 FPS dans les deux cas). À reprendre au calme.
 - **Interrupteur** : `-- --sans-ragdoll-esprit` (vol cinématique et chute Death01 d'avant).
 - **Test** : `bash outils/tous_les_tests.sh test_ragdoll_esprit` (28 vérifications) ; `test_sorts_esprit` adapté. **Film / mesure** :
   `outils/film_ragdoll_esprit.gd` (`--plans=normal,ralenti,levitation`, `--mesure`), rendus dans
