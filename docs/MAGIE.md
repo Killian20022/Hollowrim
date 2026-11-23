@@ -504,6 +504,11 @@ tiré d'un coup (rayon du néant), avec de petites runes. Données : `data/sorts
   `ImpactCorps.embraser(.., "tenebres", ..)` toutes les 0,7 s (l'ombre qui rampe, OmbreCorps) + la corruption du statut ;
   RUNES : celles de la main (RunesOrbite, état CANALISE : serrées et vives) et 3 à 5 runes violet pâle (shader des runes) qui
   glissent le long du rayon en tournant autour de l'axe et s'éteignent avant la cible. Ombre au sol (EffetsSol.ombrer) sous le bout.
+- **v2 (retour utilisateur : « un effet plus rapide, que ça fasse plus rayon »)** : plus d'ondulation lente ; des IMPULSIONS
+  pourpres filent de la main vers la cible (26 m/s, une tous les 1,7 m, ~15 par seconde en un point), stries fines au cœur ; cœur
+  noir tendu (bord fixe), liseré fin et vif qui scintille (24 Hz, paliers, sans tramage), fumée plus légère qui ne déforme plus la
+  silhouette, évasement au contact réduit (×1,12) ; allumage 0,1 s (le rayon jaillit d'un coup, petit éclair de départ), coupure
+  en 0,07 s puis la fumée reste ; runes 2× plus rapides ; orbe de la main ×0,64 pendant ce sort (`RayonNoir.TAILLE_ORBE`).
 - **Son** : `outils/sons_magie/generer_rayon_noir.sh` (synthèse ffmpeg) : boucle de 4 s (grondement 41 Hz qui pulse à 0,5 Hz,
   souffle sombre, chuchotements), allumage, extinction ; impact : sons de l'école (EffetsMagie.impact via OmbreCorps / GestionMagie).
 - **Raccourci de test** : touche Y (action « rayon_noir », Touches) → main gauche, second appui = la main d'avant ; sort de départ
