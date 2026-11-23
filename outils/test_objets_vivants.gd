@@ -161,7 +161,8 @@ func _tester() -> void:
 	var n0 := inv.nombre("chope")
 	_verif(ov.prendre(cible) and inv.nombre("chope") == n0 + 1 and inv.est_vole("chope") and inv.get_meta("vole", false),
 		"prendre la chope : au sac (%d), marquée volée" % inv.nombre("chope"))
-	_verif(_vols.size() == 1 and _vols[0][0] == cible and _vols[0][1] == "chef" and (_vols[0][2] as Vector3).distance_to(cible.global_position) < 0.01,
+	var vols_cible := _vols.filter(func(v: Array) -> bool: return v[0] == cible)      # (la casse d'un bien possédé pendant le souffle signale aussi un vol : on ne compte que celui de la chope)
+	_verif(vols_cible.size() == 1 and vols_cible[0][1] == "chef" and (vols_cible[0][2] as Vector3).distance_to(cible.global_position) < 0.01,
 		"signaler_vol(objet, « chef », position) appelé sur le nœud du groupe « crime »")
 	var cachee := DisplayServer.get_name() == "headless" or cible.mm.get_instance_transform(cible.idx).basis.get_scale().length() < 0.001   # serveur de rendu factice : instances non stockées
 	_verif(cible.has_meta("pris") and cible.collision_layer == 0 and not cible.visible and cachee, "la chope a disparu du décor (plus de collision, instance effacée)")
@@ -254,7 +255,7 @@ func _tester() -> void:
 		await _images(5)
 		var suivant: ObjetVivant = null
 		for o: ObjetVivant in halle:
-			if suivant == null and o.proprietaire() != "" and not o.has_meta("pris") and not o.coince and o != possede:
+			if suivant == null and o.proprietaire() != "" and not o.has_meta("pris") and not o.coince and o != possede and o.oid != "":      # (un meuble physique n'est pas « prenable » : pas de vol)
 				suivant = o
 		var p1: float = vrai.prime()
 		if suivant != null and vrai.voit(tem, j.global_position):

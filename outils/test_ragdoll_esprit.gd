@@ -184,7 +184,7 @@ func _repulsion() -> void:
 	await _viser_point(Vector3(-3.0, 1.0, 1.0))
 	var vie0: float = d.vie
 	var t0 := Time.get_ticks_msec()
-	await _onde(1.5)
+	await _onde(0.6)
 	var vu_vol := false
 	var y_max := -1.0
 	var t_ia := -1.0
@@ -247,7 +247,7 @@ func _mort_en_vol() -> void:
 	await _sim(0.4)
 	d.vie = 3.0
 	await _viser_point(Vector3(-3.0, 1.0, 1.0))
-	await _onde(1.5)
+	await _onde(0.6)
 	await _sim(4.5)
 	var rd := Ragdoll.equiper(d.modele) as Ragdoll
 	var morts := rag.journal.filter(func(x): return x.get("e") == d and x.has("mort"))
@@ -267,7 +267,7 @@ func _plafond() -> void:
 		es_l.append(_draugr(Vector3(-cos(ang) * 2.4, 0.0, 1.0 + sin(ang) * 2.4), "squelette"))
 	await _sim(0.5)
 	await _viser_point(Vector3(-3.0, 1.0, 1.0))
-	await _onde(1.5)
+	await _onde(0.6)
 	var maxi_rd := 0
 	var cine := 0
 	for k in 20:
@@ -357,7 +357,7 @@ func _interrupteur() -> void:
 	var d := _draugr(Vector3(-1.4, 0.0, 1.0), "squelette")
 	await _sim(0.4)
 	await _viser_point(Vector3(-3.0, 1.0, 1.0))
-	await _onde(1.5)
+	await _onde(0.6)
 	var cine := false
 	for k in 20:
 		await _sim(DT)

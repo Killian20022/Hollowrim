@@ -175,6 +175,11 @@ static func charge_pleine(ecole: String, pos: Vector3) -> void:
 	var vol := ChargeSort.reglage("volume_son_plein", -3.0)
 	_coup(SON_PLEINE, pos, vol, float(HAUTEUR_PLEINE.get(ecole_sure(ecole), 1.0)) * randf_range(0.98, 1.02), "charge_pleine", 0.2)
 
+## Palier de charge de la Répulsion (1 s, 2 s) : le signal de charge pleine, plus discret et plus grave, qui monte à chaque palier.
+static func esprit_palier(pos: Vector3, palier: int) -> void:
+	_compter("esprit_palier")
+	_coup(SON_PLEINE, pos, ChargeSort.reglage("volume_son_plein", -3.0) - 7.0 + 2.0 * palier, 0.78 + 0.1 * palier, "charge_pleine", 0.2)
+
 static func impact(ecole: String, pos: Vector3, force: float) -> void:
 	_compter("impact")
 	var t := _t(ecole_sure(ecole))

@@ -17,6 +17,8 @@ var tenu := false
 var charge := 0.0
 ## Instant (t de l'état CHARGE) où la charge a atteint le maximum (ChargeSort.PLEIN) ; -1 = pas encore (signal et pulsation).
 var pleine_t := -1.0
+## Paliers de charge déjà signalés (Répulsion : un petit signal sonore à chaque palier franchi).
+var palier := 0
 var double := false
 var meneuse := true
 ## Durée de la récupération en cours (sort.recuperation, ou plus longue après une interruption).
@@ -40,6 +42,7 @@ func changer(e: int) -> void:
 	etat = e
 	t = 0.0
 	pleine_t = -1.0
+	palier = 0
 	if e == REPOS:
 		charge = 0.0
 		double = false

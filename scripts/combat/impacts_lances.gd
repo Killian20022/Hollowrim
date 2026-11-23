@@ -747,7 +747,7 @@ static func arracher(objet: RigidBody3D, giclee := true) -> void:
 		return
 	var m: Dictionary = objet.get_meta("plantee")
 	var rt: Variant = m.get("rt")
-	if rt is Node and is_instance_valid(rt):
+	if is_instance_valid(rt) and rt is Node:      # (is_instance_valid d'abord : `is` sur une instance libérée est une erreur de script)
 		(rt as Node).queue_free()
 	var pl := objet.get_node_or_null("Plantage")
 	var point: Vector3 = objet.global_position

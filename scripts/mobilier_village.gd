@@ -730,6 +730,7 @@ func _poser_sub(fusion: Dictionary, sub: Array, xf: Transform3D, _mod: String) -
 		if e[0] == "" or not PropsQuaternius.existe(e[0]):
 			continue
 		PropsQuaternius.compter("village_marche")
+		PropsQuaternius.fondu(String(e[0]), "mv_sub")
 		var nom := PropsQuaternius.ext_v5(e[0], e[2])      # v5 : pq_* texturé du même modèle (dehors)
 		for t: Array in PropsQuaternius.triangles(nom, e[2]):
 			var mat: String = (e[2] as Dictionary).get(t[0], MATS_Q.get(t[0], "planches_h"))
@@ -787,7 +788,7 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 			if e.size() > 7:      # pose suspendue : rotation propre à la pièce (os en haut…) et échelle avant le x1,3
 				xf.basis = xf.basis * (e[6] as Basis) * Basis.from_scale(e[7] as Vector3)
 			xf.basis = xf.basis.scaled(Vector3.ONE * 1.3)      # lot 4 : nourriture des étals un peu plus grosse (lisible en vue de jeu)
-		if e.size() <= 5 and ObjetsVivants.capte_meuble(nom):      # cassables partout : tonneau, caisse, cageot, jarre, sac physiques
+		if e.size() <= 5 and ObjetsVivants.capte_meuble(nom) and not (e[1] >= 0 and not e[4] and ObjetsVivants.capte(nom)):      # (denrée d'étal du registre : objet vivant, plus bas)      # cassables partout : tonneau, caisse, cageot, jarre, sac physiques
 			var nme := PropsQuaternius.ext_v5(nom)
 			var sp := ObjetsVivants.spec_meuble(nme if ObjetsVivants.MEUBLES.has(nme) else nom, xf, ObjetsVivants.morceaux_contexte(nme, "exterieur", xf.basis.get_scale(),
 				func(m: String) -> Material: return _mat_cache(_mat_q(nom, m, est_l4, e))))
@@ -803,6 +804,7 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 				_vivants[e[1]] = []
 			(_vivants[e[1]] as Array).append(ObjetsVivants.spec(nom, xf, ObjetsVivants.morceaux_q(nom, func(m: String) -> Material: return _mat_cache(_mat_q(nom, m, est_l4, e)))))
 			continue
+		PropsQuaternius.fondu(nom, "mv_q")
 		for t: Array in PropsQuaternius.triangles(nom, e[5] if e.size() > 5 else {}):
 			var mat := _mat_q(nom, String(t[0]), est_l4, e)
 			if not fusion.has(mat):

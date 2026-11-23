@@ -118,6 +118,8 @@ enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI, DECHARGE, TELE
 ## Répulsion : demi-angle du cône (°), portée sans charge (m ; pleine charge : `portee`), vitesse donnée (m/s, ennemi de puissance 1
 ## ou objet de 4 kg) sans charge et à pleine charge. Attraction : `force_max` = vitesse du relâchement final.
 @export var angle_cone := 35.0
+## Répulsion : demi-angle du cône à pleine puissance (°) ; 0 = pas d'élargissement.
+@export var angle_cone_max := 0.0
 @export var portee_min := 4.0
 @export var force_min := 6.0
 @export var force_max := 15.0

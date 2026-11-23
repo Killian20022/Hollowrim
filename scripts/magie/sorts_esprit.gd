@@ -38,9 +38,9 @@ const TENUE_MIN := 0.2
 ## Chocs : vitesse d'impact (m/s, contre la surface) à partir de laquelle un ennemi projeté prend des dégâts ; dégâts par m/s
 ## au-delà ; chute : vitesse verticale sans dégâts, dégâts par m/s au-delà.
 const VITESSE_CHOC := 4.5
-const K_CHOC := 1.8
+const K_CHOC := 1.0
 const VITESSE_CHUTE := 7.0
-const K_CHUTE := 3.0
+const K_CHUTE := 1.5
 ## Durée maximale d'un vol (s) : l'ennemi est rendu à son IA quoi qu'il arrive.
 const DUREE_VOL := 3.0
 ## Vitesse minimale (m/s) pour qu'un ennemi décolle ; en dessous il titube seulement (recul).
@@ -492,6 +492,9 @@ func _choc(f: Dictionary, autre: Object, point: Vector3, n: Vector3, v: Vector3,
 		return
 	touches[cle] = true
 	var dg := (vn - VITESSE_CHOC * 0.5) * K_CHOC
+	if autre is StaticBody3D:
+		# contre un mur : une part de la vie max (un garde en armure à pleine vie en perd ~40-50 % à pleine charge, il survit et se relève)
+		dg += float(e.get("vie_max")) * 0.28 * clampf(vn / 12.0, 0.0, 1.2) if e.get("vie_max") != null else 0.0
 	var s: DonneesSort = f.get("sort")
 	_noter("choc %s -> %s v=%.1f dg=%.1f" % [e.name, (autre as Node).name if autre is Node else "?", vn, dg])
 	_frapper(e, dg, point, -n, 32.0, s)
@@ -800,20 +803,42 @@ func tout_lacher() -> void:
 
 # ====================================================================== RÉPULSION (sort à charge, au relâchement)
 
+## Courbe de puissance de la Répulsion : paliers sensibles selon le maintien (c = charge 0..1 = durée / temps_charge, 3 s).
+## tap → 0 ; ~0,3 s → 0,13 ; ~1 s → 0,42 (poussée forte) ; ~2 s → 0,75 ; 3 s → 1 (onde dévastatrice).
+const PALIERS_REPULSION := [[0.0, 0.0], [0.1, 0.13], [0.34, 0.42], [0.67, 0.75], [1.0, 1.0]]
+
+static func niveau_repulsion(charge: float) -> float:
+	var c := clampf(charge, 0.0, 1.0)
+	for i in range(1, PALIERS_REPULSION.size()):
+		var a: Array = PALIERS_REPULSION[i - 1]
+		var b: Array = PALIERS_REPULSION[i]
+		if c <= float(b[0]):
+			return lerpf(float(a[1]), float(b[1]), (c - float(a[0])) / maxf(float(b[0]) - float(a[0]), 0.001))
+	return 1.0
+
+## Réglages de l'onde pour une charge 0..1 : niveau (courbe à paliers), force (m/s, ennemi de puissance 1), portée (m), demi-angle du cône (°).
+## Portée et largeur du cône montent avec le niveau comme la force.
+static func reglage_repulsion(s: DonneesSort, charge: float) -> Dictionary:
+	var n := niveau_repulsion(charge)
+	var cone_max := s.angle_cone_max if s.angle_cone_max > 0.0 else s.angle_cone
+	return {"n": n, "force": lerpf(s.force_min, s.force_max, n), "portee": lerpf(s.portee_min, s.portee, n), "cone": lerpf(s.angle_cone, cone_max, n)}
+
 ## Onde de choc en cône devant la main (charge 0..1, mana déjà payé par MainSort._lancer). Renvoie le résumé (tests).
 func repulsion(s: DonneesSort, charge: float, paume: Node3D, oeil: Vector3, avant: Vector3, distant := false) -> Dictionary:
 	var c := clampf(charge, 0.0, 1.0)
-	var portee := lerpf(s.portee_min, s.portee, c)
-	var force := lerpf(s.force_min, s.force_max, c)
-	var demi := deg_to_rad(s.angle_cone)
+	var rg := reglage_repulsion(s, c)
+	var n: float = rg["n"]   # niveau de puissance (courbe à paliers) : tout ce qui suit en dépend
+	var portee: float = rg["portee"]
+	var force: float = rg["force"]
+	var demi := deg_to_rad(float(rg["cone"]))
 	var plat := Vector3(avant.x, 0.0, avant.z).normalized() if Vector2(avant.x, avant.z).length() > 0.05 else -joueur.global_basis.z
 	var depart := EffetsMagie.pos_origine(paume) if paume != null else oeil
-	var res := {"ennemis": [], "objets": [], "portee": portee, "charge": c}
-	_effets_onde(depart, avant, portee, c, demi)
+	var res := {"ennemis": [], "objets": [], "portee": portee, "charge": c, "niveau": n, "force": force}
+	_effets_onde(depart, avant, portee, n, demi)
 	if not distant:
-		SonsMagie.esprit_onde(depart, 0.7 + 0.6 * c)
-		_envoyer(EV_ONDE, "onde", {"p": depart, "a": avant, "c": c})
-	var dg := s.degats * lerpf(s.degats_charge_min, 1.0, c)
+		SonsMagie.esprit_onde(depart, 0.7 + 0.6 * n)
+		_envoyer(EV_ONDE, "onde", {"p": depart, "a": avant, "c": n})
+	var dg := s.degats * lerpf(s.degats_charge_min, 1.0, n)
 	if not distant:
 		for e: CharacterBody3D in _cibles(oeil, portee + 1.0):
 			var ce := Elements._centre(e)
@@ -823,15 +848,15 @@ func repulsion(s: DonneesSort, charge: float, paume: Node3D, oeil: Vector3, avan
 				continue
 			if not _sans_mur(oeil, ce, e):
 				continue
-			var k := clampf(1.0 - 0.55 * dh.length() / maxf(portee, 0.1), 0.35, 1.0)
+			var k := clampf(1.0 - 0.4 * dh.length() / maxf(portee, 0.1), 0.55, 1.0)
 			var p := puissance(e)
 			var dir := (dh.normalized() if dh.length() > 0.3 else plat).lerp(plat, 0.35).normalized()
 			var vit := force * k * clampf(1.0 / sqrt(maxf(p, 0.1)), 0.3, 1.15)
 			if est_chef(e):
 				vit *= 0.25
-			_frapper(e, dg * k, ce, dir, lerpf(18.0, 40.0, c) * k, s)
+			_frapper(e, dg * k, ce, dir, lerpf(18.0, s.stagger, n) * k, s)
 			if vivant(e):
-				projeter(e, dir * vit + Vector3.UP * vit * lerpf(0.3, 0.45, c), s)
+				projeter(e, dir * vit + Vector3.UP * vit * lerpf(0.3, 0.42, n), s)
 			(res["ennemis"] as Array).append(e)
 	for o in _objets(oeil, portee + 0.5):
 		var oc := Telekinesie.centre(o)
@@ -839,15 +864,15 @@ func repulsion(s: DonneesSort, charge: float, paume: Node3D, oeil: Vector3, avan
 		var dh2 := Vector3(d2.x, 0.0, d2.z)
 		if dh2.length() > portee or (dh2.length() > 0.5 and plat.angle_to(dh2) > demi * 1.1) or absf(d2.y) > 2.5:
 			continue
-		var k2 := clampf(1.0 - 0.5 * dh2.length() / maxf(portee, 0.1), 0.4, 1.0)
+		var k2 := clampf(1.0 - 0.4 * dh2.length() / maxf(portee, 0.1), 0.55, 1.0)
 		var masse := Telekinesie.masse_de(o)
-		var vo := force * 1.25 * k2 * clampf(pow(4.0 / maxf(masse, 0.1), 0.3), 0.35, 1.3)
+		var vo := force * 1.25 * k2 * clampf(pow(4.0 / maxf(masse, 0.1), 0.3), 0.5, 1.3)
 		var dir2 := (dh2.normalized() if dh2.length() > 0.3 else plat).lerp(plat, 0.3).normalized()
 		if _pousser_objet(o, dir2 * vo + Vector3.UP * vo * 0.3, distant):
 			(res["objets"] as Array).append(o)
 	if not distant:
 		_reseau_objets(res["objets"])
-		_noter("répulsion charge=%.2f portée=%.1f ennemis=%d objets=%d" % [c, portee, (res["ennemis"] as Array).size(), (res["objets"] as Array).size()])
+		_noter("répulsion charge=%.2f niveau=%.2f force=%.1f portée=%.1f ennemis=%d objets=%d" % [c, n, force, portee, (res["ennemis"] as Array).size(), (res["objets"] as Array).size()])
 	return res
 
 ## Met un objet en mouvement (le réveille, le change en corps si besoin) et le fait suivre par la télékinésie pour ses impacts
@@ -1140,8 +1165,8 @@ func _effets_onde(depart: Vector3, avant: Vector3, portee: float, c: float, demi
 	g.lumiere("es_onde", depart + avant * 1.2, BLANC, 0.6 + 0.6 * c, 4.0 + portee * 0.5, 3.0, 0.16)
 	# poussière soulevée au sol dans le cône
 	var plat := Vector3(avant.x, 0.0, avant.z).normalized()
-	for k in 3:
-		var p := depart + plat * (1.2 + k * portee * 0.28) + plat.cross(Vector3.UP) * randf_range(-0.6, 0.6) * k
+	for k in 3 + int(round(5.0 * c)):
+		var p := depart + plat * (1.2 + (k % 4) * portee * 0.22 + int(k / 4) * 0.8) + plat.cross(Vector3.UP) * randf_range(-0.6, 0.6) * k
 		var q := PhysicsRayQueryParameters3D.create(p + Vector3.UP * 0.5, p + Vector3.DOWN * 3.0, 1)
 		var r := joueur.get_world_3d().direct_space_state.intersect_ray(q)
 		if not r.is_empty():
@@ -1335,8 +1360,10 @@ func _sur_onde(expediteur: int, id: Variant, d: Variant) -> void:
 	var a: Vector3 = d.get("a", Vector3.FORWARD)
 	var s := _sort("repulsion")
 	if s != null:
-		_effets_onde(d.get("p", Vector3.ZERO), a, lerpf(s.portee_min, s.portee, float(d.get("c", 0.5))), float(d.get("c", 0.5)), deg_to_rad(s.angle_cone))
-		SonsMagie.esprit_onde(d.get("p", Vector3.ZERO), 0.8)
+		var nr := float(d.get("c", 0.5))   # niveau de puissance (déjà passé par la courbe)
+		var cone_max := s.angle_cone_max if s.angle_cone_max > 0.0 else s.angle_cone
+		_effets_onde(d.get("p", Vector3.ZERO), a, lerpf(s.portee_min, s.portee, nr), nr, deg_to_rad(lerpf(s.angle_cone, cone_max, nr)))
+		SonsMagie.esprit_onde(d.get("p", Vector3.ZERO), 0.7 + 0.6 * nr)
 
 func _sur_vortex(expediteur: int, id: Variant, d: Variant) -> void:
 	_relayer(expediteur, EV_VORTEX, id, d)

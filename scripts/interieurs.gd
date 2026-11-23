@@ -361,8 +361,9 @@ func q(nom: String, pos: Vector3, lacet := 0.0, e := 1.0, mats := {}, solide_ :=
 		push_error("Interieurs : prop %s absent de %s" % [nom, PropsQuaternius.DAT])
 		return
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(Vector3.ONE * e), pos)
-	if _meuble(nom, xf, mats) or not solide_ and _vivant(nom, xf, mats):
+	if (_meuble(nom, xf, mats) if solide_ or not ObjetsVivants.capte(nom) else false) or not solide_ and _vivant(nom, xf, mats):      # un objet du registre (chope, pomme…) reste PRENABLE : vivant avant meuble
 		return
+	PropsQuaternius.fondu(nom, "int_q")
 	for m: Array in PropsQuaternius.morceaux(nom, mats):
 		var cible: String = mats.get(m[0], MATS_Q.get(m[0], "bois"))
 		v._ajouter(_p(), m[1], xf, M[cible])
@@ -390,8 +391,9 @@ func qf(nom: String, pos: Vector3, lacet: float, taille: Vector3, mats := {}, so
 	pos = _sol(pos)
 	PropsQuaternius.compter("interieurs")
 	var xf := Transform3D(Basis(Vector3.UP, lacet) * Basis.from_scale(sc), pos)
-	if _meuble(nom, xf, mats) or not solide_ and _vivant(nom, xf, mats):
+	if (_meuble(nom, xf, mats) if solide_ or not ObjetsVivants.capte(nom) else false) or not solide_ and _vivant(nom, xf, mats):      # un objet du registre (chope, pomme…) reste PRENABLE : vivant avant meuble
 		return
+	PropsQuaternius.fondu(nom, "int_q")
 	for m: Array in PropsQuaternius.morceaux(nom, mats):
 		var cible: String = mats.get(m[0], MATS_Q.get(m[0], "bois"))
 		v._ajouter(_p(), m[1], xf, M[cible])
@@ -425,6 +427,9 @@ func _meuble(nom: String, xf: Transform3D, mats: Dictionary) -> bool:
 ## Prop posé par une transformation complète (repère de la pièce), sans recalage au sol.
 func _q_xf(nom: String, xf: Transform3D, mats := {}, double_ := Vector3.ONE) -> void:
 	PropsQuaternius.compter("interieurs")
+	if double_ == Vector3.ONE and ObjetsVivants.tk_partout and _meuble(nom, xf, mats):      # télékinésie partout : denrées pendues, outils au mur, ossements… physiques
+		return
+	PropsQuaternius.fondu(nom, "int_xf")
 	for m: Array in PropsQuaternius.morceaux(nom, mats):
 		v._ajouter(_p(), m[1], xf, M[mats.get(m[0], MATS_Q.get(m[0], "bois"))])
 		if double_ != Vector3.ONE:      # pièce plane : seconde face (axe de la normale mis à -1)

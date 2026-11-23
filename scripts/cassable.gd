@@ -21,6 +21,7 @@ const DUREE_VOL := 0.9
 const PERIODE := 0.75        ## s entre deux contrôles de l'état « pillé » (une partie chargée arrive après la construction)
 
 var ident := ""
+var matiere_objet := ""      ## genre « objet » : matière du modèle (ObjetsVivants.MEUBLES)
 var genre := "urne"
 var casse := false
 var haut := 0.55
@@ -32,7 +33,8 @@ var _vol := -1.0
 var _veille := 0.0
 
 ## Appelé par CrypteDecor.finir() : `tampons` = [{"nom": matériau, "v", "n", "u", "c"}] relatifs à l'origine du nœud.
-func monter(id: String, genre_: String, ech: float, tampons: Array, materiaux: Dictionary, boite := Vector3.ZERO) -> void:
+## `donnees` (genre « objet », télékinésie partout) : [matière, masse kg, bloque le passage] d'un petit objet de composition (ObjetsVivants.MEUBLES).
+func monter(id: String, genre_: String, ech: float, tampons: Array, materiaux: Dictionary, boite := Vector3.ZERO, donnees := []) -> void:
 	ident = id
 	genre = genre_
 	name = "Cass_" + id.replace(":", "_")
@@ -57,12 +59,16 @@ func monter(id: String, genre_: String, ech: float, tampons: Array, materiaux: D
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
 		_mis.append(mi)
-	collision_layer = CALQUE | (1 if boite != Vector3.ZERO else 0)
+	var bloquant := boite != Vector3.ZERO and (donnees.is_empty() or bool(donnees[2]))
+	collision_layer = CALQUE | (1 if bloquant else 0)
 	collision_mask = 0
 	freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
 	freeze = true
 	can_sleep = true
 	mass = (40.0 if genre == "tonneau" else (18.0 if genre == "caisse" else (4.0 if genre == "tabouret" else 6.0))) * clampf(ech * ech * ech, 0.4, 2.5)
+	if not donnees.is_empty():
+		matiere_objet = String(donnees[0])
+		mass = float(donnees[1]) * clampf(ech * ech * ech, 0.4, 2.5)
 	angular_damp = 2.5
 	linear_damp = 0.3
 	if CasseObjets.actif:
@@ -121,7 +127,7 @@ func est_casse() -> bool:
 
 ## Coup d'arme (mains.gd, « cassable ») : cède toujours, léger ou puissant.
 func frapper(_puissant: bool, origine: Vector3) -> bool:
-	if casse:
+	if casse or incassable():
 		return false
 	casser(true, origine)
 	return true
@@ -142,7 +148,13 @@ func recevoir_choc(vitesse: Vector3, masse: float, point: Vector3) -> bool:
 	casser(true, point)
 	return true
 
+## Petit objet de composition en fer, tissu ou nourriture (genre « objet ») : rebondit au lieu de se briser.
+func incassable() -> bool:
+	return matiere_objet != "" and not CasseObjets.fragile(matiere_objet)
+
 func matiere() -> String:
+	if matiere_objet != "":
+		return matiere_objet
 	return {"tonneau": "tonneau", "caisse": "bois", "tabouret": "bois_leger"}.get(genre, "poterie")
 
 # ------------------------------------------------------------------------------------------------ télékinésie (cassables partout)
@@ -221,7 +233,7 @@ func _maillage_entier() -> ArrayMesh:
 
 ## Sort (projectile ou jet) : `point` = impact.
 func briser_sort(point: Vector3) -> void:
-	if not casse:
+	if not casse and not incassable():
 		casser(true, point)
 
 ## Sort de ZONE (explosion, nova, tempête… GestionMagie.zone) : brise tous les cassables dont le volume touche le disque de rayon `rayon`
@@ -229,7 +241,7 @@ func briser_sort(point: Vector3) -> void:
 static func briser_zone(arbre: SceneTree, centre: Vector3, rayon: float) -> int:
 	var n := 0
 	for c in arbre.get_nodes_in_group("cassables"):
-		if not (c is Cassable) or (c as Cassable).casse:
+		if not (c is Cassable) or (c as Cassable).casse or (c as Cassable).incassable():
 			continue
 		var o := c as Cassable
 		var d := Vector2(o.global_position.x - centre.x, o.global_position.z - centre.z).length() - o.rayon

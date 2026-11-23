@@ -597,6 +597,11 @@ func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 			# mana permet de payer au relâchement ; au maximum, un signal (son, éclat) puis la pulsation (_intensite)
 			var c := clampf(i.t / ChargeSort.temps_plein(s), 0.0, 1.0)
 			i.charge = minf(c, _charge_payable(sd, i.double))
+			if s.portee_mode == DonneesSort.Portee.REPULSION and i.palier < 2 and _p(m) != null and not EffetsMagie.muet:
+				# Répulsion : un signal discret à ~1 s puis ~2 s de maintien (le son monte avec la charge)
+				if i.charge >= SortsEsprit.PALIERS_REPULSION[2 + i.palier][0] - 0.001 and not ChargeSort.pleine(i.charge):
+					i.palier += 1
+					SonsMagie.esprit_palier((_p(m) as Node3D).global_position, i.palier)
 			if i.pleine_t < 0.0 and ChargeSort.pleine(i.charge):
 				i.pleine_t = i.t
 				EffetsMagie.charge_pleine(_p(m), s.ecole)

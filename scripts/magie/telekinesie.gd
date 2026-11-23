@@ -22,7 +22,7 @@ const ECOLE := "esprit"
 const ECOLE_VISUELLE := "protection"
 const GROUPE := "telekinesable"
 ## Aide à la visée de la saisie : demi-angle (°) autour du réticule, élargi de la taille apparente de l'objet.
-const AIDE_VISEE := 7.0
+const AIDE_VISEE := 9.0
 ## Aide à la visée du lancer : un ennemi à moins de ce demi-angle (°) du réticule est visé en son centre.
 const AIDE_LANCER := 8.0
 const PORTEE_LANCER := 40.0
@@ -195,32 +195,39 @@ static func arme_de(n: Node) -> DonneesArme:
 		return ArmesEnnemis.donnees_arme(String(n.get_meta("tk_arme")))
 	return null
 
-## Objet visé : le plus proche du réticule (aide douce), à portée, sans mur entre l'œil et lui. null = rien.
+## Objet visé : le plus proche du réticule (aide généreuse : un objet un peu à côté du réticule est pris), à portée, sans mur entre l'œil
+## et lui. null = rien. Un seul passage sur le groupe, rejets les moins chers d'abord (distance, angle), puis visibilité (≤ 6 candidats).
 func viser(oeil: Vector3, avant: Vector3, portee: float) -> Node3D:
-	var meilleur: Node3D = null
-	var score := INF
-	var liste := candidats()
+	if not is_inside_tree():
+		return null
 	var tries: Array = []
-	for n: Node3D in liste:
-		if tenu_par_moi(n):
+	var loin := (portee + 2.5) * (portee + 2.5)
+	var vus := {}
+	var sources: Array = get_tree().get_nodes_in_group(GROUPE)
+	if not CasseObjets.actif:      # repli : objets vivants du décor hors groupe
+		sources = sources + ObjetsVivants.tous
+	for n in sources:
+		var nd := n as Node3D
+		if nd == null or not is_instance_valid(nd) or vus.has(nd.get_instance_id()):
 			continue
-		var c := centre(n)
+		vus[nd.get_instance_id()] = true
+		if (nd.global_position - oeil).length_squared() > loin or nd.has_meta("pris") or not nd.is_inside_tree() or tenu_par_moi(nd):
+			continue
+		var c := centre(nd)
 		var d := c - oeil
 		var dist := d.length()
 		if dist > portee or dist < 0.3 or d.dot(avant) <= 0.0:
 			continue
 		var a := rad_to_deg(avant.angle_to(d))
-		var marge := AIDE_VISEE + rad_to_deg(atan(rayon(n) / dist))
-		if a > marge:
+		var marge := AIDE_VISEE + rad_to_deg(atan(rayon(nd) / dist))
+		if a > marge or not nd.is_visible_in_tree():
 			continue
-		tries.append([a / marge + dist * 0.01, n, c])
+		tries.append([a / marge + dist * 0.01, nd, c])
 	tries.sort_custom(func(x, y): return x[0] < y[0])
-	for t in tries.slice(0, 4):
+	for t in tries.slice(0, 6):
 		if _visible(oeil, t[2], t[1]):
-			score = t[0]
-			meilleur = t[1]
-			break
-	return meilleur
+			return t[1]
+	return null
 
 func tenu_par_moi(n: Node) -> bool:
 	for m in tenue:
@@ -237,13 +244,21 @@ func _visible(oeil: Vector3, c: Vector3, n: Node3D) -> bool:
 	if n is CollisionObject3D:
 		ex.append((n as CollisionObject3D).get_rid())
 	q.exclude = ex
-	var r := n.get_world_3d().direct_space_state.intersect_ray(q)
-	if r.is_empty():
-		return true
-	var col: Object = r.get("collider")
-	if col == n or (col is Node and n.is_ancestor_of(col)):
-		return true
-	return (r["position"] as Vector3).distance_to(c) < rayon(n) + 0.15
+	var espace := n.get_world_3d().direct_space_state
+	var r_n := rayon(n)
+	# indulgent : le centre, puis un point au-dessus (objet posé derrière un rebord, sur un meuble, dans une pile)
+	for dy in [0.0, minf(r_n, 0.45)]:
+		var cible: Vector3 = c + Vector3.UP * dy
+		q.to = cible
+		var r := espace.intersect_ray(q)
+		if r.is_empty():
+			return true
+		var col: Object = r.get("collider")
+		if col == n or (col is Node and n.is_ancestor_of(col)):
+			return true
+		if (r["position"] as Vector3).distance_to(cible) < r_n + 0.2:
+			return true
+	return false
 
 # ====================================================================== survol (surbrillance), appelé chaque image par MainSort
 

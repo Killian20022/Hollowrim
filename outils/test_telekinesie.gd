@@ -7,7 +7,17 @@ extends SceneTree
 ## geste capturé « lance » au relâchement, molette.
 
 const SCENE := preload("res://scenes/test_magie.tscn")
+const SCENE_MONDE := preload("res://scenes/foret_test.tscn")
 const DT := 1.0 / 60.0
+## Couverture (télékinésie partout) : seuil de la part de props du décor qu'on peut saisir, et gros mobilier qui doit RESTER fixe.
+const SEUIL_COUVERTURE := 0.90
+const FIXES := ["table", "etal", "lit", "etabli", "etagere", "porte", "banniere", "bougie", "bougeoir", "torche", "lanterne", "corde", "chaine", "planches",
+	"poutre", "brique", "bordure", "roc", "souche", "tronc", "chariot", "charrette", "tente", "rack", "enclume", "billot", "mannequin", "lutrin", "chevalet",
+	"cloche", "buffet", "bibliotheque", "commode", "support", "puits", "abri", "cage", "pieux", "trappe", "barreaux", "tapis", "grille", "pilier",
+	"colonne", "piedestal", "bq", "cheminee", "cadre", "garde", "auvent", "aisselier", "poteau", "escalier", "barriere", "feu"]
+const FIXES_EXACT := ["coffre_or", "coffre_or_2", "coffre_d", "coffre_bombe", "coffre_lingots", "coffre", "coffre_2", "coffre_tiroirs", "tas_sacs", "pierre_aiguiser", "urne_brisee"]
+## Exceptions : premier mot « fixe » mais objet léger saisissable
+const LEGERS_EXACT := ["etabli_tiroirs", "urne_brisee_x"]
 
 var _ok := true
 var _n := 0
@@ -84,6 +94,7 @@ func _tester() -> void:
 	await _lancer_draugr()
 	await _tps()
 	await _armes()
+	await _couverture()
 	print("ECHECS : %d" % (0 if _ok else 1), "  (", _n, " vérifications)")
 	quit(0 if _ok else 1)
 
@@ -296,3 +307,103 @@ func _armes() -> void:
 	await _sim(1.5)
 	if h != null and is_instance_valid(h):
 		_verif(ImpactsLances.plantee(h) or h.linear_velocity.length() < 1.0, "l'arme lancée finit plantée ou posée (%s)" % ("plantée" if ImpactsLances.plantee(h) else "posée"))
+
+
+# ------------------------------------------------------------------ couverture : la grande majorité des props du monde réel est saisissable
+
+func _fixe(id: String) -> bool:
+	var base := id.trim_prefix("tk_").trim_prefix("pq_").trim_prefix("q_")
+	if id.begins_with("bq_"):
+		return true
+	if base in LEGERS_EXACT:
+		return false
+	return base in FIXES_EXACT or base.get_slice("_", 0) in FIXES
+
+func _couverture() -> void:
+	await _reset()
+	s.queue_free()
+	await physics_frame
+	PropsQuaternius.audit_pose = true
+	PropsQuaternius.audit.clear()
+	var m: Node3D = SCENE_MONDE.instantiate()
+	m.set_meta("test", true)
+	root.add_child(m)
+	for i in 2400:
+		await process_frame
+		if m.village != null and m.village.get("prets") == true:
+			break
+	for i in 60:
+		await physics_frame
+	var lieux := {}
+	var total := 0
+	for n in get_nodes_in_group(Telekinesie.GROUPE):
+		total += 1
+		var l: String = String(n.get("ident")).get_slice(":", 0) if n.get("ident") != null else "-"
+		l = "marche" if l.begins_with("marche_") else ("abords" if l.begins_with("pv_") or l.begins_with("lot_") else l)
+		lieux[l] = int(lieux.get(l, 0)) + 1
+	print("INFO   saisissables : %d, par lieu %s" % [total, str(lieux)])
+	var mini := {"village": 60, "halle": 100, "grima": 25, "sigrun": 12, "chasseurs": 10, "forge": 8, "marche": 50, "crypte": 60, "abords": 30}
+	for l: String in mini:
+		_verif(int(lieux.get(l, 0)) >= int(mini[l]), "couverture %s : %d props saisissables (≥ %d)" % [l, int(lieux.get(l, 0)), int(mini[l])])
+	# part saisissable : props de taille raisonnable encore FONDUS dans le décor (non saisissables) contre saisissables
+	var fondus_ok := 0
+	var liste_fondus := []
+	for k: String in PropsQuaternius.audit:
+		var id := k.get_slice(" <", 0)
+		if _fixe(id) or PropsQuaternius.boite(id).size.length() > 1.6:
+			continue
+		fondus_ok += int(PropsQuaternius.audit[k])
+		liste_fondus.append(k)
+	var part := float(total) / float(total + fondus_ok)
+	print("INFO   props légers encore fondus (non saisissables) : %d %s" % [fondus_ok, str(liste_fondus.slice(0, 12))])
+	_verif(part >= SEUIL_COUVERTURE, "part des props légers saisissables : %.1f %% (≥ %.0f %%)" % [part * 100.0, SEUIL_COUVERTURE * 100.0])
+	# le gros mobilier reste du décor : étals, tables, lits, établis, étagères, coffres de quête, chariots
+	var tous_fixes := ["q_grande_table", "pq_grande_table", "pq_table_ovale", "pq_table_petite_2", "q_etal", "q_lit_2", "pq_etabli", "q_etagere_arche",
+		"pq_rack_armes", "pq_coffre_or", "pq_chariot", "q_porte_manteau", "pq_enclume"]
+	var fautifs := tous_fixes.filter(func(id: String) -> bool: return ObjetsVivants.capte_meuble(id))
+	_verif(fautifs.is_empty(), "étals, tables, lits, établis, étagères, coffres de quête : refusés (fautifs : %s)" % str(fautifs))
+	var gros := {}
+	for n in get_nodes_in_group(Telekinesie.GROUPE):
+		var g := String(n.get("genre")) if n.get("genre") != null else ""
+		if g != "" and g != "etal" and g != "q_pierre_aiguiser" and g != "tk_q_pierre_aiguiser" and _fixe(g):      # (étal = denrées d'un étal ; pierre à aiguiser = petit objet du registre)
+			gros[g] = int(gros.get(g, 0)) + 1
+	_verif(gros.is_empty(), "aucun étal ni table dans le groupe saisissable (%s)" % str(gros))
+	# ce qu'on saisit : tonneau, jarre, caisse, chaise, seau, arme/outil, bûche, livre, chope… tous présents et légers (< masse_max)
+	var genres := {}
+	var lourds := 0
+	for n in get_nodes_in_group(Telekinesie.GROUPE):
+		var g := String(n.get("genre")) if n.get("genre") != null else n.get_class()
+		genres[g.trim_prefix("tk_").trim_prefix("pq_").trim_prefix("q_")] = true
+		if Telekinesie.masse_de(n) > sd.masse_max:
+			lourds += 1
+	for g in ["tonneau", "jarre", "caisse", "chaise", "tabouret", "seau_bois", "banc", "sac", "cageot_vide", "chope", "bouclier_bois", "hache_outil", "epee_mur", "rondin", "marmite", "coffre_ferme"]:
+		_verif(genres.has(g), "saisissable dans le monde : %s" % g)
+	_verif(lourds == 0, "aucun objet saisissable plus lourd que masse_max (%.0f kg) : %d" % [sd.masse_max, lourds])
+	# visée indulgente : un tonneau de la place, visé à ~5° à côté du centre, est pris
+	var t2 := Telekinesie.new(null)
+	root.add_child(t2)
+	t2.joueur = m.joueur
+	var cible: Node3D = null
+	for n in get_nodes_in_group(Telekinesie.GROUPE):
+		if n is ObjetVivant and String((n as ObjetVivant).genre).ends_with("tonneau") and String(n.ident).begins_with("village"):
+			cible = n
+			break
+	_verif(cible != null, "un tonneau de la place existe")
+	if cible != null:
+		var c := Telekinesie.centre(cible)
+		var bon := 0
+		var decale := 0
+		for k in 8:
+			var dir := Vector3.FORWARD.rotated(Vector3.UP, TAU * k / 8.0)
+			var oeil := c + dir * 3.0 + Vector3.UP * 0.4
+			var direct := (c - oeil).normalized()
+			if t2.viser(oeil, direct, 14.0) != cible:
+				continue
+			bon += 1
+			var de_cote := direct.rotated(Vector3.UP, deg_to_rad(5.0))
+			decale += 1 if t2.viser(oeil, de_cote, 14.0) == cible else 0
+		print("INFO   visée du tonneau : directe %d/8 directions, à 5° à côté %d" % [bon, decale])
+		_verif(bon >= 1 and decale >= maxi(1, bon - 1), "visée indulgente : tonneau pris à 5° du centre (%d/%d)" % [decale, bon])
+	t2.queue_free()
+	m.queue_free()
+	PropsQuaternius.audit_pose = false

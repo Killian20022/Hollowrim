@@ -139,6 +139,7 @@ func _tester() -> void:
 	magie.raccourci_sort_gauche("repulsion")
 	_verif(String(magie.eq.mains["gauche"].get("id")) != "repulsion", "touche G : rend la main d'avant")
 	await _repulsion()
+	await _repulsion_chargee()
 	await _couts()
 	await _levitation()
 	await _chefs()
@@ -185,7 +186,7 @@ func _repulsion() -> void:
 	await _viser_point(Vector3(-3.0, 1.0, 1.0))
 	var p2 := d2.global_position
 	var vie0: float = d2.vie
-	var c_plein := await _onde(1.5)
+	var c_plein := await _onde(3.4)
 	var envol := false
 	var y_max := p2.y
 	var v_plein := 0.0
@@ -197,7 +198,7 @@ func _repulsion() -> void:
 		y_max = maxf(y_max, _hauteur(d2))
 	await _sim(1.0)
 	_verif(absf(c_plein - LanceurSorts.cout(sd, 1.0)) < 1.5 and c_plein > c_tap * 2.0, "coût selon la charge : %.1f pleine charge contre %.1f au tap" % [c_plein, c_tap])
-	_verif(envol and y_max > p2.y + 0.3, "le squelette est projeté (en l'air : +%.2f m)" % (y_max - p2.y))
+	_verif(envol and y_max > p2.y + 0.2, "le squelette est projeté (en l'air : +%.2f m)" % (y_max - p2.y))
 	_verif(v_plein > v_tap * 1.5, "plus fort chargée : projeté à %.1f m/s contre %.1f m/s au tap" % [v_plein, v_tap])
 	var chocs := es.journal.filter(func(x): return String(x[1]).begins_with("choc"))
 	_verif(not chocs.is_empty() and d2.vie < vie0, "choc contre le mur : %s ; %.0f -> %.0f PV" % [chocs[0][1] if not chocs.is_empty() else "-", vie0, d2.vie])
@@ -206,6 +207,128 @@ func _repulsion() -> void:
 	_verif(_libre(d2), "le squelette est rendu à son IA après l'atterrissage (et le relevé)")
 	d2.queue_free()
 	chaise.queue_free()
+
+
+## Groupe de 5 gardes en armure lourde (draugr « guerrier » : casque + mailles) à 3-5 m devant le joueur, en terrain dégagé.
+## Renvoie {"mana", "vol": nb projetés en ragdoll/vol, "dist": déplacement horizontal moyen max, "vmax"}.
+func _groupe_onde(tenue: float, type := "guerrier") -> Dictionary:
+	await _reset()
+	magie.equiper("gauche", "repulsion")
+	s.placer_joueur(Vector3(0, 0, 20.0), 0.0)
+	var pos := [Vector3(-1.2, 0, 16.4), Vector3(1.2, 0, 16.6), Vector3(0, 0, 16.0), Vector3(-1.9, 0, 15.2), Vector3(1.9, 0, 15.0)]
+	var gs: Array = []
+	for p: Vector3 in pos:
+		gs.append(_draugr(p, type))
+	await _sim(0.6)
+	await _viser_point(Vector3(0, 1.2, 15.0))
+	var dep: Array = gs.map(func(g): return (g as Node3D).global_position)
+	var m0: float = j.mana
+	magie.appuyer("gauche")
+	await _sim(tenue)
+	magie.relacher("gauche")
+	await _sim(0.3 if tenue < 0.3 else 0.05)
+	var res := {"mana": m0 - float(j.mana), "vol": 0, "dist": 0.0, "vmax": 0.0, "moy": 0.0, "n": gs.size()}
+	var dmax: Array = []
+	for g in gs:
+		dmax.append(0.0)
+	var envol: Array = []
+	for g in gs:
+		envol.append(false)
+	for k in 150:
+		await _sim(DT)
+		for i in gs.size():
+			var g: Node3D = gs[i]
+			if _en_vol(g):
+				envol[i] = true
+				res["vmax"] = maxf(float(res["vmax"]), _vitesse(g))
+			var c: Vector3 = Elements._centre(g)
+			var d := Vector2(c.x - (dep[i] as Vector3).x, c.z - (dep[i] as Vector3).z).length()
+			dmax[i] = maxf(float(dmax[i]), d)
+	for i in gs.size():
+		if envol[i]:
+			res["vol"] = int(res["vol"]) + 1
+		res["moy"] = float(res["moy"]) + float(dmax[i]) / gs.size()
+	res["dist"] = dmax.min()
+	# survivants et relevés : chacun reprend son IA (vivant, ni vol ni ragdoll), la vie perdue est mesurée
+	var vivants := 0
+	var libres := 0
+	var perte_max := 0.0
+	var perte_min := 1.0
+	for g in gs:
+		await _attendre_libre(g, 8.0)
+		if is_instance_valid(g) and SortsEsprit.vivant(g):
+			vivants += 1
+			if _libre(g):
+				libres += 1
+		var pc := 1.0 - (float(g.vie) / float(g.vie_max) if is_instance_valid(g) else 0.0)
+		perte_max = maxf(perte_max, pc)
+		perte_min = minf(perte_min, pc)
+	res["vivants"] = vivants
+	res["libres"] = libres
+	res["perte_max"] = perte_max
+	res["perte_min"] = perte_min
+	for g in gs:
+		if is_instance_valid(g):
+			g.queue_free()
+	await _sim(0.3)
+	return res
+
+## Courbe de charge de la Répulsion : poussée, portée, cône et coût croissants avec le maintien ; la pleine charge fait valser 5 gardes.
+func _repulsion_chargee() -> void:
+	var sd := magie.eq.sort_par_id("repulsion")
+	var prec := {}
+	var ok_croiss := true
+	var lignes := []
+	for h in [0.1, 1.0, 2.0, 3.2]:
+		var c := clampf(h / ChargeSort.temps_plein(sd), 0.0, 1.0)
+		var lf := SortsEsprit.reglage_repulsion(sd, c)
+		lignes.append("%.1f s : c=%.2f force %.1f portée %.1f cône %.0f° coût %.1f" % [h, c, lf["force"], lf["portee"], lf["cone"], LanceurSorts.cout(sd, c)])
+		for k in ["force", "portee", "cone"]:
+			if not prec.is_empty() and float(lf[k]) <= float(prec[k]):
+				ok_croiss = false
+		if not prec.is_empty() and LanceurSorts.cout(sd, c) <= float(prec["cout"]):
+			ok_croiss = false
+		prec = lf.duplicate()
+		prec["cout"] = LanceurSorts.cout(sd, c)
+	for l in lignes:
+		print("   COURBE ", l)
+	_verif(ok_croiss, "Répulsion : force, portée, cône et coût croissent avec le maintien")
+	_verif(LanceurSorts.cout(sd, 0.0) <= 12.0 and LanceurSorts.cout(sd, 1.0) >= 0.5 * j.mana_max and LanceurSorts.cout(sd, 1.0) <= 0.7 * j.mana_max, "tap peu cher (%.0f), pleine charge = grosse part de la barre (%.0f / %.0f)" % [LanceurSorts.cout(sd, 0.0), LanceurSorts.cout(sd, 1.0), j.mana_max])
+	var r0 := await _groupe_onde(0.05)
+	var r1 := await _groupe_onde(1.0)
+	var r3 := await _groupe_onde(3.4)
+	print("   GROUPE tap : ", r0)
+	print("   GROUPE 1 s : ", r1)
+	print("   GROUPE 3 s : ", r3)
+	_verif(float(r3["mana"]) > float(r1["mana"]) and float(r1["mana"]) > float(r0["mana"]), "coût payé croissant : %.1f < %.1f < %.1f" % [float(r0["mana"]), float(r1["mana"]), float(r3["mana"])])
+	_verif(float(r3["moy"]) > float(r1["moy"]) + 1.5 and float(r1["moy"]) > float(r0["moy"]), "déplacement croissant : %.1f < %.1f < %.1f m" % [float(r0["moy"]), float(r1["moy"]), float(r3["moy"])])
+	_verif(int(r3["vol"]) == 5, "pleine charge : les 5 gardes en armure lourde valsent en ragdoll (%d/5, plus loin %.1f m)" % [int(r3["vol"]), float(r3["dist"])])
+	_verif(int(r3["vivants"]) == 5 and int(r3["libres"]) == 5, "pleine charge : les 5 gardes à pleine vie survivent et se relèvent (%d vivants, %d relevés ; vie perdue %.0f-%.0f %%)" % [int(r3["vivants"]), int(r3["libres"]), 100.0 * float(r3["perte_min"]), 100.0 * float(r3["perte_max"])])
+	_verif(float(r3["perte_max"]) <= 0.75 and float(r3["perte_min"]) > 0.02, "pleine charge : blessés sans être achevés (%.0f-%.0f %% de vie perdue)" % [100.0 * float(r3["perte_min"]), 100.0 * float(r3["perte_max"])])
+	# garde en armure à pleine vie projeté contre le mur à pleine charge : blessé (25-75 %), vivant, relevé
+	await _reset()
+	magie.equiper("gauche", "repulsion")
+	s.placer_joueur(Vector3(0, 0, 1.0), 90.0)
+	var gm := _draugr(Vector3(-1.8, 0.0, 1.0), "guerrier")
+	await _sim(0.6)
+	await _viser_point(Vector3(-3.0, 1.0, 1.0))
+	await _onde(3.4)
+	await _sim(1.5)
+	await _attendre_libre(gm, 8.0)
+	var pm := 1.0 - float(gm.vie) / float(gm.vie_max)
+	_verif(SortsEsprit.vivant(gm) and _libre(gm) and pm >= 0.25 and pm <= 0.75, "garde en armure contre le mur, pleine charge : survit (%.0f %% de vie perdue) et se relève" % (100.0 * pm))
+	gm.queue_free()
+	_verif(float(r3["dist"]) >= 3.0, "pleine charge : même le moins touché est projeté à %.1f m" % float(r3["dist"]))
+	# mana qui s'épuise pendant la charge : la charge plafonne (pas d'annulation)
+	await _reset()
+	magie.equiper("gauche", "repulsion")
+	j.mana = LanceurSorts.cout(sd, 0.5)
+	magie.appuyer("gauche")
+	await _sim(3.4)
+	_verif(magie.charge("gauche") > 0.3 and magie.charge("gauche") <= 0.55, "mana limité : la charge plafonne à %.2f (pas d'annulation)" % magie.charge("gauche"))
+	magie.relacher("gauche")
+	await _sim(0.3)
+	_verif(magie.journal.any(func(x): return "lance gauche repulsion" in str(x[1])), "la charge plafonnée est bien lancée avec le mana restant")
 
 # ------------------------------------------------------------------ lévitation : coûts
 

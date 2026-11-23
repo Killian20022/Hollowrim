@@ -63,6 +63,13 @@ const ALIAS_PQ := {"q_tonneau_2": "pq_tonneau", "q_caisse_2": "pq_caisse_fer", "
 	# directement pq_brique_*, pq_coffre_or, pq_bougie_d).
 	"q_table_petite_2": "pq_table_petite_2", "q_toile_araignee_1": "pq_toile_araignee_1", "q_toile_araignee_2": "pq_toile_araignee_2",
 	"q_os_tas": "pq_os_tas", "q_os_tas_2": "pq_os_tas_2", "q_coffre_d": "pq_coffre_d"}
+static var audit_pose := "--audit-poses" in OS.get_cmdline_user_args()
+static var audit := {}        # nom -> nombre de poses fondues dans le décor (--audit-poses seulement)
+## Inventaire télékinésie : une pose FONDUE dans le décor (donc non saisissable) du prop `nom`, notée seulement avec --audit-poses.
+static func fondu(nom: String, src := "") -> void:
+	if audit_pose:
+		var k := nom + " <" + src + ">"
+		audit[k] = int(audit.get(k, 0)) + 1
 static var _pq_de := {}       # nom q_* (ou pq_* posé directement) -> id pq_*
 static var _pq_mods := {}     # id pq_* -> [[atlas, arrays indexés (UV, normales, couleurs)], …], déjà à l'encombrement du q_*
 static var _pq_boites := {}   # id pq_* -> AABB
@@ -501,7 +508,16 @@ static func crypte(d: CrypteDecor, nom: String, pos: Vector3, lacet := 0.0, e :=
 		pos = d._ecarter(pos, Vector2(bb0.size.x, bb0.size.z) * 0.5 * e, lacet)
 	var m := MATS_CRYPTE.duplicate()
 	m.merge(mats, true)
+	# télékinésie partout : tout petit objet (outil, vaisselle, crâne, livre, seau…) devient un Cassable « objet » (corps gelé réveillé à la saisie)
+	var obj := CasseObjets.actif and ObjetsVivants.tk_partout and not solide and not d.muet and ObjetsVivants.capte_meuble(nom) and d.lot == "" and pq_de(nom) != ""
+	if obj:
+		var md: Array = ObjetsVivants.fiche_meuble(nom)
+		obj = d.cassable_debut("objet", pos, e, boite(nom, mats).size * e, [md[0], md[1], false])
+	elif audit_pose:
+		fondu(nom, "crypte")
 	d.modele(nom, pos, lacet, Vector3.ONE * e, m, true)
+	if obj:
+		d.cassable_fin()
 	if solide:
 		var bb := boite(nom, mats)
 		var c := pos + Basis(Vector3.UP, lacet) * (bb.get_center() * e)
@@ -551,6 +567,7 @@ static func village(v, parent: Node3D, nom: String, xf: Transform3D, solide := f
 		return
 	if mats.is_empty() and ObjetsVivants.meuble_differe(v, parent, nom, xf):      # cassables partout : meuble physique (corps = solide)
 		return
+	fondu(nom, "village")
 	var mv := mats_village(v)
 	for m: Array in morceaux(nom, mats):
 		var arr: Array = patine_v5(m[1], m[0], xf, not SANS_NEIGE_V5.has(nom)) if v5 and est_pq(String(m[0])) else m[1]
@@ -814,8 +831,10 @@ static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exter
 				func(m: String) -> Material: return mv_q[m] if mv_q.has(m) else (mv_q["bois"] if mv_q.has("bois") else PropsQuat.materiau("pq_bois", contexte))),
 				70.0 if contexte == "exterieur" else 30.0, false))
 		elif pq_de(id) != "":
+			fondu(id, "lot_pq")
 			parts = morceaux(id)
 		elif v != null and existe(id):
+			fondu(id, "lot_pq_q")
 			var mv := mats_village(v)
 			for m: Array in morceaux(id, {}, false):
 				var cle := "q:" + String(m[0])

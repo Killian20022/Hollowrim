@@ -59,7 +59,7 @@ const FORMES := {"q_pomme": "sphere", "q_pomme_verte": "sphere", "q_chou": "sphe
 ## CASSABLES PARTOUT (2026-11-23) : MOBILIER LÉGER rendu physique par la même fabrique (corps gelé + MultiMesh partagé) :
 ## prop -> [matière (CasseObjets.MATIERES), masse kg, forme, contenu versé à la casse (table de butin ou ""), bloque le passage, liquide].
 ## Le gros mobilier (tables, lits, armoires, coffres, établis, étagères) reste du décor fixe (navigation des PNJ).
-const MEUBLES := {
+const MEUBLES_BASE := {
 	"q_tonneau": ["tonneau", 40.0, "cyl", "tonneau", true, true], "q_tonneau_2": ["tonneau", 32.0, "cyl", "tonneau", true, true],
 	"pq_tonneau": ["tonneau", 40.0, "cyl", "tonneau", true, true], "q_tonneau_pommes": ["tonneau", 35.0, "cyl", "tonneau", true, false],
 	"pq_tonneau_pommes": ["tonneau", 35.0, "cyl", "tonneau", true, false],
@@ -79,6 +79,74 @@ const MEUBLES := {
 	"q_sac": ["tissu", 25.0, "boite", "", false, false], "q_sac_debout": ["tissu", 25.0, "boite", "", false, false],
 	"pq_sac": ["tissu", 25.0, "boite", "", false, false],
 }
+## TÉLÉKINÉSIE PARTOUT (2026-11-23) : tout le reste du petit décor qu'on peut raisonnablement soulever (outils, armes murales, boucliers,
+## seaux, marmites, bûches, rondins, ballots, récoltes, nourriture, vaisselle, livres, ossements, petits coffres, chaises de rechange…).
+## base du prop (sans « q_ » ni « pq_ ») -> [matière, masse kg, forme, bloque le passage]. Les deux versions (q_ et pq_) entrent dans MEUBLES.
+## Restent FIXES (décor) : étals, tables, lits, armoires, établis, comptoirs, étagères, coffres de quête, enclumes, râteliers, puits, tentes,
+## chariots, bannières, portes, tapis, piliers, barrières, briques, poutres, rochers, souches, troncs, luminaires muraux et bougies (leur lumière
+## ne suit pas).
+const DIVERS := {
+	"rondin": ["bois", 12.0, "boite", false], "buche": ["bois_leger", 4.0, "boite", false], "bucher": ["bois", 18.0, "boite", false],
+	"seau_bois": ["bois_leger", 3.0, "cyl", false], "seau_fer": ["fer", 3.0, "cyl", false], "seau_2": ["fer", 3.0, "cyl", false],
+	"chaudron": ["fer", 12.0, "cyl", false], "chaudron_anse": ["fer", 9.0, "cyl", false], "marmite": ["fer", 3.0, "cyl", false],
+	"marmite_couverte": ["fer", 3.5, "cyl", false], "marmite_camp": ["fer", 4.0, "cyl", false], "marmite_camp_petite": ["fer", 2.0, "cyl", false],
+	"marmite_soupe": ["fer", 4.0, "cyl", false], "marmite_soupe_2": ["fer", 4.0, "cyl", false], "marmite_vide": ["fer", 5.0, "cyl", false],
+	"poele": ["fer", 2.0, "boite", false], "poele_f": ["fer", 2.0, "boite", false],
+	"hache_outil": ["fer", 2.5, "boite", false], "hache_camp": ["fer", 2.5, "boite", false], "hachette": ["fer", 1.0, "boite", false],
+	"pioche": ["fer", 3.5, "boite", false], "pelle": ["bois_leger", 2.5, "boite", false], "epee_mur": ["fer", 1.5, "boite", false],
+	"bouclier_bois": ["bois_leger", 3.0, "boite", false], "couteau_camp": ["fer", 0.3, "boite", false],
+	"piege_ours": ["fer", 6.0, "boite", false], "piege_ours_ferme": ["fer", 6.0, "boite", false],
+	"coffre_ferme": ["bois_ferre", 14.0, "boite", false], "etabli_tiroirs": ["bois_leger", 3.0, "boite", false],
+	"chaise_2": ["bois_leger", 6.0, "boite", true], "chaise_echelle": ["bois_leger", 6.0, "boite", true], "chaise_coussin": ["bois_leger", 6.5, "boite", true],
+	"chaise_fuseaux": ["bois_leger", 6.0, "boite", true], "banc_dossier": ["bois", 25.0, "boite", true], "banc_simple": ["bois", 14.0, "boite", true],
+	"caisse_2": ["bois_ferre", 22.0, "boite", true], "caisse_planches": ["bois", 16.0, "boite", true],
+	"tonneau_cercle": ["tonneau", 35.0, "cyl", true], "tonneau_village": ["tonneau", 35.0, "cyl", true], "tonneau_2": ["tonneau", 32.0, "cyl", true],
+	"ballot": ["tissu", 20.0, "boite", false], "ballot_2": ["tissu", 22.0, "boite", false], "sac_couche": ["tissu", 12.0, "boite", false],
+	"sac_ouvert": ["tissu", 12.0, "boite", false], "sac_debout": ["tissu", 25.0, "boite", false], "gerbe": ["tissu", 5.0, "boite", false],
+	"chandelier_table": ["fer", 0.8, "cyl", false], "chandelier_pied": ["fer", 10.0, "cyl", false], "bougeoir_triple": ["fer", 1.0, "cyl", false],
+	"calice": ["fer", 0.4, "cyl", false], "chope": ["nourriture", 0.4, "cyl", false], "assiette": ["fer", 0.3, "cyl", false],
+	"ecuelle": ["nourriture", 0.3, "cyl", false], "ecuelle_2": ["nourriture", 0.3, "cyl", false], "ecuelle_creuse": ["nourriture", 0.3, "cyl", false],
+	"cuillere": ["fer", 0.1, "boite", false], "cuillere_bois": ["nourriture", 0.1, "boite", false], "fourchette": ["fer", 0.1, "boite", false],
+	"couteau_table": ["fer", 0.1, "boite", false], "bouteille": ["verre", 0.6, "cyl", false], "bouteille_verte": ["verre", 0.6, "cyl", false],
+	"bouteille_vin": ["verre", 0.6, "cyl", false], "bouteille_1": ["verre", 0.6, "cyl", false], "bouteille_2": ["verre", 0.6, "cyl", false],
+	"vase_2": ["poterie", 4.0, "cyl", false], "vase_4": ["poterie", 4.0, "cyl", false], "vase_5": ["poterie", 6.0, "cyl", false],
+	"potion_1": ["verre", 0.4, "cyl", false], "potion_2": ["verre", 0.4, "cyl", false], "potion_4": ["verre", 0.4, "cyl", false],
+	"fiole_1": ["verre", 0.2, "cyl", false], "fiole_2": ["verre", 0.2, "cyl", false], "fiole_3": ["verre", 0.2, "cyl", false],
+	"fioles_1": ["verre", 0.5, "boite", false], "petite_fiole": ["verre", 0.1, "cyl", false],
+	"crane": ["nourriture", 0.6, "boite", false], "os_tas": ["nourriture", 1.0, "boite", false], "os_tas_2": ["nourriture", 1.0, "boite", false],
+	"os": ["nourriture", 0.3, "boite", false], "tas_pieces": ["fer", 0.5, "boite", false], "tas_pieces_2": ["fer", 0.5, "boite", false],
+	"sac_pieces": ["tissu", 1.5, "boite", false], "bourse": ["tissu", 0.4, "boite", false], "lingots": ["fer", 12.0, "boite", false],
+	"cle_or": ["fer", 0.1, "boite", false], "cle_fer": ["fer", 0.1, "boite", false],
+	"livre_5": ["nourriture", 0.6, "boite", false], "livre_7": ["nourriture", 0.6, "boite", false], "livre_simple": ["nourriture", 0.6, "boite", false],
+	"livre_d1": ["nourriture", 0.6, "boite", false], "livre_d2": ["nourriture", 0.6, "boite", false], "livre_ouvert": ["nourriture", 0.6, "boite", false],
+	"grimoire": ["nourriture", 1.0, "boite", false], "pile_livres": ["nourriture", 1.5, "boite", false], "pile_livres_2": ["nourriture", 1.2, "boite", false],
+	"livres_petits_1": ["nourriture", 1.5, "boite", false], "livres_petits_2": ["nourriture", 1.0, "boite", false], "livres_petits_3": ["nourriture", 1.0, "boite", false],
+	"livres_moyens_1": ["nourriture", 3.0, "boite", false], "livres_moyens_2": ["nourriture", 3.0, "boite", false], "livres_moyens_3": ["nourriture", 3.0, "boite", false],
+	"parchemin": ["nourriture", 0.1, "boite", false], "parchemin_2": ["nourriture", 0.1, "boite", false],
+	"carotte": ["nourriture", 0.2, "boite", false], "carotte_f": ["nourriture", 0.2, "boite", false], "navet": ["nourriture", 0.3, "sphere", false],
+	"chou": ["nourriture", 0.8, "sphere", false], "citrouille": ["nourriture", 3.0, "sphere", false], "pomme": ["nourriture", 0.2, "sphere", false],
+	"pomme_verte": ["nourriture", 0.2, "sphere", false], "pain": ["nourriture", 0.5, "boite", false], "tranche_pain": ["nourriture", 0.1, "boite", false],
+	"cuisse": ["nourriture", 0.6, "boite", false], "oeuf": ["oeuf", 0.06, "sphere", false], "poisson": ["nourriture", 0.8, "boite", false],
+	"aretes": ["nourriture", 0.1, "boite", false], "champignon": ["nourriture", 0.1, "boite", false], "saucisse": ["nourriture", 0.2, "boite", false],
+	"saucisse_crue": ["nourriture", 0.2, "boite", false], "viande": ["nourriture", 0.6, "boite", false], "lard": ["nourriture", 0.5, "boite", false],
+	"lard_cuit": ["nourriture", 0.5, "boite", false],
+}
+## `-- --sans-tk-partout` : seulement le mobilier d'avant (MEUBLES_BASE) est saisissable (comparaison avant/après de la couverture).
+static var tk_partout := not ("--sans-tk-partout" in OS.get_cmdline_user_args())
+static func _etendre() -> Dictionary:
+	var r := MEUBLES_BASE.duplicate()
+	if not tk_partout:
+		return r
+	for b: String in DIVERS:
+		var d: Array = DIVERS[b]
+		for pre in ["q_", "pq_"]:
+			# un prop du registre (chope, pomme, bouteille…) reste un objet PRENABLE là où il l'était ; sa version « simple corps » a un genre à part
+			var cle: String = "tk_" + pre + b if OBJETS.has(pre + b) else pre + b
+			if not r.has(cle) and not r.has(pre + b):
+				r[cle] = [d[0], d[1], d[2], "", d[3], false]
+	return r
+static var MEUBLES: Dictionary = _etendre()
+
 ## Petits objets FRAGILES (fiche du registre -> matière) : ils cassent sous un choc ; les autres (étain, bois, nourriture) rebondissent.
 const FRAGILES := {"cruche": "poterie", "pot_argile": "poterie", "hydromel": "verre", "potion_soin": "verre", "potion_mana": "verre",
 	"oeuf": "oeuf", "chandelier": "fer", "assiette_etain": "fer", "seau_fer": "fer"}
@@ -126,10 +194,16 @@ static func capte(nom: String) -> bool:
 
 ## Mobilier léger rendu physique et cassable (MEUBLES) ; rien avec `--sans-cassables-partout` ni `--sans-objets-vivants`.
 static func capte_meuble(nom: String) -> bool:
-	return actif and CasseObjets.actif and MEUBLES.has(nom)
+	return actif and CasseObjets.actif and (MEUBLES.has(nom) or MEUBLES.has("tk_" + nom))
+
+## Fiche [matière, masse, forme, contenu, bloque, liquide] du prop `nom` en objet physique simple (ou [] : non saisissable).
+static func fiche_meuble(nom: String) -> Array:
+	return MEUBLES.get(nom, MEUBLES.get("tk_" + nom, []))
 
 ## Spec d'un meuble : comme spec(), avec la portée d'affichage et l'ombre portée du lot qu'il remplace.
 static func spec_meuble(genre: String, xf: Transform3D, morceaux: Array, portee := PORTEE_MEUBLES, ombre := true) -> Dictionary:
+	if not MEUBLES.has(genre) and MEUBLES.has("tk_" + genre):
+		genre = "tk_" + genre
 	return {"genre": genre, "xf": xf, "morceaux": morceaux, "portee": portee, "ombre": ombre}
 
 ## Morceaux d'un prop en atlas texturé (pq_*) pour un contexte (« exterieur » : patine et neige v5 à l'échelle de la pose, sans
