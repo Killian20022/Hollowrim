@@ -98,14 +98,14 @@ func _lancer(a: ObjetVivant, b: Node3D, vitesse: float, haut := 0.25, max_images
 	a.angular_velocity = Vector3(randf_range(-7, 7), randf_range(-4, 4), randf_range(-7, 7))
 	a.elan = Vector3.ZERO
 	a.set_meta("lance_par", j)
-	var touche := false
+	var arrivee := ceili(t * 30.0)      # images (--fixed-fps 30) : la parabole y arrive
+	var bc := b.global_position + Vector3(0, haut * 0.6, 0)
 	for i in max_images:
 		await _image()
 		if a.casse or not is_instance_valid(a):
 			break
 		var r: float = 0.45 + ((b.get("_taille") as Vector3).length() * 0.3 if b.get("_taille") != null else 0.2)
-		if not touche and a.global_position.distance_to(b.global_position + Vector3(0, haut * 0.6, 0)) < r:
-			touche = true
+		if a.global_position.distance_to(bc) < r or i + 1 >= arrivee:
 			var va := a.linear_velocity if a.linear_velocity.length() > 2.0 else v
 			if b.has_method("recevoir_choc"):
 				b.call("recevoir_choc", va, a.mass, a.global_position)
@@ -128,6 +128,10 @@ func _go() -> void:
 		if s.village != null and s.village.get("prets") == true:
 			break
 	j = s.joueur
+	var ips := root.get_node_or_null("CompteurIps")      # le compteur d'images/s du film à pas fixe ne veut rien dire
+	if ips != null:
+		ips.set("visible", false)
+		ips.process_mode = Node.PROCESS_MODE_DISABLED
 	s.cycle.heure = 11.0
 	for l: Array in s.hud.lieux_nommes:
 		s.hud.lieux_vus[l[2]] = true
@@ -142,7 +146,12 @@ func _go() -> void:
 
 	# ---------------------------------------------------------------- 1. halle
 	var tonneau := _proche(["q_tonneau", "pq_tonneau", "q_tonneau_2"], centre, [], 9.0)
-	var jarre := _proche(["q_jarre", "pq_jarre"], centre, [], 9.0)
+	var jarre: ObjetVivant = null      # de préférence une jarre posée au sol (celles des étagères sont hors du champ)
+	for o: ObjetVivant in ObjetsVivants._vivants():
+		if o.genre in ["q_jarre", "pq_jarre"] and o.ident.begins_with("halle") and (jarre == null or o.global_position.y < jarre.global_position.y - 0.2):
+			jarre = o
+	if jarre == null:
+		jarre = _proche(["q_jarre", "pq_jarre"], centre, [], 9.0)
 	var tabouret := _proche(["q_tabouret", "pq_tabouret"], jarre.global_position if jarre else centre)
 	var chaise := _proche(["q_chaise", "pq_chaise", "q_chaise_2"], centre, [], 12.0)
 	if chaise == null:
@@ -214,10 +223,14 @@ func _go() -> void:
 
 	# ---------------------------------------------------------------- 2. place du village
 	sol_fixe = NAN
-	var place := Vector3(49.0, 0.0, 33.0)
-	var t2 := _proche(["q_tonneau", "pq_tonneau", "q_tonneau_2"], place)
+	var place := Vector3(46.9, 0.0, 53.9)      # ruelle au sud de la place : tonneaux, caisse et sacs PUBLICS (pas de réserve d'étal)
+	var t2: ObjetVivant = null
+	for o: ObjetVivant in ObjetsVivants._vivants():
+		if o.genre in ["q_tonneau", "pq_tonneau", "q_tonneau_2"] and o.ident.begins_with("village:") and not o.casse \
+				and (t2 == null or o.global_position.distance_to(Vector3(place.x, o.global_position.y, place.z)) < t2.global_position.distance_to(Vector3(place.x, t2.global_position.y, place.z))):
+			t2 = o
 	if t2 != null:
-		await _placer(t2.global_position, t2.global_position + Vector3(-3.0, 0, 2.4), 3.6)
+		await _placer(t2.global_position, t2.global_position + Vector3(-2.6, 0, -2.2), 3.4)
 		_regarder(t2.global_position + Vector3(0, 0.2, 0))
 		for i in 30:
 			await process_frame
