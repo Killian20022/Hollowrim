@@ -800,11 +800,18 @@ static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exter
 	var sts := {}
 	var mats_q := {}
 	var corps: StaticBody3D = null
+	var specs: Array = []
 	for p: Array in poses:
 		var id: String = p[0]
 		var xf: Transform3D = p[1]
 		var parts: Array = []
-		if pq_de(id) != "":
+		var meuble := ObjetsVivants.capte_meuble(id) and (pq_de(id) != "" or id.begins_with("pq_") or v != null)
+		if meuble:      # cassables partout : tonneau, caisse, sac… PHYSIQUE (son corps tient lieu de boîte de collision)
+			var mv_q := mats_village(v) if v != null else {}
+			specs.append(ObjetsVivants.spec_meuble(id, xf, ObjetsVivants.morceaux_contexte(id, contexte, xf.basis.get_scale(),
+				func(m: String) -> Material: return mv_q[m] if mv_q.has(m) else (mv_q["bois"] if mv_q.has("bois") else PropsQuat.materiau("pq_bois", contexte))),
+				70.0 if contexte == "exterieur" else 30.0, false))
+		elif pq_de(id) != "":
 			parts = morceaux(id)
 		elif v != null and existe(id):
 			var mv := mats_village(v)
@@ -831,7 +838,7 @@ static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exter
 				st2.begin(Mesh.PRIMITIVE_TRIANGLES)
 				sts["pq_bois"] = st2
 			(sts["pq_bois"] as SurfaceTool).append_from(cg, 0, xf)
-		if p.size() > 2 and bool(p[2]):
+		if p.size() > 2 and bool(p[2]) and not meuble:
 			if corps == null:
 				corps = StaticBody3D.new()
 				corps.name = nom + "_corps"
@@ -843,6 +850,8 @@ static func lot_pq(parent: Node3D, nom: String, poses: Array, contexte := "exter
 			cs.shape = bs
 			cs.transform = Transform3D(xf.basis.orthonormalized(), xf * bb.get_center())
 			corps.add_child(cs)
+	if not specs.is_empty():
+		ObjetsVivants.peupler(parent, specs, "lot_" + nom)
 	if sts.is_empty():
 		return null
 	var am := ArrayMesh.new()

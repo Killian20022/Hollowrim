@@ -113,6 +113,22 @@ func frapper(_puissant: bool, origine: Vector3) -> bool:
 	casser(true, origine)
 	return true
 
+## Cassables partout (contrat ImpactsLances) : choc d'un objet lancé (ou de cet objet contre le décor) ; énergie ½·m·v² contre le seuil
+## de la matière (CasseObjets : urne = poterie, tonneau cerclé, caisse = bois). Vrai si l'objet est brisé.
+func recevoir_choc(vitesse: Vector3, masse: float, point: Vector3) -> bool:
+	if casse:
+		return false
+	var e := CasseObjets.energie(vitesse, masse)
+	if e < CasseObjets.seuil(matiere()):
+		if e > 15.0:
+			CasseObjets.son_choc(self, matiere(), point, e)
+		return false
+	casser(true, point)
+	return true
+
+func matiere() -> String:
+	return {"tonneau": "tonneau", "caisse": "bois"}.get(genre, "poterie")
+
 ## Sort (projectile ou jet) : `point` = impact.
 func briser_sort(point: Vector3) -> void:
 	if not casse:
