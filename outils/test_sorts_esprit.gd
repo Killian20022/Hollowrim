@@ -78,6 +78,34 @@ func _troll(p: Vector3) -> CharacterBody3D:
 	t.set_physics_process(false)
 	return t
 
+## En vol (cinématique, ou ragdoll de projection : RagdollEsprit) ; vitesse du vol ; libre = rendu à son IA (ni vol, ni ragdoll, ni relevé).
+func _en_vol(e: Node) -> bool:
+	if es.vols.has(e.get_instance_id()):
+		return String(es.vols[e.get_instance_id()]["mode"]) == "vol"
+	return es.rag != null and es.rag.en_vol(e)
+
+func _vitesse(e: Node) -> float:
+	if es.vols.has(e.get_instance_id()):
+		return (es.vols[e.get_instance_id()]["v"] as Vector3).length()
+	if es.rag != null and es.rag.en_vol(e):
+		return (es.rag._centre_masse(es.rag.corps[e.get_instance_id()]["rd"])[1] as Vector3).length()
+	return 0.0
+
+func _libre(e: Node) -> bool:
+	return not es.vols.has(e.get_instance_id()) and not (es.rag != null and es.rag.contient(e)) and e.is_physics_processing()
+
+## Hauteur des pieds (racine ; en ragdoll : centre du corps − 1,1 m, comme Elements._centre).
+func _hauteur(e: Node3D) -> float:
+	return Elements._centre(e).y - 1.1
+
+func _attendre_libre(e: Node, max_s: float) -> void:
+	var t := 0.0
+	while t < max_s and is_instance_valid(e) and SortsEsprit.vivant(e) and not _libre(e):
+		await _sim(0.1)
+		t += 0.1
+	if is_instance_valid(e) and SortsEsprit.vivant(e) and not _libre(e):
+		print("   PAS LIBRE %s : vols=%s ragdoll=%s process=%s état=%s" % [e.name, es.vols.has(e.get_instance_id()), es.rag.phase(e) if es.rag != null else "-", e.is_physics_processing(), _etat_nom(e)])
+
 func _etat_nom(e: Node) -> String:
 	var cst: Dictionary = e.get_script().get_script_constant_map()
 	for k in cst:
@@ -144,8 +172,8 @@ func _repulsion() -> void:
 	var v_tap := 0.0
 	for k in 40:
 		await _sim(DT)
-		if es.vols.has(d1.get_instance_id()):
-			v_tap = maxf(v_tap, (es.vols[d1.get_instance_id()]["v"] as Vector3).length())
+		if _en_vol(d1):
+			v_tap = maxf(v_tap, _vitesse(d1))
 	_verif(absf(c_tap - LanceurSorts.cout(sd, 0.0)) < 1.5, "Répulsion au tap : %.1f de mana (attendu %.1f)" % [c_tap, LanceurSorts.cout(sd, 0.0)])
 	d1.queue_free()
 	await _reset()
@@ -163,10 +191,10 @@ func _repulsion() -> void:
 	var v_plein := 0.0
 	for k in 50:
 		await _sim(DT)
-		if es.vols.has(d2.get_instance_id()):
+		if _en_vol(d2):
 			envol = true
-			v_plein = maxf(v_plein, (es.vols[d2.get_instance_id()]["v"] as Vector3).length())
-		y_max = maxf(y_max, d2.global_position.y)
+			v_plein = maxf(v_plein, _vitesse(d2))
+		y_max = maxf(y_max, _hauteur(d2))
 	await _sim(1.0)
 	_verif(absf(c_plein - LanceurSorts.cout(sd, 1.0)) < 1.5 and c_plein > c_tap * 2.0, "coût selon la charge : %.1f pleine charge contre %.1f au tap" % [c_plein, c_tap])
 	_verif(envol and y_max > p2.y + 0.3, "le squelette est projeté (en l'air : +%.2f m)" % (y_max - p2.y))
@@ -174,8 +202,8 @@ func _repulsion() -> void:
 	var chocs := es.journal.filter(func(x): return String(x[1]).begins_with("choc"))
 	_verif(not chocs.is_empty() and d2.vie < vie0, "choc contre le mur : %s ; %.0f -> %.0f PV" % [chocs[0][1] if not chocs.is_empty() else "-", vie0, d2.vie])
 	_verif(chaise.global_position.distance_to(Vector3(-1.2, 0.0, 1.9)) > 0.6, "la chaise est projetée (%.2f m)" % chaise.global_position.distance_to(Vector3(-1.2, 0.0, 1.9)))
-	await _sim(1.5)
-	_verif(not es.vols.has(d2.get_instance_id()) and d2.is_physics_processing(), "le squelette est rendu à son IA après l'atterrissage")
+	await _attendre_libre(d2, 5.0)
+	_verif(_libre(d2), "le squelette est rendu à son IA après l'atterrissage (et le relevé)")
 	d2.queue_free()
 	chaise.queue_free()
 
@@ -244,15 +272,16 @@ func _levitation() -> void:
 	var v_ci: float = cible.vie
 	magie.relacher("gauche")
 	await _sim(0.05)
-	_verif(not es.tient("gauche") and es.vols.has(sq.get_instance_id()), "relâcher : il est projeté")
+	_verif(not es.tient("gauche") and _en_vol(sq), "relâcher : il est projeté")
 	_verif(String(magie.gestes._etat["gauche"]["geste"]) == "lance", "geste capturé « lance » au relâchement")
 	for k in 120:
 		await _sim(DT)
 		if cible.vie < v_ci:
 			break
 	_verif(cible.vie < v_ci and sq.vie < v_sq, "projeté sur le guerrier : guerrier %.0f -> %.0f, squelette %.0f -> %.0f" % [v_ci, cible.vie, v_sq, sq.vie])
-	await _sim(2.5)
-	_verif(es.vols.is_empty() and (not SortsEsprit.vivant(sq) or sq.is_physics_processing()) and cible.is_physics_processing(), "tous deux rendus à leur IA")
+	await _attendre_libre(sq, 5.0)
+	await _attendre_libre(cible, 5.0)
+	_verif(es.vols.is_empty() and (not SortsEsprit.vivant(sq) or _libre(sq)) and (not SortsEsprit.vivant(cible) or _libre(cible)), "tous deux rendus à leur IA")
 	sq.queue_free()
 	cible.queue_free()
 
@@ -307,8 +336,8 @@ func _mana_zero() -> void:
 	await _sim(0.4)
 	_verif(not es.tient("gauche") and es.dernier_refus == "" and magie.refus["gauche"] == "Mana épuisé.", "mana à 0 : l'emprise lâche (« %s »)" % magie.refus["gauche"])
 	await _sim(1.6)
-	_verif(absf(d.global_position.y - sol) < 0.25 and not es.vols.has(d.get_instance_id()), "il retombe au sol (%.2f m)" % (d.global_position.y - sol))
-	_verif(d.is_physics_processing() and _etat_nom(d) == "CHUTE", "à terre, IA rendue (%s)" % _etat_nom(d))
+	_verif(absf(_hauteur(d) - sol) < 0.25 and not es.vols.has(d.get_instance_id()), "il retombe au sol (%.2f m)" % (_hauteur(d) - sol))
+	_verif((d.is_physics_processing() or (es.rag != null and es.rag.contient(d))) and _etat_nom(d) == "CHUTE", "à terre (ragdoll / relevé), IA rendue ensuite (%s)" % _etat_nom(d))
 	magie.relacher("gauche")
 	d.queue_free()
 
@@ -356,9 +385,9 @@ func _attraction() -> void:
 		for x in magie.tk.journal.slice(-10):
 			print("   TK %.2f %s" % [x[0], x[1]])
 	var proj := not es.journal.filter(func(x): return String(x[1]).begins_with("attraction relâchée : 1 ennemis")).is_empty()
-	_verif(proj and ((es.vols.has(d.get_instance_id()) and String(es.vols[d.get_instance_id()]["mode"]) == "vol") or not SortsEsprit.vivant(d)), "le squelette est projeté au relâchement (%s)" % ("en vol" if SortsEsprit.vivant(d) else "tué par le choc"))
-	await _sim(2.5)
-	_verif(not es.vols.has(d.get_instance_id()) and d.is_physics_processing(), "le squelette est rendu à son IA")
+	_verif(proj and (_en_vol(d) or not SortsEsprit.vivant(d)), "le squelette est projeté au relâchement (%s)" % ("en vol" if SortsEsprit.vivant(d) else "tué par le choc"))
+	await _attendre_libre(d, 5.5)
+	_verif(not SortsEsprit.vivant(d) or _libre(d), "le squelette est rendu à son IA")
 	d.queue_free()
 	chaise.queue_free()
 

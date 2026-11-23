@@ -30,7 +30,8 @@ const VITESSE_RELEVE := 1.5
 const FONDU := 0.3
 const TEMPS_MIN := 0.7
 const TEMPS_MAX := 3.2
-const REPOS_V := 0.6
+const REPOS_V := 0.35       # m/s : centre du corps
+const REPOS_OS := 1.2       # m/s : os le plus rapide (une main qui ballotte encore)
 const REPOS_T := 0.3
 const FROTTEMENT := 0.45
 const ROULIS := 3.0
@@ -158,7 +159,10 @@ func prendre(e: CharacterBody3D, v: Vector3, s: DonneesSort, cosmetique := false
 	if es != null and es.joueur is PhysicsBody3D:
 		rd.ignorer(es.joueur)
 	rd.declencher(Vector3.ZERO, Vector3.ZERO, "pelvis")
+	fi["au_sol"] = false
 	for pb: PhysicalBone3D in rd.os.values():
+		pb.linear_damp = 0.15
+		pb.angular_damp = 3.0
 		pb.friction = FROTTEMENT
 		pb.can_sleep = false   # un os endormi ne suivrait plus son corps si la racine bouge (coop : position répliquée)
 		PhysicsServer3D.body_set_enable_continuous_collision_detection(pb.get_rid(), true)   # main à 17 m/s : pas à travers le mur
@@ -225,7 +229,9 @@ func _pose_relative(rd: Ragdoll) -> Dictionary:
 func _tonus(fi: Dictionary, dt: float) -> void:
 	var rd: Ragdoll = fi["rd"]
 	var ref: Dictionary = fi["pose_ref"]
-	var k := TONUS * clampf(1.0 - float(fi["t"]) / 1.6, 0.25, 1.0)
+	var k := TONUS * clampf(1.0 - float(fi["t"]) / 1.6, 0.0, 1.0)
+	if bool(fi.get("au_sol", false)):
+		k *= 0.3
 	for nom: String in ref:
 		var pb: PhysicalBone3D = rd.os[nom]
 		var pp: PhysicalBone3D = rd.os[String(rd._infos[nom]["parent"])]
@@ -277,9 +283,16 @@ func _vol(fi: Dictionary, dt: float) -> void:
 			_chocs_ennemis(fi, com, vc)
 			es._chocs_objets(fi, com, vc)
 	fi["v_prec"] = _centre_masse(rd)[1]
+	# au sol (bassin bas, plus de montée) : il glisse puis s'arrête (amorti relevé : il ne roule pas sans fin)
+	var pel: Vector3 = (rd.os["pelvis"] as PhysicalBone3D).global_position
+	if not bool(fi.get("au_sol", false)) and float(fi["t"]) > 0.35 and vc.y < 1.0 and pel.y - _sol(e, pel, pel.y - 0.2) < 0.4:
+		fi["au_sol"] = true
+		for pb: PhysicalBone3D in rd.os.values():
+			pb.linear_damp = 0.9
+			pb.angular_damp = 5.0
 	_tonus(fi, dt)
 	# repos (ou délai dépassé) : il se relève ; l'invité attend le relevé de l'hôte (repli au bout de ATTENTE_HOTE s)
-	if float(fi["t"]) > TEMPS_MIN and float(cm[2]) < REPOS_V:
+	if float(fi["t"]) > TEMPS_MIN and vc.length() < REPOS_V and float(cm[2]) < REPOS_OS:
 		fi["t_repos"] = float(fi["t_repos"]) + dt
 	else:
 		fi["t_repos"] = 0.0
@@ -408,6 +421,8 @@ func relever(fi: Dictionary, impose := {}) -> void:
 	for pb: PhysicalBone3D in rd.os.values():
 		pb.friction = 1.0
 		pb.can_sleep = true
+		pb.linear_damp = 0.15
+		pb.angular_damp = 3.0
 		PhysicsServer3D.body_set_enable_continuous_collision_detection(pb.get_rid(), false)
 	a.play(clip, 0.0)
 	a.seek(0.0, true)
@@ -572,6 +587,8 @@ func _mort(fi: Dictionary) -> void:
 	for pb: PhysicalBone3D in rd.os.values():
 		pb.friction = 1.0
 		pb.can_sleep = true
+		pb.linear_damp = 0.15
+		pb.angular_damp = 3.0
 		PhysicsServer3D.body_set_enable_continuous_collision_detection(pb.get_rid(), false)
 	if e.has_meta("es_centre"):
 		e.remove_meta("es_centre")
@@ -591,6 +608,8 @@ func abandonner(e: Node) -> void:
 	for pb: PhysicalBone3D in (fi["rd"] as Ragdoll).os.values():
 		pb.friction = 1.0
 		pb.can_sleep = true
+		pb.linear_damp = 0.15
+		pb.angular_damp = 3.0
 		PhysicsServer3D.body_set_enable_continuous_collision_detection(pb.get_rid(), false)
 	_rendre_etat(fi)
 
