@@ -54,7 +54,7 @@ func _etiquette(parent: Node) -> void:
 	l.add_theme_font_size_override("font_size", 16)
 	l.add_theme_color_override("font_outline_color", Color.BLACK)
 	l.add_theme_constant_override("outline_size", 6)
-	l.position = Vector2(10, 500)
+	l.position = Vector2(12, 448)
 	calque.add_child(l)
 
 func _texte(t: String) -> void:
@@ -272,7 +272,7 @@ func _film_repulsion() -> void:
 		magie.relacher("gauche")
 		await _attendre(0.4)
 		await _capture("tap")
-		await _regarder(Vector3.ZERO, 1.4, proche)
+		await _regarder(Vector3.ZERO, 2.2, proche)
 	print("FILM urnes cassées : %d / %d" % [urnes.filter(func(c): return (c as Cassable).casse).size(), urnes.size()])
 	if is_instance_valid(chaise) and is_instance_valid(tab):
 		pass
@@ -281,7 +281,7 @@ func _film_repulsion() -> void:
 
 func _film_levitation() -> void:
 	magie.equiper("gauche", "levitation")
-	var urnes := _cassables_vers([_devant(6.0, -2.6), _devant(6.4, -1.9), _devant(5.6, -3.1)])
+	var urnes := _cassables_vers([_devant(5.0, -2.4), _devant(5.6, -2.0), _devant(4.6, -2.9)])
 	var sq := _draugr(_libre(4.5, -0.3), "squelette")
 	var dr := _draugr(_libre(6.5, 2.0), "guerrier")
 	await _attendre(0.4)
@@ -301,7 +301,7 @@ func _film_levitation() -> void:
 	magie.relacher("gauche")
 	await _attendre(0.5)
 	await _capture("percute")
-	await _attendre(1.4)
+	await _attendre(1.0)
 	# le draugr soulevé à son tour, jeté dans les urnes
 	j.mana = j.mana_max
 	if SortsEsprit.vivant(dr):
@@ -317,18 +317,19 @@ func _film_levitation() -> void:
 		await _attendre(0.5)
 		await _capture("urnes")
 		await _attendre(1.3)
-	# troll : on le soulève à peine, il brise l'emprise
+	# troll : un mage aguerri (200 de mana) le soulève à peine, il brise l'emprise
+	j.mana_max = 200.0
 	j.mana = j.mana_max
 	var tr := _troll(_libre(6.5, 0.6))
 	await _attendre(0.3)
-	_texte("Troll : 87 de mana… il brise l'emprise")
+	_texte("Troll : 87 de mana, 37 /s… il brise l'emprise")
 	await _regarder(Elements._centre(tr), 0.5)
 	magie.appuyer("gauche")
 	await _attendre(0.6)
 	await _capture("troll")
 	await _attendre(1.0)
 	magie.relacher("gauche")
-	await _attendre(1.2)
+	await _attendre(1.0)
 	print("FILM urnes cassées : %d / %d" % [urnes.filter(func(c): return (c as Cassable).casse).size(), urnes.size()])
 
 func _gauche() -> Vector3:
@@ -338,7 +339,7 @@ func _gauche() -> Vector3:
 
 func _film_attraction() -> void:
 	magie.equiper("gauche", "attraction")
-	var centre := _libre(6.5, 0.0)
+	var centre := _libre(9.0, 0.0)
 	var urnes := _cassables_vers([centre + _gauche() * 2.4 + Vector3(0, 0, 0), centre - _gauche() * 2.2, centre + (centre - j.global_position).normalized() * 2.0, centre + _gauche() * 1.4 - (centre - j.global_position).normalized() * 1.6])
 	var c1 := CorpsTelekinesie.creer("pq_chaise", s, Transform3D(Basis(Vector3.UP, 1.1), _sol(centre - _gauche() * 1.6 - (centre - j.global_position).normalized() * 1.4)))
 	var c2 := CorpsTelekinesie.creer("pq_tabouret", s, Transform3D(Basis(), _sol(centre + _gauche() * 2.0 + (centre - j.global_position).normalized() * 1.2)))
@@ -349,19 +350,21 @@ func _film_attraction() -> void:
 	await _debut("Attraction (U) : lancer un point au milieu du groupe")
 	for d in [a, b, c]:
 		_ia(d)
-	await _regarder(centre + Vector3.UP * 0.4, 0.6)
-	await _attendre(0.3)
+	await _regarder(centre + Vector3.UP * 0.6, 0.5)
 	magie.appuyer("gauche")
 	await _attendre(0.1)
 	magie.relacher("gauche")
-	await _attendre(0.6)
+	await _attendre(0.5)
+	var vx: Dictionary = es.vortex[0] if not es.vortex.is_empty() else {}
+	var p_vx: Vector3 = vx.get("cible", centre + Vector3.UP * 1.6)
+	await _regarder(p_vx + Vector3.DOWN * 0.3, 0.4)
 	await _capture("ouvert")
 	_texte("…il aspire ennemis et objets")
-	await _regarder(centre + Vector3.UP * 1.0, 1.2)
+	await _attendre(1.2)
 	await _capture("aspire")
-	await _attendre(1.3)
+	await _attendre(1.0)
 	_texte("puis relâche tout d'un coup")
 	await _attendre(0.5)
 	await _capture("relache")
-	await _attendre(2.3)
+	await _attendre(2.6)
 	print("FILM urnes cassées : %d / %d ; chaises %s %s" % [urnes.filter(func(x): return (x as Cassable).casse).size(), urnes.size(), is_instance_valid(c1), is_instance_valid(c2)])

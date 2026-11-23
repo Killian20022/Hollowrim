@@ -476,4 +476,10 @@ func _sauvegarde() -> void:
 	magie.importer(JSON.parse_string(texte))
 	_verif(magie.eq.mains["gauche"]["id"] == "drain_vie" and magie.eq.mains["droite"]["id"] == "epee" and absf(j.mana - 42.0) < 0.01,
 		"sauvegarde : mains (%s / %s) et mana restaurés" % [magie.eq.mains["gauche"]["id"], magie.eq.mains["droite"]["id"]])
-	_verif(magie.eq.sorts_connus.size() == 21, "sauvegarde : 21 sorts connus")
+	# tous les sorts de data/sorts/ (21 + télékinésie + sorts de l'esprit, moins ceux qu'un interrupteur --sans-… retire)
+	var attendus := 0
+	for f in DirAccess.get_files_at("res://data/sorts/"):
+		var id := f.trim_suffix(".remap").trim_suffix(".tres")
+		if (f.ends_with(".tres") or f.ends_with(".tres.remap")) and magie.eq.sort_par_id(id) != null:
+			attendus += 1
+	_verif(magie.eq.sorts_connus.size() == attendus and attendus >= 21, "sauvegarde : %d sorts connus (attendu %d)" % [magie.eq.sorts_connus.size(), attendus])
