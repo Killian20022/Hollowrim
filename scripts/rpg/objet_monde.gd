@@ -558,6 +558,9 @@ static func creer(oid: String, n := 1, joueur: CharacterBody3D = null, dialogue:
 	o.id = oid
 	o.nombre = n
 	o.add_child(visuel(oid, "sol", 1))
+	if Telekinesie.actif and _arme(oid) != null:      # arme posée : saisissable par la télékinésie (ArmeTelekinesie)
+		o.set_meta("tk_arme", oid)
+		o.add_to_group(Telekinesie.GROUPE)
 	if joueur != null and dialogue != null:
 		var it := Node3D.new()
 		it.set_script(preload("res://scripts/interactif.gd"))
@@ -574,6 +577,10 @@ static func creer(oid: String, n := 1, joueur: CharacterBody3D = null, dialogue:
 		o.add_child(it)
 		o._inter = it
 	return o
+
+## Arme posée (contrat télékinésie, docs/MAGIE.md) : ses données, ou null pour un autre objet.
+func donnees_arme() -> DonneesArme:
+	return _arme(id)
 
 ## Met l'objet au sac (ButinTables.prendre : règle des uniques), puis disparaît.
 func prendre(inv: Inventaire) -> Array[Dictionary]:

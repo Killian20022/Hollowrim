@@ -49,6 +49,8 @@ func _init(eq: Equipement = null, inv: Inventaire = null) -> void:
 		for id in catalogue["sorts_depart"]:
 			if sort_par_id(String(id)) != null and not sorts_connus.has(String(id)):
 				sorts_connus.append(String(id))
+	if not Telekinesie.actif:   # --sans-telekinesie : le sort n'existe pas
+		sorts_connus.erase("telekinesie")
 	sorts_connus.sort()
 	_synchroniser("gauche")
 	_synchroniser("droite")
@@ -82,7 +84,7 @@ func precharger_modeles() -> void:
 func apprendre_tout() -> void:
 	for f in DirAccess.get_files_at("res://data/sorts/"):
 		var id := f.trim_suffix(".remap").trim_suffix(".tres")
-		if (f.ends_with(".tres") or f.ends_with(".tres.remap")) and not sorts_connus.has(id):
+		if (f.ends_with(".tres") or f.ends_with(".tres.remap")) and not sorts_connus.has(id) and sort_par_id(id) != null:
 			sorts_connus.append(id)
 	sorts_connus.sort()
 
@@ -93,6 +95,8 @@ static func _lire(chemin: String) -> Dictionary:
 	return d if d is Dictionary else {}
 
 func sort_par_id(id: String) -> DonneesSort:
+	if id == "telekinesie" and not Telekinesie.actif:
+		return null
 	if not _sorts.has(id):
 		var chemin := DOSSIER_SORTS % id
 		_sorts[id] = load(chemin) as DonneesSort if ResourceLoader.exists(chemin) else null

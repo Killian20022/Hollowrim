@@ -359,6 +359,56 @@ suit une incantation courte), plan du coude jusqu'à 20° par image (zone). Corr
   ≤ 480°/s (8° par image à 60 i/s), pôle du coude ≤ 420°/s autour de l'épaule (le plan du coude ne bascule plus).
 - `test_articulations_magie` (pose finale du squelette, après IK et OrientationMain, deux bras, 60 et 30 i/s).
 
+## Télékinésie (école « esprit », 2026-11-23, branche magie/telekinesie)
+
+Référence : `references/insta_2026-11-23/Df0KoxniPDA.mp4` (main tendue, épée qui lévite entourée d'étincelles, projetée dans un
+squelette). Code : `scripts/magie/telekinesie.gd` (`Telekinesie`, un nœud enfant de MainSort), `arme_telekinesie.gd` (arme posée changée en
+corps), `corps_telekinesie.gd` (prop physique de test / démo), `shaders/magie_telekinesie.gdshader` (lueur), `data/sorts/telekinesie.tres`.
+
+- **École** : nouvelle école `esprit` (le système de données le permet : `DonneesSort.ecole` est une chaîne, les coûts passent par
+  `Progression.facteur_cout_sort`). Les visuels DE LA MAIN reprennent ceux de `protection` (aura bleu pâle, son de charge) :
+  `Telekinesie.ECOLE_VISUELLE`, appliqué par `MainSort._aura_vers` ; l'école n'a pas d'aura propre dans GestionMagie (à faire si l'école
+  grandit : Répulsion, Lévitation d'ennemi, Attraction). Type CANALISE, portée `DonneesSort.Portee.TELEKINESIE` (nouvelle valeur, en fin
+  d'énumération : les .tres existants ne bougent pas). Pas de double incantation (`double = {}`).
+- **Contrôles** : `X` (action `telekinesie`, remappable dans Options > Touches) met le sort dans la main gauche (épée à droite gardée) ;
+  second appui = main d'avant. Clic droit MAINTENU en visant un objet : il s'arrache (à-coup vers le haut, poussière, éclat) puis lévite
+  devant la main (~2 m, décalé de son côté), suit le regard avec un ressort amorti (raideur 7,5, amorti 9), tremble et tourne lentement ;
+  collisions gardées (il bute sur les murs ; coincé > 0,6 s à plus de 3,5 m de sa place : lâché). Molette : rapprocher / éloigner
+  (1,3-3,2 m). RELÂCHER : lancé vers le réticule (trajectoire corrigée de la gravité), aide à la visée 8° vers l'ennemi le plus proche
+  du réticule. Relâcher avant 0,12 s de tenue : l'objet tombe. Un coup reçu ≥ 14 coupe la tenue (l'objet tombe).
+- **Visée** : candidats = groupe `telekinesable` + (repli) petits objets vivants (`ObjetVivant`) ; aide douce de 7° élargie de la taille
+  apparente de l'objet, portée 14 m, pas à travers un mur ; l'objet visé est en SURBRILLANCE (lueur faible) dès que le sort est en main.
+- **Mana** : arrachement `8 + 0,8 × masse` ; drain `3 + 0,35 × masse` par seconde. Chaise 7 kg : 13,6 puis 5,5 /s ; épée 1,6 kg : 9,3 puis
+  3,6 /s ; tonneau 28 kg : 30,4 puis 12,8 /s. Masse max 60 kg (« Trop lourd. ») ; « Pas assez de mana. » si l'arrachement ne se paie pas ;
+  mana à zéro pendant la tenue : l'objet tombe (« Mana épuisé. »).
+- **Lancer** : vitesse `lerp(12, 24, charge) × clamp((4 / masse)^0,3, 0,5, 1,25)` m/s, charge = (tenue − 0,2 s) / 0,9 s : chaise 10-20 m/s,
+  tonneau 6,5-13, épée 15-30. Une arme vole POINTE EN AVANT (+Y de la lame aligné sur la vitesse à chaque pas).
+- **Impacts** (contrat avec la branche impacts) : à chaque contact rapide (> 6 m/s) d'un objet lancé — balayage de la trajectoire contre la
+  capsule de chaque ennemi, contacts physiques avec le décor — `ImpactsLances.objet_touche(objet, cible, point, normale, vitesse, lanceur)`
+  si la classe existe (cherchée dans `ProjectSettings.get_global_class_list()`), sinon REPLI : dégâts par `LanceurSorts.frapper` (chemin des
+  sorts : perks, résistances, réseau) = `0,22 × masse^0,83 × vitesse` contondant (chaise à 20 m/s ≈ 22, tonneau à 10 m/s ≈ 35) ou
+  `dégâts lourds de l'arme × clamp(v / 24, 0,5, 1,4)` tranchant ; l'arme se plante (suit la cible jusqu'à sa mort) ou TRAVERSE si elle tue ;
+  `recevoir_choc(vitesse, masse, point)` de l'objet et de ce qu'il percute (contrat cassables), sinon `frapper` des Cassable / ObjetVivant.
+  Méta posées pendant le vol : `lance_par` (joueur), `lance_jusqu_a` (horloge de Telekinesie).
+- **Armes** : `ObjetMonde.creer` d'une arme et l'arme lâchée par un ennemi mort (`ArmesEnnemis.poser_au_sol`) entrent dans le groupe
+  `telekinesable` (meta `tk_arme`) ; à la saisie elles deviennent une `ArmeTelekinesie` (corps rigide, visuel « ratelier » recentré,
+  masse = `DonneesArme.poids`) ; l'arme quitte le butin du corps (pas de double) ; au repos après le vol, elle reste posée, gelée,
+  RAMASSABLE (« Prendre ») et de nouveau saisissable. Râteliers de la crypte : armes fondues dans le décor, PAS saisissables (limite).
+- **Effets** (DA PS1, paliers francs, pas de tramage) : coque additive bleu pâle sur l'objet (bord + motes qui montent + onde, accrochée à la
+  grille ps1), étincelles fines qui s'élèvent de l'objet et halo doux, fil d'énergie à deux brins de la paume à l'objet (traits de la couche
+  fine) avec des étincelles qui courent dessus, lumière bleue qui suit l'objet ; poussière au sol et éclat à l'arrachement ; éclat et
+  traînée au lancer ; la lueur s'éteint en 0,6 s. Réglages de particules `tk_*` ajoutés à `PresetsMagie.R` au premier usage.
+- **Sons** : `esprit_saisie_1/2`, `esprit_lancer_1/2`, boucle `esprit_tenue` (`outils/sons_magie/generer_telekinesie.sh`, synthèse + CC0),
+  `SonsMagie.telekinesie_saisie / _lancer / _tenue`.
+- **Gestes** : maintien = geste capturé `jet` (boucle bras tendu), relâcher = départ du geste capturé `lance` (`GestesMagie.forcer`) ;
+  aucune pose écrite à la main. FPS et TPS (les effets partent des paumes du corps en 3e personne, `MainSort._p`).
+- **Réseau** : saisie / positions de tenue (10 /s) / lancer / lâcher annoncés (`tk_saisie`, `tk_tenu`, `tk_lancer`, `tk_lacher`), l'objet
+  repéré par `ObjetVivant.ident` ou son chemin dans la scène ; chaque machine fait voler sa copie, seuls les impacts du lanceur comptent
+  (dégâts de repli : `LanceurSorts.frapper` délègue à l'hôte pour un invité). LIMITES : non essayé à 2 PC ; une arme changée en
+  ArmeTelekinesie n'existe que chez le lanceur (les autres voient l'arme rester au sol).
+- **Interrupteur** : `-- --sans-telekinesie` (le sort n'existe pas : ni connu, ni raccourci, ni groupe sur les armes).
+- **Test** : `bash outils/tous_les_tests.sh test_telekinesie` (37 vérifications). **Film** : `outils/film_telekinesie.gd` (crypte, pilote).
+
 ## Sons (branche magie/sons)
 
 `scripts/magie/sons_magie.gd` (`SonsMagie`) : charge (boucle douce, volume et hauteur suivent l'intensité), lancement (2 variantes par école), jet continu (boucle, s'éteint 0,25 s après le dernier appel), impact (2 variantes, volume selon la force), zone, chaîne, réactions (6), double incantation (une note par école), enchantement, « Pas assez de mana » (aussi « Mana épuisé »). Écoles feu, glace, électricité, ténèbres (+ soin, protection). Fichiers : `assets/sons/magie/*.wav` (PCM 16 bits, sources CC0 dans assets/LICENCES.md, fabriqués par `outils/sons_magie/generer.py`). Boucles : `edit/loop_mode=2` dans leur .import.

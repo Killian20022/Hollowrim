@@ -107,6 +107,7 @@ Fabriqués par `outils/sons_magie/generer.py` (ffmpeg : retaillés, normalisés 
 | tenebres_lancer_1, reaction_flammes_obscures | Energy Drain (opengameart.org/content/energy-drain) : qubodup-PowerDrain | CC0 |
 | tenebres_lancer_2, tenebres_impact_*, reactions | 3 Dark Magic Spells (opengameart.org/content/3-dark-magic-spells) : dm.mp3 découpé en 3 | CC0 |
 | soin_* | Cure Magic (opengameart.org/content/cure-magic) : Cure1, 3, 4, 6 | CC0 |
+| esprit_saisie_*, esprit_lancer_*, esprit_tenue (télékinésie) | synthétisés par nous (ffmpeg : bruit filtré, sinus ; outils/sons_magie/generer_telekinesie.sh) + protection_lancer_* (Electricity Game Sound Pack, CC0) retaillés et assombris | création propre (CC0) |
 | charge_*, jet_* (boucles) | synthétisés par nous (bruit filtré + sinus, ffmpeg) ; jets électrique/protection sans échantillon externe | création propre (CC0) |
 
 ## Modèles 3D : mains du bras FPS (MakeHuman / MPFB2, CC0 ; vérifié le 2026-10-29)

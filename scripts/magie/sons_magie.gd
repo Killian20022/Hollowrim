@@ -83,6 +83,9 @@ static func tous_les_noms() -> Array:
 	l.append_array(DECHARGES.values())
 	l.append("magie/rayon_neant_lancer")
 	l.append(SON_PLEINE)
+	l.append_array(TK_SAISIE)
+	l.append_array(TK_LANCER)
+	l.append(TK_TENUE)
 	return l
 
 static func _chemin(nom: String) -> String:
@@ -228,6 +231,29 @@ static func jet(ecole: String, origine: Node3D, actif: bool) -> void:
 	if not _actif() or origine == null:
 		return
 	_n().boucle(origine.get_instance_id() * 2 + 1, origine, _t(ecole_sure(ecole))["jet"], 1.0 if actif else 0.0, false)
+
+# ------------------------------------------------------------------ télékinésie (école « esprit », scripts/magie/telekinesie.gd)
+## Sons faits par outils/sons_magie/generer_telekinesie.sh (synthèse ffmpeg + sons CC0 de protection retaillés, assets/LICENCES.md).
+const TK_SAISIE := ["magie/esprit_saisie_1", "magie/esprit_saisie_2"]
+const TK_LANCER := ["magie/esprit_lancer_1", "magie/esprit_lancer_2"]
+const TK_TENUE := "magie/esprit_tenue"
+
+## Arrachement d'un objet (plus grave pour un objet lourd).
+static func telekinesie_saisie(pos: Vector3, masse: float) -> void:
+	_compter("telekinesie_saisie")
+	_coup(_variante(TK_SAISIE), pos, VOL_LANCER - 1.0, clampf(1.15 - 0.012 * masse, 0.75, 1.15) * randf_range(0.96, 1.04), "tk_saisie", 0.1)
+
+## Lancer (`k` : 0,7 sans charge, 1,2 à pleine charge).
+static func telekinesie_lancer(pos: Vector3, k := 1.0) -> void:
+	_compter("telekinesie_lancer")
+	_coup(_variante(TK_LANCER), pos, VOL_LANCER + 2.0 * clampf(k - 1.0, -0.5, 0.5), randf_range(0.95, 1.05) * (0.9 + 0.15 * k), "tk_lancer", 0.08)
+
+## Bourdonnement de l'objet tenu (boucle suivie par l'objet ; 0 = fondu de sortie).
+static func telekinesie_tenue(objet: Node3D, intensite: float) -> void:
+	_compter("telekinesie_tenue")
+	if not _actif() or objet == null:
+		return
+	_n().boucle(objet.get_instance_id() * 2, objet, TK_TENUE, intensite, true)
 
 static func tout_arreter() -> void:
 	if _noeud != null and is_instance_valid(_noeud):
