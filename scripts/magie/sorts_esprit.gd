@@ -320,8 +320,13 @@ func _renverser(e: CharacterBody3D, f: Dictionary, plat: Vector3) -> void:
 	if bool(f["draugr"]):
 		if int(e.get("etat")) != int(e.get_script().get_script_constant_map().get("CHUTE", -1)):
 			e.call("_chuter", plat * 0.3)
-		elif e.get("_recul") is Vector3:
-			e.set("_recul", plat.limit_length(4.0) * 0.4)
+		else:
+			if e.get("_recul") is Vector3:
+				e.set("_recul", plat.limit_length(4.0) * 0.4)
+			# la chute (Death01) a joué pendant le vol : son horloge reprend là où en est l'animation (il se relève à l'heure)
+			if e.has_method("_duree") and e.get("_t") != null:
+				var d_chute := float(e.call("_duree", "Death01")) / 1.6
+				e.set("_t", minf(float(f.get("t_vol", 0.0)), d_chute))
 		return
 	var cst: Dictionary = e.get_script().get_script_constant_map() if e.get_script() != null else {}
 	if cst.has("SONNE") and e.has_method("_changer"):
@@ -358,7 +363,7 @@ func projeter(e: CharacterBody3D, v: Vector3, s: DonneesSort) -> void:
 
 func _debut_vol(e: CharacterBody3D, f: Dictionary) -> void:
 	if bool(f["draugr"]):
-		var cst := e.get_script().get_script_constant_map()
+		var cst: Dictionary = e.get_script().get_script_constant_map()
 		if int(e.get("etat")) != int(cst.get("CHUTE", -1)):
 			e.call("_chuter", Vector3.ZERO)   # Death01 : il bascule en arrière pendant le vol
 	elif e.has_method("_jouer"):
@@ -385,6 +390,7 @@ func _physics_process(dt: float) -> void:
 			_rendre(f, false)   # mort en vol : son ragdoll a pris le relais
 			continue
 		f["t"] = float(f["t"]) + dt
+		f["t_vol"] = float(f.get("t_vol", 0.0)) + dt
 		match String(f["mode"]):
 			"tenu":
 				_tenir(f, dt)
@@ -753,7 +759,7 @@ func repulsion(s: DonneesSort, charge: float, paume: Node3D, oeil: Vector3, avan
 			var k := clampf(1.0 - 0.55 * dh.length() / maxf(portee, 0.1), 0.35, 1.0)
 			var p := puissance(e)
 			var dir := (dh.normalized() if dh.length() > 0.3 else plat).lerp(plat, 0.35).normalized()
-			var vit := force * k / sqrt(maxf(p, 0.45))
+			var vit := force * k * clampf(1.0 / sqrt(maxf(p, 0.1)), 0.3, 1.15)
 			if est_chef(e):
 				vit *= 0.25
 			_frapper(e, dg * k, ce, dir, lerpf(18.0, 40.0, c) * k, s)
@@ -832,7 +838,7 @@ func attraction(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, di
 		var q := PhysicsRayQueryParameters3D.create(cible + Vector3.UP * 0.5, cible + Vector3.DOWN * 3.0, 1)
 		var r := joueur.get_world_3d().direct_space_state.intersect_ray(q)
 		if not r.is_empty():
-			cible.y = maxf(cible.y, (r["position"] as Vector3).y + 1.2)
+			cible.y = maxf(cible.y, (r["position"] as Vector3).y + 1.6)
 		_envoyer(EV_VORTEX, "vortex", {"p": depart, "c": cible})
 		SonsMagie.lancement(Telekinesie.ECOLE_VISUELLE, depart, 0.8)
 	var vx := {"pos": depart, "cible": cible, "phase": "vol", "t": 0.0, "s": s, "pris": {}, "objets": {}, "fx": {}, "distant": distant_vers != Vector3.INF}
@@ -909,7 +915,7 @@ func _aspirer(vx: Dictionary, dt: float) -> void:
 	# objets : aspirés en spirale (sans gravité), ils s'entrechoquent au centre
 	var objets: Dictionary = vx["objets"]
 	for o in _objets(centre, s.rayon * 1.2):
-		var id3 := o.get_instance_id()
+		var id3: int = o.get_instance_id()
 		if objets.has(id3):
 			continue
 		var corps: RigidBody3D = o if o is RigidBody3D else (_tk()._corps_de(o) if _tk() != null else null)
@@ -949,11 +955,13 @@ func _attirer(f: Dictionary, dt: float) -> void:
 	var s: DonneesSort = vx["s"]
 	var t := float(f["t"])
 	f["angle"] = float(f["angle"]) + dt * lerpf(0.6, 2.2, clampf(t / 1.2, 0.0, 1.0))
-	var r_orbite := lerpf(clampf(Vector2(e.global_position.x - centre.x, e.global_position.z - centre.z).length(), 0.8, s.rayon), 0.9, clampf(t / 1.4, 0.0, 1.0))
+	if not f.has("r0"):
+		f["r0"] = clampf(Vector2(e.global_position.x - centre.x, e.global_position.z - centre.z).length(), 0.8, s.rayon)
+	var r_orbite := lerpf(float(f["r0"]), 0.75, smoothstep(0.0, 1.0, clampf(t / 1.0, 0.0, 1.0)))
 	var cible := centre + Vector3(cos(float(f["angle"])), 0.0, sin(float(f["angle"]))) * r_orbite
-	cible.y = centre.y - float(f["h"]) - 0.2 + sin(t * 2.1) * 0.12
-	var voulue := ((cible - e.global_position) * 3.5).limit_length(s.attraction / sqrt(maxf(float(f["p"]), 0.6)))
-	var v: Vector3 = (f["v"] as Vector3).lerp(voulue, 1.0 - exp(-dt * 4.0))
+	cible.y = centre.y - float(f["h"]) - 0.35 + sin(t * 2.1) * 0.12   # le corps pend sous le centre, pieds décollés
+	var voulue := ((cible - e.global_position) * 5.0).limit_length(s.attraction / sqrt(maxf(float(f["p"]), 0.6)))
+	var v: Vector3 = (f["v"] as Vector3).lerp(voulue, 1.0 - exp(-dt * 5.0))
 	var col := e.move_and_collide(v * dt)
 	if col != null:
 		v = v.slide(col.get_normal()) * 0.8
@@ -1056,13 +1064,13 @@ func _effets_onde(depart: Vector3, avant: Vector3, portee: float, c: float, demi
 	g.emettre("es_onde", null, Transform3D(b, depart + avant * 0.2), false, 0.6 + 0.7 * c, -1.0,
 		g._pm("es_onde", PresetsMagie.R["es_onde"], {"ecart": snappedf(rad_to_deg(demi), 1.0), "vit": Vector2(5.0, 11.0 + 7.0 * c) * maxf(echelle, 0.6)}))
 	g.emettre("es_voile", null, Transform3D(b, depart + avant * 0.35), false, 0.7 + 0.5 * c)
-	# anneaux de l'onde : un près de la main, un plus loin et plus grand (ils s'étendent et s'éteignent)
-	var reg := {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.9, "epaisseur": 0.07, "texels": 40.0, "eclat": 1.5}
-	g.disque(depart + avant * 0.9, avant, 0.15, 0.9 + 0.6 * c, 0.28, reg, false, false, 0.6)
+	# anneaux de l'onde : fins, translucides, qui s'étendent en s'éloignant (le premier à 1,8 m : pas un écran devant la caméra)
+	var reg := {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.94, "epaisseur": 0.035, "texels": 110.0, "eclat": 1.3, "opacite": 0.6}
+	g.disque(depart + avant * 1.8, avant, 0.25, 0.8 + 0.5 * c, 0.26, reg, false, false, 0.7)
 	var reg2 := reg.duplicate()
-	reg2["epaisseur"] = 0.05
-	reg2["eclat"] = 1.2
-	g.disque(depart + avant * (1.6 + 1.2 * c), avant, 0.4, 1.6 + 1.6 * c, 0.38, reg2, false, false, 0.6)
+	reg2["epaisseur"] = 0.025
+	reg2["opacite"] = 0.45
+	g.disque(depart + avant * (3.0 + 1.5 * c), avant, 0.5, 1.4 + 1.2 * c, 0.36, reg2, false, false, 0.7)
 	g.lumiere("es_onde", depart + avant * 1.2, BLANC, 1.4 + 1.2 * c, 4.0 + portee * 0.5, 3.0, 0.16)
 	# poussière soulevée au sol dans le cône
 	var plat := Vector3(avant.x, 0.0, avant.z).normalized()
@@ -1078,7 +1086,7 @@ func _effet_choc(point: Vector3, n: Vector3, k: float, sol: bool) -> void:
 	RetourImpact.son(joueur, "chute_pierre", point, -4.0 + 6.0 * clampf(k, 0.0, 1.0), 0.8 + 0.3 * randf())
 	if g == null:
 		return
-	g.emettre("es_choc", null, Transform3D(EffetsMagie.base_normale(n) if not sol else Basis(), point + n * 0.05), false, k)
+	g.emettre("es_choc", null, Transform3D(GestionMagie.base_normale(n) if not sol else Basis(), point + n * 0.05), false, k)
 
 func _effets_emprise(m: String, em: Dictionary) -> void:
 	var e: Node3D = em["e"]
@@ -1181,13 +1189,13 @@ func _effets_vortex_ouvre(vx: Dictionary) -> void:
 	fx["tourbillon"] = g.emettre("es_vortex", n, Transform3D.IDENTITY, true, 1.0, -1.0, g._pm("es_vortex", PresetsMagie.R["es_vortex"], {"r": snappedf(s.rayon * 0.6, 0.1)}))
 	fx["coeur"] = g.emettre("es_coeur", n, Transform3D.IDENTITY, true)
 	# cœur spiralé face caméra et anneau spiralé au sol, qui tournent pendant toute la durée
-	var d1 := g.disque(vx["pos"], Vector3.UP, 0.45, 0.75, s.duree_vortex, {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.55, "epaisseur": 0.25, "spirale": 0.9, "texels": 40.0, "eclat": 1.4, "remplissage": 0.15}, false, true, 0.15)
+	var d1 := g.disque(vx["pos"], Vector3.UP, 0.45, 0.75, s.duree_vortex, {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.55, "epaisseur": 0.25, "spirale": 0.9, "texels": 64.0, "eclat": 1.4, "remplissage": 0.15, "tourne": 0.7}, false, true, 0.15)
 	if not d1.is_empty():
 		d1["suivre"] = n
 	var q := PhysicsRayQueryParameters3D.create(vx["pos"], Vector3(vx["pos"]) + Vector3.DOWN * 4.0, 1)
 	var r := joueur.get_world_3d().direct_space_state.intersect_ray(q)
 	if not r.is_empty():
-		g.disque(r["position"], Vector3.UP, s.rayon * 0.9, s.rayon * 0.35, s.duree_vortex, {"couleur": "#5a8ec8", "coeur": "#c8e6fa", "anneau": 0.8, "epaisseur": 0.06, "spirale": 1.0, "texels": 48.0, "eclat": 1.0, "opacite": 0.7}, false, false, 0.2)
+		g.disque(r["position"], Vector3.UP, s.rayon * 0.9, s.rayon * 0.35, s.duree_vortex, {"couleur": "#5a8ec8", "coeur": "#c8e6fa", "anneau": 0.8, "epaisseur": 0.06, "spirale": 1.0, "texels": 80.0, "eclat": 1.0, "opacite": 0.6, "tourne": 0.45}, false, false, 0.2)
 	g.emettre("es_eclat", null, Transform3D(Basis(), vx["pos"]), false, 0.4)
 
 func _effets_vortex_suivre(vx: Dictionary) -> void:

@@ -128,7 +128,7 @@ func _onde(tenue: float) -> float:
 	magie.appuyer("gauche")
 	await _sim(tenue)
 	magie.relacher("gauche")
-	await _sim(0.05)
+	await _sim(0.3 if tenue < 0.3 else 0.05)   # au tap, le sort part à la fin de l'incantation (0,12 s)
 	return m0 - float(j.mana)
 
 func _repulsion() -> void:
@@ -140,10 +140,12 @@ func _repulsion() -> void:
 	var d1 := _draugr(Vector3(-1.4, 0.0, 1.0), "squelette")
 	await _sim(0.6)
 	await _viser_point(Vector3(-3.0, 1.0, 1.0))
-	var p1 := d1.global_position
 	var c_tap := await _onde(0.05)
-	await _sim(1.2)
-	var dep_tap := Vector2(d1.global_position.x - p1.x, d1.global_position.z - p1.z).length()
+	var v_tap := 0.0
+	for k in 40:
+		await _sim(DT)
+		if es.vols.has(d1.get_instance_id()):
+			v_tap = maxf(v_tap, (es.vols[d1.get_instance_id()]["v"] as Vector3).length())
 	_verif(absf(c_tap - LanceurSorts.cout(sd, 0.0)) < 1.5, "Répulsion au tap : %.1f de mana (attendu %.1f)" % [c_tap, LanceurSorts.cout(sd, 0.0)])
 	d1.queue_free()
 	await _reset()
@@ -158,16 +160,17 @@ func _repulsion() -> void:
 	var c_plein := await _onde(1.5)
 	var envol := false
 	var y_max := p2.y
+	var v_plein := 0.0
 	for k in 50:
 		await _sim(DT)
 		if es.vols.has(d2.get_instance_id()):
 			envol = true
+			v_plein = maxf(v_plein, (es.vols[d2.get_instance_id()]["v"] as Vector3).length())
 		y_max = maxf(y_max, d2.global_position.y)
 	await _sim(1.0)
-	var dep_plein := Vector2(d2.global_position.x - p2.x, d2.global_position.z - p2.z).length()
 	_verif(absf(c_plein - LanceurSorts.cout(sd, 1.0)) < 1.5 and c_plein > c_tap * 2.0, "coût selon la charge : %.1f pleine charge contre %.1f au tap" % [c_plein, c_tap])
 	_verif(envol and y_max > p2.y + 0.3, "le squelette est projeté (en l'air : +%.2f m)" % (y_max - p2.y))
-	_verif(dep_plein > dep_tap + 0.3, "plus loin chargée : %.2f m contre %.2f m au tap" % [dep_plein, dep_tap])
+	_verif(v_plein > v_tap * 1.5, "plus fort chargée : projeté à %.1f m/s contre %.1f m/s au tap" % [v_plein, v_tap])
 	var chocs := es.journal.filter(func(x): return String(x[1]).begins_with("choc"))
 	_verif(not chocs.is_empty() and d2.vie < vie0, "choc contre le mur : %s ; %.0f -> %.0f PV" % [chocs[0][1] if not chocs.is_empty() else "-", vie0, d2.vie])
 	_verif(chaise.global_position.distance_to(Vector3(-1.2, 0.0, 1.9)) > 0.6, "la chaise est projetée (%.2f m)" % chaise.global_position.distance_to(Vector3(-1.2, 0.0, 1.9)))
@@ -281,7 +284,7 @@ func _chefs() -> void:
 	var paye: float = m0 - float(j.mana)
 	await _sim(1.5)
 	_verif(pris and paye > 80.0, "le troll se soulève, mais coûte %.0f de mana" % paye)
-	_verif(not es.tient("gauche") and es.dernier_refus in ["Il brise l'emprise !", "Mana épuisé."], "il retombe vite : « %s »" % es.dernier_refus)
+	_verif(not es.tient("gauche") and String(magie.refus["gauche"]) in ["Il brise l'emprise !", "Mana épuisé."], "il retombe vite : « %s »" % magie.refus["gauche"])
 	magie.relacher("gauche")
 	await _sim(2.0)
 	_verif(not es.vols.has(tr.get_instance_id()) and tr.is_physics_processing(), "le troll est rendu à son IA (%s)" % _etat_nom(tr))
@@ -337,10 +340,23 @@ func _attraction() -> void:
 	var paye: float = m0 - float(j.mana)
 	var att := sd.cout + SortsEsprit.supplement_attraction(sd, SortsEsprit.puissance(d))
 	_verif(absf(paye - att) < 1.5, "coût fixe + supplément : %.1f (attendu %.1f)" % [paye, att])
-	await _sim(1.8)
+	for k in 150:
+		if es.vortex.is_empty():
+			break
+		await _sim(DT)
 	_verif(es.vortex.is_empty() and not es.journal.filter(func(x): return String(x[1]).begins_with("attraction relâchée")).is_empty(), "le vortex relâche tout")
-	var dist_c2 := Vector2(chaise.global_position.x - centre.x, chaise.global_position.z - centre.z).length()
-	_verif(dist_c2 > dist_c1 + 0.5 or chaise.linear_velocity.length() > 3.0, "la chaise est projetée au relâchement (%.2f m, %.1f m/s)" % [dist_c2, chaise.linear_velocity.length()])
+	var v_max := chaise.linear_velocity.length()
+	for k in 10:
+		await _sim(DT)
+		v_max = maxf(v_max, chaise.linear_velocity.length())
+	_verif(v_max > 5.0, "la chaise est projetée au relâchement (%.1f m/s)" % v_max)
+	for x in es.journal:
+		print("   ES %.2f %s" % [x[0], x[1]])
+	if magie.tk != null:
+		for x in magie.tk.journal.slice(-10):
+			print("   TK %.2f %s" % [x[0], x[1]])
+	var proj := not es.journal.filter(func(x): return String(x[1]).begins_with("attraction relâchée : 1 ennemis")).is_empty()
+	_verif(proj and ((es.vols.has(d.get_instance_id()) and String(es.vols[d.get_instance_id()]["mode"]) == "vol") or not SortsEsprit.vivant(d)), "le squelette est projeté au relâchement (%s)" % ("en vol" if SortsEsprit.vivant(d) else "tué par le choc"))
 	await _sim(2.5)
 	_verif(not es.vols.has(d.get_instance_id()) and d.is_physics_processing(), "le squelette est rendu à son IA")
 	d.queue_free()
@@ -352,19 +368,25 @@ func _ia_libre() -> void:
 	await _reset()
 	magie.equiper("gauche", "repulsion")
 	s.placer_joueur(Vector3(0, 0, 4.0), 0.0)
-	var d := _draugr(Vector3(0.0, 0.0, 1.8), "sbire")
+	var d := _draugr(Vector3(2.5, 0.0, -2.5), "sbire")   # à 7 m (hors de la ligne du mannequin), il court sur le joueur pendant la charge
 	d.set_physics_process(true)
 	d.call("_changer", d.get_script().get_script_constant_map()["TRAQUE"])
-	await _sim(0.5)
+	if j.touche.is_connected(magie._sur_touche):
+		j.touche.disconnect(magie._sur_touche)   # ce qu'on teste ici : l'IA après le vol (un coup reçu couperait la charge)
 	await _viser_point(Elements._centre(d))
-	await _onde(1.5)
-	await _sim(0.3)
-	var vu_chute := _etat_nom(d) == "CHUTE"
+	await _onde(1.45)
+	var vu_chute := false
+	for k in 30:
+		await _sim(DT)
+		vu_chute = vu_chute or _etat_nom(d) == "CHUTE"
 	var etats := []
-	for k in 8:
+	for k in 10:
 		await _sim(0.5)
 		etats.append(_etat_nom(d))
 	print("   états après la projection : ", etats)
-	_verif(vu_chute and d.is_physics_processing() and es.vols.is_empty(), "projeté avec son IA active : à terre (CHUTE), IA rendue")
+	for x in es.journal:
+		print("   ES %.2f %s" % [x[0], x[1]])
+	print("   magie : ", magie.journal.slice(-8))
+	_verif(vu_chute and d.is_physics_processing() and es.vols.is_empty(), "projeté avec son IA active : à terre (CHUTE), IA rendue (%s)" % str(etats))
 	_verif(String(etats[-1]) in ["TRAQUE", "ATTAQUE", "TITUBE", "VISE"], "il s'est relevé et reprend le combat (%s)" % etats[-1])
 	d.queue_free()
