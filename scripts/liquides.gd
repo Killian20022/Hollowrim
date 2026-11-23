@@ -247,11 +247,13 @@ static func impact(n: Node, r: Dictionary, v: Vector3, nom_: String, vol_ml: flo
 		vol_ml *= 0.8
 	if nrm.y > PLAT and sup == null:
 		var f := dans_flaque
+		var cumul := vol_ml if sang else l._cumuler(p, nom_, vol_ml)      # gouttes qui tombent au même endroit (égouttement) : elles s'additionnent
 		if f != null:
 			f.ajouter(l, vol_ml / 1000.0, p)
-		elif vol_ml >= SEUIL_FLAQUE_ML:
-			l._nouvelle_flaque(n, p, nrm, nom_, vol_ml / 1000.0, surf)
-		elif tacher:
+		elif cumul >= SEUIL_FLAQUE_ML:
+			l._oublier(p, nom_)
+			l._nouvelle_flaque(n, p, nrm, nom_, cumul / 1000.0, surf)
+		elif tacher and (sang or cumul <= vol_ml + 0.01):
 			l._tache(n, p, nrm, v, nom_, vol_ml, taille, rasant, surf, couleur, null)
 	elif nrm.y < -0.3:
 		# dessous (plafond, dessous de table) : une tache, et le reste retombe en goutte
@@ -266,6 +268,33 @@ static func impact(n: Node, r: Dictionary, v: Vector3, nom_: String, vol_ml: flo
 		if sup == null and vol_ml >= 0.7 * float(sorte(nom_)["visc"]) * (1.0 if not sang else 0.9) and surf != "neige" and (not sang or randf() < 0.6):
 			l.coulure(n, p, nrm, nom_, vol_ml * 0.75, couleur)
 	cout_us += Time.get_ticks_usec() - t0
+
+# ------------------------------------------------------------------ cumul des petites gouttes
+
+## Petites gouttes tombées au même endroit (case de 12 cm) depuis moins de 8 s : leur volume s'additionne ; au-delà du seuil, une
+## flaque naît là (un filet qui goutte d'une étagère finit en flaque, pas en 600 taches).
+var _cumul := {}
+
+func _cle_cumul(p: Vector3, nom_: String) -> String:
+	return "%s|%d|%d|%d" % [nom_, floori(p.x / 0.12), floori(p.y / 0.12), floori(p.z / 0.12)]
+
+func _cumuler(p: Vector3, nom_: String, ml: float) -> float:
+	var maintenant := Time.get_ticks_msec()
+	if _cumul.size() > 96:
+		for k: String in _cumul.keys():
+			if maintenant - int((_cumul[k] as Array)[1]) > 8000:
+				_cumul.erase(k)
+	var cle := _cle_cumul(p, nom_)
+	var e: Array = _cumul.get(cle, [0.0, maintenant])
+	if maintenant - int(e[1]) > 8000:
+		e = [0.0, maintenant]
+	e[0] = float(e[0]) + ml
+	e[1] = maintenant
+	_cumul[cle] = e
+	return float(e[0])
+
+func _oublier(p: Vector3, nom_: String) -> void:
+	_cumul.erase(_cle_cumul(p, nom_))
 
 # ------------------------------------------------------------------ taches
 

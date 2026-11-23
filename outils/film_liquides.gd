@@ -183,7 +183,7 @@ func _attendre_images(k: int) -> void:
 func _salle() -> Dictionary:
 	var roche := Palette.materiau(Palette.tex("roche", Palette.ROCHE, 4, 0.5), Vector2(3, 3))
 	var bois := Palette.materiau(Palette.tex("planches", Palette.PLANCHES, 4, 0.5), Vector2(2, 2))
-	_boite(Vector3(0, -0.045, -1), Vector3(14, 0.1, 14), bois, "bois")                 # plancher
+	_boite(Vector3(0, 0.0, -1), Vector3(14, 0.1, 14), bois, "bois")                 # plancher (dessus à 5 cm : le sol de la scène ne perce pas)
 	_boite(Vector3(0, 1.6, -4.4), Vector3(10, 3.2, 0.4), roche, "pierre")              # mur de pierre (fond)
 	_boite(Vector3(-4.0, 1.6, -1), Vector3(0.4, 3.2, 8), roche, "pierre")
 	_boite(Vector3(0, 3.3, -1), Vector3(10, 0.2, 8), bois, "bois")                    # plafond
@@ -210,7 +210,7 @@ func _salle() -> Dictionary:
 func _film() -> void:
 	var salle := _salle()
 	var etage := _meuble("pq_tonneau", Transform3D(Basis.from_scale(Vector3.ONE * 0.62), Vector3(-2.15, 0.9, -3.9)), "biere")
-	var jarre := _meuble("pq_jarre", Transform3D(Basis.from_scale(Vector3.ONE * 1.0), Vector3(1.6, 0.0, -2.6)), "vin")
+	var jarre := _meuble("pq_jarre", Transform3D(Basis.from_scale(Vector3.ONE * 1.0), Vector3(1.6, 0.05, -2.6)), "vin")
 	await _attendre_images(20)
 	# --- 1. tonneau de bière sur l'étagère
 	_cam_vers(Vector3(-0.7, 1.25, -1.5), Vector3(-2.15, 0.55, -3.7), 54.0)
@@ -287,7 +287,7 @@ func _banc() -> void:
 	_lampe.visible = false
 	var tonneaux := []
 	for k in 5:
-		tonneaux.append(_meuble("pq_tonneau", Transform3D(Basis.from_scale(Vector3.ONE * 0.62), Vector3(-2.4 + k * 1.1, 0.0, -2.6 - (k % 2) * 0.5)), "biere"))
+		tonneaux.append(_meuble("pq_tonneau", Transform3D(Basis.from_scale(Vector3.ONE * 0.62), Vector3(-2.4 + k * 1.1, 0.05, -2.6 - (k % 2) * 0.5)), "biere"))
 	_cam_vers(Vector3(0.0, 1.6, 1.2), Vector3(0.0, 0.4, -2.8), 60.0)
 	await _attendre_images(60)
 	var calme := await _mesure(3.0)
