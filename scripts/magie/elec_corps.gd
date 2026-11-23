@@ -217,6 +217,8 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	ic.regler_foyers(f, maxf(kc, reste * 0.6), minf(s.bas, 0.0) + 0.02, fo)
 	for k in f.em.size():
 		var r := maxf(SOUS_JET[k] * maxf(kj, ks), maxf(CHOC[k] * kc, TRACES[k] * reste))
+		if not GestionMagie.foudre_v1 and k < 4:
+			r *= 0.4   # FOUDRE v2 : étincelles et ions discrets (les arcs du Canal portent l'impact)
 		ic.activer(f.em[k], r)
 	# ------------------------------------------------ voile et coque : contour qui crépite, veines, traces
 	# (le papillotement est fait par le shader : les canaux ne changent pas à chaque image → pas réécrits)
@@ -244,7 +246,8 @@ static func _former(ic: ImpactCorps, f: ImpactCorps.Foyer, kj: float, ks: float,
 	if s.nb > 8:
 		if vif > 0.05 and imp >= 0:
 			var dbl: bool = d.dbl
-			var n_rampes := (4 if fin else 3) + (1 if dbl else 0)
+			var v2 := not GestionMagie.foudre_v1   # FOUDRE v2 : les arcs du Canal accrochent déjà le corps, moins de rampes
+			var n_rampes := ((4 if fin else 3) + (1 if dbl else 0)) if not v2 else (2 + (1 if dbl else 0))
 			for k in n_rampes:
 				# une part du point touché, les autres d'un point voisin (l'impact « s'étale » sans s'entasser au centre)
 				var dep := imp if k == 0 else _voisin(s, imp, 0.14, 0.45, Vector3.ZERO, rng)
@@ -253,13 +256,13 @@ static func _former(ic: ImpactCorps, f: ImpactCorps.Foyer, kj: float, ks: float,
 				var bout := _ramper(ic, f, dep, rng.randi_range(4, 7), g + k * 9.1, 1.0 if k < 2 else 0.7, 1.0 if k < 2 else 0.67)
 				anc.append(bout)
 			# sauts entre os (bras ↔ torse, bouclier ↔ bras) et descentes au sol
-			for k in (3 if fin else 2):
+			for k in ((3 if fin else 2) if not v2 else 1):
 				var a := _voisin(s, imp, 0.0, 0.6, Vector3.ZERO, rng)
 				var b := _autre_os(s, a, 0.18, 0.62, rng) if a >= 0 else -1
 				if b >= 0:
 					ic.arc(f, a, b, 4, 4, g + 40.0 + k, 0.8, 0.85)
 					anc.append(b)
-			for k in (2 if fin else 1):
+			for k in ((2 if fin else 1) if not v2 else 1):
 				var p := _point_bas(s, rng)
 				if p >= 0:
 					ic.arc(f, p, -1, 1, 4, g + 60.0 + k, 0.8, 0.85)
