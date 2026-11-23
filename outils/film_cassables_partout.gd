@@ -145,7 +145,7 @@ func _lancer(a: ObjetVivant, b: Node3D, vitesse: float, haut := 0.25, max_images
 			break
 		var r: float = 0.45 + ((b.get("_taille") as Vector3).length() * 0.3 if b.get("_taille") != null else 0.2)
 		if a.global_position.distance_to(bc) < r or i + 1 >= arrivee:
-			var va := a.linear_velocity if a.linear_velocity.length() > 2.0 else v
+			var va := a.linear_velocity if a.linear_velocity.length() > v.length() * 0.7 else v      # vitesse du lancer (un objet lourd freiné par le sol garde celle-ci)
 			var rb := false
 			if b.has_method("recevoir_choc"):
 				rb = b.call("recevoir_choc", va, a.mass, a.global_position)
