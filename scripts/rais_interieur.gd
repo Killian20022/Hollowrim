@@ -12,7 +12,7 @@ extends Node3D
 ## Interrupteur : --sans-lumiere-v2 (aucun rai v2 : l'ancien rendu).
 
 const SHADER := preload("res://shaders/rai_volume.gdshader")
-const CHAUD := Color(1.0, 0.8, 0.55)      # la poussière dorée réchauffe la lumière du dehors
+const CHAUD := Color(1.0, 0.64, 0.33)     # la poussière dorée réchauffe la lumière du dehors
 const CIEL := Color(0.86, 0.84, 0.8)        # jour diffus : neutre, à peine chaud (la poussière de la pièce)
 const LUNE := Color(0.55, 0.66, 1.0)
 const FORCES := {"fenetre": 1.0, "volets": 0.8, "porte": 0.85, "toit": 0.6}
@@ -171,7 +171,7 @@ func maj() -> void:
 		mi.set_instance_shader_parameter("dims", Vector3(w, hh, longueur))
 		mi.set_instance_shader_parameter("couleur", Vector3(col.r, col.g, col.b))
 		mi.set_instance_shader_parameter("force", f)
-		mi.set_instance_shader_parameter("voile_k", lerpf(0.3, 1.0, k))
+		mi.set_instance_shader_parameter("voile_k", lerpf(0.18, 1.0, k))
 		mi.visible = f > 0.002
 		if _debug:
 			print("RAISV2 %s %s %s face=%.2f k=%.2f f=%.2f d=%s L=%.1f" % [ip.id, ip.nom, typ, face, k, f, d, longueur])

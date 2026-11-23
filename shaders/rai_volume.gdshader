@@ -16,7 +16,7 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, depth_test_dis
 uniform sampler2D tex_profondeur : hint_depth_texture, filter_nearest;
 uniform sampler2D tex_ecran : hint_screen_texture, filter_nearest;
 uniform float densite = 0.075;          // voile du volume par mètre traversé
-uniform float tache = 1.4;             // force de la tache au sol (× couleur de la surface)
+uniform float tache = 1.6;             // force de la tache au sol (× couleur de la surface)
 uniform float grains = 0.5;            // force des grains de poussière
 instance uniform vec3 couleur = vec3(1.0, 0.9, 0.7);
 instance uniform float force = 0.0;     // 0 = éteint
@@ -71,8 +71,15 @@ float profil(vec3 p) {
 	float bord = smoothstep(vec2(0.0), doux, b).x * smoothstep(vec2(0.0), doux, b).y;
 	float z = p.z * dims.z;
 	float entree = smoothstep(0.0, 0.25, z);
-	float fin = 1.0 - smoothstep(0.7, 1.0, p.z);
+	float fin = 1.0 - smoothstep(0.82, 1.0, p.z);
 	return bord * entree * fin * (0.35 + 0.65 * exp(-z * 0.32));
+}
+
+// tache au sol / au mur : bords nets (pénombre de 3 cm : soleil = ombres nettes des montants), pas de décroissance du volume
+float profil_tache(vec3 p) {
+	vec2 b = min(p.xy, 1.0 - p.xy) * dims.xy;
+	float bord = smoothstep(0.0, 0.035, b.x) * smoothstep(0.0, 0.035, b.y);
+	return bord * smoothstep(0.0, 0.12, p.z * dims.z) * (1.0 - smoothstep(0.93, 1.0, p.z)) * (0.6 + 0.4 * exp(-p.z * dims.z * 0.2));
 }
 
 void vertex() {
@@ -126,7 +133,7 @@ void fragment() {
 	vec3 surf = vec3(0.0);
 	if (s_scene > sa && s_scene < sb) {
 		vec3 ps = ro + rd * s_scene;
-		t = masque(ps.xy) * profil(ps) * tache;
+		t = masque(ps.xy) * profil_tache(ps) * tache;
 		surf = texture(tex_ecran, SCREEN_UV).rgb;
 	}
 	// grains de poussière : 4 tranches fixes du volume (x = 1/8, 3/8, 5/8, 7/8), cases de 7 cm sur la tranche

@@ -1285,6 +1285,21 @@ func finir() -> void:
 			a_porte = a_porte or o["type"] == "porte"
 		if not a_porte:
 			ouverture(Vector3(ip.porte_locale.x, F + 1.0, ip.demi.y + 0.08), Vector3.BACK, 1.1, 1.95, "porte")
+	# lumière v2 : le feu principal (la plus forte lumière qui vacille) projette des ombres, qui bougent avec sa flamme
+	if RaisInterieur.actif() and not OS.get_cmdline_user_args().has("--sans-ombre-feu"):
+		var meilleure: OmniLight3D = null
+		var e_max := 1.9
+		for l in ip.lumieres:
+			if float(l[2]) >= 0.0 and float(l[1]) > e_max:
+				e_max = float(l[1])
+				meilleure = l[0]
+		if meilleure != null:
+			meilleure.shadow_enabled = true
+			meilleure.omni_shadow_mode = OmniLight3D.SHADOW_DUAL_PARABOLOID
+			meilleure.shadow_bias = 0.06
+			meilleure.shadow_normal_bias = 1.2
+			meilleure.shadow_opacity = 0.85      # pénombre douce : l'ombre du feu n'est jamais noire
+			meilleure.set_meta("ombre_feu", true)
 	if RaisInterieur.actif() and not ouvertures.is_empty():
 		var rais := RaisInterieur.new()
 		rais.preparer(ouvertures)

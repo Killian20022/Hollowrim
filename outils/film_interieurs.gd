@@ -39,6 +39,10 @@ func _go() -> void:
 	if m.get("hud") != null:
 		m.hud.visible = false
 	j.mains.visible = false
+	var ci := root.get_node_or_null("CompteurIps")      # le compteur d'IPS (option du joueur) n'a rien à faire dans un film
+	if ci != null:
+		ci.process_mode = Node.PROCESS_MODE_DISABLED
+		ci.visible = false
 	m.cycle.process_mode = Node.PROCESS_MODE_DISABLED
 	m.cycle.heure = float(_arg("heure", "17.5"))
 	m.cycle._process(0.0)
