@@ -35,14 +35,14 @@ func _tester() -> void:
 	ok(_evenement(KEY_TAB).is_action("menu") and _evenement(KEY_I).is_action("inventaire") and _evenement(KEY_F5).is_action("sauvegarde_rapide"), "Tab menu, I sac, F5 sauvegarde rapide")
 	ok(_evenement(KEY_F1).is_action("aide") and _evenement(KEY_M).is_action("carte") and _evenement(KEY_F9).is_action("chargement_rapide"), "F1 aide, M carte, F9 chargement rapide")
 	# --- réattribution ---
-	var autre := Touches.lier("torche", 0, KEY_G)
-	ok(autre == "", "G était libre : aucun échange")
-	ok(_evenement(KEY_G).is_action("torche") and not _evenement(KEY_H).is_action("torche"), "la torche est sur G, plus sur H")
-	ok(_evenement(KEY_G).is_action_pressed("torche", false), "is_action_pressed suit la touche (les scripts du jeu testent l'action)")
+	var autre := Touches.lier("torche", 0, KEY_B)
+	ok(autre == "", "B était libre : aucun échange")
+	ok(_evenement(KEY_B).is_action("torche") and not _evenement(KEY_H).is_action("torche"), "la torche est sur B, plus sur H")
+	ok(_evenement(KEY_B).is_action_pressed("torche", false), "is_action_pressed suit la touche (les scripts du jeu testent l'action)")
 	# --- échange ---
-	autre = Touches.lier("vue", 0, KEY_G)
-	ok(autre == "torche", "G était à la torche : échange signalé (%s)" % autre)
-	ok(_evenement(KEY_G).is_action("vue") and _evenement(KEY_V).is_action("torche"), "vue sur G, la torche récupère V (échange, aucune commande orpheline)")
+	autre = Touches.lier("vue", 0, KEY_B)
+	ok(autre == "torche", "B était à la torche : échange signalé (%s)" % autre)
+	ok(_evenement(KEY_B).is_action("vue") and _evenement(KEY_V).is_action("torche"), "vue sur B, la torche récupère V (échange, aucune commande orpheline)")
 	var vues := {}
 	var doublon := false
 	for a: Dictionary in Touches.ACTIONS:

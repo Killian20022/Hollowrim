@@ -18,7 +18,10 @@ static var _reseau_garde: Node
 static func _r() -> Node:
 	if is_instance_valid(_reseau_garde) and _reseau_garde.is_inside_tree():
 		return _reseau_garde
-	_reseau_garde = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("Reseau")
+	var arbre := Engine.get_main_loop() as SceneTree
+	if arbre == null or arbre.root == null:   # test en `-s` : _init tourne avant que la boucle principale existe
+		return null
+	_reseau_garde = arbre.root.get_node_or_null("Reseau")
 	return _reseau_garde
 
 static func en_ligne() -> bool:
