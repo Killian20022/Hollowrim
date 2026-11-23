@@ -126,6 +126,16 @@ func _mur(dmin: float, dmax: float) -> Dictionary:
 		var n: Vector3 = r["normal"]
 		if o.distance_to(p) < dmin or n.dot(-dir) < 0.85 or not (r["collider"] is StaticBody3D):
 			continue
+		# vrai mur plein (pas une herse ni un pilier) : quatre rayons voisins touchent le même plan
+		var plein := true
+		var lat := dir.cross(Vector3.UP).normalized()
+		for dec in [lat * 0.45, -lat * 0.45, Vector3.UP * 0.6 + lat * 0.25, Vector3.UP * 0.6 - lat * 0.25]:
+			var r2 := _rayon(o + dec, o + dec + dir * (dmax + 0.5))
+			if r2.is_empty() or absf((Vector3(r2["position"]) - p).dot(n)) > 0.12:
+				plein = false
+				break
+		if not plein:
+			continue
 		# sol devant le mur, au niveau du joueur
 		var pied := _sol(p - dir * 0.5)
 		if absf(pied.y - j.global_position.y) > 0.4:
@@ -236,7 +246,7 @@ func _go() -> void:
 	var urne := _cassable("urne", [tonneau])
 	print("tonneau : ", tonneau, "  urne : ", urne)
 	var devant := Vector3(-sin(j.rotation.y), 0, -cos(j.rotation.y))
-	var draugr_a := _ennemi("guerrier", j.global_position + devant * 4.5 + devant.cross(Vector3.UP) * 0.8, 400.0)
+	var draugr_a := _ennemi("guerrier", j.global_position + devant * 4.5 + devant.cross(Vector3.UP) * 0.8, 30.0)   # le tonneau le terrasse
 	print("DEBUT_SEQUENCE %.3f (images d'attente : %d)" % [Engine.get_process_frames() * DT, n])
 	await _regarder(draugr_a.global_position + Vector3.UP * 1.2, 0.4)
 	await _attendre(0.6)
@@ -286,7 +296,8 @@ func _go() -> void:
 		var c := cap0 + deg_to_rad(dcap)
 		var dd := Vector3(-sin(c), 0, -cos(c))
 		var o: Vector3 = j.global_position + Vector3.UP * 1.1
-		if _rayon(o, o + dd * 4.6).is_empty() and absf(_sol(j.global_position + dd * 3.6).y - j.global_position.y) < 0.4:
+		# … et rien derrière le squelette sur 3,5 m : l'épée s'y plante et il se disloque (pas cloué)
+		if _rayon(o, o + dd * 8.0).is_empty() and absf(_sol(j.global_position + dd * 3.6).y - j.global_position.y) < 0.4:
 			cap0 = c
 			break
 	await _regarder(j.global_position + Vector3(-sin(cap0), 0, -cos(cap0)) * 4.0 + Vector3.UP * 1.2, 0.7)
