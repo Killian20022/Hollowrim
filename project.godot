@@ -84,6 +84,10 @@ neige_objets={
 "type": "float",
 "value": 1.0
 }
+interieur_jour={
+"type": "float",
+"value": 0.0
+}
 
 vent_monde={
 "type": "vec3",

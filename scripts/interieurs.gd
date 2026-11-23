@@ -32,6 +32,9 @@ var _flammes: Array = []          # [pos, échelle, phase]
 var _halos: Array = []            # [centre, normale, w, h, couleur]
 var _mats_statiques := {}
 var _froids := 0                  # lumières froides de fenêtre déjà posées
+## Lumière intérieure v2 (RaisInterieur) : ouvertures par où le jour entre, {c (centre, plan intérieur du mur), n (normale vers le
+## dehors), t (tangente horizontale), w, h, type : fenetre | volets | porte | toit} (repère de l'intérieur).
+var ouvertures: Array = []
 ## Petits objets VIVANTS (ObjetsVivants : vaisselle, vivres…) rangés au lieu d'être fondus : specs créées par le village à la pose.
 var vivants: Array = []
 
@@ -711,6 +714,7 @@ func plafond(fermes: Array, trou := Vector3.ZERO) -> void:
 ## Cadre intérieur d'une fenêtre : jambages, linteau, appui profond (l'embrasure d'un mur de 30 cm).
 func fenetre_cadre(x: float, y: float, z: float, face: float, demi_l := 0.35, demi_h := 0.275) -> void:
 	var zi := z - face * 0.12      # côté pièce
+	ouverture(Vector3(x, y, zi - face * 0.17), Vector3(0, 0, face), demi_l * 2.0, demi_h * 2.0, "fenetre")
 	for sx in [-1.0, 1.0]:
 		bx(Vector3(x + sx * (demi_l + 0.03), y, zi), Vector3(0.08, demi_h * 2.0 + 0.16, 0.34), "bois_sombre")
 	bx(Vector3(x, y + demi_h + 0.04, zi), Vector3(demi_l * 2.0 + 0.14, 0.09, 0.34), "bois_sombre")
@@ -718,6 +722,11 @@ func fenetre_cadre(x: float, y: float, z: float, face: float, demi_l := 0.35, de
 	if _froids < MAX_FROIDS:       # appoint froid : la lueur du dehors tombe de la fenêtre dans la pièce (sans vaciller)
 		_froids += 1
 		lumiere(Vector3(x, y - 0.1, zi - face * 0.7), 1.0, 4.2, FROID, 1.6, false)
+
+## Ouverture vers le dehors (lumière v2) : `c` au plan intérieur du mur, `n` normale vers le dehors.
+func ouverture(c: Vector3, n: Vector3, w: float, h: float, type := "fenetre") -> void:
+	var t := Vector3.UP.cross(n).normalized() if absf(n.y) < 0.9 else Vector3.RIGHT
+	ouvertures.append({"c": c, "n": n.normalized(), "t": t, "w": w, "h": h, "type": type})
 
 ## Murs : bandeau de poteaux d'angle et chaînages.
 func poteaux_angle() -> void:
@@ -1136,6 +1145,9 @@ func gaine_fumee(trou: Vector2) -> void:
 	var rp: Vector3 = g["Rp"]
 	var zh: float = (g["Sl"] as float) / 5.0 * t.z
 	trou3 = Vector3(trou.x, trou.y, zh)
+	if RaisInterieur.actif():      # lumière v2 : le jour tombe du trou à fumée (sous le lambris, au droit de la gaine)
+		var s0g: float = nrm.z * DECAL_PLAFOND / t.z
+		ouverture(Vector3((trou.x + trou.y) * 0.5, _lambris(g, 0.0, s0g).y - 0.1, 0), Vector3.UP, trou.y - trou.x - 0.1, zh * 2.0 - 0.1, "toit")
 	var s0: float = nrm.z * DECAL_PLAFOND / t.z
 	var yr_l: float = _lambris(g, 0.0, s0).y
 	var m := absf(t.y / t.z)
@@ -1284,3 +1296,30 @@ func finir() -> void:
 		mi.name = "Rais" if nom == "rai" else "Halos"
 		ip.racine.add_child(mi)
 	_halos.clear()
+	# lumière v2 : rais volumiques par les ouvertures (porte comprise, d'après la porte de l'intérieur si personne ne l'a posée)
+	if RaisInterieur.actif() and not ip.sans_porte:
+		var a_porte := false
+		for o: Dictionary in ouvertures:
+			a_porte = a_porte or o["type"] == "porte"
+		if not a_porte:
+			ouverture(Vector3(ip.porte_locale.x, F + 1.0, ip.demi.y + 0.08), Vector3.BACK, 1.1, 1.95, "porte")
+	# lumière v2, OPTION --ombre-feu : le feu principal (la plus forte lumière qui vacille) projette des ombres, qui bougent avec
+	# sa flamme. Coupée par défaut : mesurée à +3,4 ms de GPU la nuit dans la halle sur l'Iris Xe (passe d'ombre : +200 000 primitives).
+	if RaisInterieur.actif() and OS.get_cmdline_user_args().has("--ombre-feu"):
+		var meilleure: OmniLight3D = null
+		var e_max := 1.9
+		for l in ip.lumieres:
+			if float(l[2]) >= 0.0 and float(l[1]) > e_max:
+				e_max = float(l[1])
+				meilleure = l[0]
+		if meilleure != null:
+			meilleure.shadow_enabled = true
+			meilleure.omni_shadow_mode = OmniLight3D.SHADOW_DUAL_PARABOLOID
+			meilleure.shadow_bias = 0.06
+			meilleure.shadow_normal_bias = 1.2
+			meilleure.shadow_opacity = 0.85      # pénombre douce : l'ombre du feu n'est jamais noire
+			meilleure.set_meta("ombre_feu", true)
+	if RaisInterieur.actif() and not ouvertures.is_empty():
+		var rais := RaisInterieur.new()
+		rais.preparer(ouvertures)
+		ip.racine.add_child(rais)

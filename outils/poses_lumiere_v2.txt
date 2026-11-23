@@ -1,0 +1,10 @@
+# Lumière intérieure v2 (2026-11-23) : planches avant | après (repère du bâtiment ; lacet 0 = vers -Z, 90 = vers -X, -90 = vers +X, 180 = vers +Z).
+# Le lot ajoute _jour (heure=14), _soir (heure=16.6) et _nuit (heure=21) ; à lancer avec et sans --sans-lumiere-v2.
+halle_toit interieur 4.0,-1.4,90,-8 bat=halle
+halle_porte interieur 0,-1.8,180,-8 bat=halle
+auberge_ouest interieur -1.0,-1.0,-60,-12 bat=h2
+auberge_est interieur 1.5,-1.0,60,-12 bat=h2
+auberge_porte interieur 0,-1.5,180,-8 bat=h2 ouvert
+trappeurs interieur -1.5,0.5,-90,-12 bat=h1
+sigrun interieur -3.0,-0.5,-60,-4 bat=sigrun
+forge interieur -0.2,0.0,146,-4 bat=forge

@@ -33,6 +33,7 @@ uniform vec3 emission : source_color = vec3(0.0);
 uniform bool emission_texture = false;
 uniform float saturation = 1.0;
 uniform vec3 ambiant : source_color = vec3(0.2, 0.17, 0.2);   // lumière ambiante PROPRE à l'intérieur (l'ambiante du ciel est coupée)
+global uniform float interieur_jour;   // lumière v2 (RaisInterieur) : 0 la nuit (et sans la v2), 1 en plein jour : le jour des fenêtres relève l'ambiante
 instance uniform float eclair = 0.0;
 uniform float usure = 0.0;          // props/realisme_v5 : patine des props texturés (0 = rien, décor inchangé)
 uniform float ao_gamma = 1.0;       // > 1 : creux de l'occlusion cuite (COLOR.rgb) plus sombres, arêtes adoucies
@@ -147,6 +148,7 @@ void fragment() {
 	// et les murs chauds les renvoyaient ; sans cela le lambris et les rondins sous l'entrait tombent dans le noir
 	float ny = (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y;
 	float rebond = mix(1.45, 0.95, smoothstep(-1.0, 1.0, ny));
-	EMISSION = (emission_texture ? emission * couleur : emission) + vec3(0.6, 0.25, 0.2) * eclair + ALBEDO * ambiant * rebond;
+	vec3 amb = ambiant * (1.0 + interieur_jour * vec3(0.30, 0.30, 0.36));     // jour : un peu de lumière froide renvoyée par la neige du dehors
+	EMISSION = (emission_texture ? emission * couleur : emission) + vec3(0.6, 0.25, 0.2) * eclair + ALBEDO * amb * rebond;
 	ROUGHNESS = 1.0;
 }

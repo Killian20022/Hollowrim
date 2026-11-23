@@ -168,7 +168,8 @@ static func _foyer(b: Interieurs, xh: float) -> void:
 		PropsRealisme.cendres(b, Vector3(xh, F, sz * (lz * 0.5 + 0.22)), Vector3(0, 0, sz), lg * 0.8)
 	# rai de lumière du trou à fumée jusqu'au foyer (quatre plans croisés, volume : shader ps1_rai)
 	var haut := b.y0 + b.faite - F - 0.1
-	b.halo(Vector3(xh, F + haut * 0.5, 0), Vector3.BACK, 1.5, haut, Color(1.3, 1.25, 1.1, 1), "rai")
+	if not RaisInterieur.actif():      # lumière v2 : remplacé par le rai volumique du trou à fumée (RaisInterieur)
+		b.halo(Vector3(xh, F + haut * 0.5, 0), Vector3.BACK, 1.5, haut, Color(1.3, 1.25, 1.1, 1), "rai")
 	# crémaillère et marmite au-dessus du foyer (côté est)
 	b.cyl(Vector3(xh + 1.2, b.y0 + 0.6, 0), 0.02, 2.4, "fer_noir", 4)
 	b.chaudron(Vector3(xh + 1.2, F + 0.62, 0), 0.28)

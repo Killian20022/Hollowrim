@@ -185,6 +185,12 @@ func _process(_dt: float) -> void:
 	_haut = NUIT["haut"].lerp(JOUR["haut"], jc).lerp(CREPUSCULE["haut"], crep)
 	_fin_base = lerpf(lerpf(NUIT["fin"], JOUR["fin"], jc), CREPUSCULE["fin"], crep)
 	_horizon = _froid
+	if _lumiere_v2:
+		var maintenant := Time.get_ticks_msec()
+		if maintenant - _t_int > 200:
+			_t_int = maintenant
+			_dans_interieur = _camera_interieur()
+		interieur_k = move_toward(interieur_k, 1.0 if _dans_interieur else 0.0, _dt * 2.0) if _dt > 0.0 else (1.0 if _dans_interieur else 0.0)
 	appliquer_brume()
 	ciel.set_shader_parameter("horizon_courant", _froid)
 	ciel.set_shader_parameter("horizon_chaud", _chaud)
@@ -222,6 +228,9 @@ func fin_brume() -> float:
 	return lerpf(f, FIN_TEMPETE * minf(local, 1.0), tempete)
 
 ## Brouillard en profondeur : net jusqu'à `debut`, effacement progressif jusqu'à `fin`, brume seule au-delà.
+## Lumière intérieure v2 : caméra dans une maison (`interieur_k` → 1, lissé), la brume part de l'œil avec une courbe douce
+## (voile chaud léger dès quelques mètres : la poussière de la pièce, jamais de noir bouché) et prend une teinte de foyer ;
+## la fin reste celle du dehors (le paysage vu par la porte se noie comme avant).
 func appliquer_brume() -> void:
 	var fin := fin_brume()
 	env.fog_mode = Environment.FOG_MODE_DEPTH
@@ -232,6 +241,21 @@ func appliquer_brume() -> void:
 	env.fog_density = 1.0
 	env.fog_height_density = 0.0
 	env.fog_sky_affect = 0.0
+	if interieur_k > 0.001:
+		var k := interieur_k
+		var chaud: Color = BRUME_INT_NUIT.lerp(BRUME_INT_JOUR, maxf(_j, _crep * 0.7))
+		env.fog_light_color = env.fog_light_color.lerp(chaud, k * 0.85)
+		env.fog_depth_begin = lerpf(env.fog_depth_begin, 0.0, k)
+		env.fog_depth_curve = lerpf(1.0, BRUME_INT_COURBE, k)
+
+## Lumière intérieure v2 : 0 dehors → 1 caméra dans un intérieur du village (pas sous terre), lissé (≈ 0,5 s).
+var interieur_k := 0.0
+var _dans_interieur := false
+var _t_int := 0
+const BRUME_INT_JOUR := Color(0.34, 0.25, 0.16)
+const BRUME_INT_NUIT := Color(0.13, 0.085, 0.055)
+const BRUME_INT_COURBE := 0.42
+var _lumiere_v2 := not OS.get_cmdline_user_args().has("--sans-lumiere-v2")
 
 # --- neige qui tient sur les objets (refonte « lumière », shaders/neige_tient.gdshaderinc) ----------------------
 
@@ -264,6 +288,19 @@ func _sous_abri() -> bool:
 		return false
 	for ip in v.interieurs:
 		if is_instance_valid(ip) and ip.dedans(ip._camera()):
+			return true
+	return false
+
+## Lumière v2 : la caméra est dans un intérieur du village (pas sous terre).
+func _camera_interieur() -> bool:
+	var m := get_parent()
+	if m == null or m.get("_sous_terre_actif") == true:
+		return false
+	var v = m.get("village")
+	if v == null or not is_instance_valid(v):
+		return false
+	for ip in v.interieurs:
+		if is_instance_valid(ip) and ip.dedans(ip._camera(), -0.2):
 			return true
 	return false
 
