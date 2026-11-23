@@ -85,6 +85,9 @@ static func preparer(mesh: Mesh, morceaux_: Array, matiere: String) -> void:
 	_verrou.lock()
 	_taches[cle] = id
 	_verrou.unlock()
+	var arbre := Engine.get_main_loop() as SceneTree
+	if arbre != null:
+		_assurer_gestion(arbre)      # le nœud de gestion attend les tâches finies (et toutes à la sortie)
 
 ## Tâches de découpe finies : attendues (sans attente réelle) et oubliées.
 static func _ranger_taches() -> void:
@@ -440,14 +443,34 @@ static func nb_eclats_eveilles() -> int:
 	return n
 
 static func _assurer_gestion(arbre: SceneTree) -> void:
-	if is_instance_valid(_gestion) and _gestion.is_inside_tree():
-		return
+	if is_instance_valid(_gestion) and (_gestion.is_inside_tree() or _gestion.is_queued_for_deletion() == false and _gestion.get_parent() == null):
+		return      # (déjà là, ou en route : ajouté à l'image suivante)
 	_gestion = CasseObjets.new()
 	_gestion.name = "GestionEclats"
 	arbre.root.add_child.call_deferred(_gestion)
 
 func _ready() -> void:
 	set_physics_process(not _eclats.is_empty())
+	_veiller_taches()
+
+## Tâches de découpe finies : rangées toutes les 2 s tant qu'il en reste (aucune tâche laissée sans attente).
+func _veiller_taches() -> void:
+	_ranger_taches()
+	_verrou.lock()
+	var reste := not _taches.is_empty()
+	_verrou.unlock()
+	if reste and is_inside_tree():
+		get_tree().create_timer(2.0).timeout.connect(_veiller_taches)
+
+## Sortie du jeu (ou du test) : toutes les découpes en cours sont attendues avant que le moteur ne s'arrête.
+func _exit_tree() -> void:
+	_verrou.lock()
+	var ids: Array = _taches.values()
+	_taches.clear()
+	_verrou.unlock()
+	for id: int in ids:
+		if id >= 0:
+			WorkerThreadPool.wait_for_task_completion(id)
 
 ## Éclats : gelés posés ou loin, effacés (rétrécis) après VIE s. Plus rien à suivre : _physics_process coupé.
 func _physics_process(dt: float) -> void:

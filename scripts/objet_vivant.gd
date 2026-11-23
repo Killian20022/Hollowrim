@@ -330,12 +330,19 @@ func casser(avec_effets: bool, point: Vector3, vitesse := Vector3.ZERO, distant 
 	var t2 := Time.get_ticks_usec()
 	if contenu != "":
 		CasseObjets.verser_butin(parent, ident, contenu, pied)
-	CasseObjets.derniere_mesure = {"eclats_ms": (t1 - t0) / 1000.0, "effets_ms": (t2 - t1) / 1000.0, "butin_ms": (Time.get_ticks_usec() - t2) / 1000.0}
+	CasseObjets.derniere_mesure = {"avant_ms": (t0 - t_debut) / 1000.0, "eclats_ms": (t1 - t0) / 1000.0, "effets_ms": (t2 - t1) / 1000.0, "butin_ms": (Time.get_ticks_usec() - t2) / 1000.0}
 	var proprio := proprietaire()
-	if proprio != "" and not distant:      # bien d'un PNJ brisé : comme un vol (témoins, prime), règles du lot crime
-		var crime := get_tree().get_first_node_in_group("crime")
+	if proprio != "" and not distant:      # bien d'un PNJ brisé : comme un vol (témoins, prime), règles du lot crime ; à l'image suivante
+		var crime := get_tree().get_first_node_in_group("crime")      # (le calcul des témoins ne s'ajoute pas au coût de la casse)
 		if crime != null and crime.has_method("signaler_vol"):
-			crime.signaler_vol(self, proprio, centre)
+			var moi := self
+			get_tree().process_frame.connect(func() -> void:
+				var t := Time.get_ticks_usec()
+				if is_instance_valid(crime):
+					crime.signaler_vol(moi, proprio, centre)
+				CasseObjets.derniere_mesure["crime_ms"] = (Time.get_ticks_usec() - t) / 1000.0, CONNECT_ONE_SHOT)
+	var t3 := Time.get_ticks_usec()
 	if not distant:
 		ObjetsVivants.diffuser_casse(self, point, vitesse)
+	CasseObjets.derniere_mesure["reseau_ms"] = (Time.get_ticks_usec() - t3) / 1000.0
 	CasseObjets.derniere_mesure["total_ms"] = (Time.get_ticks_usec() - t_debut) / 1000.0

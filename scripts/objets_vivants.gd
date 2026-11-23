@@ -347,6 +347,7 @@ static func peupler_par_lots(parent: Node3D, specs: Array, lieu: String, par_lot
 						parent.add_child(o)
 						mm.set_instance_transform(i, o.transform * o.visuel_local)
 						tous.append(o)
+						_version += 1
 						_appliquer(o)
 						res.append(o)
 						mm.visible_instance_count = maxi(mm.visible_instance_count, i + 1)
@@ -467,6 +468,7 @@ static func liberer(parent: Node) -> void:
 			var q := t.basis.get_rotation_quaternion()
 			etats[o.ident] = {"p": [t.origin.x, t.origin.y, t.origin.z, q.x, q.y, q.z, q.w]}
 	tous = r
+	_version += 1
 
 static func _vivants() -> Array:
 	var r := []
@@ -560,6 +562,9 @@ static func diffuser_casse(o: ObjetVivant, point: Vector3, vitesse: Vector3) -> 
 	r.envoyer_evenement(EV_CASSE, o.ident, {"p": point, "v": vitesse})
 
 static var _abonne := false
+static var _petits: Array = []
+static var _petits_n := -1
+static var _version := 0      ## +1 à chaque ajout / retrait dans `tous`
 static func _abonner_reseau() -> void:
 	var r := ReseauLieux.reseau()
 	if _abonne or r == null:
@@ -807,7 +812,10 @@ func _physics_process(dt: float) -> void:
 		var v: Vector3 = joueur.velocity
 		var pj := joueur.global_position
 		if Vector2(v.x, v.z).length() > 0.6:
-			for x in tous:
+			if _petits_n != _version:      # cassables partout : le mobilier n'est jamais poussé ; liste des petits objets refaite si `tous` change
+				_petits_n = _version
+				_petits = tous.filter(func(x) -> bool: return is_instance_valid(x) and not (x as ObjetVivant).meuble)
+			for x in _petits:
 				if not is_instance_valid(x):
 					continue
 				var o: ObjetVivant = x
