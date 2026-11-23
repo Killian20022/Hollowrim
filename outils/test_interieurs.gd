@@ -275,8 +275,8 @@ func _tester_contenu(v: Node3D, id: String) -> void:
 	var hors := ""
 	var inv := ip.global_transform.affine_inverse()
 	for mi in ip.racine.find_children("*", "GeometryInstance3D", true, false):
-		if mi.name in ["Halos", "Rais", "Flammes"] or not (mi is MeshInstance3D):
-			continue
+		if mi.name in ["Halos", "Rais", "Flammes"] or not (mi is MeshInstance3D) or mi.get_parent() is RaisInterieur:
+			continue      # rais de lumière v2 (volumes de lumière, pas de matière : celui de la porte sort volontairement du bâtiment)
 		var xf: Transform3D = inv * (mi as Node3D).global_transform
 		var mesh: Mesh = (mi as MeshInstance3D).mesh
 		for si in mesh.get_surface_count():
