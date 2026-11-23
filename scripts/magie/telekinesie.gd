@@ -426,7 +426,7 @@ func lancer(m: String, s: DonneesSort, oeil: Vector3, avant: Vector3) -> void:
 	var charge := charge_de(s, float(e["t"]))
 	var v := vitesse_lancer(s, charge, masse)
 	var depart := corps.global_position
-	var but := _but_lancer(oeil, avant, depart)
+	var but := _but_lancer(oeil, avant, depart, corps)
 	var dir: Vector3 = but - depart
 	var d := dir.length()
 	var vit := avant * v
@@ -455,10 +455,12 @@ func lancer(m: String, s: DonneesSort, oeil: Vector3, avant: Vector3) -> void:
 	_reseau_lancer(corps, vit)
 
 ## Point visé par le lancer : centre de l'ennemi le plus proche du réticule (aide), sinon ce que touche le rayon du réticule.
-func _but_lancer(oeil: Vector3, avant: Vector3, depart: Vector3) -> Vector3:
+func _but_lancer(oeil: Vector3, avant: Vector3, depart: Vector3, lance: RigidBody3D = null) -> Vector3:
 	var but := oeil + avant * PORTEE_LANCER
 	var q := PhysicsRayQueryParameters3D.create(oeil, but)
 	var ex: Array[RID] = []
+	if lance != null:
+		ex.append(lance.get_rid())   # l'objet lancé lui-même (déjà sorti de la tenue) ne doit pas arrêter le rayon
 	if joueur is CollisionObject3D:
 		ex.append((joueur as CollisionObject3D).get_rid())
 	for m in tenue:
@@ -474,14 +476,16 @@ func _but_lancer(oeil: Vector3, avant: Vector3, depart: Vector3) -> Vector3:
 			continue
 		var ce := Elements._centre(c)
 		var a := rad_to_deg(avant.angle_to(ce - oeil))
-		if a < meilleur and oeil.distance_to(ce) <= oeil.distance_to(but) + 1.0 and _sans_mur(depart, ce, c):
+		if a < meilleur and oeil.distance_to(ce) <= oeil.distance_to(but) + 1.0 and _sans_mur(depart, ce, c, lance):
 			meilleur = a
 			but = ce
 	return but
 
-func _sans_mur(a: Vector3, b: Vector3, cible: Node) -> bool:
+func _sans_mur(a: Vector3, b: Vector3, cible: Node, lance: RigidBody3D = null) -> bool:
 	var q := PhysicsRayQueryParameters3D.create(a, b, 1)
 	var ex: Array[RID] = []
+	if lance != null:
+		ex.append(lance.get_rid())
 	if joueur is CollisionObject3D:
 		ex.append((joueur as CollisionObject3D).get_rid())
 	if cible is CollisionObject3D:
@@ -782,7 +786,7 @@ static func _presets() -> void:
 	# étincelles du fil main -> objet (émetteurs mobiles, repère du monde : ils dessinent des traînées pointillées)
 	R["tk_fil"] = {"add": true, "n": 26, "vie": 0.32, "forme": "sphere", "r": 0.02, "ecart": 180.0, "vit": Vector2(0.02, 0.18), "taille": Vector2(0.005, 0.01), "rampe": ["#ffffff", "#f2faff", "#c8e6fa", "#8cc4f0"], "eclat": 2.1, "cap": 2.0}
 	# arrachement : poussière au sol (anneau qui s'écarte) et gerbe d'étincelles
-	R["tk_poussiere"] = {"n": 26, "vie": 0.9, "expl": 0.9, "forme": "disque", "r": 0.25, "dir": Vector3.UP, "ecart": 80.0, "vit": Vector2(0.3, 1.1), "radiale_v": Vector2(0.6, 1.4), "amort": Vector2(1.5, 3.0), "grav": Vector3(0, 0.15, 0), "taille": Vector2(0.06, 0.14), "courbe": "bosse", "rampe": ["#9a8e80a0", "#7a6e6290", "#5a504860"], "eclat": 1.0, "cap": 12.0}
+	R["tk_poussiere"] = {"n": 18, "vie": 0.8, "expl": 0.9, "forme": "disque", "r": 0.22, "dir": Vector3.UP, "ecart": 80.0, "vit": Vector2(0.2, 0.8), "radiale_v": Vector2(0.5, 1.2), "amort": Vector2(1.5, 3.0), "grav": Vector3(0, 0.1, 0), "taille": Vector2(0.035, 0.08), "courbe": "bosse", "rampe": ["#6e6a6470", "#5a565250", "#46423f30"], "eclat": 0.9, "cap": 9.0}
 	R["tk_arrache"] = {"add": true, "n": 30, "vie": 0.45, "expl": 1.0, "forme": "sphere", "r": 0.12, "ecart": 180.0, "vit": Vector2(0.6, 2.2), "amort": Vector2(2.0, 4.0), "taille": Vector2(0.006, 0.014), "rampe": esprit, "eclat": 2.0, "cap": 3.0}
 	# lancer : éclat au départ et traînée (repère du monde, émetteur qui suit l'objet)
 	R["tk_lancer"] = {"add": true, "n": 36, "vie": 0.4, "expl": 1.0, "forme": "sphere", "r": 0.1, "ecart": 180.0, "vit": Vector2(1.0, 3.0), "amort": Vector2(3.0, 5.0), "taille": Vector2(0.007, 0.016), "rampe": esprit, "eclat": 2.0, "cap": 3.0}
