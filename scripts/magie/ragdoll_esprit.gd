@@ -26,13 +26,13 @@ static var actif := not ("--sans-ragdoll-esprit" in OS.get_cmdline_user_args())
 const PLAFOND := 6
 const CLIP_DOS := "Releve_Dos"
 const CLIP_VENTRE := "Releve_Ventre"
-const VITESSE_RELEVE := 1.5
+const VITESSE_RELEVE := 1.6
 const FONDU := 0.3
 const TEMPS_MIN := 0.7
-const TEMPS_MAX := 3.2
+const TEMPS_MAX := 2.4
 const REPOS_V := 0.35       # m/s : centre du corps
 const REPOS_OS := 1.2       # m/s : os le plus rapide (une main qui ballotte encore)
-const REPOS_T := 0.3
+const REPOS_T := 0.2
 const FROTTEMENT := 0.45
 const ROULIS := 3.0
 const TONUS := 0.35
@@ -44,6 +44,16 @@ var es: SortsEsprit
 var corps := {}
 ## Journal (tests) : un Dictionary par relevé {nom, clip, ventre, t_vol, ...} et par fin {nom, fini, t_total}.
 var journal: Array = []
+## Profil (--mesure) : étape -> [nombre, total µs, max µs].
+static var profil := {}
+static func _prof(nom: String, t0: int) -> int:
+	var t1 := Time.get_ticks_usec()
+	var d: Array = profil.get(nom, [0, 0, 0])
+	d[0] += 1
+	d[1] += t1 - t0
+	d[2] = maxi(d[2], t1 - t0)
+	profil[nom] = d
+	return t1
 
 func _init(s: SortsEsprit = null) -> void:
 	es = s
@@ -121,7 +131,9 @@ func prendre(e: CharacterBody3D, v: Vector3, s: DonneesSort, cosmetique := false
 		_noter("plafond atteint (%d) : vol cinématique pour %s" % [PLAFOND, e.name])
 		return false
 	var modele: Node3D = e.get("modele")
+	var tp := Time.get_ticks_usec()
 	var rd := Ragdoll.equiper(modele) as Ragdoll
+	tp = _prof("prendre_equiper", tp)
 	if rd == null:
 		return false
 	if fi.is_empty():
@@ -156,9 +168,11 @@ func prendre(e: CharacterBody3D, v: Vector3, s: DonneesSort, cosmetique := false
 		(c as CombatEnnemi).au_sol = true
 		if (c as CombatEnnemi).reaction_os != null:
 			(c as CombatEnnemi).reaction_os.active = false
+	tp = _prof("prendre_etat", tp)
 	if es != null and es.joueur is PhysicsBody3D:
 		rd.ignorer(es.joueur)
-	rd.declencher(Vector3.ZERO, Vector3.ZERO, "pelvis")
+	rd.declencher(Vector3.ZERO, Vector3.ZERO, "pelvis", Vector3.ZERO, true)   # l'ombre fusionnée reste (skinnée au même squelette)
+	tp = _prof("prendre_declencher", tp)
 	fi["au_sol"] = false
 	for pb: PhysicalBone3D in rd.os.values():
 		pb.linear_damp = 0.15
@@ -166,8 +180,10 @@ func prendre(e: CharacterBody3D, v: Vector3, s: DonneesSort, cosmetique := false
 		pb.friction = FROTTEMENT
 		pb.can_sleep = false   # un os endormi ne suivrait plus son corps si la racine bouge (coop : position répliquée)
 		PhysicsServer3D.body_set_enable_continuous_collision_detection(pb.get_rid(), true)   # main à 17 m/s : pas à travers le mur
+	tp = _prof("prendre_ccd_reglages", tp)
 	fi["pose_ref"] = _pose_relative(rd)
 	_pousser(fi, v, false)
+	tp = _prof("prendre_pose_pousser", tp)
 	e.set("_anim", "es_ragdoll")
 	e.set_meta("es_centre", _centre_masse(rd)[0])
 	set_physics_process(true)
@@ -247,7 +263,36 @@ func _tonus(fi: Dictionary, dt: float) -> void:
 		var rel := pb.angular_velocity - pp.angular_velocity
 		pb.angular_velocity = pp.angular_velocity + rel.lerp(corr, clampf(k, 0.0, 1.0))
 
+var _releves_image := 0
+## Ennemis dont le ragdoll est à construire d'avance (sort de l'esprit en main), un par image.
+var _a_preparer: Array = []
+
+## Construit d'avance le ragdoll (os physiques, en veille : sans collision) des ennemis proches, un par image, pour que l'impulsion ne
+## paie pas ~1,7 ms de construction par corps la même image.
+func preparer(e: Node) -> void:
+	if not actif or not is_instance_valid(e) or _a_preparer.has(e) or contient(e):
+		return
+	var m: Variant = e.get("modele")
+	if not (m is Node3D) or (m as Node3D).get_node_or_null("Ragdoll") != null or not compatible(e):
+		return
+	_a_preparer.append(e)
+	set_physics_process(true)
+
+func _preparer_un() -> void:
+	while not _a_preparer.is_empty():
+		var e: Variant = _a_preparer.pop_front()
+		if not is_instance_valid(e) or not SortsEsprit.vivant(e):
+			continue
+		var tp := Time.get_ticks_usec()
+		var rd := Ragdoll.equiper((e as Node).get("modele")) as Ragdoll
+		if rd != null and not rd.actif:
+			rd.mettre_en_veille()
+		_prof("preparer", tp)
+		return
+
 func _physics_process(dt: float) -> void:
+	_releves_image = 0
+	_preparer_un()
 	for id in corps.keys():
 		if not corps.has(id):
 			continue
@@ -262,10 +307,12 @@ func _physics_process(dt: float) -> void:
 		fi["t"] = float(fi["t"]) + dt
 		fi["t_total"] = float(fi["t_total"]) + dt
 		if String(fi["phase"]) == "vol":
+			var tv := Time.get_ticks_usec()
 			_vol(fi, dt)
+			_prof("vol_image", tv)
 		else:
 			_suivre_releve(fi)
-	if corps.is_empty():
+	if corps.is_empty() and _a_preparer.is_empty():
 		set_physics_process(false)
 
 func _vol(fi: Dictionary, dt: float) -> void:
@@ -275,17 +322,19 @@ func _vol(fi: Dictionary, dt: float) -> void:
 	var com: Vector3 = cm[0]
 	var vc: Vector3 = cm[1]
 	e.set_meta("es_centre", com)
+	# perf : les balayages (ennemis, objets : 2 images sur 4 en décalé selon le corps ; sol : 1 sur 3) ne tournent pas à chaque image
+	var tour := (Engine.get_physics_frames() + e.get_instance_id()) % 12
 	if not bool(fi["cosmetique"]):
 		var vp: Vector3 = fi.get("v_prec", vc)
 		if vp.length() > SortsEsprit.VITESSE_CHOC and (vp - vc).length() > 2.5:
 			_choc_decor(fi, com, vp)
-		if vc.length() > SortsEsprit.VITESSE_CHOC:
+		if vc.length() > SortsEsprit.VITESSE_CHOC and tour % 2 == 0:
 			_chocs_ennemis(fi, com, vc)
 			es._chocs_objets(fi, com, vc)
-	fi["v_prec"] = _centre_masse(rd)[1]
+	fi["v_prec"] = vc
 	# au sol (bassin bas, plus de montée) : il glisse puis s'arrête (amorti relevé : il ne roule pas sans fin)
 	var pel: Vector3 = (rd.os["pelvis"] as PhysicalBone3D).global_position
-	if not bool(fi.get("au_sol", false)) and float(fi["t"]) > 0.35 and vc.y < 1.0 and pel.y - _sol(e, pel, pel.y - 0.2) < 0.4:
+	if not bool(fi.get("au_sol", false)) and float(fi["t"]) > 0.35 and vc.y < 1.0 and tour % 3 == 0 and pel.y - _sol(e, pel, pel.y - 0.2) < 0.4:
 		fi["au_sol"] = true
 		for pb: PhysicalBone3D in rd.os.values():
 			pb.linear_damp = 0.9
@@ -303,7 +352,8 @@ func _vol(fi: Dictionary, dt: float) -> void:
 	if com.y < float(fi["y0"]) - 4.0:
 		_noter("ECHEC filet : %s sous le sol (y=%.1f)" % [e.name, com.y])
 		pret = true
-	if pret:
+	if pret and _releves_image < 1:
+		_releves_image += 1   # perf : un relevé par image (capture + 1re image du clip ~1,5 ms) ; les autres attendent l'image suivante
 		relever(fi)
 
 ## Perte brutale de vitesse : le corps a heurté quelque chose. Rayon le long de la vitesse d'avant pour savoir quoi (mur, sol, tonneau,
@@ -398,6 +448,7 @@ func relever(fi: Dictionary, impose := {}) -> void:
 	var rd: Ragdoll = fi["rd"]
 	var sq := rd.squelette
 	var a: AnimationPlayer = e.get("anim")
+	var tp := Time.get_ticks_usec()
 	var ordre := _ordre(sq)
 	var n := sq.get_bone_count()
 	# 1. pose affichée (monde) de chaque os : physique = son corps, sinon parent affiché × pose locale animée
@@ -416,8 +467,10 @@ func relever(fi: Dictionary, impose := {}) -> void:
 	if impose.has("clip"):
 		clip = String(impose["clip"])
 		ventre = clip == CLIP_VENTRE
+	tp = _prof("releve_capture", tp)
 	# 2. fin de la physique, 1re image du clip
 	rd.arreter()
+	tp = _prof("releve_arreter", tp)
 	for pb: PhysicalBone3D in rd.os.values():
 		pb.friction = 1.0
 		pb.can_sleep = true
@@ -428,6 +481,7 @@ func relever(fi: Dictionary, impose := {}) -> void:
 	a.seek(0.0, true)
 	a.speed_scale = VITESSE_RELEVE
 	e.set("_anim", clip)
+	tp = _prof("releve_clip_seek", tp)
 	var ip := sq.find_bone("pelvis")
 	var ih := sq.find_bone("Head")
 	var p0 := sq.get_bone_global_pose(ip).origin
@@ -463,6 +517,7 @@ func relever(fi: Dictionary, impose := {}) -> void:
 		lacet = float(impose["lacet"])
 		B = Basis(Vector3.UP, lacet)
 	e.global_transform = Transform3D(B, pos)
+	tp = _prof("releve_placement", tp)
 	var G2 := sq.global_transform
 	# 4. poses locales capturées dans le nouveau repère (racines sans os physique : laissées à l'animation)
 	var poses := {}
@@ -483,6 +538,7 @@ func relever(fi: Dictionary, impose := {}) -> void:
 	fondu.poses = poses
 	fondu.duree = FONDU + clampf(decale, 0.0, 1.2) * 0.3   # place décalée (mur) : fondu un peu plus long, le corps glisse au lieu de sauter
 	sq.add_child(fondu)
+	tp = _prof("releve_poses_fondu", tp)
 	fi["fondu"] = fondu
 	fi["phase"] = "releve"
 	fi["clip"] = clip
@@ -530,9 +586,11 @@ func _suivre_releve(fi: Dictionary) -> void:
 ## Debout : l'IA reprend (TRAQUE), capsule et pieds rendus.
 func _finir(fi: Dictionary) -> void:
 	var e: CharacterBody3D = fi["e"]
+	var tp := Time.get_ticks_usec()
 	_retirer_fondu(fi)
 	corps.erase(e.get_instance_id())
 	_rendre_etat(fi)
+	tp = _prof("finir_etat", tp)
 	var a: AnimationPlayer = e.get("anim")
 	if a != null:
 		a.speed_scale = 1.0
@@ -548,6 +606,7 @@ func _finir(fi: Dictionary) -> void:
 	if pieds is PiedsAuSol and is_instance_valid(pieds):
 		(pieds as PiedsAuSol)._decal = [0.0, 0.0]   # décalages d'avant le vol (autre sol, soulevé) : périmés
 	e.set_physics_process(true)
+	_prof("finir_ia", tp)
 	journal.append({"nom": String(e.name), "e": e, "fini": true, "t_total": float(fi["t_total"])})
 	_noter("debout %s (%.2f s en tout)" % [e.name, float(fi["t_total"])])
 
@@ -565,8 +624,14 @@ func _rendre_etat(fi: Dictionary) -> void:
 	if es != null and es.joueur is PhysicsBody3D:
 		e.remove_collision_exception_with(es.joueur)
 	var m: Variant = e.get("modele")
-	if m is Node3D:
-		FusionOmbre.equiper.call_deferred(m)   # une seule ombre à nouveau (défaite par Ragdoll.declencher)
+	if m is Node3D and (m as Node3D).find_child("OmbreFusion", true, false) == null:
+		_ombre.call_deferred(m)   # ombre défaite (démembrement…) : refusionnée
+
+static func _ombre(m: Node3D) -> void:
+	var tp := Time.get_ticks_usec()
+	if is_instance_valid(m):
+		FusionOmbre.equiper(m)
+	_prof("ombre_refusion", tp)
 
 func _retirer_fondu(fi: Dictionary) -> void:
 	if not is_instance_valid(fi.get("fondu")):

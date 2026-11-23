@@ -385,6 +385,9 @@ func _mesure(mur: Dictionary) -> void:
 		return "fps_moyen=%.1f p1_bas=%.1f images=%d" % [liste.size() / somme, 1.0 / p99, liste.size()]
 	print("MESURE repos %s ; ragdoll_actif=%s" % [rapport.call(t_repos), str(RagdollEsprit.actif)])
 	print("MESURE combat %s ; ragdoll_actif=%s" % [rapport.call(temps), str(RagdollEsprit.actif)])
+	for k in RagdollEsprit.profil:
+		var d: Array = RagdollEsprit.profil[k]
+		print("PROFIL %-22s n=%4d moyen=%7.0f µs max=%7.0f µs" % [k, d[0], float(d[1]) / maxf(d[0], 1), float(d[2])])
 
 func _debut(texte: String) -> void:
 	await _attendre(0.5)

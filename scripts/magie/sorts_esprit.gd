@@ -244,6 +244,17 @@ func _lueur(n: Node, f: float) -> void:
 	if tk != null and n != null and is_instance_valid(n):
 		tk._coque_force(n, f)
 
+var _prep_t := 0.0
+## Un sort de l'esprit en main : les ragdolls des ennemis proches sont construits d'avance (RagdollEsprit.preparer, un par image).
+func preparer_ragdolls(dt: float) -> void:
+	_prep_t -= dt
+	if rag == null or joueur == null or _prep_t > 0.0:
+		return
+	_prep_t = 0.3
+	for c in _cibles(joueur.global_position, 14.0):
+		if _local(c):
+			rag.preparer(c)
+
 var _survol_t := 0.0
 func survoler(m: String, oeil: Vector3, avant: Vector3, s: DonneesSort, chaque_image := false) -> void:
 	if not est_canalise(s) or tient(m):

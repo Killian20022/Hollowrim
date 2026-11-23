@@ -649,6 +649,8 @@ func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 		elif not Telekinesie.est_sort(s) or i.etat == Incantation.RECUPERATION:
 			tk.oublier_visee(m)
 	if esprit != null:
+		if SortsEsprit.est_sort(s):
+			esprit.preparer_ragdolls(dt)
 		if SortsEsprit.est_canalise(s) and i.etat == Incantation.REPOS:
 			var vue_v := _vue()
 			esprit.survoler(m, vue_v[0], vue_v[1], s)   # surbrillance de l'ennemi que la main soulèverait
