@@ -194,7 +194,6 @@ func _lancer() -> void:
 	var c7 := b7.global_position + Vector3(0, 1.25, 0)
 	var e7 := jeter(s, "hachette", c7 + Vector3(4.0, 0, 0), c7, 15.0, j)
 	await _attendre(30)
-	print("  hachette : pos %s v %s vie %.0f dernier %s" % [e7.global_position, e7.linear_velocity, b7.vie, ImpactsLances.dernier])
 	ok(ImpactsLances.plantee(e7), "hachette pointe en avant : plantée (%s)" % ImpactsLances.dernier.get("issue", "?"))
 
 	print("ECHECS : %d" % echecs)
