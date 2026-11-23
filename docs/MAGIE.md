@@ -429,7 +429,9 @@ ragdoll prend le relais. Pas d'IA bloquée (test_sorts_esprit, « il s'est relev
   cassent contre les murs). Coût `28 × lerp(0,4, 1, charge)` : 11,2 au tap, 28 à pleine charge (ChargeSort, MainSort._lancer).
 - **Chocs** d'un ennemi projeté (Répulsion, Lévitation, Attraction) : contre un mur `(v − 2,25) × 1,8` dégâts (v : vitesse contre la
   surface, à partir de 4,5 m/s ; 12 m/s ≈ 17), stagger 32 ; contre un autre ennemi : les deux encaissent (×0,8 pour l'autre, emporté s'il
-  n'est pas un chef) ; contre un cassable : `recevoir_choc(v, 70 kg × P, point)` ; chute : `(vy − 7) × 3` au-delà de 7 m/s.
+  n'est pas un chef) ; contre un cassable : `recevoir_choc(v, 70 kg × P, point)` — y compris les urnes, tonneaux et meubles que son
+  corps TRAVERSE (leur calque n'arrête pas un corps d'ennemi : balayage autour de lui, une fois par objet ; sinon ils sont poussés) ;
+  chute : `(vy − 7) × 3` au-delà de 7 m/s.
 - **Lévitation d'ennemi** (type CANALISE, geste `jet` tenu puis `lance`) : maintenir en visant un ennemi (aide 9°, portée 16 m, pas à
   travers un mur, surbrillance de la cible) : il est arraché (0,4 s de montée), puis suit le regard à 3-4,2 m (son centre sur la ligne du regard, pieds 0,45 à 1,1 m au-dessus du sol d'où il a été arraché), par un
   ressort LOURD (raideur 4,2, amorti 5,5, vitesse max 8 / √P m/s) ; il tangue, rejoue ses coups encaissés, ses membres battent
@@ -469,7 +471,11 @@ ragdoll prend le relais. Pas d'IA bloquée (test_sorts_esprit, « il s'est relev
   autres). Pas de finisher ni de ralenti dans ces sorts (décision coop respectée). LIMITES : non essayé à 2 PC ; chez un invité, un
   ennemi tenu suit avec la latence de l'aller-retour ; les objets aspirés par un vortex distant bougent localement (cosmétique).
 - **Interrupteur** : `-- --sans-sorts-esprit` (les trois sorts n'existent pas : ni connus, ni raccourcis).
-- **Test** : `bash outils/tous_les_tests.sh test_sorts_esprit`. **Films** : `outils/film_sorts_esprit.gd` (crypte, pilote).
+- **Test** : `bash outils/tous_les_tests.sh test_sorts_esprit` (45 vérifications). **Films** : `outils/film_sorts_esprit.gd --sort=repulsion |
+  levitation | attraction` (crypte, pilote, ennemis du film avec leur IA, joueur sans dégâts et non interrompu), rendus dans
+  `rendus/telekinesie_2026-11-23/sorts_esprit/`.
+- **Coût en jeu (perf)** : rien tant que les sorts ne servent pas (deux dictionnaires vides parcourus par image) ; la surbrillance de la
+  lévitation cherche sa cible 10 fois par seconde, sort en main seulement.
 
 ## Sons (branche magie/sons)
 
