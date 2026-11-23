@@ -102,7 +102,12 @@ func _libre(dist: float, cote: float) -> Vector3:
 		var q := PhysicsRayQueryParameters3D.create(o, p + Vector3.UP * 1.1, 1)
 		q.exclude = [j.get_rid()]
 		var r := j.get_world_3d().direct_space_state.intersect_ray(q)
-		if r.is_empty() and absf(p.y - j.global_position.y) < 0.6:
+		# … et depuis l'objet tenu (à gauche de la vue, un peu bas) : rien sur la trajectoire du lancer
+		var tenu: Vector3 = o + (-j.camera.global_basis.z) * 2.0 - j.camera.global_basis.x * 0.3 - Vector3.UP * 0.15
+		var q2 := PhysicsRayQueryParameters3D.create(tenu, p + Vector3.UP * 1.1, 1)
+		q2.exclude = [j.get_rid()]
+		var r2 := j.get_world_3d().direct_space_state.intersect_ray(q2)
+		if r.is_empty() and r2.is_empty() and absf(p.y - j.global_position.y) < 0.6:
 			print("place libre %.1f m, côté %.1f" % [d, cote])
 			return p
 		d -= 0.5
@@ -158,7 +163,7 @@ func _go() -> void:
 		n += 1
 	await _attendre(2.5)
 	if _arg("vue") == "tps" and j.has_method("basculer_vue"):
-		j.basculer_vue()
+		j.basculer_vue(true)
 	magie.eq.apprendre_tout()
 	magie.equiper("droite", "epee")
 	if magie.tk != null:
@@ -176,11 +181,12 @@ func _go() -> void:
 	var chaise := CorpsTelekinesie.creer("pq_chaise", s, Transform3D(Basis(Vector3.UP, 2.0), _sol(_devant(2.3, 1.2))))
 	var epee := ObjetMonde.creer("epee_soldat", 1, j, s.get("dialogue"))
 	s.add_child(epee)
-	epee.global_position = _sol(_devant(2.2, 0.15))
-	epee.rotation.y = 0.9
-	var draugr := _draugr(_libre(7.0, -1.3), "guerrier")
-	var squelette := _draugr(_libre(7.5, 1.4), "squelette")
-	var squelette2 := _draugr(_libre(6.0, 0.1), "squelette", 20.0)
+	epee.global_position = _sol(_devant(2.0, 0.1))
+	epee.rotation.y = j.rotation.y + PI * 0.5   # couchée en travers du regard : lisible au sol
+	await _regarder(_devant(5.0) + Vector3.UP * 1.4, 0.1)
+	var draugr := _draugr(_libre(5.0, -1.4), "guerrier")
+	var squelette := _draugr(_libre(5.5, 1.5), "squelette")
+	var squelette2 := _draugr(_libre(4.5, 0.2), "squelette", 20.0)
 	await _attendre(1.2)
 	print("DEBUT_SEQUENCE %.3f (images d'attente : %d)" % [Engine.get_process_frames() * DT, n])
 	await _regarder(_devant(6.0) + Vector3.UP * 1.3, 0.5)

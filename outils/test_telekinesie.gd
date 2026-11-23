@@ -82,6 +82,7 @@ func _tester() -> void:
 	await _saisie_maintien()
 	await _refus()
 	await _lancer_draugr()
+	await _tps()
 	await _armes()
 	print("ECHECS : %d" % (0 if _ok else 1), "  (", _n, " vérifications)")
 	quit(0 if _ok else 1)
@@ -213,6 +214,31 @@ func _lancer_draugr() -> void:
 	await _sim(1.0)
 	d.queue_free()
 	chaise.queue_free()
+
+# ------------------------------------------------------------------ 3e personne
+
+func _tps() -> void:
+	await _reset()
+	s.placer_joueur(Vector3(0, 0, 4.0), 0.0)
+	j.basculer_vue(true)
+	await _sim(0.5)
+	var tab := CorpsTelekinesie.creer("pq_tabouret", s, Transform3D(Basis(), Vector3(0.2, 0.0, 1.6)))
+	await _sim(0.6)
+	await _viser_point(Telekinesie.centre(tab))
+	var vue: Array = magie._vue()
+	var vise := tk.viser(vue[0], vue[1], sd.portee)
+	_verif(vise == tab, "3e personne : visée depuis la caméra à l'épaule")
+	magie.appuyer("gauche")
+	await _sim(0.8)
+	_verif(tk.tient("gauche"), "3e personne : saisie")
+	var e: Dictionary = tk.tenue["gauche"]
+	_verif(e.get("paume") == magie._p("gauche"), "3e personne : le fil part de la paume utilisée par les effets (%s)" % str(magie.paumes_effets["gauche"] != null))
+	magie.relacher("gauche")
+	await _sim(0.4)
+	_verif(not tk.tient("gauche"), "3e personne : lancé au relâchement")
+	j.basculer_vue(false)
+	await _sim(0.4)
+	tab.queue_free()
 
 # ------------------------------------------------------------------ armes
 

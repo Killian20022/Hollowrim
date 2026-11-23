@@ -349,6 +349,8 @@ func saisir(m: String, corps: RigidBody3D, source: Node, masse: float, oeil: Vec
 	var e := {"corps": corps, "source": source, "masse": masse, "t": 0.0, "dist": lerpf(dist, magie_sort().distance_tenue if magie_sort() != null else 2.0, 0.6),
 		"oeil": oeil, "avant": avant, "paume": paume, "coince": 0.0, "arme": arme_de(corps), "axe": Vector3(randf_range(-1, 1), 1.0, randf_range(-1, 1)).normalized(),
 		"phase": randf() * TAU, "fx": {}}
+	if e["arme"] != null:
+		e["dist"] = 1.65   # une arme, fine, se tient plus près pour qu'on la lise de toute sa longueur
 	tenue[m] = e
 	corps.linear_velocity = Vector3.UP * VITESSE_ARRACHE / sqrt(maxf(masse / 4.0, 0.25))
 	corps.angular_velocity = Vector3(randf_range(-1, 1), randf_range(-0.5, 0.5), randf_range(-1, 1)) * 1.6
@@ -550,7 +552,7 @@ func _tenir(m: String, e: Dictionary, dt: float) -> void:
 	var cote := -1.0 if m == "gauche" else 1.0
 	var t := float(e["t"])
 	var ph := float(e["phase"])
-	var cible := oeil + avant * float(e["dist"]) + droite * COTE * cote - haut * BAS
+	var cible := oeil + avant * float(e["dist"]) + droite * COTE * cote - haut * (BAS if e["arme"] == null else -0.02)
 	cible += Vector3(sin(t * 7.3 + ph), sin(t * 5.1 + ph * 2.0), sin(t * 6.7 + ph * 3.0)) * TREMBLE
 	cible += Vector3.UP * 0.04 * sin(t * 1.7 + ph)   # flottement
 	corps.sleeping = false
@@ -857,7 +859,7 @@ func _effets_tenue(m: String, e: Dictionary, _dt: float) -> void:
 	var s := magie_sort()
 	var charge := charge_de(s, t) if s != null else 0.0
 	# lueur qui pulse doucement, plus vive quand le lancer est chargé
-	_coque_force(corps, 0.75 + 0.15 * sin(t * 6.0) + 0.35 * charge)
+	_coque_force(corps, 0.75 + 0.15 * sin(t * 6.0) + 0.35 * charge + (0.35 if e["arme"] != null else 0.0))
 	SonsMagie.telekinesie_tenue(corps, 0.6 + 0.4 * charge)
 	var g := _g()
 	if g == null:
