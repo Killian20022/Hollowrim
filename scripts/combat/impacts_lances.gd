@@ -5,7 +5,7 @@ extends RefCounted
 ##   ImpactsLances.suivre(objet, lanceur)        facultatif : détection des contacts par balayage de la forme (SuiviLancer), qui
 ##                                               appelle objet_touche ; sert au lanceur de test et après une traversée
 ##   ImpactsLances.arracher(objet, giclee)       retire une arme plantée (re-saisie par télékinésie, reprise à la main)
-## Règles (docs/IMPACTS_LANCES.md) :
+## Règles :
 ## - OBJET quelconque : dégâts contondants selon l'énergie ½·m·v² (28 × √(E/1000 J), bornés 2..38 : un tonneau à 12 m/s ≈ un coup
 ##   lourd d'épée), déséquilibre selon la quantité de mouvement m·v (tonneau ≥ 110 kg·m/s : renversé ; ≥ 150 : tué = projeté loin),
 ##   puis Cassable.recevoir_choc sur l'objet ET sur ce qu'il percute ;

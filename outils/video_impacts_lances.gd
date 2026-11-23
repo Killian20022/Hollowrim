@@ -15,6 +15,11 @@ var s: Node3D
 var cam: Camera3D
 var sortie := ""
 var ralenti := true
+## --vues : vues fixes rapprochées en plus (temps figé : à lancer SANS --write-movie, elles feraient des sauts dans le film).
+var vues := false
+
+func _vue(nom: String) -> bool:
+	return nom.ends_with("_profil") or nom.ends_with("_face") or nom.ends_with("_cote") or nom.ends_with("_dessus")
 var _n := 0
 var _cam_de := Transform3D.IDENTITY
 var _cam_vers := Transform3D.IDENTITY
@@ -64,7 +69,7 @@ func _temps(echelle: float) -> void:
 	Engine.physics_ticks_per_second = int(round(60.0 / echelle))
 
 func _capture(nom: String) -> void:
-	if sortie == "":
+	if sortie == "" or (_vue(nom) and not vues):
 		return
 	await process_frame
 	await process_frame
@@ -111,7 +116,7 @@ func _salle() -> void:
 		l.light_color = Color(1.0, 0.62, 0.32)
 		l.light_energy = 2.0
 		l.omni_range = 7.0
-		l.shadow_enabled = true
+		l.shadow_enabled = false   # ombres des torches : bandes de pixels bruités au sol (rendu PS1) ; la pénombre suffit
 		s.add_child(l)
 		l.global_position = p
 		var flamme := MeshInstance3D.new()
@@ -167,6 +172,7 @@ func _main() -> Vector3:
 func _go() -> void:
 	sortie = _arg("sortie", "")
 	ralenti = _arg("sans-ralenti") == ""
+	vues = _arg("vues") != ""
 	if sortie != "":
 		DirAccess.make_dir_recursive_absolute(sortie)
 	s = SCENE.instantiate()
@@ -231,7 +237,21 @@ func _plan_bandit() -> void:
 	_travelling(Vector3(-0.9, 1.45, -1.5), b.global_position + Vector3(0, 1.15, 0), 1.6)
 	await _attendre(1.8)
 	await _capture("bandit_plantee_proche")
+	# vues fixes rapprochées (captures seulement, hors film : le temps est figé pendant les prises)
+	var garde := cam.global_transform
+	var c := b.global_position + Vector3(0, 1.15, 0)
+	if vues:
+		await _vues_bandit(c)
+	cam.global_transform = garde
 	await _nettoyer([b, o])
+
+func _vues_bandit(c: Vector3) -> void:
+	Engine.time_scale = 0.0
+	_camera(c + Vector3(1.3, 0.1, 0.0), c)
+	await _capture("bandit_plantee_profil")
+	_camera(c + Vector3(-0.5, 0.15, 1.1), c)
+	await _capture("bandit_plantee_face")
+	Engine.time_scale = 1.0
 
 func _plan_traverse() -> void:
 	var d := _ennemi("guerrier", Vector3(0.5, 0, -5.0), 20.0)
@@ -242,9 +262,14 @@ func _plan_traverse() -> void:
 	var mur := o.global_position
 	var ab := ImpactsLances.axe_monde(o, o.donnees_arme())
 	var pointe: Vector3 = ab[1]
-	_travelling(Vector3(pointe.x - 1.0, pointe.y + 0.15, pointe.z + 1.3), (pointe + mur) * 0.5, 1.6)
+	_travelling(Vector3(pointe.x - 0.8, pointe.y + 0.05, pointe.z + 1.6), pointe + Vector3(0, -0.05, 0.3), 1.6)
 	await _attendre(1.9)
 	await _capture("traverse_mur_proche")
+	if vues:
+		Engine.time_scale = 0.0
+		_camera(pointe + Vector3(0.9, 0.05, 0.6), pointe + Vector3(0, 0, 0.25))
+		await _capture("traverse_mur_cote")
+		Engine.time_scale = 1.0
 	print("traverse : ", ImpactsLances.dernier.get("issue", "?"), " plantee=", ImpactsLances.plantee(o))
 	await _nettoyer([d, o])
 
@@ -284,4 +309,10 @@ func _plan_squelette() -> void:
 	_travelling(Vector3(-0.9, 1.2, -1.6), q.global_position + Vector3(0, 0.3, 0), 1.4)
 	await _attendre(1.6)
 	await _capture("squelette_proche")
+	if vues:
+		Engine.time_scale = 0.0
+		var os_c := q.global_position + Vector3(0, 0.3, 0)
+		_camera(os_c + Vector3(0.9, 0.7, 0.6), os_c)
+		await _capture("squelette_dessus")
+		Engine.time_scale = 1.0
 	await _nettoyer([q, o])
