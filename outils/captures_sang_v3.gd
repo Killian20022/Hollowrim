@@ -33,6 +33,9 @@ func _arg(nom: String, defaut := "") -> String:
 	return defaut
 
 func _image() -> Image:
+	# rendu dans un fil séparé (thread_model=2) : l'image lue a une image de retard, on laisse passer quelques images
+	for k in 3:
+		await process_frame
 	await RenderingServer.frame_post_draw
 	return root.get_viewport().get_texture().get_image()
 
@@ -99,10 +102,11 @@ func _decor() -> void:
 	_boite(Vector3(1.3, 0.35, -3.7), Vector3(0.7, 0.7, 0.7), bois, 0.3)       # caisse
 	_boite(Vector3(-0.6, 0.07, -2.9), Vector3(1.6, 0.14, 0.5), roche)        # marche de pierre (relief)
 	if lieu == "interieur":
-		_boite(Vector3(0, -0.05, -1), Vector3(12, 0.1, 12), bois)                # plancher (au-dessus de la neige)
+		_boite(Vector3(0, -0.045, -1), Vector3(12, 0.1, 12), bois)               # plancher (au-dessus de la neige de la scène)
 		_boite(Vector3(-3.6, 1.5, -1), Vector3(0.4, 3, 10), roche)
 		_boite(Vector3(3.6, 1.5, -1), Vector3(0.4, 3, 10), roche)
 		_boite(Vector3(0, 3.1, -1), Vector3(8, 0.2, 10), bois)
+		EffetsSol.dehors = false   # sous un toit : jamais de sang « sur la neige »
 		s.soleil.visible = false
 		s.env.background_color = Color(0.01, 0.01, 0.015)
 		s.env.ambient_light_color = Color(0.5, 0.42, 0.36)
@@ -116,7 +120,7 @@ func _decor() -> void:
 		t.position = Vector3(-2.2, 2.2, -1.6)
 	else:
 		# vraie neige du jeu (palette NEIGE, plus claire que la neige piétinée de la scène) et « sol enneigé » pour le sang
-		_boite(Vector3(0, -0.04, -1), Vector3(14, 0.08, 14), Palette.materiau(Palette.tex("neige", Palette.NEIGE, 4, 0.5), Vector2(6, 6)))
+		_boite(Vector3(0, -0.035, -1), Vector3(14, 0.08, 14), Palette.materiau(Palette.tex("neige", Palette.NEIGE, 4, 0.5), Vector2(6, 6)))
 		EffetsSol.forcer_neige = true
 
 func _go() -> void:
@@ -166,14 +170,19 @@ func _lancer_epee(de: Vector3, cible: CharacterBody3D, vitesse := 14.0, tue := f
 	s.add_child(e)
 	var prise := EpeesLongues.repere(e, "prise")
 	var pointe := EpeesLongues.repere(e, "pointe")
-	var axe_l: Vector3 = (pointe.position - (prise.position if prise else Vector3.ZERO)).normalized() if pointe else Vector3.UP
+	# repères dans le repère de la racine de l'épée (ils sont sous un nœud intermédiaire du glb)
+	var inv := e.global_transform.affine_inverse()
+	var pp: Vector3 = inv * prise.global_position if prise else Vector3.ZERO
+	var pt: Vector3 = inv * pointe.global_position if pointe else Vector3(0, 0.9, 0)
+	var axe_l: Vector3 = (pt - pp).normalized()
+	var lg: float = (pt - pp).length()
 	var but := cible.global_position + Vector3(0, 1.2, 0)
 	var dir := (but - de).normalized()
 	var base := Basis(Quaternion(axe_l, dir))
 	e.global_transform = Transform3D(base, de)
 	var t := 0.0
 	var dist := de.distance_to(but)
-	while t * vitesse < dist - 0.25:
+	while t * vitesse < dist - lg * 0.55:
 		var dt := 1.0 / (30.0 if film else 60.0)
 		t += dt
 		e.global_transform = Transform3D(base.rotated(dir, t * 2.0), de + dir * t * vitesse)
@@ -187,9 +196,10 @@ func _lancer_epee(de: Vector3, cible: CharacterBody3D, vitesse := 14.0, tue := f
 	Plaies.ajouter(cible.modele, entree, -dir, dir, 0.42, couleur, cible.combat.profil.matiere)
 	Plaies.ajouter(cible.modele, sortie_pt, dir, dir, 0.45, couleur, cible.combat.profil.matiere)
 	# la lame traverse : 2/3 ressortent dans le dos, ensanglantée
-	e.global_transform = Transform3D(base, but - dir * 0.35 + dir * 0.55)
+	# la garde reste devant (côté lanceur), la pointe ressort dans le dos
+	e.global_transform = Transform3D(base, but - dir * lg * 0.55 - base * pp)
 	SangLame.ensanglanter(e, 3.0, couleur)
-	var sq := cible.modele.find_children("*", "Skeleton3D", true, false)
+	var sq: Array = cible.modele.find_children("*", "Skeleton3D", true, false)
 	if not sq.is_empty():
 		var acc := BoneAttachment3D.new()
 		acc.bone_name = "spine_03"
@@ -201,11 +211,11 @@ func _lancer_epee(de: Vector3, cible: CharacterBody3D, vitesse := 14.0, tue := f
 		e.global_transform = xf
 	if tue:
 		cible.vie = 1.0
+		cible.combat.profil.chance_blocage = 0.0
 		cible.recevoir_coup(500.0, de, true, {"type": "perforant", "point": but, "direction": dir, "normale": -dir, "attaque": "lourde",
 			"instant": 0.1, "charge": 1.0, "arme": "epee_metal"})
-	else:
-		cible.recevoir_coup(2.0, de, false, {"type": "perforant", "point": entree, "direction": dir, "normale": -dir, "attaque": "lourde",
-			"instant": 0.1, "charge": 0.0, "arme": "epee_metal"})
+	elif cible.has_node("Combat") and cible.get("reaction_os") != null:
+		pass   # (les dégâts et la réaction de l'objet lancé sont l'affaire d'ImpactsLances : ici, seulement le sang)
 	if ralenti:
 		await _attendre(0.6 * 0.3)
 		Engine.time_scale = 1.0
@@ -222,6 +232,8 @@ func _cam_fixe() -> void:
 
 func _planche() -> void:
 	var v3 := "APRÈS : sang v3" if SangV3.actif else "AVANT : sang v2"
+	s.hud.visible = false
+	s.joueur.mains.visible = false
 	s.placer_joueur(Vector3(0, 0, 0.4), 0.0, -4.0)
 	var b := _ennemi(Vector3(-0.4, 0, -2.4), deg_to_rad(10.0), "bandit")
 	b.set_physics_process(false)
@@ -267,6 +279,8 @@ func _planche() -> void:
 	_legende("%s — sol : gouttes, flaque, traînée (6 s)" % v3)
 	await _sauver("sol")
 	_cam.current = false
+	s.hud.visible = true
+	s.joueur.mains.visible = true
 	s.joueur.camera.current = true
 	await _attendre(0.3)
 	_legende("%s — vue de jeu" % v3)

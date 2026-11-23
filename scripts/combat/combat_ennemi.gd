@@ -310,7 +310,8 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 	var mat_g := matiere_gerbe()
 	if not magie and not bool(i.get("continu", false)):
 		if mat_g in ["draugr", "sang", "chair"]:   # (os, bois, poussière : déjà par Sang.eclats_matiere ci-dessus)
-			GerbePixels.emettre(corps, point, dir_g, mat_g, GerbePixels.force_de(p.nom) * (0.7 if mat_g == "sang" else 1.0))
+			# sang v3 : la giclée porte le sang ; les gros pixels de chair vive ne font plus qu'accompagner (plus de gros carrés rouges)
+			GerbePixels.emettre(corps, point, dir_g, mat_g, GerbePixels.force_de(p.nom) * (0.7 if mat_g == "sang" else 1.0) * (0.4 if SangV3.actif and mat_g == "sang" else 1.0))
 		# os qui volent : coups forts sur un squelette ou un draugr
 		if mat_g in ["os", "draugr"] and p.nom in ["lourd", "critique", "finisher"]:
 			var n_os := {"lourd": 3, "critique": 4, "finisher": 6}

@@ -29,6 +29,8 @@ var _tache := PackedByteArray()
 ## Sang v3 : goutte balistique (rayon à chaque pas) et sa taille.
 var _bal := PackedByteArray()
 var _taille := PackedFloat32Array()
+var _ray := PackedVector3Array()   # dernier point vérifié par rayon (une image sur deux)
+var _image := 0
 var _exclus: Array[RID] = []
 var _vivantes := 0
 var _n := 0
@@ -92,6 +94,7 @@ func _ready() -> void:
 	_tache.resize(m_)
 	_bal.resize(m_)
 	_taille.resize(m_)
+	_ray.resize(m_)
 	set_process(false)
 
 static func _max() -> int:
@@ -113,6 +116,7 @@ func _lacher(pos: Vector3, couleur: Color, vitesse: Vector3, tache: bool, balist
 	_tache[i] = 1 if (tache or _n % TRACE_UNE == 0) else 0
 	_bal[i] = 1 if balistique else 0
 	_taille[i] = taille
+	_ray[i] = pos
 	if balistique:
 		_sol[i] = pos.y - 6.0   # le rayon de chaque pas trouve le point d'impact
 		if _vivantes == 1 or _exclus.is_empty():
@@ -126,23 +130,27 @@ func _process(dt: float) -> void:
 	var t0 := Time.get_ticks_usec()
 	var i := 0
 	var espace: PhysicsDirectSpaceState3D = null
+	_image += 1
 	while i < _vivantes:
 		_vit[i] += Vector3(0, -GRAVITE * dt, 0)
-		var avant := _pos[i]
 		_pos[i] += _vit[i] * dt
 		_vie[i] -= dt
 		if _bal[i] == 1:
-			if espace == null:
-				espace = get_world_3d().direct_space_state
-			var q := PhysicsRayQueryParameters3D.create(avant, _pos[i], 1, _exclus)
-			var r := espace.intersect_ray(q)
+			# un rayon toutes les deux images (du dernier point vérifié à la position actuelle : aucun mur sauté)
+			var r := {}
+			if (i + _image) % 2 == 0 or _vie[i] <= 0.0:
+				if espace == null:
+					espace = get_world_3d().direct_space_state
+				var q := PhysicsRayQueryParameters3D.create(_ray[i], _pos[i], 1, _exclus)
+				r = espace.intersect_ray(q)
+				_ray[i] = _pos[i]
 			if not r.is_empty() or _vie[i] <= 0.0:
-				if not r.is_empty() and Sang._surface(r, true):
+				if not r.is_empty() and Sang._surface(r, true) and (_taille[i] >= 1.15 or absf((r["normal"] as Vector3).y) < 0.5 or randf() < 0.5):
 					var v := _vit[i]
 					var nrm: Vector3 = r["normal"]
 					var rasant := (v - nrm * v.dot(nrm)).length() > absf(v.dot(nrm)) * 1.1
 					var sup: Node3D = r["collider"] if r["collider"] is RigidBody3D else null
-					Sang.trace(self, r["position"], nrm, v, randf_range(0.055, 0.09) * _taille[i] * (1.3 if rasant else 1.0), _col[i] / 1.3, "giclure" if rasant else "goutte", 0.0, 0.0, sup)
+					Sang.trace(self, r["position"], nrm, v, randf_range(0.07, 0.115) * _taille[i] * (1.3 if rasant else 1.0), _col[i] / 1.3, "giclure" if rasant else "goutte", 0.0, 0.0, sup)
 				_retirer(i)
 				continue
 			i += 1
@@ -180,4 +188,5 @@ func _retirer(i: int) -> void:
 	_tache[i] = _tache[d]
 	_bal[i] = _bal[d]
 	_taille[i] = _taille[d]
+	_ray[i] = _ray[d]
 	_vivantes = d

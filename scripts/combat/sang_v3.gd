@@ -13,20 +13,22 @@ class_name SangV3
 ## `--sans-sang-v3` : comportement v2 exact.
 
 static var actif := not OS.get_cmdline_user_args().has("--sans-sang-v3")
+## Temps CPU par poste (µs, mesures) : émetteurs, gouttes, rayons + traces de la giclée.
+static var prof := {"emetteurs": 0, "gouttes": 0, "traces": 0, "grilles": 0, "plans": 0, "us_grilles": 0}
 
 const POOL_JET := 8
 const POOL_GOUTTELETTES := 8
 const POOL_BRUME := 4
 const AMOUNT := {"jet": 48, "gouttelettes": 40, "brume": 56}
 ## Gouttes balistiques par giclée (× intensité, plafonnées) : celles qui tachent vraiment où elles tombent.
-const GOUTTES_MAX := 7
+const GOUTTES_MAX := 9
 
 # ------------------------------------------------------------------ palettes
 
 const PALETTES := {
 	# frais : sang qui vient de couler ; sec : brun-noir après séchage ; halo : sang dilué dans la neige ; vol : particules en vol
-	"vif": {"frais": Color(0.40, 0.035, 0.028), "sec": Color(0.16, 0.035, 0.028), "halo": Color(0.62, 0.20, 0.20), "vol": Color(0.46, 0.04, 0.03), "brille": 0.75},
-	"draugr": {"frais": Color(0.10, 0.032, 0.030), "sec": Color(0.065, 0.045, 0.042), "halo": Color(0.34, 0.24, 0.24), "vol": Color(0.14, 0.04, 0.035), "brille": 0.55},
+	"vif": {"frais": Color(0.29, 0.028, 0.022), "sec": Color(0.12, 0.03, 0.024), "halo": Color(0.55, 0.19, 0.19), "vol": Color(0.34, 0.032, 0.026), "brille": 0.75},
+	"draugr": {"frais": Color(0.15, 0.04, 0.034), "sec": Color(0.075, 0.05, 0.045), "halo": Color(0.36, 0.25, 0.24), "vol": Color(0.18, 0.045, 0.038), "brille": 0.6},
 	"troll": {"frais": Color(0.22, 0.035, 0.065), "sec": Color(0.10, 0.035, 0.05), "halo": Color(0.48, 0.24, 0.32), "vol": Color(0.26, 0.04, 0.075), "brille": 0.65},
 	"araignee": {"frais": Color(0.20, 0.24, 0.06), "sec": Color(0.11, 0.12, 0.045), "halo": Color(0.48, 0.52, 0.30), "vol": Color(0.24, 0.28, 0.07), "brille": 0.7},
 }
@@ -62,25 +64,31 @@ static func giclee(n: Node, point: Vector3, direction: Vector3, intensite: float
 	var sortie := sorte == "sortie"
 	var entree := sorte == "entree"
 	var sk := sqrt(maxf(k, 0.05))
+	var t0 := Time.get_ticks_usec()
 	# jet principal : cône serré dans le sens du coup, un peu relevé (le sang « suit » la lame)
 	var d_jet := (dir + Vector3.UP * (0.12 if sortie else 0.22)).normalized()
 	var force := "fort" if (k > 2.0 or sortie) else ("moyen" if k > 0.9 else "faible")
-	_tirer(arbre, "jet", force, point, d_jet, clampf(k * (0.42 if sortie else 0.3) * (0.5 if entree else 1.0), 0.12, 1.0), pal)
+	_tirer(arbre, "jet", force, point, d_jet, clampf(k * (0.5 if sortie else 0.36) * (0.5 if entree else 1.0), 0.15, 1.0), pal)
 	# gouttelettes de tailles variées, plus larges, plus lentes
 	_tirer(arbre, "gouttelettes", force, point, (dir + Vector3.UP * 0.45).normalized(), clampf(k * 0.28 * (0.6 if entree else 1.0), 0.15, 1.0), pal)
 	# brume fine (sortie, gros coups) : nuage de points qui dérive et retombe à peine
 	if sortie or k > 2.4:
 		_tirer(arbre, "brume", "faible", point + dir * 0.05, dir, clampf(k * (0.45 if sortie else 0.22), 0.25, 1.0), pal)
+	var t1 := Time.get_ticks_usec()
+	prof["emetteurs"] += t1 - t0
 	# vraies gouttes (balistiques) : tachent là où elles tombent (sol, mur, prop)
-	var nb := clampi(int(round(k * (2.6 if sortie else 1.7))), 1, GOUTTES_MAX)
+	var nb := clampi(int(round(k * (3.2 if sortie else 2.3))), 2, GOUTTES_MAX)
 	if niv < 2:
 		nb = mini(nb, 2)
 	for j in nb:
 		var v := (d_jet + Vector3(randf_range(-0.28, 0.28), randf_range(-0.1, 0.3), randf_range(-0.28, 0.28))).normalized()
 		v *= randf_range(2.2, 4.6) * clampf(sk, 0.7, 1.6) * (1.3 if sortie else 1.0)
 		GouttesSang.lacher_balistique(n, point + dir * 0.05, pal["vol"], v, randf_range(0.8, 1.7) * (1.2 if sortie else 1.0))
+	var t2 := Time.get_ticks_usec()
+	prof["gouttes"] += t2 - t1
 	if traces:
 		_traces(n, point, dir, k, couleur_sang, niv, sortie)
+	prof["traces"] += Time.get_ticks_usec() - t2
 
 ## Émetteur du pool (le plus ancien est repris), réglé et relancé.
 static func _tirer(arbre: SceneTree, sorte: String, force: String, point: Vector3, dir: Vector3, ratio: float, pal: Dictionary) -> void:
@@ -232,7 +240,7 @@ static func _traces(n: Node, point: Vector3, dir: Vector3, k: float, c: Color, n
 		Sang.trace(n, r["position"], nrm, d, t, c, "giclure", 0.0, 0.05 + dist / 7.0, sup)
 		poses += 1
 		# mur : un filet coule sous la giclure
-		if absf(nrm.y) < 0.5 and niv == 2 and randf() < 0.75:
+		if absf(nrm.y) < 0.5 and niv == 2 and randf() < 0.5:
 			var bas := (Vector3.DOWN - nrm * Vector3.DOWN.dot(nrm)).normalized()
 			Sang.trace(n, r["position"] + bas * t * 0.35, nrm, bas, t * 0.55, c, "coulure", 3.5, 0.4 + dist / 7.0, sup)
 	# au pied : une giclure dans le sens du coup
@@ -241,7 +249,7 @@ static func _traces(n: Node, point: Vector3, dir: Vector3, k: float, c: Color, n
 	var de := point + plat * (0.45 + 0.25 * clampf(k, 0.5, 2.0))
 	var r2 := Sang.sol_sous(n as Node3D, de, 0.4, 3.0)
 	if not r2.is_empty():
-		Sang.trace(n, r2["position"], r2["normal"], plat, randf_range(0.26, 0.42) * clampf(k, 0.6, 1.8) * (1.0 if niv == 2 else 0.6), c, "giclure" if k < 1.6 else "trainee", 0.0, 0.14)
+		Sang.trace(n, r2["position"], r2["normal"], plat, randf_range(0.3, 0.42) * clampf(k, 0.6, 1.6) * (1.0 if niv == 2 else 0.6), c, "giclure", 0.0, 0.14)
 
 # ------------------------------------------------------------------ traces : matériau, relief
 
@@ -279,7 +287,7 @@ static func materiau_trace(forme: String, variante: int, c: Color, neige: bool) 
 ## Shader des traces : masque RGBA (R épaisseur 0-1, G = liseré « dilué » (neige seulement), A = couverture). Effacement par
 ## l'épaisseur (le film mince part d'abord) ; séchage par paliers (les bords minces sèchent avant le cœur). Découpe alpha nette.
 const CODE_TRACE := """shader_type spatial;
-render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_lambert, specular_schlick_ggx;
+render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_lambert, specular_schlick_ggx;
 uniform sampler2D masque : filter_nearest, repeat_disable;
 uniform vec3 frais : source_color;
 uniform vec3 sec : source_color;
@@ -344,7 +352,10 @@ static func maille_projetee(n: Node3D, xf: Transform3D, demi_x: float, demi_z: f
 				plat = false
 				break
 	if plat:
+		prof["plans"] += 1
 		return _plan
+	prof["grilles"] += 1
+	var tg := Time.get_ticks_usec()
 	var hauts := PackedFloat32Array()
 	hauts.resize(GRILLE * GRILLE)
 	for j in GRILLE:
@@ -353,33 +364,41 @@ static func maille_projetee(n: Node3D, xf: Transform3D, demi_x: float, demi_z: f
 			var v := float(j) / (GRILLE - 1) * 2.0 - 1.0
 			var h: Variant = sonde.call(u, v)
 			hauts[j * GRILLE + i] = clampf(float(h), -0.3, 0.18) if h != null else 0.0
-	return grille(hauts)
+	var m := grille(hauts)
+	prof["us_grilles"] += Time.get_ticks_usec() - tg
+	return m
 
 ## Grille 5 x 5 du repère unitaire d'une trace, hauteurs (le long de la normale) en mètres. (Aussi : préchauffage du format.)
+static var _indices := PackedInt32Array()
+static var _uvs := PackedVector2Array()
+static var _normales := PackedVector3Array()
+
 static func grille(hauts: PackedFloat32Array) -> ArrayMesh:
 	if hauts.size() < GRILLE * GRILLE:
 		hauts.resize(GRILLE * GRILLE)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for j in GRILLE:
-		for i in GRILLE:
-			var u := float(i) / (GRILLE - 1)
-			var v := float(j) / (GRILLE - 1)
-			st.set_uv(Vector2(u, v))
-			st.set_normal(Vector3.UP)
-			# repère local d'une trace : plan unitaire (x, z ∈ [-0,5 ; 0,5]), hauteur en mètres ramenée au repère (y non mis à l'échelle)
-			st.add_vertex(Vector3(u - 0.5, hauts[j * GRILLE + i], v - 0.5))
-	for j in GRILLE - 1:
-		for i in GRILLE - 1:
-			var a := j * GRILLE + i
-			st.add_index(a)
-			st.add_index(a + 1)
-			st.add_index(a + GRILLE)
-			st.add_index(a + 1)
-			st.add_index(a + GRILLE + 1)
-			st.add_index(a + GRILLE)
-	st.generate_normals()
-	return st.commit()
+	if _indices.is_empty():
+		for jj in GRILLE:
+			for ii in GRILLE:
+				_uvs.append(Vector2(float(ii) / (GRILLE - 1), float(jj) / (GRILLE - 1)))
+				_normales.append(Vector3.UP)
+		for jj in GRILLE - 1:
+			for ii in GRILLE - 1:
+				var a := jj * GRILLE + ii
+				_indices.append_array([a, a + 1, a + GRILLE, a + 1, a + GRILLE + 1, a + GRILLE])
+	# repère local d'une trace : plan unitaire (x, z ∈ [-0,5 ; 0,5]), hauteur en mètres (l'axe y de la trace n'est pas mis à l'échelle)
+	var v := PackedVector3Array()
+	v.resize(GRILLE * GRILLE)
+	for k in GRILLE * GRILLE:
+		v[k] = Vector3(_uvs[k].x - 0.5, hauts[k], _uvs[k].y - 0.5)
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = v
+	arr[Mesh.ARRAY_NORMAL] = _normales
+	arr[Mesh.ARRAY_TEX_UV] = _uvs
+	arr[Mesh.ARRAY_INDEX] = _indices
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	return m
 
 # ------------------------------------------------------------------ textures (peintes par code, RGBA : épaisseur, liseré, couverture)
 
@@ -526,9 +545,20 @@ class Vieillissement extends Node:
 	var traces: Array = []
 	var horloge := 0.0
 	var _acc := 0.0
+	var _par := {}
 
 	func ajouter(mi: MeshInstance3D, seche: float) -> void:
-		traces.append([mi, horloge, seche, 0, 0])
+		var e: Variant = _par.get(mi.get_instance_id())
+		if e != null and is_instance_valid((e as Array)[0]):
+			# trace recyclée : son âge repart de zéro
+			(e as Array)[1] = horloge
+			(e as Array)[2] = seche
+			(e as Array)[3] = 0
+			(e as Array)[4] = 0
+		else:
+			e = [mi, horloge, seche, 0, 0]
+			traces.append(e)
+			_par[mi.get_instance_id()] = e
 		set_process(true)
 
 	func _process(dt: float) -> void:
@@ -542,6 +572,7 @@ class Vieillissement extends Node:
 			var e: Array = traces[i]
 			var mi: MeshInstance3D = e[0] if is_instance_valid(e[0]) else null
 			if mi == null:
+				_par.erase(e[0].get_instance_id() if is_instance_valid(e[0]) else -1)
 				traces.remove_at(i)
 				continue
 			var age: float = horloge - float(e[1])
@@ -552,6 +583,7 @@ class Vieillissement extends Node:
 			if age > Sang.DUREE_TRACE:
 				var ee := clampi(int(age - Sang.DUREE_TRACE) + 1, 1, 7)
 				if ee >= 7:
+					_par.erase(mi.get_instance_id())
 					mi.queue_free()
 					traces.remove_at(i)
 					continue
