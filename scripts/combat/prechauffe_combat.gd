@@ -42,10 +42,31 @@ static func caches() -> void:
 	Sang._pm_giclee(45.0, 1.2, 4.0, false)
 	Sang.pm_jet(1)
 	Sang.pm_jet(2)
+	_caches_sang_v3()
 	GerbePixels._preparer_ressources()   # gerbes de pixels du corps à corps (lot L6) : quads, shaders, matériaux de processus
 	EclatsOs._ressources()
 	EffetElementLame.prechauffer()       # effet passif des lames à élément : matériaux partagés (process + dessin) de chaque élément
 	_variantes_sang_lame()
+
+## Sang v3 (2026-11-23) : textures RGBA des traces, matériaux de processus des pools, mailles par palette, matériaux de trace
+## (shader des traces : une seule compilation, puis variantes de paramètres seulement).
+static func _caches_sang_v3() -> void:
+	if not SangV3.actif:
+		return
+	for forme in ["flaque", "giclure", "trainee", "coulure", "goutte"]:
+		for v in 3:
+			SangV3.texture(forme, v)
+	for sorte in ["jet", "gouttelettes", "brume"]:
+		for force in ["faible", "moyen", "fort"]:
+			SangV3.pm(sorte, force)
+	for nom: String in SangV3.PALETTES:
+		var c: Color = SangV3.PALETTES[nom]["frais"]
+		for sorte in ["jet", "gouttelettes", "brume"]:
+			SangV3.maille(sorte, SangV3.PALETTES[nom])
+		for forme in ["flaque", "giclure", "trainee", "coulure", "goutte"]:
+			for v in 3:
+				for neige in [false, true]:
+					SangV3.materiau_trace(forme, v, c, neige)
 
 ## Opti saccades (2026-11-20) : variantes « sang sur la lame » (SangLame.shader_de) des shaders de lame des armes, faites et compilées
 ## ici. Au 1er équipement d'un modèle (épée longue, claymore), SangLame.equiper fabriquait puis compilait la variante sur le fil principal :
@@ -126,6 +147,23 @@ static func vitrine() -> Node3D:
 		mi.position = Vector3(-0.6 + i * 0.35, -0.2, 0.2)
 		v.add_child(mi)
 		i += 1
+	if SangV3.actif:
+		# sang v3 : shader des traces (sur plan) + matériaux des pools de particules
+		var mi3 := MeshInstance3D.new()
+		mi3.mesh = plan
+		mi3.material_override = SangV3.materiau_trace("giclure", 0, COULEURS[1], false)
+		mi3.position = Vector3(0.45, -0.2, 0.2)
+		v.add_child(mi3)
+		var mg := MeshInstance3D.new()   # traces projetées sur le relief : autre format de sommets (pas de tangentes)
+		mg.mesh = SangV3.grille(PackedFloat32Array())
+		mg.material_override = SangV3.materiau_trace("flaque", 0, COULEURS[0], true)
+		mg.position = Vector3(0.75, -0.2, 0.2)
+		mg.scale = Vector3(0.3, 1.0, 0.3)
+		v.add_child(mg)
+		var xx := -0.9
+		for sorte in ["jet", "gouttelettes", "brume"]:
+			_particules(v, Vector3(xx, 0.9, 0), SangV3.pm(sorte, "moyen"), SangV3.maille(sorte, SangV3.PALETTES["vif"]))
+			xx += 0.3
 	var bouchon := Node3D.new()
 	v.add_child(bouchon)
 	Decapitation._bouchon(bouchon, Transform3D(Basis(), Vector3(0.6, -0.1, 0.2)), COULEURS[0], 0.06)

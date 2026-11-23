@@ -521,7 +521,9 @@ func _physics_process(dt: float) -> void:
 # ------------------------------------------------------------------------------------------------ effets
 
 ## Gerbe de la matière, poussière, son ; `liquide` : le contenu (bière, saumure) gicle et une flaque s'étale.
-static func effets(n: Node3D, centre: Vector3, pied: Vector3, origine: Vector3, matiere: String, taille: float, liquide := false) -> void:
+## LIQUIDES (docs/LIQUIDES.md) : `sorte` / `litres` (Liquides.contenu) et `vitesse` de l'objet : le contenu est versé par Liquides.
+static func effets(n: Node3D, centre: Vector3, pied: Vector3, origine: Vector3, matiere: String, taille: float, liquide := false,
+		sorte := "", litres := -1.0, vitesse := Vector3.ZERO) -> void:
 	if n == null or not n.is_inside_tree():
 		return
 	var prof: Dictionary = MATIERES.get(matiere, {})
@@ -533,7 +535,7 @@ static func effets(n: Node3D, centre: Vector3, pied: Vector3, origine: Vector3, 
 	if bool(prof.get("poussiere", false)):
 		GerbePixels.emettre(n, pied + Vector3(0, 0.08, 0), Vector3.UP, "poussiere", clampf(taille * 1.2, 0.5, 1.1))
 	if liquide:
-		verser_liquide(n, centre, dir.normalized(), clampf(taille * 1.4, 0.5, 1.3))
+		verser_liquide(n, centre, dir.normalized(), clampf(taille * 1.4, 0.5, 1.3), sorte, litres, vitesse, taille)
 	var sons: Array = prof.get("sons", ["impactWood_heavy_000"])
 	Sons.jouer_a(n, sons, centre, clampf(-8.0 + taille * 4.0, -10.0, 0.0), 0.1)
 
@@ -544,7 +546,15 @@ static func effets(n: Node3D, centre: Vector3, pied: Vector3, origine: Vector3, 
 ## surélevée (étagère, table : sol plus bas de > 0,3 m) : les gouttes qui coulent finissent en petite flaque au sol, un peu plus tard.
 const PORTEE_LIQUIDE := 3.0
 
-static func verser_liquide(n: Node3D, centre: Vector3, dir: Vector3, rayon: float) -> void:
+## LIQUIDES (2026-11-23) : remplacée par Liquides.verser_contenant (vraies gouttes qui retombent, flaque selon le volume, coulures,
+## égouttement d'une étagère vers le sol) ; l'ancien comportement reste avec `--sans-liquides`. `sorte` vide : saumure (ancien défaut).
+static func verser_liquide(n: Node3D, centre: Vector3, dir: Vector3, rayon: float, sorte := "", litres := -1.0, vitesse := Vector3.ZERO, taille := 0.6) -> void:
+	if Liquides.actif:
+		if n == null or not n.is_inside_tree():
+			return
+		var l := litres if litres > 0.0 else rayon * rayon * 12.0
+		Liquides.verser_contenant(n, centre, vitesse + dir * 0.3, sorte if sorte != "" else "saumure", l, taille)
+		return
 	GerbePixels.emettre(n, centre, Vector3.UP, "liquide", 1.6)
 	GerbePixels.emettre(n, centre, dir, "liquide", 1.2)
 	var espace := n.get_world_3d().direct_space_state

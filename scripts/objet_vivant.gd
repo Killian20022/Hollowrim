@@ -326,7 +326,9 @@ func casser(avec_effets: bool, point: Vector3, vitesse := Vector3.ZERO, distant 
 	var t0 := Time.get_ticks_usec()
 	CasseObjets.eclater(parent, mm.mesh if mm != null else null, xf, matiere, mass, point, v_objet + vitesse * 0.35, ident.hash())
 	var t1 := Time.get_ticks_usec()
-	CasseObjets.effets(parent, centre, pied, point, matiere, maxf(_taille.x, maxf(_taille.y, _taille.z)), liquide)
+	var liq := Liquides.contenu(genre, oid, ident, liquide) if Liquides.actif else []      # contenu liquide (tonneau, jarre, bouteille, potion)
+	CasseObjets.effets(parent, centre, pied, point, matiere, maxf(_taille.x, maxf(_taille.y, _taille.z)), liquide or not liq.is_empty(),
+		String(liq[0]) if not liq.is_empty() else "", float(liq[1]) if not liq.is_empty() else -1.0, v_objet)
 	var t2 := Time.get_ticks_usec()
 	if contenu != "":
 		CasseObjets.verser_butin(parent, ident, contenu, pied)

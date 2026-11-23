@@ -4,6 +4,13 @@ class_name Sang
 ##   Sang.jet(attache, transform_local, couleur, duree)          jet pulsé (cou tranché) qui goutte au sol
 ##   Sang.flaque(noeud, position, couleur, taille, croissance)   flaque qui s'étale sous un corps
 ##   Sang.trace(noeud, position, normale, direction, taille, couleur, sorte)   trace collée (flaque, giclure, trainee)
+## SANG V3 (2026-11-23, docs/SANG_V3.md) : mêmes signatures (paramètres optionnels ajoutés en fin), moteur dans SangV3 ; ajouts :
+##   Sang.giclee(..., traces, sorte)                         sorte "impact" (défaut), "sortie" (plaie de sortie), "entree"
+##   Sang.traversee(noeud, entree, sortie, direction, intensite, couleur)   arme qui traverse : entrée + sortie + brume + murs
+##   Sang.sortie(noeud, point, direction, intensite, couleur)               plaie de sortie seule
+##   Sang.trainee_corps(corps, couleur, duree)                traînée d'un corps qui glisse / est projeté
+##   Sang.saigner(noeud, point, couleur, duree)               blessé qui goutte (gouttes + taches au sol)
+## `--sans-sang-v3` : comportement v2.
 ## Traces = petits plans texturés (texels nets, découpe alpha, aspect mouillé) posés sur la surface touchée (rayon), gérés par un
 ## nœud « GestionSang » de la scène : au plus MAX_TRACES (les plus anciennes disparaissent), chacune s'efface après DUREE_TRACE s.
 ## (Pas de Decal pour le sol : le rendu Mobile limite les décals par maillage, or le terrain est un seul grand maillage.)
@@ -11,6 +18,20 @@ class_name Sang
 const MAX_TRACES := 48
 const DUREE_TRACE := 150.0
 const MAX_GOUTTES_JET := 6
+## Sang v3 : plafond des traces (giclures, flaques, traînées, coulures : chacune ≤ 25 triangles une fois projetée) et durées.
+const MAX_TRACES_V3 := MAX_TRACES
+const SECHE_TRACE := 45.0
+const SECHE_FLAQUE := 90.0
+## Temps CPU cumulé des giclées / traces (µs, mesures et tests).
+static var cout_us := 0
+static var _imbrique := 0
+
+## Compte le temps d'un appel seulement au niveau le plus extérieur (une giclée qui pose des traces n'est pas comptée deux fois).
+static func _compter(t_us: int) -> void:
+	_imbrique -= 1
+	if _imbrique <= 0:
+		_imbrique = 0
+		cout_us += Time.get_ticks_usec() - t_us
 ## Niveau imposé (tests, captures) ; -1 = option du joueur.
 static var niveau_force := -1
 static var _tex := {}
@@ -29,9 +50,19 @@ static func actif() -> bool:
 
 # ------------------------------------------------------------------ giclées
 
-static func giclee(n: Node, point: Vector3, direction: Vector3, intensite: float, couleur: Color, traces := true) -> void:
+static func giclee(n: Node, point: Vector3, direction: Vector3, intensite: float, couleur: Color, traces := true, sorte := "impact") -> void:
 	var niv := niveau()
 	if niv == 0 or n == null or not n.is_inside_tree():
+		return
+	var t_us := Time.get_ticks_usec()
+	_imbrique += 1
+	if SangV3.actif:
+		if matiere_de(couleur) != "sang":
+			# squelette, bois, poussière : pas de sang, la même gerbe que eclats_matiere (appelant qui ne trie pas)
+			eclats_matiere(n, point, direction, intensite * 0.8, couleur)
+		else:
+			SangV3.giclee(n, point, direction, intensite, couleur, traces, sorte)
+		_compter(t_us)
 		return
 	var k := intensite * (1.0 if niv == 2 else 0.35)
 	var dir := direction.normalized() if direction.length() > 0.01 else Vector3.UP
@@ -40,6 +71,7 @@ static func giclee(n: Node, point: Vector3, direction: Vector3, intensite: float
 	_burst(n, point, (dir + Vector3.UP * 0.6).normalized(), clampi(int(10.0 * k), 2, 50), 55.0, 0.8, 2.6 * sqrt(k), couleur * 1.15, Vector3(0.02, 0.02, 0.02))
 	if traces:
 		_traces_giclee(n, point, dir, k, couleur, niv)
+	_compter(t_us)
 
 ## Sang v2 (2026-10-30) : la giclée TACHE LES VOISINS. Ennemis à moins de PORTEE_TACHE m du point d'impact, dans le sens de la
 ## lame (ou tout contre la victime) : un jet de pixels part vers eux et, le temps du vol, une éclaboussure se pose sur leur corps
@@ -221,8 +253,10 @@ static func _traces_giclee(n: Node, point: Vector3, dir: Vector3, k: float, coul
 		var sorte := "giclure" if j < nb - 1 or k < 1.5 else "trainee"
 		trace(n, r["position"], r["normal"], plat, randf_range(0.28, 0.5) * clampf(k, 0.5, 2.0) * (1.0 if niv == 2 else 0.6), couleur, sorte, 0.0, 0.12 + j * 0.08)
 
-static func _surface(r: Dictionary) -> bool:
+static func _surface(r: Dictionary, props := false) -> bool:
 	var c: Object = r.get("collider")
+	if c is RigidBody3D and props and SangV3.actif:
+		return not (c as Node).is_in_group("ennemis")   # prop mobile (tonneau, table) : la trace lui est attachée (Sang.trace)
 	return c != null and not (c is CharacterBody3D) and not (c is RigidBody3D) and not (c is PhysicalBone3D)
 
 static func _exclus(arbre: SceneTree) -> Array[RID]:
@@ -273,7 +307,7 @@ static func jet(attache: Node3D, local: Transform3D, couleur: Color, duree := 2.
 	p.visibility_aabb = AABB(Vector3(-4, -4, -4), Vector3(8, 8, 8))
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	p.process_material = pm_jet(niv)
-	p.draw_pass_1 = _cube(Vector3(0.03, 0.08, 0.03), couleur)
+	p.draw_pass_1 = _cube(Vector3(0.03, 0.08, 0.03), SangV3.palette(couleur)["vol"] if SangV3.actif else couleur)
 	attache.add_child(p)
 	p.transform = local
 	p.emitting = true
@@ -312,12 +346,25 @@ static func flaque(n: Node3D, pos: Vector3, couleur: Color, taille := 0.9, crois
 	if r.is_empty():
 		return null
 	var t := taille if niveau() == 2 else taille * 0.45
+	if Liquides.actif and (r["normal"] as Vector3).y < Liquides.PLAT:
+		# pente, marche : pas de flaque qui tient ; le sang coule vers le bas (Liquides)
+		var l := Liquides.obtenir(n)
+		if l != null:
+			l.coulure(n, r["position"], r["normal"], Liquides.sang_de(couleur), 40.0 * t, SangV3.couleur(couleur) if SangV3.actif else couleur)
+		return null
+	if SangV3.actif:
+		# v3 : la flaque s'étale LENTEMENT (le sang s'écoule du corps pendant ~20 s), un peu plus large
+		return trace(n, r["position"], r["normal"], Vector3.ZERO, t * 1.25, couleur, "flaque", maxf(croissance * 2.4, 12.0))
 	return trace(n, r["position"], r["normal"], Vector3.ZERO, t, couleur, "flaque", croissance)
 
 # ------------------------------------------------------------------ traces collées
 
 static func gestion(n: Node) -> Node3D:
-	var arbre := n.get_tree()
+	return gestion_racine(n.get_tree())
+
+static func gestion_racine(arbre: SceneTree) -> Node3D:
+	if arbre == null:
+		return null
 	var g := arbre.get_first_node_in_group("gestion_sang") as Node3D
 	if g == null:
 		g = Node3D.new()
@@ -336,9 +383,15 @@ static func nombre_traces(n: Node) -> int:
 	var l: Array = g.get_meta("traces")
 	return l.filter(func(x: Variant) -> bool: return is_instance_valid(x)).size()
 
-static func trace(n: Node, pos: Vector3, normale: Vector3, direction: Vector3, taille: float, couleur: Color, sorte := "giclure", croissance := 0.0, delai := 0.0) -> MeshInstance3D:
+static func trace(n: Node, pos: Vector3, normale: Vector3, direction: Vector3, taille: float, couleur: Color, sorte := "giclure", croissance := 0.0, delai := 0.0, support: Node3D = null) -> MeshInstance3D:
 	if niveau() == 0 or n == null or not n.is_inside_tree():
 		return null
+	var t_us := Time.get_ticks_usec()
+	_imbrique += 1
+	if SangV3.actif:
+		var mi := _trace_v3(n, pos, normale, direction, taille, couleur, sorte, croissance, delai, support)
+		_compter(t_us)
+		return mi
 	var g := gestion(n)
 	var l: Array = g.get_meta("traces")
 	l = l.filter(func(x: Variant) -> bool: return is_instance_valid(x))
@@ -379,6 +432,7 @@ static func trace(n: Node, pos: Vector3, normale: Vector3, direction: Vector3, t
 	# disparition lente : la trace se résorbe (rétrécit) en quelques secondes au lieu de s'éteindre d'un coup
 	tw.tween_property(mi, "scale", mi.scale * Vector3(0.05, 1.0, 0.05), 6.0).set_ease(Tween.EASE_IN)
 	tw.tween_callback(mi.queue_free)
+	_compter(t_us)
 	return mi
 
 static func _mat_trace(sorte: String, c: Color) -> StandardMaterial3D:
@@ -395,6 +449,127 @@ static func _mat_trace(sorte: String, c: Color) -> StandardMaterial3D:
 		m.metallic_specular = 0.75   # mouillé
 		_mats[cle] = m
 	return _mats[cle]
+
+# ------------------------------------------------------------------ sang v3 : traces projetées, traversée, traînées
+
+static func _trace_v3(n: Node, pos: Vector3, normale: Vector3, direction: Vector3, taille: float, couleur: Color, sorte: String, croissance: float, delai: float, support: Node3D) -> MeshInstance3D:
+	var g := gestion(n)
+	var l: Array = g.get_meta("traces")
+	# plein : la plus ancienne trace est RECYCLÉE (même nœud, rien d'alloué ni libéré en plein combat)
+	var mi: MeshInstance3D = null
+	if l.size() >= MAX_TRACES_V3:
+		l = l.filter(func(x: Variant) -> bool: return is_instance_valid(x) and not (x as Node).is_queued_for_deletion())
+		while l.size() >= MAX_TRACES_V3:
+			var vieux: MeshInstance3D = l.pop_front()
+			if mi == null and vieux.get_parent() == g:
+				mi = vieux
+				var tw0: Variant = mi.get_meta("tween") if mi.has_meta("tween") else null
+				if tw0 is Tween and (tw0 as Tween).is_valid():
+					(tw0 as Tween).kill()
+				mi.visible = true
+				mi.scale = Vector3.ONE
+				mi.set_instance_shader_parameter("seche", 0.0)
+				mi.set_instance_shader_parameter("efface", 0.0)
+			else:
+				vieux.queue_free()
+	var y := normale.normalized() if normale.length() > 0.01 else Vector3.UP
+	var x := direction - y * direction.dot(y)
+	if x.length() < 0.05:
+		x = y.cross(Vector3.RIGHT if absf(y.x) < 0.9 else Vector3.FORWARD).rotated(y, randf() * TAU)
+	x = x.normalized()
+	var z := x.cross(y)
+	var allonge := {"trainee": 2.6, "giclure": 1.35, "coulure": 2.0}.get(sorte, 1.0) as float
+	var neige := SangV3.sur_neige(pos, y)
+	var ordre := float(l.size() % 16) * 0.0009   # traces superposées : pas de scintillement
+	# sol : le shader ps1 du sol (neige qui tient, relief) dessine la surface ~2 cm AU-DESSUS de sa collision : à 1 cm la trace
+	# était enterrée (invisible) ; murs : 1,2 cm suffisent
+	var leve := (0.035 if y.y > 0.6 else 0.012) + ordre
+	var origine := pos + y * leve
+	var xf_unite := Transform3D(Basis(x, y, z), origine)
+	var forme := sorte if sorte in ["flaque", "giclure", "trainee", "coulure", "goutte"] else "giclure"
+	var neuf := mi == null
+	if neuf:
+		mi = MeshInstance3D.new()
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# petite tache (goutte) : plan sans sonde (le relief ne se voit pas à cette taille)
+	mi.mesh = SangV3.maille_projetee(n as Node3D if n is Node3D and taille * allonge > 0.14 else null, xf_unite, taille * allonge * 0.5, taille * 0.5, leve)
+	mi.material_override = SangV3.materiau_trace(forme, randi() % 3, couleur, neige)
+	var parent: Node = support if is_instance_valid(support) and support.is_inside_tree() else g
+	if neuf:
+		parent.add_child(mi)
+		# uniformes d'instance posés APRÈS l'entrée dans l'arbre (sinon le rendu lit une valeur non initialisée : trace invisible)
+		mi.set_instance_shader_parameter("seche", 0.0)
+		mi.set_instance_shader_parameter("efface", 0.0)
+	elif parent != g:
+		mi.reparent(parent, false)
+	l.append(mi)
+	g.set_meta("traces", l)
+	mi.global_transform = Transform3D(Basis(x * taille * allonge, y, z * taille), origine)
+	if croissance > 0.0 or delai > 0.0:
+		var tw := mi.create_tween()
+		mi.set_meta("tween", tw)
+		var depart := 0.3 if croissance > 0.0 else 0.6
+		var fin := mi.scale
+		mi.scale = Vector3(depart, 1.0, depart) * fin
+		mi.visible = delai <= 0.0
+		if delai > 0.0:
+			tw.tween_interval(delai)
+			tw.tween_callback(mi.show)
+		var tr := tw.tween_property(mi, "scale", fin, croissance if croissance > 0.0 else 0.1).set_ease(Tween.EASE_OUT)
+		tr.set_trans(Tween.TRANS_QUART if croissance > 0.0 else Tween.TRANS_CUBIC)
+	# séchage par paliers (bords minces d'abord), puis la trace « boit » (le film mince part avant le cœur) : un seul nœud
+	# (SangV3.Vieillissement, deux fois par seconde, seulement tant qu'il reste des traces) au lieu d'un tween par trace
+	SangV3.vieillissement(g).ajouter(mi, SECHE_FLAQUE if sorte == "flaque" else SECHE_TRACE)
+	return mi
+
+## Arme (ou objet) qui TRAVERSE : petite giclée à l'entrée (vers l'attaquant), jet arrière fort + brume à la sortie, éclaboussures
+## sur ce qui est derrière. Squelette / bois : poussière d'os / échardes des deux côtés. `direction` = sens de l'objet.
+static func traversee(n: Node, entree: Vector3, sortie_pt: Vector3, direction: Vector3, intensite: float, couleur: Color) -> void:
+	if n == null or not n.is_inside_tree():
+		return
+	var dir := direction.normalized() if direction.length() > 0.01 else Vector3.FORWARD
+	if niveau() == 0 or matiere_de(couleur) != "sang":
+		eclats_matiere(n, entree, -dir, intensite * 0.6, couleur)
+		eclats_matiere(n, sortie_pt, dir, intensite * 1.1, couleur)
+		return
+	if not SangV3.actif:
+		giclee(n, entree, -dir, intensite * 0.5, couleur, false)
+		giclee(n, sortie_pt, dir, intensite * 1.3, couleur)
+		return
+	giclee(n, entree, (-dir + Vector3.UP * 0.2).normalized(), intensite * 0.45, couleur, false, "entree")
+	giclee(n, sortie_pt, dir, intensite * 1.4, couleur, true, "sortie")
+
+## Plaie de sortie seule (point de sortie, sens de l'objet) : jet arrière fort, brume rouge fine, éclaboussures derrière.
+static func sortie(n: Node, point: Vector3, direction: Vector3, intensite: float, couleur: Color) -> void:
+	giclee(n, point, direction, intensite * 1.4, couleur, true, "sortie")
+
+## Traînée d'un corps qui glisse ou est projeté (ragdoll : suit le bassin) pendant `duree` s.
+static func trainee_corps(corps: Node3D, couleur: Color, duree := 3.0) -> Node:
+	if niveau() == 0 or corps == null or not corps.is_inside_tree() or not SangV3.actif or matiere_de(couleur) != "sang":
+		return null
+	return SangV3.trainee_corps(corps, couleur, duree)
+
+## Blessé qui goutte : pendant `duree` s, des gouttes tombent du point (relatif au nœud, qui peut bouger) et tachent le sol.
+static func saigner(n: Node3D, point: Vector3, couleur: Color, duree := 6.0) -> void:
+	if niveau() == 0 or n == null or not n.is_inside_tree() or not SangV3.actif or matiere_de(couleur) != "sang":
+		return
+	var maintenant := Time.get_ticks_msec() / 1000.0
+	if float(n.get_meta("sang_saigne_jusqu_a", 0.0)) > maintenant:
+		return   # déjà en train de goutter : pas de deuxième file de gouttes
+	n.set_meta("sang_saigne_jusqu_a", maintenant + duree)
+	var local := n.global_transform.affine_inverse() * point
+	var nref: WeakRef = weakref(n)
+	var tw := n.create_tween()
+	var t := 0.0
+	var pal := SangV3.palette(couleur)
+	while t < duree:
+		var pas := randf_range(0.35, 0.8)
+		t += pas
+		tw.tween_interval(pas)
+		tw.tween_callback(func() -> void:
+			var o: Node3D = nref.get_ref()
+			if o != null and o.is_inside_tree():
+				GouttesSang.lacher(o, o.global_transform * local + Vector3(randf_range(-0.04, 0.04), 0, randf_range(-0.04, 0.04)), pal["vol"], Vector3.ZERO, randf() < 0.5))
 
 # ------------------------------------------------------------------ textures (peintes par code, texels nets, jamais de tramage)
 

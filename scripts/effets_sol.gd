@@ -338,6 +338,7 @@ static func pas(j: Node3D, vitesse: Vector2, gauche: bool, court: bool) -> void:
 
 ## Une empreinte de botte (appelée par le joueur tous les ~0,7 m de marche, indépendamment du rythme des sons).
 static func empreinte_pas(j: Node3D, vitesse: Vector2, gauche: bool, court: bool) -> void:
+	Liquides.pas(j, vitesse, gauche)      # semelle mouillée : empreintes de sang / de liquide (docs/LIQUIDES.md)
 	if not actif or j == null:
 		return
 	var p := j.global_position

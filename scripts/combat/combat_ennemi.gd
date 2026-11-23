@@ -299,6 +299,9 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 			SangLame.coup(p.sang * part_sang, profil.couleur_sang)
 		if not bool(i.get("continu", false)):
 			Sang.tacher_voisins(corps, point, dir, p.sang * part_sang, profil.couleur_sang)
+			# sang v3 : blessé grave (< 35 % de vie) : il goutte quelques secondes sous la plaie
+			if float(corps.get("vie") if corps.get("vie") != null else 1.0) < 0.35 * float(corps.get("vie_max") if corps.get("vie_max") != null else 1.0):
+				Sang.saigner(corps, point, profil.couleur_sang, 4.0)
 	else:
 		Sang.eclats_matiere(corps, point, dir, p.sang * 0.8, profil.couleur_sang if not profil.sang else Color(0.45, 0.42, 0.38))
 	var magie := i.has("ecole")
@@ -307,7 +310,8 @@ func effets_impact(r: Dictionary, joueur: Node) -> void:
 	var mat_g := matiere_gerbe()
 	if not magie and not bool(i.get("continu", false)):
 		if mat_g in ["draugr", "sang", "chair"]:   # (os, bois, poussière : déjà par Sang.eclats_matiere ci-dessus)
-			GerbePixels.emettre(corps, point, dir_g, mat_g, GerbePixels.force_de(p.nom) * (0.7 if mat_g == "sang" else 1.0))
+			# sang v3 : la giclée porte le sang ; les gros pixels de chair vive ne font plus qu'accompagner (plus de gros carrés rouges)
+			GerbePixels.emettre(corps, point, dir_g, mat_g, GerbePixels.force_de(p.nom) * (0.7 if mat_g == "sang" else 1.0) * (0.4 if SangV3.actif and mat_g == "sang" else 1.0))
 		# os qui volent : coups forts sur un squelette ou un draugr
 		if mat_g in ["os", "draugr"] and p.nom in ["lourd", "critique", "finisher"]:
 			var n_os := {"lourd": 3, "critique": 4, "finisher": 6}
@@ -402,6 +406,9 @@ func effets_mort(r: Dictionary, sorte: String, joueur: Node) -> void:
 			if c != null and c.is_inside_tree():
 				var pos := bassin.global_position if bassin != null else c.global_position
 				Sang.flaque(c, pos, couleur, randf_range(0.9, 1.3) * (1.25 if gros else 1.0), 5.0))
+		# sang v3 : le corps projeté laisse une traînée en glissant (rien s'il retombe sur place)
+		if gros:
+			Sang.trainee_corps(corps, profil.couleur_sang, 3.0)
 	else:
 		Sang.eclats_matiere(corps, point, dir, p.sang * 1.4, profil.couleur_sang if not profil.sang else Color(0.45, 0.42, 0.38))
 	# mort : le squelette éclate en os (pixels + morceaux qui rebondissent) ; draugr achevé fort : quelques esquilles
