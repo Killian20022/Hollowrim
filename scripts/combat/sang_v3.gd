@@ -239,8 +239,15 @@ static func _traces(n: Node, point: Vector3, dir: Vector3, k: float, c: Color, n
 		var sup: Node3D = r["collider"] if r["collider"] is RigidBody3D else null   # prop mobile : la tache le suit
 		Sang.trace(n, r["position"], nrm, d, t, c, "giclure", 0.0, 0.05 + dist / 7.0, sup)
 		poses += 1
-		# mur : un filet coule sous la giclure
-		if absf(nrm.y) < 0.5 and niv == 2 and randf() < 0.5:
+		# mur : un filet coule sous la giclure (Liquides : vraie coulure qui descend le mur, se dépose et finit au sol)
+		if absf(nrm.y) < 0.5 and Liquides.actif and sup == null:
+			var l := Liquides.obtenir(n)
+			if l != null:
+				var ml := clampf(1.5 + k * 1.6, 1.5, 6.0) * (1.4 if sortie else 1.0)
+				l.get_tree().create_timer(0.05 + dist / 7.0).timeout.connect(func() -> void:
+					if is_instance_valid(l):
+						l.coulure(l, r["position"] as Vector3 + (Vector3.DOWN - nrm * Vector3.DOWN.dot(nrm)).normalized() * t * 0.2, nrm, Liquides.sang_de(c), ml, c))
+		elif absf(nrm.y) < 0.5 and niv == 2 and randf() < 0.5:
 			var bas := (Vector3.DOWN - nrm * Vector3.DOWN.dot(nrm)).normalized()
 			Sang.trace(n, r["position"] + bas * t * 0.35, nrm, bas, t * 0.55, c, "coulure", 3.5, 0.4 + dist / 7.0, sup)
 	# au pied : une giclure dans le sens du coup
@@ -551,16 +558,19 @@ class Vieillissement extends Node:
 	var _acc := 0.0
 	var _par := {}
 
-	func ajouter(mi: MeshInstance3D, seche: float) -> void:
+	## `vie` : âge (s) où l'effacement commence (défaut Sang.DUREE_TRACE ; liquides : selon la sorte et la surface).
+	func ajouter(mi: MeshInstance3D, seche: float, vie := -1.0) -> void:
 		var e: Variant = _par.get(mi.get_instance_id())
+		var v := vie if vie > 0.0 else Sang.DUREE_TRACE
 		if e != null and is_instance_valid((e as Array)[0]):
 			# trace recyclée : son âge repart de zéro
 			(e as Array)[1] = horloge
 			(e as Array)[2] = seche
 			(e as Array)[3] = 0
 			(e as Array)[4] = 0
+			(e as Array)[5] = v
 		else:
-			e = [mi, horloge, seche, 0, 0]
+			e = [mi, horloge, seche, 0, 0, v]
 			traces.append(e)
 			_par[mi.get_instance_id()] = e
 		set_process(true)
@@ -584,8 +594,8 @@ class Vieillissement extends Node:
 			if es != int(e[3]):
 				mi.set_instance_shader_parameter("seche", es / 6.0)
 				e[3] = es
-			if age > Sang.DUREE_TRACE:
-				var ee := clampi(int(age - Sang.DUREE_TRACE) + 1, 1, 7)
+			if age > float(e[5]):
+				var ee := clampi(int(age - float(e[5])) + 1, 1, 7)
 				if ee >= 7:
 					_par.erase(mi.get_instance_id())
 					mi.queue_free()

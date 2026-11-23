@@ -346,6 +346,12 @@ static func flaque(n: Node3D, pos: Vector3, couleur: Color, taille := 0.9, crois
 	if r.is_empty():
 		return null
 	var t := taille if niveau() == 2 else taille * 0.45
+	if Liquides.actif and (r["normal"] as Vector3).y < Liquides.PLAT:
+		# pente, marche : pas de flaque qui tient ; le sang coule vers le bas (Liquides)
+		var l := Liquides.obtenir(n)
+		if l != null:
+			l.coulure(n, r["position"], r["normal"], Liquides.sang_de(couleur), 40.0 * t, SangV3.couleur(couleur) if SangV3.actif else couleur)
+		return null
 	if SangV3.actif:
 		# v3 : la flaque s'étale LENTEMENT (le sang s'écoule du corps pendant ~20 s), un peu plus large
 		return trace(n, r["position"], r["normal"], Vector3.ZERO, t * 1.25, couleur, "flaque", maxf(croissance * 2.4, 12.0))
