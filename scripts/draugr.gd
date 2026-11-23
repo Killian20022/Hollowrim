@@ -1365,6 +1365,9 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, in
 		_attend = false
 		_changer(TRAQUE)
 	var reaction := String(r["reaction"])
+	# objet lourd lancé (ImpactsLances : tonneau…) : renversé, quelle que soit la zone touchée (pas les chefs)
+	if bool(info.get("renverser", false)) and boss == "" and reaction in ["leger", "moyen", "lourd", "recul"]:
+		reaction = "chute"
 	if reaction == "etourdi" and combat.etourdi <= 0.0:
 		combat.briser_posture()
 		if etat in [APPEL, ANNONCE, SOUFFLE]:
@@ -1380,7 +1383,7 @@ func recevoir_coup(quantite: float, origine_coup: Vector3, puissant := false, in
 		# avant d'être « engagé » (ENGAGEMENT = part de la préparation) ; un coup léger ne relance pas un titubement en cours et, juste après, ne le fait plus tituber (pas de verrou)
 		if _armure > 0.0 or etat == TITUBE or (etat == ATTAQUE and (_lourd or _t >= _duree(_attaque) / _rythme * _f_coup(_attaque) * ENGAGEMENT)):
 			return "touche"
-	var recul := -vers.normalized() / maxf(combat.profil.poids, 0.3)
+	var recul := -vers.normalized() / maxf(combat.profil.poids, 0.3) * float(info.get("recul_mult", 1.0))
 	match reaction:
 		"chute":
 			_chuter(recul * 2.5)

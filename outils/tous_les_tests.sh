@@ -131,6 +131,7 @@ TESTS=(
 	"test_mage_bot|--n=2 --nouvelle"   # banc « bot MAGE » (2026-11-05, docs/MAGIE.md « Équilibrage ») : feu / glace / électricité / ténèbres, simple et double, contre 1 puis 2 draugrs, seuils
 	"test_menace_bot|--nouvelle"   # banc « bot » de la menace des ennemis courants (2026-11-05) : spam / garde / parade / esquive contre 1 puis 2 draugrs, seuils
 	"test_demembrement|--nouvelle"   # démembrement (draugr, bandit) : choix du membre selon le coup, morceaux, moignons, jets, pool, option
+	"test_impacts_lances|--nouvelle"   # objets lancés (télékinésie) : épée plantée / qui traverse et se fiche au mur / rebond du plat, tonneau qui renverse, cadavre qui garde l'arme (ImpactsLances)
 	"test_sang_v2|--nouvelle"   # sang v2 : sang sur la lame (accumulation, séchage, effacement), giclée qui tache un voisin, entailles qui coulent et gouttent
 	"test_menu_titre|--nouvelle"   # menu principal : Continuer grisé sans sauvegarde valide, parcours au clavier, mise en page
 	"test_sortie|--nouvelle"   # sortie Hollowrim : migration, copie de secours, options (dossiers temporaires)
