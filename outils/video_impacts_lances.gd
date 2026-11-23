@@ -19,7 +19,7 @@ var ralenti := true
 var vues := false
 
 func _vue(nom: String) -> bool:
-	return nom.ends_with("_profil") or nom.ends_with("_face") or nom.ends_with("_cote") or nom.ends_with("_dessus")
+	return nom.ends_with("_cote") and nom.begins_with("cloue") or nom.ends_with("_profil") or nom.ends_with("_face") or nom.ends_with("_cote") or nom.ends_with("_dessus")
 var _n := 0
 var _cam_de := Transform3D.IDENTITY
 var _cam_vers := Transform3D.IDENTITY
@@ -208,6 +208,8 @@ func _go() -> void:
 				await _plan_tonneau()
 			"squelette":
 				await _plan_squelette()
+			"cloue":
+				await _plan_cloue()
 	_temps(1.0)
 	quit(0)
 
@@ -304,6 +306,38 @@ func _plan_tonneau() -> void:
 	var o := await _jeter(t, b.global_position + Vector3(0, 1.15, 0), 13.0, 0.35, 0.1, 1.4)
 	await _attendre(2.2)
 	await _nettoyer([b, o])
+
+## Lumière de tournage (film seulement) : douce, chaude, près de la caméra, pour lire le corps cloué.
+func _tournage() -> void:
+	var l := OmniLight3D.new()
+	l.name = "LumiereTournage"
+	l.light_color = Color(1.0, 0.86, 0.7)
+	l.light_energy = 2.4
+	l.omni_range = 6.5
+	l.shadow_enabled = false
+	s.add_child(l)
+	l.global_position = Vector3(-0.6, 2.4, -4.4)
+	s.env.ambient_light_energy = 1.0
+
+## « Brochette » : un draugr tué net, traversé et cloué au mur du fond par l'épée.
+func _plan_cloue() -> void:
+	_tournage()
+	var d := _ennemi("guerrier", Vector3(0.35, 0, -6.15), 15.0)
+	_camera(Vector3(-0.5, 1.6, -3.4), Vector3(0.3, 1.25, -6.4))
+	await _attendre(0.8)
+	var o := await _jeter("epee_soldat", d.global_position + Vector3(0, 1.3, 0), 20.0, 0.25, 0.08, 1.4)
+	await _attendre(1.2)
+	_travelling(Vector3(-0.75, 1.4, -5.1), d.global_position + Vector3(0.0, 1.1, -0.5), 2.0)
+	await _attendre(2.6)
+	await _capture("cloue_proche")
+	if vues:
+		Engine.time_scale = 0.0
+		var ab := ImpactsLances.axe_monde(o, o.donnees_arme())
+		var garde: Vector3 = ab[0]
+		_camera(garde + Vector3(1.0, 0.1, 0.35), garde + Vector3(0, -0.1, -0.35))
+		await _capture("cloue_cote")
+		Engine.time_scale = 1.0
+	print("cloue : ", ImpactsLances.dernier.get("issue", "?"))
 
 func _plan_squelette() -> void:
 	var q := _ennemi("squelette", Vector3(0.1, 0, -2.9), 10.0)
