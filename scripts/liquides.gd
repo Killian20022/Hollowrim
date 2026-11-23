@@ -48,15 +48,15 @@ const SORTES := {
 		"visc": 5.0, "film": 3.5, "absorbe": 0.3, "seche": 50.0, "vie": 150.0, "brille": 0.65, "opaque": true, "sang": "troll"},
 	"sang_araignee": {"frais": Color(0.20, 0.24, 0.06), "sec": Color(0.11, 0.12, 0.045), "vol": Color(0.24, 0.28, 0.07), "halo": Color(0.48, 0.52, 0.30),
 		"visc": 3.0, "film": 3.0, "absorbe": 0.35, "seche": 40.0, "vie": 150.0, "brille": 0.7, "opaque": true, "sang": "araignee"},
-	"eau": {"frais": Color(0.66, 0.69, 0.74), "sec": Color(0.88, 0.9, 0.92), "vol": Color(0.42, 0.47, 0.53), "halo": Color(0.78, 0.82, 0.88),
+	"eau": {"frais": Color(0.66, 0.69, 0.74), "sec": Color(0.88, 0.9, 0.92), "vol": Color(0.56, 0.62, 0.68), "halo": Color(0.78, 0.82, 0.88),
 		"visc": 1.0, "film": 2.0, "absorbe": 1.0, "seche": 22.0, "vie": 45.0, "brille": 1.0, "opaque": false},
 	"saumure": {"frais": Color(0.68, 0.7, 0.64), "sec": Color(0.86, 0.87, 0.82), "vol": Color(0.42, 0.45, 0.4), "halo": Color(0.8, 0.82, 0.76),
 		"visc": 1.1, "film": 2.0, "absorbe": 0.9, "seche": 30.0, "vie": 60.0, "brille": 0.9, "opaque": false},
-	"biere": {"frais": Color(0.9, 0.74, 0.48), "sec": Color(0.9, 0.82, 0.68), "vol": Color(0.4, 0.24, 0.07), "halo": Color(0.86, 0.74, 0.5),
+	"biere": {"frais": Color(0.9, 0.74, 0.48), "sec": Color(0.9, 0.82, 0.68), "vol": Color(0.29, 0.22, 0.12), "halo": Color(0.86, 0.74, 0.5),
 		"visc": 1.2, "film": 2.2, "absorbe": 0.9, "seche": 35.0, "vie": 75.0, "brille": 0.9, "opaque": false},
-	"hydromel": {"frais": Color(0.86, 0.66, 0.34), "sec": Color(0.78, 0.62, 0.38), "vol": Color(0.46, 0.27, 0.05), "halo": Color(0.86, 0.7, 0.4),
+	"hydromel": {"frais": Color(0.86, 0.66, 0.34), "sec": Color(0.78, 0.62, 0.38), "vol": Color(0.38, 0.25, 0.08), "halo": Color(0.86, 0.7, 0.4),
 		"visc": 3.0, "film": 3.0, "absorbe": 0.55, "seche": 90.0, "vie": 140.0, "brille": 1.0, "opaque": false},
-	"vin": {"frais": Color(0.66, 0.3, 0.34), "sec": Color(0.68, 0.44, 0.48), "vol": Color(0.22, 0.02, 0.05), "halo": Color(0.7, 0.42, 0.48),
+	"vin": {"frais": Color(0.66, 0.3, 0.34), "sec": Color(0.68, 0.44, 0.48), "vol": Color(0.16, 0.015, 0.035), "halo": Color(0.7, 0.42, 0.48),
 		"visc": 1.1, "film": 2.0, "absorbe": 0.85, "seche": 40.0, "vie": 120.0, "brille": 0.9, "opaque": false},
 	"huile": {"frais": Color(0.66, 0.56, 0.32), "sec": Color(0.68, 0.6, 0.4), "vol": Color(0.4, 0.32, 0.1), "halo": Color(0.8, 0.72, 0.5),
 		"visc": 7.0, "film": 2.5, "absorbe": 0.35, "seche": 400.0, "vie": 220.0, "brille": 1.1, "opaque": false},
@@ -814,7 +814,7 @@ static func verser_contenant(n: Node, centre: Vector3, vitesse: Vector3, nom_: S
 	s.duree = clampf(0.5 + litres * 0.06, 0.5, 2.2)
 	# gerbe : 40 % du contenu d'un coup, des gouttes plus ou moins grosses dans toutes les directions horizontales, un peu vers le haut
 	var libres := GouttesSang._max() - GouttesSang.en_vol()
-	var nb := clampi(mini(int(8 + litres * 1.2), int(libres * 0.6)), 4, 34)
+	var nb := clampi(mini(int(14 + litres * 1.6), int(libres * 0.6)), 4, 56)
 	var gerbe := litres * 0.4
 	for k in nb:
 		var a := randf() * TAU
@@ -845,7 +845,7 @@ class Source extends RefCounted:
 			return false
 		var k := 1.0 - t / duree
 		var debit := reste * clampf(dt / maxf(duree - t, dt) * 1.3, 0.0, 1.0)
-		var nb := 3 if k > 0.4 else (2 if k > 0.15 else 1)
+		var nb := 5 if k > 0.6 else (3 if k > 0.3 else (2 if k > 0.12 else 1))
 		# pool presque plein (plusieurs contenants à la fois) : moins de gouttes, plus grosses (le volume versé ne change pas)
 		if GouttesSang.en_vol() > GouttesSang._max() * 0.7:
 			nb = 1
@@ -966,6 +966,8 @@ static func materiau(nom_: String, surf: String, forme: int, masque: Texture2D =
 		fr = fr.darkened(0.12) if opaque else fr.lerp(Color.WHITE, 0.25)
 	elif bu > 0.2 and opaque:
 		fr = fr.darkened(0.06 * bu)
+	if not opaque and forme != 1:
+		fr = fr.lerp(Color.WHITE, 0.4)      # tache / filet d'un liquide clair : film mince, le support mouillé reste lisible
 	m.set_shader_parameter("frais", fr)
 	m.set_shader_parameter("sec", se)
 	m.set_shader_parameter("halo", so["halo"])
@@ -973,6 +975,19 @@ static func materiau(nom_: String, surf: String, forme: int, masque: Texture2D =
 	m.set_shader_parameter("brille", float(so["brille"]) * float(su["brille"]) * (1.0 - bu * 0.6))
 	m.set_shader_parameter("lueur", float(so.get("lueur", 0.0)))
 	m.render_priority = -1
+	if not opaque and not neige:
+		# deuxième passe : reflet humide ADDITIF (albédo noir, seul le spéculaire des torches et des rais s'ajoute)
+		if not _shaders.has("reflet"):
+			var shr := Shader.new()
+			shr.code = "#define REFLET\n" + CODE
+			_shaders["reflet"] = shr
+		var r := ShaderMaterial.new()
+		r.shader = _shaders["reflet"]
+		for k: String in ["forme", "masque", "bruit", "frais", "sec", "halo", "neige", "brille", "lueur"]:
+			r.set_shader_parameter(k, m.get_shader_parameter(k))
+		r.set_shader_parameter("brille", clampf(float(so["brille"]) * (0.5 + 0.5 * float(su["brille"])) * (1.0 - bu * 0.35), 0.0, 1.2))
+		r.render_priority = 0
+		m.next_pass = r
 	_mats[cle] = m
 	return m
 
@@ -998,7 +1013,9 @@ static func bruit() -> ImageTexture:
 	return _bruit
 
 const CODE := """shader_type spatial;
-#ifdef MUL
+#ifdef REFLET
+render_mode blend_add, depth_draw_never, cull_disabled, diffuse_burley, specular_schlick_ggx, fog_disabled;
+#elif defined(MUL)
 render_mode blend_mul, unshaded, depth_draw_never, cull_disabled, fog_disabled;
 #else
 render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_lambert, specular_schlick_ggx;
@@ -1017,6 +1034,13 @@ instance uniform float efface = 0.0;
 instance uniform float etendue = 1.0;
 instance uniform float texels = 32.0;
 instance uniform float allonge = 1.0;
+#ifdef REFLET
+varying float v_reflet;
+uniform sampler2D ecran : hint_screen_texture, filter_linear_mipmap, repeat_disable;
+float n2_reflet(vec2 uv) {
+	return texture(bruit, uv * 0.9 + vec2(0.31, 0.77)).r;
+}
+#endif
 void fragment() {
 	float ep;
 	float garde;
@@ -1060,9 +1084,35 @@ void fragment() {
 	float s = step(ep * 0.85 + 0.1, seche);
 	vec3 c = mix(frais, sec, s);
 	float mouille = (1.0 - s) * (1.0 - lisere);
-#ifdef MUL
+#ifdef REFLET
+	// film d'eau : rien que le reflet des lumières (albédo noir en addition) ; surface lisse, petits éclats nets du bruit
+	// rien que le reflet : albédo noir (addition), éclat des lumières calculé dans light() (lobe large : la torche se reflète
+	// sur une bonne part de la flaque, pas en un point) ; plus le reflet de ce qui est derrière
+	float b = clamp(brille, 0.0, 1.2) * mouille * mix(0.55, 1.0, ep);
+	v_reflet = b * (forme == 1 ? 0.65 : 0.15);      // flaque : vrai miroir ; tache, filet : film mince, à peine un éclat
+	ALBEDO = vec3(0.0);
+	ROUGHNESS = 1.0;
+	SPECULAR = 0.0;
+	METALLIC = 0.0;
+	// reflet de ce qui est derrière la flaque : un sol mouillé renvoie l'image du mur, de la torche, d'un rai de lumière, plus haut à
+	// l'écran ; lu dans l'écran décalé vers le haut (miroir plan approché), par blocs de 4 pixels et flou (stable, sans scintillement)
+	vec3 V = normalize(VERTEX);
+	float nv = clamp(dot(-V, NORMAL), 0.0, 1.0);
+	float fres = 0.12 + 0.88 * pow(1.0 - nv, 3.0);
+	vec2 px = 4.0 / VIEWPORT_SIZE;
+	vec2 uh = SCREEN_UV - vec2(0.0, 0.1 + 0.55 * (1.0 - nv)) + (vec2(n, n2_reflet(UV)) - 0.5) * 0.01;
+	uh = (floor(uh / px) + 0.5) * px;
+	vec3 refl = vec3(0.0);
+	if (uh.y > 0.0) {
+		refl = textureLod(ecran, uh, 2.0).rgb * smoothstep(0.0, 0.08, uh.y);
+	}
+	EMISSION = refl * fres * b * mix(vec3(1.0), frais, 0.4) * (forme == 1 ? 1.3 : 0.2);
+	EMISSION += vec3(step(0.9, n) * 0.035 * b);
+#elif defined(MUL)
 	// teinte multipliée : film mince plus léger ; quelques texels de reflet sur une surface dure (éclat de la flaque)
-	c = mix(c, vec3(1.0), (1.0 - ep) * 0.3);
+	// les couleurs (source_color) arrivent en linéaire : la teinte multipliée est reprise en gamma (sinon la bière noircit le sol)
+	c = sqrt(c);
+	c = mix(c, vec3(1.0), (1.0 - ep) * 0.15 + (forme == 1 ? 0.35 : 0.0));      // film mince plus léger ; flaque : le reflet fait le reste
 	c = mix(c, halo, lisere);
 	c *= 1.0 + step(0.8, n) * 0.9 * clamp(brille + 0.25, 0.0, 1.2) * mouille;
 	ALBEDO = c;
@@ -1076,4 +1126,11 @@ void fragment() {
 	EMISSION = c * lueur * (1.0 - s);
 #endif
 }
+#ifdef REFLET
+void light() {
+	vec3 H = normalize(VIEW + LIGHT);
+	float sp = pow(max(dot(NORMAL, H), 0.0), 18.0) + 0.35 * pow(max(dot(NORMAL, H), 0.0), 4.0);
+	SPECULAR_LIGHT += sp * ATTENUATION * LIGHT_COLOR * v_reflet * 0.9;
+}
+#endif
 """
