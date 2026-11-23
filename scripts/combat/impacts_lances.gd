@@ -204,6 +204,17 @@ static func _arme_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3,
 	if traverse:
 		degats *= MULT_TRAVERSEE
 	var hache := _hache(arme)
+	# le contact arrive sur la capsule de l'ennemi (0,38 m de rayon) : le vrai point d'entrée est sur le corps, le long du vol
+	var vc := visee_corps(ennemi, point, dir)
+	if bool(vc["frole"]):
+		# la lame passe à côté du corps (contact sur le bord de la capsule) : elle continue son vol
+		if ennemi is PhysicsBody3D:
+			objet.add_collision_exception_with(ennemi)
+		objet.linear_velocity = dir * v
+		suivre(objet, lanceur, 2.0).ignorer(ennemi)
+		dernier = {"issue": "frole", "degats": 0.0, "resultat": "", "energie": e, "ennemi": ennemi}
+		return
+	point = vc["entree"]
 	var info := {"type": "tranchant", "point": point, "direction": dir, "normale": normale if normale.length() > 0.1 else -dir,
 		"zone": DegatsCombat.zone(ennemi, point), "attaque": "lourde", "arme_lancee": arme.id, "lancer": true,
 		"stagger": 14.0 + 0.6 * masse * v, "collider": ennemi, "affaibli": false, "charge": 0.0, "instant": 0.0}
@@ -222,25 +233,18 @@ static func _arme_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3,
 	elif _saigne(p):
 		RetourImpact.son(ennemi, "dechirure", point, -3.0)
 	if traverse:
-		_traverser(objet, ennemi, point, dir, v, masse, e, seuil, p, lanceur)
+		_traverser(objet, ennemi, point, dir, v, masse, e, seuil, p, lanceur, vc)
 	else:
-		planter_corps(objet, ennemi, point, dir, v, p, false)
+		planter_corps(objet, ennemi, point, dir, v, p, false, true, vc)
 
 ## Arme fichée dans un corps : accrochée à l'os le plus proche (Plaies : BoneAttachment3D qui suit animation et ragdoll) par un
 ## RemoteTransform3D (l'arme reste dans le monde : si le cadavre est retiré, elle tombe au sol au lieu de disparaître avec lui).
-static func planter_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3, dir: Vector3, v: float, p: ProfilCible, cadavre: bool, reseau := true) -> void:
-	var modele := _modele(ennemi)
-	var sq := modele.find_child("Skeleton3D", true, false) as Skeleton3D if modele != null else null
-	var accroche: Node3D = modele
-	var os := ""
-	if sq != null:
-		Plaies.preparer(modele)
-		var a := accroche_os(modele, point)
-		if a != null:
-			accroche = a
-			os = a.bone_name
-	if accroche == null:
-		accroche = ennemi
+static func planter_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3, dir: Vector3, v: float, p: ProfilCible, cadavre: bool, reseau := true, vc := {}) -> void:
+	if vc.is_empty():
+		vc = visee_corps(ennemi, point, dir)
+		point = vc["entree"]
+	var accroche: Node3D = vc.get("accroche") if vc.get("accroche") != null else ennemi
+	var os := String(vc.get("os", ""))
 	var d: DonneesArme = objet.donnees_arme() if objet.has_method("donnees_arme") else null
 	var ab := axe_monde(objet, d)
 	var axe: Vector3 = (Vector3(ab[1]) - Vector3(ab[0])).normalized()
@@ -248,14 +252,9 @@ static func planter_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3, di
 	# orientation : la lame se redresse vers la trajectoire (60 %), comme une lame qui entre droit
 	var nouvel := axe.slerp(dir, 0.6).normalized()
 	var b := Basis(Quaternion(axe, nouvel)) * objet.global_basis
-	# profondeur : la pointe dépasse un peu l'axe de l'os touché (elle est DANS le corps), la garde reste dehors
-	var prof := 0.18
-	if accroche is BoneAttachment3D:
-		var o := accroche.global_position
-		var bout := o + accroche.global_basis.y.normalized() * float(Plaies.LONGUEUR.get(os, 0.26))
-		var c := _plus_proche_segment(o, bout, point, dir)
-		prof = (c - point).dot(dir) + clampf(0.05 + 0.08 * v / 20.0, 0.05, 0.14)
-	prof = clampf(prof, 0.1, longueur * 0.7)
+	# profondeur : la pointe passe juste au-delà de l'axe de l'os touché (elle est DANS le corps, sans ressortir), la garde reste dehors
+	var prof := float(vc.get("vers_axe", 0.14)) + clampf(0.03 + 0.05 * v / 20.0, 0.03, 0.08)
+	prof = clampf(prof, 0.08, minf(longueur * 0.6, float(vc.get("vers_axe", 0.14)) + float(vc.get("rayon", 0.15)) * 0.8))
 	var pointe_loc := objet.global_transform.affine_inverse() * Vector3(ab[1])
 	var xf := Transform3D(b, Vector3.ZERO)
 	xf.origin = point + dir * prof - b * pointe_loc
@@ -286,6 +285,52 @@ static func planter_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3, di
 	if reseau and CombatCoop.en_ligne() and ennemi.get("ident") != null:
 		var local := accroche.global_transform.affine_inverse() * xf
 		CombatCoop.R().envoyer_evenement(EV_PLANTE, CombatCoop.id_de(ennemi), {"os": os, "xf": _xf_vers(local), "arme": d.id if d else "", "sang": sang})
+
+## Demi-épaisseur du corps autour de chaque os (m) : où la lame entre / ressort.
+const RAYONS_OS := {"Head": 0.11, "neck_01": 0.07, "spine_03": 0.15, "spine_02": 0.14, "spine_01": 0.14, "pelvis": 0.15,
+	"upperarm_l": 0.06, "upperarm_r": 0.06, "lowerarm_l": 0.05, "lowerarm_r": 0.05, "thigh_l": 0.08, "thigh_r": 0.08, "calf_l": 0.06, "calf_r": 0.06}
+
+## Trajet d'une lame dans le corps : le vol (point de contact sur la capsule, direction) croise l'os le plus proche (tronc préféré
+## aux membres) → {accroche, os, entree (sur la peau), vers_axe (m de l'entrée à l'axe de l'os), rayon, sortie (peau opposée),
+## frole (le vol passe à côté du corps)}. Sans squelette : un cylindre de 0,15 m autour de l'axe vertical de l'ennemi.
+static func visee_corps(ennemi: Node3D, point: Vector3, dir: Vector3) -> Dictionary:
+	var modele := _modele(ennemi)
+	var sq := modele.find_child("Skeleton3D", true, false) as Skeleton3D if modele != null else null
+	if sq != null:
+		Plaies.preparer(modele)
+	var echelle := 1.0
+	if ennemi.get("echelle") != null:
+		echelle = maxf(float(ennemi.get("echelle")), 0.3)
+	var meilleur: Node3D = null
+	var best := {}
+	var dmin := INF
+	if modele != null and modele.has_meta("plaies_accroches"):
+		for a: BoneAttachment3D in modele.get_meta("plaies_accroches"):
+			if not is_instance_valid(a):
+				continue
+			var o := a.global_position
+			var c := _plus_proche_segment(o, o + a.global_basis.y.normalized() * float(Plaies.LONGUEUR.get(a.bone_name, 0.26)) * echelle, point, dir)
+			var t := (c - point).dot(dir)
+			var q := point + dir * t
+			var dp := c.distance_to(q)
+			var r := float(RAYONS_OS.get(a.bone_name, 0.08)) * echelle
+			var score := (dp - r) * (1.6 if a.bone_name in OS_MEMBRES else 1.0)
+			if t > -0.1 and score < dmin:
+				dmin = score
+				meilleur = a
+				best = {"t": t, "dp": dp, "r": r, "os": a.bone_name}
+	if meilleur == null:
+		var axe_o := ennemi.global_position
+		var c2 := _plus_proche_segment(axe_o, axe_o + Vector3.UP * 1.8 * echelle, point, dir)
+		var t2 := (c2 - point).dot(dir)
+		best = {"t": t2, "dp": c2.distance_to(point + dir * t2), "r": 0.15 * echelle, "os": ""}
+	var r: float = best["r"]
+	var dp: float = best["dp"]
+	var demi := sqrt(maxf(r * r - dp * dp, r * r * 0.15))
+	var t: float = maxf(float(best["t"]), 0.0)
+	var entree := point + dir * maxf(t - demi, 0.0)
+	return {"accroche": meilleur, "os": String(best["os"]), "entree": entree, "vers_axe": t - maxf(t - demi, 0.0), "rayon": r,
+		"sortie": point + dir * (t + demi), "frole": dp > r + 0.14 * echelle}
 
 ## Os (accroche de Plaies, suit animation et ragdoll) qui porte une arme fichée en `point` : le plus proche, le tronc préféré aux
 ## membres (un bras qui passe devant le torse ne doit pas emporter la lame plantée dans la poitrine).
@@ -320,17 +365,11 @@ static func _plus_proche_segment(a: Vector3, b: Vector3, p: Vector3, dir: Vector
 
 ## Traversée : sang de sortie (giclée dans le sens du vol, plaie, gouttes), l'arme repart de l'autre côté avec la vitesse restante,
 ## nez dans le vol (SuiviLancer.stabiliser), et se fiche dans ce qu'elle rencontre ensuite.
-static func _traverser(objet: RigidBody3D, ennemi: Node3D, point: Vector3, dir: Vector3, v: float, masse: float, e: float, seuil: float, p: ProfilCible, lanceur: Node) -> void:
+static func _traverser(objet: RigidBody3D, ennemi: Node3D, point: Vector3, dir: Vector3, v: float, masse: float, e: float, seuil: float, p: ProfilCible, lanceur: Node, vc := {}) -> void:
 	var modele := _modele(ennemi)
-	var sortie := point + dir * 0.42
-	var sq := modele.find_child("Skeleton3D", true, false) as Skeleton3D if modele != null else null
-	if sq != null:
-		Plaies.preparer(modele)
-		var a := accroche_os(modele, point)
-		if a != null:
-			var o := a.global_position
-			var c := _plus_proche_segment(o, o + a.global_basis.y.normalized() * float(Plaies.LONGUEUR.get(a.bone_name, 0.26)), point, dir)
-			sortie = point + dir * clampf((c - point).dot(dir) + 0.17, 0.25, 0.6)
+	if vc.is_empty():
+		vc = visee_corps(ennemi, point, dir)
+	var sortie: Vector3 = vc["sortie"]
 	var couleur := _couleur(p)
 	if _saigne(p):
 		Sang.giclee(ennemi, sortie, (dir + Vector3.UP * 0.08).normalized(), 3.2, couleur)
@@ -371,6 +410,7 @@ static func _traverser(objet: RigidBody3D, ennemi: Node3D, point: Vector3, dir: 
 static func _arme_rebond(objet: RigidBody3D, ennemi: Node3D, point: Vector3, normale: Vector3, dir: Vector3, v: float, masse: float, arme: DonneesArme, lanceur: Node) -> void:
 	var e := 0.5 * masse * v * v
 	var contondante := arme.famille in FAMILLES_CONTONDANTES
+	point = visee_corps(ennemi, point, dir)["entree"]
 	# arme contondante (masse, marteau) : ses dégâts ; une lame de plat : le tiers de son coup léger + l'énergie
 	var degats := (arme.degats_lourd * BONUS_LANCER * clampf(v / V_REF_ARME, 0.5, 1.25)) if contondante and v >= V_MIN_PLANTER \
 		else (arme.degats_leger * 0.35 * clampf(v / V_REF_ARME, 0.4, 1.2) + _degats_energie(e) * 0.3)
@@ -394,6 +434,7 @@ static func _objet_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3
 	var q := masse * v
 	var degats := _degats_energie(e)
 	var renverse := q >= P_RENVERSER and masse >= 6.0
+	point = point.lerp(visee_corps(ennemi, point, dir)["entree"], 0.7)   # un objet large touche la surface du corps, pas son axe
 	var projete := q >= P_PROJETER and masse >= 6.0
 	var dir_h := Vector3(dir.x, 0.0, dir.z).normalized() if Vector2(dir.x, dir.z).length() > 0.05 else dir
 	var info := {"type": "contondant", "point": point, "direction": dir_h, "normale": normale if normale.length() > 0.1 else -dir,
@@ -407,7 +448,8 @@ static func _objet_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3
 	if objet.has_method("recevoir_choc"):
 		casse = bool(objet.recevoir_choc(vitesse_de(dir, v), masse, point))
 	if not casse and is_instance_valid(objet):
-		objet.linear_velocity = -dir * v * 0.12 + Vector3.UP * 1.0
+		objet.linear_velocity = -dir * v * 0.2 + Vector3.UP * (1.0 + minf(masse, 20.0) * 0.1) + dir.cross(Vector3.UP).normalized() * randf_range(-1.0, 1.0)
+		objet.angular_velocity = Vector3(randf_range(-3, 3), randf_range(-2, 2), randf_range(-3, 3))
 	dernier["casse"] = casse
 	RetourImpact.son(ennemi, "bois", point, -2.0 if masse >= 6.0 else -6.0, 0.8 if masse >= 6.0 else 1.1)
 
@@ -452,10 +494,12 @@ static func planter_mur(objet: RigidBody3D, point: Vector3, n: Vector3, dir: Vec
 	objet.add_to_group("armes_plantees")
 	if objet.has_method("sur_plantee"):
 		objet.sur_plantee(null)
-	var dir_t := (dir - n * dir.dot(n)).normalized() if absf(dir.dot(n)) < 0.99 else Vector3.UP.cross(n).normalized()
+	# la trace coule vers le bas le long du mur (au sol : dans le sens du vol)
+	var bas := Vector3.DOWN - n * Vector3.DOWN.dot(n)
+	var dir_t := bas.normalized() if bas.length() > 0.2 else ((dir - n * dir.dot(n)).normalized() if absf(dir.dot(n)) < 0.99 else Vector3.UP.cross(n).normalized())
 	if objet.has_meta("ensanglantee") and Sang.actif():
 		var c: Color = objet.get_meta("ensanglantee")
-		Sang.trace(objet, point + n * 0.004, n, dir_t, randf_range(0.3, 0.45), c, "giclure")
+		Sang.trace(objet, point + n * 0.004, n, dir_t, randf_range(0.22, 0.32), c, "giclure")
 		var g := Plaies.sang_couleur_goutte(c)
 		for i in 3:
 			GouttesSang.lacher(objet, point + n * 0.03 + Vector3(randf_range(-0.05, 0.05), -0.02, randf_range(-0.05, 0.05)), g, Vector3.ZERO, true)
@@ -596,6 +640,7 @@ class Plantage extends Node:
 	var entree_local := Vector3.ZERO
 	var _t := 0.0
 	var _prochaine := 0.15
+	var _gouttes := 0
 
 	func _physics_process(dt: float) -> void:
 		if not is_instance_valid(objet):
@@ -605,9 +650,11 @@ class Plantage extends Node:
 			ImpactsLances.lacher(objet)
 			return
 		_t += dt
-		if sang and _t < 7.0:
+		if sang and _t < 5.0:
 			_prochaine -= dt
 			if _prochaine <= 0.0:
-				_prochaine = randf_range(0.18, 0.5) * (1.0 + _t * 0.4)
+				_prochaine = randf_range(0.2, 0.5) * (1.0 + _t * 0.5)
+				_gouttes += 1
 				var p := objet.global_transform * entree_local
-				GouttesSang.lacher(objet, p + Vector3(randf_range(-0.03, 0.03), -0.02, randf_range(-0.03, 0.03)), couleur, Vector3.ZERO, true)
+				# une goutte sur trois tache le sol (sinon la flaque grossit trop vite sous un corps immobile)
+				GouttesSang.lacher(objet, p + Vector3(randf_range(-0.03, 0.03), -0.02, randf_range(-0.03, 0.03)), couleur, Vector3.ZERO, _gouttes % 3 == 0)
