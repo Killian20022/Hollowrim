@@ -516,6 +516,57 @@ tiré d'un coup (rayon du néant), avec de petites runes. Données : `data/sorts
 - `--sans-rayon-noir` : le sort n'existe pas (ni connu, ni équipable, ni raccourci) : comportement d'avant.
 - Test : `bash outils/tous_les_tests.sh test_rayon_noir` (coût, tics, statut, drain, mur, premier ennemi, relâchement, mana 0,
   double, inertie) ; film : `outils/film_rayon_noir.gd` (crypte, `--perf` = FPS par phase, `--zoom=<fov>` = gros plans).
+### Ragdoll de projection puis relevé (2026-11-23, branche magie/ragdoll_esprit)
+
+Demande : « pour la répulsion il faudrait vraiment que l'ennemi soit projeté en mode ragdoll et ensuite qu'il se relève » (référence de
+mouvement : la poussée de Force de Star Wars). Code : `scripts/magie/ragdoll_esprit.gd` (`RagdollEsprit`, enfant « RagdollEsprit » de
+SortsEsprit, `SortsEsprit.rag`). Branché dans `SortsEsprit.projeter` (Répulsion, Lévitation lancée, relâchement de l'Attraction, ennemi
+percuté par un autre) et `SortsEsprit.lacher` (Lévitation lâchée / mana épuisé) ; le vol cinématique d'avant reste le repli.
+
+- **Qui** : ennemis de `draugr.gd` (draugrs, bandits, squelettes : squelette humain de 65 os, `Ragdoll.gd`) qui ont les deux relevés ;
+  pas les chefs ; le troll garde sa réaction lourde (SONNE : autre rig, pas de relevé capturé).
+- **Vol** : le corps vivant passe en ragdoll (`Ragdoll.declencher`, le même que celui des morts) depuis sa pose animée, à la vitesse de
+  l'onde, avec un basculement (`ROULIS` 3 rad/s autour de l'axe perpendiculaire à la poussée : le haut du corps part plus vite) et un peu de
+  vrille ; « tonus » léger (`TONUS` 0,35, décroît en 1,6 s, ×0,3 au sol : le corps garde sa tenue en l'air, s'affaisse en touchant) ; os en
+  détection continue (CCD : une main à 17 m/s ne traverse pas le mur), sans sommeil. IA, gravité et capsule coupées ; état CHUTE (frappé,
+  il ne titube pas). Chocs : perte brutale de vitesse = choc (rayon le long de la vitesse d'avant : mur → `SortsEsprit._choc`, sol →
+  dégâts de chute), autres ennemis sur la trajectoire (les deux encaissent, l'autre est emporté), objets traversés (`_chocs_objets` :
+  `recevoir_choc`, casse) — mêmes formules et mêmes coûts qu'avant. Au sol : frottement 0,45 (il glisse), puis amorti 0,9 / 5 (il se pose).
+  Deux corps de la même onde ne se percutent pas entre eux ; une seconde impulsion s'ajoute sans dépasser la plus forte des deux.
+- **Repos** : centre du corps < 0,35 m/s et os le plus rapide < 1,2 m/s pendant 0,3 s (au plus tôt 0,7 s, au plus tard 3,2 s).
+- **Relevé** : sur le dos ou le ventre selon le devant du torse (`spine_03`). Clips CAPTURÉS `Releve_Dos` (Mixamo « zombie stand up »,
+  images 7-94) et `Releve_Ventre` (« zombie stand up (3) », images 15-104), Not So Scary Zombie Pack déjà utilisé pour les draugrs zombies :
+  `sources_blender/scripts/extraire_mixamo_releve.py` → `sources_blender/mixamo/releve_mixamo.json` → `outils/zombie_retarget.gd
+  --source=… --sortie=res://assets/modeles/humains/animations_releve.res` (fusionné par `Humain.bibliotheque()`). Joués ×1,5 (~1,9 s).
+  Raccord : pose affichée de chaque os capturée (`Ragdoll.pose_monde`), physique coupée (`Ragdoll.arreter`), corps replacé pour que le
+  bassin de la 1re image du clip tombe sous celui du ragdoll (lacet aligné sur l'axe bassin → tête du corps couché, pieds sur le sol mesuré
+  sous le bassin), puis fondu de pose 0,3 s (`RagdollEsprit.FonduPose`, modificateur après l'animation) : ni saut ni capsule qui bondit (test :
+  bassin affiché < 4 cm par image). Si la place debout est dans un mur ou un meuble (Releve_Ventre finit 1,2 m côté pieds), elle est
+  rapprochée du bassin et le fondu allongé. Capsule rendue au début du relevé (on peut le frapper), IA rendue à la fin (TRAQUE, Sword_Idle en
+  fondu 0,45 s ; `PiedsAuSol._decal` remis à zéro). Onde → IA : 3,4 à 3,9 s (test).
+- **Mort en vol ou pendant le relevé** : le ragdoll reste et devient le cadavre ordinaire (`draugr._mourir` réutilise le même Ragdoll).
+- **Plafond** : 6 ragdolls en vol à la fois (`PLAFOND`) ; au-delà, vol cinématique d'avant. Rien ne tourne au repos (process coupé tant
+  qu'aucun corps n'est suivi).
+- **Ciblage** : `draugr.point_impact()` rend le centre du corps en ragdoll (méta `es_centre`) : une seconde Répulsion le retrouve ; la
+  Lévitation et le vortex ne saisissent pas un corps en vol (ils reprennent un ennemi qui se relève).
+- **Coop** : l'hôte simule et envoie `es_ragdoll` (vol : vitesse + basculement ; relevé : place, lacet, clip). L'invité rejoue un ragdoll
+  local cosmétique (sans dégâts ni chocs) puis le même relevé à la place choisie par l'hôte (repli : il se relève seul après 5 s). LIMITES :
+  non essayé à 2 PC ; les trajectoires ne sont que voisines (la place finale est celle de l'hôte, le fondu absorbe l'écart) ; pendant le vol
+  la racine de l'ennemi reste où il a décollé (position répliquée inchangée).
+- **Perf** (crypte, 6 ennemis, Répulsion pleine charge toutes les 4 s, 960x540 sans vsync, `film_ragdoll_esprit.gd --mesure`, A/B
+  entrelacé ; machine partagée avec d'autres Godot). Profil par étape (`PROFIL …`) : construire un ragdoll ~1,6 ms (x6 la même image = le
+  gros à-coup d'origine), 1re image du clip de relevé ~0,8 ms, vol ~0,3 ms par corps et par image, le reste < 0,3 ms. Correctifs :
+  ragdolls construits D'AVANCE quand un sort de l'esprit est en main (`SortsEsprit.preparer_ragdolls`, un par image, os en veille sans
+  collision : `Ragdoll.mettre_en_veille`, l'impulsion ne coûte plus que 7 µs de construction) ; ombre fusionnée GARDÉE pendant le vol
+  (`declencher(…, garder_ombre)`, plus de refusion au relevé) ; un relevé par image ; balayages du vol (ennemis, objets) une image sur
+  deux, sol une sur trois, tonus une sur deux ; CCD seulement aux mains, avant-bras, pieds, tête.
+  Résultat, combat (avec / sans ragdoll), FPS moyen et 1 % bas : 111 / 115 et 46 / 56 ; 117 / 114 et 54 / 55 (séries précédentes, même
+  version sauf CCD et tonus : 103 / 121 et 53 / 66 ; 109 / 114 et 53 / 59). Avant les correctifs : 1 % bas 11-25 contre ~32.
+  Au repos rien ne tourne (repos 147-165 FPS dans les deux cas).
+- **Interrupteur** : `-- --sans-ragdoll-esprit` (vol cinématique et chute Death01 d'avant).
+- **Test** : `bash outils/tous_les_tests.sh test_ragdoll_esprit` (28 vérifications) ; `test_sorts_esprit` adapté. **Film / mesure** :
+  `outils/film_ragdoll_esprit.gd` (`--plans=normal,ralenti,levitation`, `--mesure`), rendus dans
+  `rendus/telekinesie_2026-11-23/ragdoll_esprit/`.
 
 ## Sons (branche magie/sons)
 

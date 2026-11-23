@@ -236,11 +236,18 @@ func flexion(nom: String) -> float:
 ##   point : point d'impact (monde) ; l'os le plus proche reçoit la plus grande part.
 ##   os_touche : nom d'os imposé (ex. "Head"), sinon déduit du point.
 ##   vitesse : vitesse du personnage au moment de la mort (conservée, ex. en course).
-func declencher(impulsion: Vector3, point: Vector3, os_touche := "", vitesse := Vector3.ZERO) -> void:
+##   garder_ombre : l'ombre fusionnée reste (ragdoll temporaire d'un vivant, RagdollEsprit : le corps ne se défait pas).
+func declencher(impulsion: Vector3, point: Vector3, os_touche := "", vitesse := Vector3.ZERO, garder_ombre := false) -> void:
 	if actif or simulateur == null:
 		return
 	actif = true
-	FusionOmbre.retirer(personnage)      # les pièces reprennent chacune leur ombre (le corps se défait)
+	if _veille:
+		_veille = false
+		for pb: PhysicalBone3D in os.values():
+			pb.collision_layer = CALQUE_OS
+			pb.collision_mask = masque
+	if not garder_ombre:
+		FusionOmbre.retirer(personnage)      # les pièces reprennent chacune leur ombre (le corps se défait)
 	for n in squelette.get_children():
 		if n.is_in_group("pieds_au_sol"):
 			n.call("appliquer_pose_finale")   # on part de la pose corrigée visible à l'écran
@@ -296,6 +303,39 @@ func declencher(impulsion: Vector3, point: Vector3, os_touche := "", vitesse := 
 	_temps = 0.0
 	_immobile = 0.0
 	set_physics_process(_delai_sommeil >= 0.0)
+
+var _veille := false
+## Ragdoll construit d'avance sur un vivant (RagdollEsprit.preparer) : os sans collision tant qu'il n'est pas déclenché (sinon ses os
+## immobiles, au repos du squelette, gêneraient le décor et les tirs). declencher() les rend.
+func mettre_en_veille() -> void:
+	if actif:
+		return
+	_veille = true
+	for pb: PhysicalBone3D in os.values():
+		pb.collision_layer = 0
+		pb.collision_mask = 0
+
+## Sort du ragdoll SANS mourir (relevé après un sort de l'esprit, scripts/magie/ragdoll_esprit.gd) : simulation coupée, os rendus à
+## l'animation (la pose du ragdoll est capturée AVANT par l'appelant, puis fondue vers le relevé). Le ragdoll peut être redéclenché.
+func arreter() -> void:
+	if not actif or simulateur == null:
+		return
+	simulateur.physical_bones_stop_simulation()
+	actif = false
+	_fige = false
+	_temps = 0.0
+	_immobile = 0.0
+	_positions.clear()
+	set_physics_process(false)
+	if _anim:
+		_anim.active = true
+
+## Transform MONDE de l'os `nom` tel que le ragdoll l'affiche (os physique : corps × body_offset⁻¹), null si ce n'est pas un os physique.
+func pose_monde(nom: String) -> Variant:
+	var pb := os.get(nom) as PhysicalBone3D
+	if pb == null:
+		return null
+	return pb.global_transform * pb.body_offset.affine_inverse()
 
 ## Une fois `secondes` écoulées depuis le déclenchement ET le corps quasi immobile ~0,5 s (au plus tard 5 s après), tous les
 ## os sont figés (corps statiques : plus aucun calcul de physique, la pose reste).
