@@ -274,7 +274,7 @@ func _armes() -> void:
 	await _viser_point(Elements._centre(squelette))
 	var vie0: float = squelette.vie
 	magie.relacher("gauche")
-	await _sim(0.1)
+	await _sim(DT * 3.0)   # mesure tôt : à 30 m/s l'épée se fiche dans le squelette (ImpactsLances) en ~0,1 s
 	var vel := a.linear_velocity
 	_verif(vel.length() > 12.0, "épée lancée à %.1f m/s (légère : plus vite)" % vel.length())
 	_verif(a.global_basis.y.normalized().dot(vel.normalized()) > 0.9, "elle vole pointe en avant (%.2f)" % a.global_basis.y.normalized().dot(vel.normalized()))
