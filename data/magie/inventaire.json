@@ -23,7 +23,7 @@
 	"_tout_disponible": "PÉRIODE DE TEST (demande utilisateur 2026-10-27) : true = les 5 épées sans condition et tous les sorts de data/sorts/ connus, même avec une ancienne sauvegarde. Repasser à false (et remettre des conditions `inventaire`) quand le butin existera : les tables data/butin/ donnent déjà epee_or, epee_rubis, epee_verre, epee_obsidienne (sous-table « armes ») et des tomes de sorts (« tomes ») ; il suffira d'ajouter \"inventaire\": \"epee_or\" (etc.) aux objets ci-dessous (docs/BUTIN.md).",
 	"tout_disponible": false,
 	"_periode_test_equipement": "Intégration n°3 (2026-11-12) : la mise à disposition de TOUTES les armes et armures pour les tester n'est PAS ce réglage (qui ne touche que la liste de l'écran I et les sorts) mais Jeu.PERIODE_TEST_EQUIPEMENT (scripts/jeu.gd) : une nouvelle partie de l'exe reçoit tout dans le sac (comme --test-butin), sans limite de poids. Repasser cette constante à false pour le mode normal.",
-	"sorts_depart": ["soin", "protection", "eclat_glace", "arc_electrique", "trait_ombre", "enchant_feu", "jet_flammes", "telekinesie"],
+	"sorts_depart": ["soin", "protection", "eclat_glace", "arc_electrique", "trait_ombre", "enchant_feu", "jet_flammes", "telekinesie", "repulsion", "levitation", "attraction"],
 	"_sorts_depart": "Fin du « tout disponible » (2026-10-29, validée par l'utilisateur) : une nouvelle partie ne connaît que ces sorts ; les autres s'apprennent par les tomes (data/butin/). Une sauvegarde garde les sorts qu'elle contient. Les épées se gagnent (inventaire_hors_test), l'épée de départ est « epee ».",
 	"ordre_ecoles": ["feu", "glace", "electricite", "tenebres", "soin", "protection", "esprit"]
 }

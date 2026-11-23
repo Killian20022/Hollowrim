@@ -409,6 +409,67 @@ corps), `corps_telekinesie.gd` (prop physique de test / démo), `shaders/magie_t
 - **Interrupteur** : `-- --sans-telekinesie` (le sort n'existe pas : ni connu, ni raccourci, ni groupe sur les armes).
 - **Test** : `bash outils/tous_les_tests.sh test_telekinesie` (37 vérifications). **Film** : `outils/film_telekinesie.gd` (crypte, pilote).
 
+## Sorts de l'esprit : Répulsion, Lévitation d'ennemi, Attraction (2026-11-23, branche magie/sorts_esprit)
+
+Autour de la télékinésie (même école `esprit`, même lueur bleu pâle, mêmes paliers de particules fines, pas de tramage). Code :
+`scripts/magie/sorts_esprit.gd` (`SortsEsprit`, nœud enfant de MainSort « SortsEsprit »), `data/sorts/repulsion.tres`, `levitation.tres`,
+`attraction.tres` ; trois valeurs ajoutées EN FIN de `DonneesSort.Portee` (REPULSION, LEVITATION, ATTRACTION : les .tres existants ne
+bougent pas) et un groupe d'exports « Esprit ». Les ennemis pris (vol, tenue, vortex) ont leur `_physics_process` coupé (IA, gravité) ;
+SortsEsprit les déplace (`move_and_collide`) et le leur REND toujours à l'atterrissage, à terre : draugr en CHUTE (Death01, ~1,3 s au sol,
+il se relève et repart en TRAQUE), troll SONNE, autres `_reagir("lourd")` ; vol coupé après 3 s quoi qu'il arrive ; mort en vol = son
+ragdoll prend le relais. Pas d'IA bloquée (test_sorts_esprit, « il s'est relevé et reprend le combat »).
+
+- **Contrôles** (raccourcis de test, main gauche comme `X` ; remappables dans Options > Touches ; second appui = main d'avant) :
+  `G` Répulsion, `N` Lévitation, `U` Attraction. Clic droit pour la main gauche.
+- **Répulsion** (type CHARGE, geste capturé `charge` puis départ) : maintenir charge (1,2 s), relâcher = onde de choc en cône (demi-angle
+  35°) devant la main, portée 4 m (tap) à 8 m (pleine charge). Ennemis : vitesse `lerp(6, 15, charge) × k / √P` (k : 1 près, 0,45 au
+  bout ; P : puissance, voir plus bas), un tiers vers le haut ; moins de 3,5 m/s = simple recul ; chefs ×0,25 (ébranlés, pas envolés).
+  Dégâts directs `12 × lerp(0,4, 1, charge) × k` contondant + choc. Objets (groupe `telekinesable`, objets vivants, cassables) :
+  `1,25 × force × k × clamp((4/masse)^0,3)` m/s, suivis par la télékinésie pour leurs impacts (ImpactsLances, `recevoir_choc` : ils
+  cassent contre les murs). Coût `28 × lerp(0,4, 1, charge)` : 11,2 au tap, 28 à pleine charge (ChargeSort, MainSort._lancer).
+- **Chocs** d'un ennemi projeté (Répulsion, Lévitation, Attraction) : contre un mur `(v − 2,25) × 1,8` dégâts (v : vitesse contre la
+  surface, à partir de 4,5 m/s ; 12 m/s ≈ 17), stagger 32 ; contre un autre ennemi : les deux encaissent (×0,8 pour l'autre, emporté s'il
+  n'est pas un chef) ; contre un cassable : `recevoir_choc(v, 70 kg × P, point)` ; chute : `(vy − 7) × 3` au-delà de 7 m/s.
+- **Lévitation d'ennemi** (type CANALISE, geste `jet` tenu puis `lance`) : maintenir en visant un ennemi (aide 9°, portée 16 m, pas à
+  travers un mur, surbrillance de la cible) : il est arraché (0,4 s de montée), puis suit le regard à ~3 m, 0,55 m au-dessus du sol, par un
+  ressort LOURD (raideur 4,2, amorti 5,5, vitesse max 8 / √P m/s) ; il tangue, rejoue ses coups encaissés, ses membres battent
+  (ReactionOs), lueur et fil d'énergie à trois brins. Relâcher = projeté vers le réticule (aide 8° vers un autre ennemi) à
+  `lerp(9, 17, charge) × clamp(1/√P, 0,4, 1,3)` m/s (charge = tenue − 0,3 s sur 1 s). Appui bref : il retombe.
+  **Mana selon la PUISSANCE** P = PV max (hors échelle coop) / 100 × poids du profil : saisie `8 + 16 × P^0,75`, drain
+  `3 + 7 × P^0,75` /s. Refus lisibles : « Trop puissant. » (chef : draugr nommé, groupe `boss`, dragon ; ou P > 10), « Pas assez de
+  mana. » ; mana à 0 : il retombe (« Mana épuisé. ») ; P > 3 : il BRISE l'emprise après 8 / P s (« Il brise l'emprise ! », petit bond).
+
+| Ennemi | PV max | poids | P | saisie | drain /s | emprise |
+|---|---|---|---|---|---|---|
+| Squelette | 65 | 0,8 | 0,52 | 17,7 | 7,3 | illimitée |
+| Draugr chétif (sbire) | 60 | 1,0 | 0,60 | 18,4 | 7,6 | illimitée |
+| Draugr / bandit | 104 | 1,0 | 1,04 | 24,5 | 10,2 | illimitée |
+| Draugr guerrier | 135 | 1,1 | 1,49 | 30,0 | 12,6 | illimitée |
+| Mage nordique | 70 | 0,9 | 0,63 | 18,8 | 7,8 | illimitée |
+| Troll de givre (mini-chef) | 420 | 2,0 | 8,40 | 86,9 | 37,5 | 0,95 s |
+| Chefs (Svanhild, Hrafn, Jarl), dragon | — | — | — | refus | — | — |
+
+  Repère : 100 de mana tiennent un squelette ~11 s, un draugr guerrier ~5,5 s ; un troll ne fait que décoller. Un squelette lancé à
+  ~20 m/s contre un mur : ~32 dégâts (≈ 1,3 dégât par point de mana, plus le contrôle ; comparable au jet de flammes).
+- **Attraction** (type RAPIDE, geste `lance`, recharge 4 s) : un point d'énergie (orbe d'étincelles) part à 16 m/s vers le réticule et
+  s'arrête au premier obstacle (sur un ennemi visé : sur lui), à au moins 1,2 m du sol ; il s'ouvre en VORTEX 3 s (rayon 5,5 m) :
+  étincelles aspirées vers le centre, cœur et anneau au sol spiralés (shader des disques magie_sol, `spirale`), lueur pulsée, souffle
+  tournant. Les ennemis sont soulevés et tournent autour du centre en se rapprochant (vitesse 5 / √P m/s), en se débattant ; les chefs
+  (et ceux qu'on ne peut plus payer) sont seulement tirés au sol (`_recul`, comme ZoneMagie.attirer). Les objets tournent sans gravité et
+  s'entrechoquent au centre. À la fin, tout est RELÂCHÉ d'un coup : petite explosion (éclat, disque, lumière, claquement), 10 dégâts
+  contondants, ennemis projetés à 11 / √P m/s, objets à ~13 m/s (suivis : ils cassent). Coût 30 + supplément `3 × P^0,75` par ennemi
+  aspiré (squelette 1,8, draugr 3,1, troll 14,8).
+- **Sons** (`outils/sons_magie/generer_sorts_esprit.sh`, synthèse + CC0) : `esprit_onde_1/2`, boucle `esprit_vortex`, `esprit_vortex_fin`,
+  `esprit_emprise` ; tenue et lancer de la lévitation : ceux de la télékinésie. `SonsMagie.esprit_onde / esprit_emprise / esprit_vortex /
+  esprit_vortex_fin`.
+- **Réseau** : l'HÔTE détient l'IA ; ses vols d'ennemis sont répliqués tels quels (position, lacet, animation : CombatCoop). Un INVITÉ
+  ne déplace pas ses marionnettes : il envoie `es_ennemi` (projeter / tenir à 10 /s / lâcher) à l'hôte, qui applique le vol et les chocs
+  (dégâts calculés chez l'hôte). Onde, vortex et objets poussés : `es_onde`, `es_vortex`, `es_objets` (visuels et objets rejoués chez les
+  autres). Pas de finisher ni de ralenti dans ces sorts (décision coop respectée). LIMITES : non essayé à 2 PC ; chez un invité, un
+  ennemi tenu suit avec la latence de l'aller-retour ; les objets aspirés par un vortex distant bougent localement (cosmétique).
+- **Interrupteur** : `-- --sans-sorts-esprit` (les trois sorts n'existent pas : ni connus, ni raccourcis).
+- **Test** : `bash outils/tous_les_tests.sh test_sorts_esprit`. **Films** : `outils/film_sorts_esprit.gd` (crypte, pilote).
+
 ## Sons (branche magie/sons)
 
 `scripts/magie/sons_magie.gd` (`SonsMagie`) : charge (boucle douce, volume et hauteur suivent l'intensité), lancement (2 variantes par école), jet continu (boucle, s'éteint 0,25 s après le dernier appel), impact (2 variantes, volume selon la force), zone, chaîne, réactions (6), double incantation (une note par école), enchantement, « Pas assez de mana » (aussi « Mana épuisé »). Écoles feu, glace, électricité, ténèbres (+ soin, protection). Fichiers : `assets/sons/magie/*.wav` (PCM 16 bits, sources CC0 dans assets/LICENCES.md, fabriqués par `outils/sons_magie/generer.py`). Boucles : `edit/loop_mode=2` dans leur .import.

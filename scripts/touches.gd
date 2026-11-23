@@ -22,6 +22,9 @@ const ACTIONS := [
 	{"id": "attendre", "nom": "Attendre", "defaut": [KEY_T, KEY_NONE]},
 	{"id": "vue", "nom": "Vue 1re / 3e personne", "defaut": [KEY_V, KEY_NONE]},
 	{"id": "telekinesie", "nom": "Télékinésie (main gauche)", "defaut": [KEY_X, KEY_NONE]},      # raccourci de test du sort (MainSort)
+	{"id": "repulsion", "nom": "Répulsion (main gauche)", "defaut": [KEY_G, KEY_NONE]},          # raccourcis de test des sorts de l'esprit
+	{"id": "levitation", "nom": "Lévitation d'ennemi (main gauche)", "defaut": [KEY_N, KEY_NONE]},
+	{"id": "attraction", "nom": "Attraction (main gauche)", "defaut": [KEY_U, KEY_NONE]},
 	{"id": "menu", "nom": "Menu du personnage", "defaut": [KEY_TAB, KEY_NONE]},
 	{"id": "inventaire", "nom": "Sac", "defaut": [KEY_I, KEY_NONE]},
 	{"id": "competences", "nom": "Compétences", "defaut": [KEY_K, KEY_NONE]},

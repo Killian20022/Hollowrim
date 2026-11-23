@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_dfdie"]
+
+[resource]
+script = ExtResource("1_dfdie")
+id = "levitation"
+nom = "Lévitation"
+ecole = "esprit"
+type = 1
+portee_mode = 9
+description = "Maintenir en visant un ennemi : il est soulevé et se débat devant la main, puis relâcher le projette vers le réticule. Le mana dépend de sa puissance ; les chefs résistent, les plus forts brisent l'emprise."
+cout = 8.0
+cout_par_seconde = 3.0
+incantation = 0.2
+recuperation = 0.5
+degats = 20.0
+type_degats = "contondant"
+stagger = 30.0
+portee = 16.0
+double = {}
+profil = "paume"
+seuil_interruption = 14.0
+vitesse_lancer_min = 9.0
+vitesse_lancer_max = 17.0
+temps_charge_lancer = 1.0
+cout_puissance = 16.0
+drain_puissance = 7.0
+puissance_max = 10.0

@@ -51,6 +51,9 @@ func _init(eq: Equipement = null, inv: Inventaire = null) -> void:
 				sorts_connus.append(String(id))
 	if not Telekinesie.actif:   # --sans-telekinesie : le sort n'existe pas
 		sorts_connus.erase("telekinesie")
+	if not SortsEsprit.actif:   # --sans-sorts-esprit : Répulsion, Lévitation, Attraction n'existent pas
+		for id in SortsEsprit.IDS:
+			sorts_connus.erase(id)
 	sorts_connus.sort()
 	_synchroniser("gauche")
 	_synchroniser("droite")
@@ -96,6 +99,8 @@ static func _lire(chemin: String) -> Dictionary:
 
 func sort_par_id(id: String) -> DonneesSort:
 	if id == "telekinesie" and not Telekinesie.actif:
+		return null
+	if not SortsEsprit.actif and id in SortsEsprit.IDS:
 		return null
 	if not _sorts.has(id):
 		var chemin := DOSSIER_SORTS % id

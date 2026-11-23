@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="DonneesSort" format=3]
+
+[ext_resource type="Script" path="res://scripts/magie/donnees_sort.gd" id="1_dfdie"]
+
+[resource]
+script = ExtResource("1_dfdie")
+id = "attraction"
+nom = "Attraction"
+ecole = "esprit"
+type = 0
+portee_mode = 10
+description = "Lance un point d'énergie qui s'arrête au premier obstacle et aspire ennemis et objets pendant 3 s, puis relâche tout d'un coup. Chaque ennemi aspiré coûte un supplément selon sa puissance."
+cout = 30.0
+incantation = 0.25
+recuperation = 0.6
+recharge = 4.0
+degats = 10.0
+type_degats = "contondant"
+stagger = 26.0
+portee = 18.0
+rayon = 5.5
+attraction = 5.0
+vitesse = 16.0
+double = {}
+profil = "paume"
+force_min = 6.0
+force_max = 11.0
+cout_puissance = 3.0
+duree_vortex = 3.0

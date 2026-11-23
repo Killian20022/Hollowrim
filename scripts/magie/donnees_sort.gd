@@ -13,7 +13,9 @@ enum Type { RAPIDE, CANALISE, CHARGE, ZONE, ENCHANT }
 ## qui frappent le point visé et ses abords).
 ## TELEKINESIE : sort canalisé de l'école « esprit » (scripts/magie/telekinesie.gd) : maintenir en visant un objet du groupe
 ## `telekinesable` le saisit et le fait léviter devant la main, relâcher le lance (docs/MAGIE.md, « Télékinésie »).
-enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI, DECHARGE, TELEKINESIE }
+## REPULSION / LEVITATION / ATTRACTION : sorts de l'esprit autour de la télékinésie (scripts/magie/sorts_esprit.gd) : onde de choc
+## en cône (type CHARGE), lévitation d'un ennemi (CANALISE), point qui aspire puis relâche (RAPIDE) — docs/MAGIE.md.
+enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI, DECHARGE, TELEKINESIE, REPULSION, LEVITATION, ATTRACTION }
 
 @export var id := ""
 @export var nom := ""
@@ -111,6 +113,22 @@ enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI, DECHARGE, TELE
 @export var vitesse_lancer_min := 12.0
 @export var vitesse_lancer_max := 24.0
 @export var temps_charge_lancer := 0.9
+
+@export_group("Esprit")
+## Répulsion : demi-angle du cône (°), portée sans charge (m ; pleine charge : `portee`), vitesse donnée (m/s, ennemi de puissance 1
+## ou objet de 4 kg) sans charge et à pleine charge. Attraction : `force_max` = vitesse du relâchement final.
+@export var angle_cone := 35.0
+@export var portee_min := 4.0
+@export var force_min := 6.0
+@export var force_max := 15.0
+## Lévitation : mana `cout + cout_puissance × P^0,75` à la saisie et `cout_par_seconde + drain_puissance × P^0,75` /s (P : puissance
+## de l'ennemi, SortsEsprit.puissance) ; au-delà de `puissance_max`, « Trop puissant. ». Attraction : supplément par ennemi
+## aspiré = cout_puissance × P^0,75.
+@export var cout_puissance := 16.0
+@export var drain_puissance := 7.0
+@export var puissance_max := 10.0
+## Attraction : durée du vortex ouvert (s) ; `rayon` = rayon d'aspiration, `attraction` = vitesse d'aspiration (m/s), `vitesse` = vol.
+@export var duree_vortex := 3.0
 
 @export_group("Double incantation")
 ## Multiplicateurs quand les deux mains lancent CE sort ensemble (fenêtre de synchronisation) ; clés lues par
