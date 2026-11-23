@@ -4,6 +4,9 @@ extends SceneTree
 ##   godot --headless --path . --script res://outils/test_sons_magie.gd -- --nouvelle
 var echecs := 0
 
+## sons tenus tant que le sort est maintenu (télékinésie, vortex d'attraction, rayon noir continu)
+const BOUCLES_TENUES := ["magie/esprit_tenue", "magie/esprit_vortex", "magie/rayon_noir_boucle"]
+
 func _mediane(v: Array[float]) -> float:
 	var t := v.duplicate()
 	t.sort()
@@ -59,11 +62,11 @@ func _lancer() -> void:
 		if s == null:
 			manquants.append(nom)
 			continue
-		var boucle := nom.begins_with("magie/charge_") or nom.begins_with("magie/jet_")
+		var boucle := nom.begins_with("magie/charge_") or nom.begins_with("magie/jet_") or nom in BOUCLES_TENUES
 		if s.format != AudioStreamWAV.FORMAT_16_BITS or s.data.size() == 0 or (s.loop_mode != AudioStreamWAV.LOOP_DISABLED) != boucle:
 			mal_boucles.append(nom)
 	verifier(manquants.is_empty(), "les %d sons se chargent en AudioStreamWAV %s" % [SonsMagie.tous_les_noms().size(), manquants])
-	verifier(mal_boucles.is_empty(), "PCM 16 bits, boucle uniquement pour charge_ / jet_ %s" % [mal_boucles])
+	verifier(mal_boucles.is_empty(), "PCM 16 bits, boucle uniquement pour charge_ / jet_ / sons tenus %s" % [mal_boucles])
 	verifier(SonsMagie.sync == 0, "aucun chargement synchrone après precharger() (%d)" % SonsMagie.sync)
 	# --- chaque sort a ses sons (joueur : data/sorts, ennemis : data/sorts/ennemis)
 	var sorts := 0
@@ -77,7 +80,11 @@ func _lancer() -> void:
 			sorts += 1
 			var e := s.ecole
 			var ok: bool = e in SonsMagie.ECOLES
-			for n: String in SonsMagie.noms_ecole(e, "lancer") + SonsMagie.noms_ecole(e, "impact") + ["magie/charge_" + e, "magie/jet_" + e]:
+			var noms: Array = SonsMagie.noms_ecole(e, "lancer") + SonsMagie.noms_ecole(e, "impact") + ["magie/charge_" + e, "magie/jet_" + e]
+			if e == "esprit":   # école à sons dédiés (saisie, lancer, tenue, onde, vortex, emprise : sons_magie.gd)
+				ok = true
+				noms = SonsMagie.TK_SAISIE + SonsMagie.TK_LANCER + [SonsMagie.TK_TENUE] + SonsMagie.ES_ONDE + [SonsMagie.ES_VORTEX, SonsMagie.ES_VORTEX_FIN, SonsMagie.ES_EMPRISE]
+			for n: String in noms:
 				ok = ok and SonsMagie.flux(n) != null
 			verifier(ok, "sort %s (%s) : charge, lancement, jet, impact" % [s.id, e])
 	verifier(sorts >= 15, "%d sorts examinés" % sorts)
