@@ -50,7 +50,9 @@ void vertex() {
 
 void fragment() {
 	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 0.0;
+		return;
 	}
 	float a = COLOR.a * eclat;
 	vec3 c;
@@ -66,7 +68,9 @@ void fragment() {
 	// paliers d'intensité (pas de dégradé continu, pas de tramage) : quarts
 	a = ceil(clamp(a, 0.0, 1.5) * 4.0 - 0.1) / 4.0;
 	if (a <= 0.0) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 0.0;
+		return;
 	}
 	ALBEDO = c * force * a;   // additif en prémultiplié (voir magie_part_add)
 	ALPHA = 0.0;

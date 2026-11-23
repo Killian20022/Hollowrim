@@ -16,7 +16,9 @@ uniform float graine = 0.0;
 
 void fragment() {
 	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 0.0;
+		return;
 	}
 	vec2 p = UV * 2.0 - 1.0;
 	float r = length(p);
@@ -27,7 +29,9 @@ void fragment() {
 	float rayon = (0.25 + 0.55 * smoothstep(0.0, 1.0, etendue)) * (0.75 + 0.45 * n * pic + 0.08 * sin(TIME * 2.4));
 	float d = r - rayon;
 	if (d > 0.16) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 0.0;
+		return;
 	}
 	float vif = smoothstep(0.0, 0.5, fondu);   // le liseré s'éteint d'abord
 	float liseret = (1.0 - smoothstep(0.0, 0.06, abs(d + 0.022))) * vif * (0.8 + 0.2 * sin(TIME * 5.0 + ang * 3.0));

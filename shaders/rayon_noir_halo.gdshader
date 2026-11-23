@@ -54,7 +54,9 @@ void vertex() {
 
 void fragment() {
 	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 1.0;
+		return;
 	}
 	float k = rk();
 	float tete = clamp(vie / 0.1, 0.0, 1.0);
@@ -76,12 +78,16 @@ void fragment() {
 	}
 	float u_c = clamp(tc / longueur, 0.0, 1.0);
 	if (k < 0.03 || u_c > tete || v_u < 0.003) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 1.0;
+		return;
 	}
 	float rr = max(rayon_en(clamp(tc, 0.0, longueur)), 0.001);
 	float x = rho / rr;
 	if (x > GROS || x < 0.62) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 1.0;
+		return;
 	}
 	float ph = fract((tc - TIME * flux_vit) / flux_pas + graine);
 	float pv = pow(1.0 - smoothstep(0.0, 0.22, min(ph, 1.0 - ph) * 2.0), 2.0);   // impulsions qui filent (comme le faisceau)

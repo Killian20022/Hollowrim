@@ -50,7 +50,9 @@ void fragment() {
 	// paliers francs ; ce qui reste sous le premier palier disparaît (pas de voile sur tout l'objet)
 	a = floor(a * 3.0 + 0.25) / 3.0;
 	if (a <= 0.0) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 0.0;
+		return;
 	}
 	ALBEDO = mix(couleur.rgb, coeur.rgb, clamp(mote * clign + step(0.85, bord) * 0.6, 0.0, 1.0));
 	ALPHA = clamp(a, 0.0, 0.8);

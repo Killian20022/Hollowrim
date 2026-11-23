@@ -67,12 +67,16 @@ void vertex() {
 
 void fragment() {
 	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 0.0;
+		return;
 	}
 	float tete = clamp(vie / 0.1, 0.0, 1.0);
 	float k = rk();
 	if (k < 0.03) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 0.0;
+		return;
 	}
 	// distance entre le rayon de vue (depuis l'œil, espace vue) et l'axe du tir
 	vec3 D = -normalize(VIEW);
@@ -98,7 +102,9 @@ void fragment() {
 	float bouche = 1.0 - smoothstep(0.0005, 0.004, v_u);
 	x = mix(x, v_rad, bouche);
 	if (x > GROS || u_c > tete) {
-		discard;
+		ALBEDO = vec3(0.0);
+		ALPHA = 0.0;
+		return;
 	}
 
 	float n = mfbm2(vec2(tc * 0.9 - TIME * 6.0, v_th * 1.3 + graine));
@@ -131,7 +137,9 @@ void fragment() {
 		a = floor(clamp(f, 0.0, 1.0) * 3.0 + 0.5) / 3.0 * 0.55;   // fumée plus légère autour, la silhouette reste le trait
 		c = mix(fume, bord * 0.5, n2 * 0.45 + 0.2 * (1.0 - t) + 0.15 * pv);
 		if (a < 0.05) {
-			discard;
+			ALBEDO = vec3(0.0);
+			ALPHA = 0.0;
+			return;
 		}
 	}
 	// brins de fumée enroulés en hélice (3) : ils filent le long du tir, surtout dans la fumée et au bord
