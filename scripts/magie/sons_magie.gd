@@ -82,6 +82,7 @@ static func tous_les_noms() -> Array:
 	l.append("magie/double")
 	l.append_array(DECHARGES.values())
 	l.append("magie/rayon_neant_lancer")
+	l.append_array([RN_BOUCLE, RN_ALLUME, RN_ETEINT])
 	l.append(SON_PLEINE)
 	l.append_array(TK_SAISIE)
 	l.append_array(TK_LANCER)
@@ -233,6 +234,27 @@ static func jet(ecole: String, origine: Node3D, actif: bool) -> void:
 	if not _actif() or origine == null:
 		return
 	_n().boucle(origine.get_instance_id() * 2 + 1, origine, _t(ecole_sure(ecole))["jet"], 1.0 if actif else 0.0, false)
+
+# ------------------------------------------------------------------ rayon noir (sort continu des ténèbres, scripts/magie/rayon_noir.gd)
+## Sons faits par outils/sons_magie/generer_rayon_noir.sh (synthèse ffmpeg) : grondement grave + souffle + chuchotements en boucle.
+const RN_BOUCLE := "magie/rayon_noir_boucle"
+const RN_ALLUME := "magie/rayon_noir_allume"
+const RN_ETEINT := "magie/rayon_noir_eteint"
+
+## Boucle du rayon noir tenu (suivie par la main) : à appeler chaque image tant que `actif` (s'éteint seule 0,25 s après).
+static func rayon_noir(origine: Node3D, actif: bool) -> void:
+	_compter("rayon_noir")
+	if not _actif() or origine == null:
+		return
+	_n().boucle(origine.get_instance_id() * 2 + 1, origine, RN_BOUCLE, 1.0 if actif else 0.0, false)
+
+static func rayon_noir_allume(pos: Vector3) -> void:
+	_compter("rayon_noir_allume")
+	_coup(RN_ALLUME, pos, VOL_LANCER - 2.0, randf_range(0.95, 1.04), "rn_allume", 0.1)
+
+static func rayon_noir_eteint(pos: Vector3) -> void:
+	_compter("rayon_noir_eteint")
+	_coup(RN_ETEINT, pos, VOL_LANCER - 5.0, randf_range(0.95, 1.04), "rn_eteint", 0.1)
 
 # ------------------------------------------------------------------ télékinésie (école « esprit », scripts/magie/telekinesie.gd)
 ## Sons faits par outils/sons_magie/generer_telekinesie.sh (synthèse ffmpeg + sons CC0 de protection retaillés, assets/LICENCES.md).

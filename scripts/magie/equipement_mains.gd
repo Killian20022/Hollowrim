@@ -54,6 +54,8 @@ func _init(eq: Equipement = null, inv: Inventaire = null) -> void:
 	if not SortsEsprit.actif:   # --sans-sorts-esprit : Répulsion, Lévitation, Attraction n'existent pas
 		for id in SortsEsprit.IDS:
 			sorts_connus.erase(id)
+	if not RayonNoir.actif:   # --sans-rayon-noir : le sort continu des ténèbres n'existe pas
+		sorts_connus.erase(RayonNoir.ID)
 	sorts_connus.sort()
 	_synchroniser("gauche")
 	_synchroniser("droite")
@@ -101,6 +103,8 @@ func sort_par_id(id: String) -> DonneesSort:
 	if id == "telekinesie" and not Telekinesie.actif:
 		return null
 	if not SortsEsprit.actif and id in SortsEsprit.IDS:
+		return null
+	if id == RayonNoir.ID and not RayonNoir.actif:
 		return null
 	if not _sorts.has(id):
 		var chemin := DOSSIER_SORTS % id

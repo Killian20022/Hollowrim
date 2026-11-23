@@ -120,6 +120,24 @@ static func jet(ecole: String, origine: Node3D, direction: Vector3, portee: floa
 	_g().jet(ecole, origine, direction, portee, largeur, actif)
 	EffetsSol.sort_jet(ecole, origine, direction, portee, largeur, actif)   # monde réactif : traînée de fonte, brûlure
 
+## RAYON NOIR (sort continu des ténèbres, forme « rayon_noir » : LanceurSorts.canaliser) : à appeler CHAQUE IMAGE tant que `actif`,
+## puis une fois avec actif=false. Remplace `jet` pour ce sort (le visuel du drain n'est pas dessiné) ; la main se transforme comme pour
+## les autres jets de l'école (front montant / descendant), le son est la boucle du rayon noir. Visuel : RayonNoir (rayon_noir.gd).
+static func rayon_noir(origine: Node3D, depart: Vector3, fin: Vector3, normale: Vector3, touche_decor: bool, cible: Node3D, largeur: float, puissance: float, actif: bool) -> void:
+	_compter("jet")
+	_compter("rayon_noir")
+	SonsMagie.rayon_noir(origine, actif)
+	if muet:
+		return
+	var dir := (fin - depart).normalized() if fin.distance_to(depart) > 0.01 else Vector3.FORWARD
+	_lancer_jet("tenebres", origine, dir, depart.distance_to(fin), actif)
+	if actif:
+		RayonNoir.maj(origine, depart, fin, normale, touche_decor, cible, largeur, puissance)
+		if touche_decor and cible == null:
+			EffetsSol.sort_jet("tenebres", origine, dir, depart.distance_to(fin), largeur, true)   # ombre laissée au sol (monde réactif)
+	else:
+		RayonNoir.arreter(origine)
+
 ## Visuel d'un projectile (formes : "boule", "eclat", "lance", "trait", "orbe"). La logique l'ajoute à la scène, le
 ## déplace et le libère (queue_free) à l'impact ; la traînée et la lumière sont gérées ici (elles s'éteignent seules).
 ## Le visuel s'oriente seul dans le sens du déplacement.
@@ -232,5 +250,6 @@ static func stats() -> Dictionary:
 	return _g().stats()
 
 static func tout_arreter() -> void:
+	RayonNoir.tout_arreter()
 	SonsMagie.tout_arreter()
 	_g().tout_arreter()

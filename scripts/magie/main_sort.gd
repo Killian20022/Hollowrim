@@ -144,6 +144,11 @@ func _actions() -> void:
 				var ek := InputEventKey.new()
 				ek.physical_keycode = RACCOURCIS_ESPRIT[a]
 				InputMap.action_add_event(a, ek)
+	if RayonNoir.actif and not InputMap.has_action(RayonNoir.ID):   # raccourci de test du rayon noir (Touches : remappable)
+		InputMap.add_action(RayonNoir.ID)
+		var er := InputEventKey.new()
+		er.physical_keycode = KEY_Y
+		InputMap.action_add_event(RayonNoir.ID, er)
 	var touches := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0]
 	for i in touches.size():
 		var a := "raccourci_%d" % ((i + 1) % 10)
@@ -165,6 +170,9 @@ func intercepter(e: InputEvent) -> bool:
 					return true
 			if tk != null and InputMap.has_action("telekinesie") and e.is_action_pressed("telekinesie"):
 				raccourci_telekinesie()
+				return true
+			if RayonNoir.actif and InputMap.has_action(RayonNoir.ID) and e.is_action_pressed(RayonNoir.ID):
+				raccourci_sort_gauche(RayonNoir.ID)
 				return true
 			if esprit != null:
 				for a in RACCOURCIS_ESPRIT:
@@ -248,7 +256,7 @@ func raccourci_telekinesie() -> void:
 	equiper("gauche", "telekinesie")
 	_noter("raccourci télékinésie")
 
-## Raccourci de test d'un sort de l'esprit (touches G / N / U) : dans la main gauche ; un second appui rend la main d'avant.
+## Raccourci de test d'un sort de l'esprit (touches G / N / U) ou du rayon noir (Y) : dans la main gauche ; un second appui rend la main d'avant.
 func raccourci_sort_gauche(id: String) -> void:
 	if eq.sort_par_id(id) == null:
 		return
@@ -258,7 +266,7 @@ func raccourci_sort_gauche(id: String) -> void:
 	if actuel == id:
 		equiper("gauche", _avant_tk if _avant_tk != "" and _avant_tk != id else "vide")
 		return
-	if not (actuel in SortsEsprit.IDS or actuel == "telekinesie"):
+	if not (actuel in SortsEsprit.IDS or actuel == "telekinesie" or actuel == RayonNoir.ID):
 		_avant_tk = actuel
 	equiper("gauche", id)
 	_noter("raccourci %s" % id)
