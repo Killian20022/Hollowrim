@@ -136,6 +136,11 @@ func _mur(dmin: float, dmax: float) -> Dictionary:
 				break
 		if not plein:
 			continue
+		# rien de bas (table, sarcophage) entre le joueur et le mur : le corps cloué se voit en entier
+		var bas := j.global_position + Vector3.UP * 0.5
+		var r3 := _rayon(bas, bas + dir * (o.distance_to(p) + 0.3))
+		if not r3.is_empty() and (Vector3(r3["position"]) - p).dot(n) > 0.15:
+			continue
 		# sol devant le mur, au niveau du joueur
 		var pied := _sol(p - dir * 0.5)
 		if absf(pied.y - j.global_position.y) > 0.4:
