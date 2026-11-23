@@ -1089,7 +1089,7 @@ void fragment() {
 	// rien que le reflet : albédo noir (addition), éclat des lumières calculé dans light() (lobe large : la torche se reflète
 	// sur une bonne part de la flaque, pas en un point) ; plus le reflet de ce qui est derrière
 	float b = clamp(brille, 0.0, 1.2) * mouille * mix(0.55, 1.0, ep);
-	v_reflet = b * (forme == 1 ? 0.65 : 0.15);      // flaque : vrai miroir ; tache, filet : film mince, à peine un éclat
+	v_reflet = b * (forme == 1 ? 0.65 : 0.05);      // flaque : vrai miroir ; tache, filet : film mince, à peine un éclat
 	ALBEDO = vec3(0.0);
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
