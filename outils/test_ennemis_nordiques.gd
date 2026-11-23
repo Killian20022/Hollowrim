@@ -5,6 +5,7 @@ extends SceneTree
 ##   godot --headless --path . --script res://outils/test_ennemis_nordiques.gd -- --nouvelle
 const ANIMS := ["Idle", "Sword_Idle", "Walk", "Jog_Fwd", "Sword_Attack", "Punch_Cross", "Hit_Chest", "Hit_Head", "Death01", "Pistol_Aim_Neutral", "Pistol_Shoot", "Spell_Simple_Shoot", "Spell_Simple_Enter", "Interact"]
 const BUDGET := 9000
+const BUDGET_ARME := 7000   # l'arme tenue (catalogue, épées HD) en plus du corps
 const GJ := preload("res://scripts/grotte_jeu.gd")
 var echecs := 0
 
@@ -16,14 +17,25 @@ func ok(cond: bool, msg: String) -> void:
 func _init() -> void:
 	_lancer.call_deferred()
 
-func _tris(n: Node) -> int:
+## Triangles visibles ; sans_arme : hors nœuds « Arme » (vraies armes du catalogue, épées HD ~3 500 triangles : budget à part).
+func _tris(n: Node, sans_arme := false) -> int:
 	var t := 0
 	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
 		if not mi.is_visible_in_tree() or mi.mesh == null:
 			continue
+		if sans_arme and _dans_arme(mi, n):
+			continue
 		for s in mi.mesh.get_surface_count():
 			t += (mi.mesh.surface_get_array_index_len(s) if (mi.mesh.surface_get_format(s) & Mesh.ARRAY_FORMAT_INDEX) else mi.mesh.surface_get_array_len(s)) / 3
 	return t
+
+func _dans_arme(mi: Node, racine: Node) -> bool:
+	var p := mi.get_parent()
+	while p != null and p != racine:
+		if p.name == "Arme":
+			return true
+		p = p.get_parent()
+	return false
 
 func _draugr_app(guerrier: bool) -> Dictionary:
 	var app := {"corps": "homme", "draugr": true, "tenue": {"haillons": Color.WHITE}}
@@ -66,8 +78,10 @@ func _lancer() -> void:
 			if ap == null or not ap.has_animation(a):
 				manque.append(a)
 		ok(manque.is_empty(), "%s : clips de l'IA présents %s" % [c[0], str(manque)])
-		var tr := _tris(n)
-		ok(tr <= BUDGET, "%s : %d triangles (budget %d)" % [c[0], tr, BUDGET])
+		var tr := _tris(n, true)
+		ok(tr <= BUDGET, "%s : %d triangles hors arme (budget %d)" % [c[0], tr, BUDGET])
+		var tr_total := _tris(n)
+		ok(tr_total <= BUDGET + BUDGET_ARME, "%s : %d triangles avec l'arme (budget %d)" % [c[0], tr_total, BUDGET + BUDGET_ARME])
 		var grilles := 0
 		var total := 0
 		for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):

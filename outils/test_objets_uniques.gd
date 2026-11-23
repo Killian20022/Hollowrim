@@ -118,7 +118,7 @@ func _ecrire() -> void:
 			for k in EpeesLongues.materiaux():
 				if EpeesLongues.materiaux()[k] == sm:
 					mats[k] = true
-	_verif(a.modele.ends_with("skarnholt.glb") and a.habillage == "epees_longues" and mats.has("entrelacs") and mats.has("lame") and EpeesLongues.repere(e, "pointe") != null,
+	_verif(a.modele.ends_with("skarnholt.glb") and a.habillage == "epees_longues" and mats.has("entrelacs") and (mats.has("lame") or mats.has("lame_hd")) and EpeesLongues.repere(e, "pointe") != null,
 		"épée de Skarnholt : glb à entrelacs habillé (%s)" % [mats.keys()])
 	e.free()
 	var lame: ShaderMaterial = EpeesLongues.materiaux()["lame"]
@@ -133,7 +133,7 @@ func _ecrire() -> void:
 	var avec := eq.objets_possedes("armes")
 	_verif(not sans.has("epee_or") and not sans.has("epee_skarnholt") and not sans.has("epee_hrafn") and avec.has("epee_or") and avec.has("epee_hrafn") and sans.has("epee") and sans.has("torche"),
 		"épées gagnées (achat, butin, objets uniques) équipables ; épée et torche de départ présentes")
-	_verif(eq.sorts_connus.size() == 7 and eq.sorts_connus.has("soin") and eq.sorts_connus.has("jet_flammes") and not eq.sorts_connus.has("boule_feu"), "sorts de départ seulement (%d)" % eq.sorts_connus.size())
+	_verif(eq.sorts_connus.size() == eq.catalogue.get("sorts_depart", []).size() and eq.sorts_connus.has("soin") and eq.sorts_connus.has("jet_flammes") and not eq.sorts_connus.has("boule_feu"), "sorts de départ seulement (%d)" % eq.sorts_connus.size())
 	# tomes partout : chaque sort hors départ a un tome qui l'apprend
 	var sans_tome: Array[String] = []
 	var depart: Array = eq.catalogue.get("sorts_depart", [])

@@ -127,7 +127,7 @@ func _lancer() -> void:
 	ok(String(dore.get("id", "")) == "halle_e" and not GardesVillage.GARDES_TRIPO.has("halle_e"), "armure dorée sur halle_e, hors des trois gardes Tripo")
 	# 2026-11-11 : armures Tripo des gardes abandonnées, défaut = armure maison (GardeMaison) ; l'armure dorée Tripo reste chargeable
 	var mdm := GardesVillage.creer_modele(dore)
-	ok(mdm != null and GardeMaison.pieces_portees(mdm).has("cuirasse_or"), "halle_e : armure d'or maison par défaut")
+	ok(mdm != null and GardeMaison.pieces_portees(mdm).has("cuirasse_acier_nordique"), "halle_e : acier nordique maison par défaut (l'or est réservé au joueur, 8b47f722)")
 	if mdm:
 		mdm.free()
 	var md := GardesVillage.creer_modele_dore(dore)
@@ -147,7 +147,7 @@ func _lancer() -> void:
 			verre = g
 	ok(String(verre.get("id", "")) == "n_e" and not verre.get("armure_tripo", false) and not GardesVillage.GARDES_TRIPO.has("n_e"), "armure de verre sur n_e, seule")
 	var mvm := GardesVillage.creer_modele(verre)
-	ok(mvm != null and GardeMaison.pieces_portees(mvm).has("cuirasse_verre"), "n_e : armure de verre maison par défaut")
+	ok(mvm != null and GardeMaison.pieces_portees(mvm).has("cuirasse_acier_nordique"), "n_e : acier nordique maison par défaut (le verre est réservé au joueur, 8b47f722)")
 	if mvm:
 		mvm.free()
 	var mv := GardeTripo.creer("tripo_garde_verre")
