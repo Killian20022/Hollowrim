@@ -118,6 +118,17 @@ func _tester() -> void:
 			break
 	_verif(gele_en >= 0, "éclats tous gelés %d images après la casse (%d éclats au sol)" % [gele_en, CasseObjets.nb_eclats()])
 
+	# --- liquide : la flaque du tonneau brisé est posée sur le plancher sous lui ; brisé en l'air au-dessus du vide : aucune flaque
+	var flaques := get_nodes_in_group("flaques")
+	var sol_t := tonneau.global_position.y - tonneau._taille.y * 0.5
+	var bonne := flaques.any(func(f: Node3D) -> bool: return absf(f.global_position.y - sol_t) < 0.15 and Vector2(f.global_position.x - tonneau.global_position.x, f.global_position.z - tonneau.global_position.z).length() < 1.0)
+	_verif(bonne, "tonneau : flaque posée au sol sous lui (%d flaques)" % flaques.size())
+	var n_av := get_nodes_in_group("flaques").size()
+	CasseObjets.verser_liquide(s, Vector3(0, 900, 0), Vector3.UP, 1.0)
+	await _images(90)
+	_verif(get_nodes_in_group("flaques").size() <= n_av, "liquide versé à 900 m au-dessus de tout : aucune flaque en l'air")
+	_verif(get_nodes_in_group("flaques").all(func(f: Node3D) -> bool: return _sous_surface(f)), "toutes les flaques reposent sur une surface (rayon vers le bas sous leur centre)")
+
 	# --- fer : incassable
 	var fer: ObjetVivant = null
 	for o: ObjetVivant in ObjetsVivants._vivants():
@@ -172,6 +183,10 @@ func _tester() -> void:
 	await _images(2)
 	_verif(CasseObjets.nb_eclats() <= CasseObjets.MAX_ECLATS, "%d meubles brisés d'un coup : %d éclats (plafond %d)" % [n_casses, CasseObjets.nb_eclats(), CasseObjets.MAX_ECLATS])
 	_fin()
+
+func _sous_surface(f: Node3D) -> bool:
+	var q := PhysicsRayQueryParameters3D.create(f.global_position + Vector3(0, 0.1, 0), f.global_position - Vector3(0, 0.15, 0), 1)
+	return not (f as Node3D).get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
 func _fin() -> void:
 	print("ECHECS : %d" % (0 if _ok else 1))

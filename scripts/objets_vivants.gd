@@ -135,13 +135,36 @@ static func spec_meuble(genre: String, xf: Transform3D, morceaux: Array, portee 
 ## Morceaux d'un prop en atlas texturé (pq_*) pour un contexte (« exterieur » : patine et neige v5 à l'échelle de la pose, sans
 ## position : tous les tonneaux d'un même modèle partagent un maillage) ; q_* sans pq_* : `choisir` (matière -> Material).
 static var _morceaux_ctx := {}
+static var _verrou_ctx := Mutex.new()
 static func morceaux_contexte(nom: String, contexte: String, ech: Vector3, choisir: Callable) -> Array:
 	var cle := nom + "|" + contexte      # un maillage par modèle et contexte (le MultiMesh ne garde que le premier) : calculé une fois
-	if _morceaux_ctx.has(cle):
-		return _morceaux_ctx[cle]
+	_verrou_ctx.lock()
+	var r: Array = _morceaux_ctx.get(cle, [])
+	_verrou_ctx.unlock()
+	if not r.is_empty():
+		return r
 	var res := _morceaux_contexte(nom, contexte, ech, choisir)
+	_verrou_ctx.lock()
 	_morceaux_ctx[cle] = res
+	_verrou_ctx.unlock()
 	return res
+
+## Meuble posé UN PAR UN par le village (PropsQuaternius.village : enclos, ferme, atelier, bancs) : spec faite tout de suite (fil de
+## fond possible), corps et MultiMesh créés sur le fil principal (appel différé). Identifiant : position arrondie (stable). Vrai si capté.
+static func meuble_differe(v: Object, parent: Node3D, nom: String, xf: Transform3D) -> bool:
+	if not capte_meuble(nom) or parent == null:
+		return false
+	var mv: Dictionary = PropsQuaternius.mats_village(v) if v != null else {}
+	var mo := morceaux_contexte(nom, "exterieur", xf.basis.get_scale(),
+		func(m: String) -> Material: return mv[m] if mv.has(m) else (mv["bois"] if mv.has("bois") else PropsQuat.materiau("pq_bois", "exterieur")))
+	if mo.is_empty():
+		return false
+	var lieu := "pv_%s_%d_%d_%d" % [nom, roundi(xf.origin.x * 10.0), roundi(xf.origin.y * 10.0), roundi(xf.origin.z * 10.0)]
+	var sp := spec_meuble(nom, xf, mo, 55.0, true)
+	(func() -> void:
+		if is_instance_valid(parent):
+			peupler(parent, [sp], lieu)).call_deferred()
+	return true
 
 static func _morceaux_contexte(nom: String, contexte: String, ech: Vector3, choisir: Callable) -> Array:
 	var res := []

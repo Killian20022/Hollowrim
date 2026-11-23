@@ -549,6 +549,8 @@ static func village(v, parent: Node3D, nom: String, xf: Transform3D, solide := f
 		mats = {}
 	if not actif or not existe(nom):
 		return
+	if mats.is_empty() and ObjetsVivants.meuble_differe(v, parent, nom, xf):      # cassables partout : meuble physique (corps = solide)
+		return
 	var mv := mats_village(v)
 	for m: Array in morceaux(nom, mats):
 		var arr: Array = patine_v5(m[1], m[0], xf, not SANS_NEIGE_V5.has(nom)) if v5 and est_pq(String(m[0])) else m[1]
