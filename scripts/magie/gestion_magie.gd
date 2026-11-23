@@ -300,7 +300,15 @@ static func regler_detail(niveau: int) -> void:
 		instance.couche.regler(niveau)
 		instance._pms.clear()
 
+## (perf) temps cumulé de _process en µs (mesure A/B outils/film_foudre.gd --perf)
+static var prof_us := 0
+
 func _process(dt: float) -> void:
+	var t_prof := Time.get_ticks_usec()
+	_process_corps(dt)
+	prof_us += Time.get_ticks_usec() - t_prof
+
+func _process_corps(dt: float) -> void:
 	horloge += dt
 	fin_actif = forcer_fin or (couche != null and couche.fine())
 	_maj_auras()

@@ -249,6 +249,7 @@ func _fenetre(duree: float, suivre: Node3D) -> Array:
 	var t0 := Time.get_ticks_usec()
 	var nb := 0
 	var gpu := 0.0
+	var cpu := 0.0
 	while Time.get_ticks_usec() - t0 < int(duree * 1e6):
 		if suivre != null:
 			var o: Vector3 = j.camera.global_position
@@ -258,14 +259,15 @@ func _fenetre(duree: float, suivre: Node3D) -> Array:
 		await _image()
 		nb += 1
 		gpu += RenderingServer.viewport_get_measured_render_time_gpu(vp)
+		cpu += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
 	var sec := float(Time.get_ticks_usec() - t0) / 1e6
-	return [nb / sec, gpu / maxi(nb, 1)]
+	return [nb / sec, gpu / maxi(nb, 1), cpu / maxi(nb, 1)]
 
 func _mesure() -> void:
 	magie.equiper("gauche", "arc_electrique")
 	var d := _draugr(_libre(4.6, 0.3), "guerrier")
 	await _attendre(1.5)
-	for tour in 4:
+	for tour in int(_arg("tours", "6")):
 		GestionMagie.foudre_v1 = tour % 2 == 0
 		var nom := "v1" if GestionMagie.foudre_v1 else "v2"
 		magie.equiper("gauche", "chaine_eclairs")
@@ -275,7 +277,14 @@ func _mesure() -> void:
 		var repos := await _fenetre(2.0, d)
 		magie.appuyer("gauche")
 		await _attendre(0.6)
+		FoudreV2.prof_us = 0
+		FoudreV2.prof_img = 0
+		GestionMagie.prof_us = 0
+		var f0 := Engine.get_process_frames()
 		var canal := await _fenetre(4.0, d)
+		print("PROF %s GestionMagie._process : %.3f ms par image" % [nom, GestionMagie.prof_us / 1000.0 / maxi(Engine.get_process_frames() - f0, 1)])
+		if FoudreV2.prof_img > 0:
+			print("PROF canal v2 : %.3f ms par image (%d images)" % [FoudreV2.prof_us / 1000.0 / FoudreV2.prof_img, FoudreV2.prof_img])
 		magie.relacher("gauche")
 		await _attendre(1.0)
-		print("PERF %s repos %.1f ips (gpu %.2f ms) canal %.1f ips (gpu %.2f ms)" % [nom, repos[0], repos[1], canal[0], canal[1]])
+		print("PERF %s repos %.1f ips (gpu %.2f ms) canal %.1f ips (gpu %.2f ms, process %.2f ms)" % [nom, repos[0], repos[1], canal[0], canal[1], canal[2]])

@@ -155,16 +155,18 @@ func _gen_tension(g: GestionMagie, traits: Array, o: Vector3) -> Array:
 
 func _gen_reforme(g: GestionMagie, traits: Array, o: Vector3) -> Array:
 	var p := clampf(t / 0.32, 0.0, 1.0)
-	var r := lerpf(0.34, 0.02, p * p)
-	var fade := 1.0 - smoothstep(0.7, 1.0, p)
-	for _k in 6:
+	var v1 := GestionMagie.foudre_v1
+	# v2 : reflux allégé (3 arcs plus courts et plus pâles, 1 étincelle finale au lieu de 6 + 3)
+	var r := lerpf(0.34 if v1 else 0.2, 0.02, p * p)
+	var fade := (1.0 - smoothstep(0.7, 1.0, p)) * (1.0 if v1 else 0.6)
+	for _k in (6 if v1 else 3):
 		var d := Vector3(randf_range(-1, 1), randf_range(-0.5, 1), randf_range(-1, 1)).normalized()
 		var a := d * r
 		var b := d * r * 0.35
 		var tr := g.foudre(a, b, r * 0.18, 3)
 		traits.append([tr, 1.0, fade])
 	if p > 0.85:
-		for _k in 3:
+		for _k in (3 if v1 else 1):
 			traits.append([g.foudre(Vector3.ZERO, Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized() * 0.1, 0.03, 3), 1.0, 0.8])
 	return traits
 

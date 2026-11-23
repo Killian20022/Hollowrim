@@ -21,7 +21,7 @@ const REGEN_MIN := 2
 const REGEN_MAX := 4
 ## Plafonds (contrôlés par outils/test_foudre_v2.gd).
 const MAX_ARCS_CANAL := 6
-const MAX_POINTS_TRONC := 40
+const MAX_POINTS_TRONC := 34
 ## Éclat de la forme selon son âge (en images depuis la régénération) ; rémanence de l'ancienne forme.
 const ECLAT_AGE := [1.0, 0.8, 0.7, 0.62, 0.55]
 const REMANENCE := [0.5, 0.25]
@@ -37,6 +37,14 @@ static var _doigts_cache := {}    # id du squelette + côté -> [[os_02, os_03] 
 
 # ====================================================================== bruit fractal cohérent
 
+## (perf) temps cumulé de Canal.maj, en µs, et nombre d'images
+static var prof_us := 0
+## (perf) somme des amplitudes 1 + 0,58 + 0,58² … par nombre d'octaves (branches 3, filaments et griffes 2 : le détail fin
+## ne se voit pas à 480x270)
+const FBM_NORME := [1.0, 1.0, 1.58, 1.9164, 2.1115]
+const FORMES_MAX_IMAGE := 2   # (perf) au plus 2 arcs reformés par image : les autres attendent l'image suivante
+static var prof_img := 0
+
 static func _h(i: int, g: int) -> float:
 	var n := (i * 374761393 + g * 668265263 + 1013904223) & 0x7fffffff
 	n = ((n ^ (n >> 13)) * 1274126177) & 0x7fffffff
@@ -50,15 +58,34 @@ static func _bruit(x: float, g: int) -> float:
 
 ## 4 octaves ; l'octave 0 (la direction générale) prend sa graine `g_lente` (elle dérive lentement d'une forme à l'autre),
 ## les fines la graine `g` (tirée à neuf à chaque forme).
-static func fbm(x: float, g: int, g_lente: float) -> float:
-	var v := _bruit(x + g_lente, 17) * 1.0
-	var f := 2.3
-	var a := 0.58
-	for o in range(1, 4):
-		v += _bruit(x * f + float(o) * 3.1, g + o * 977) * a
-		f *= 2.3
-		a *= 0.58
-	return v / 2.11
+static func fbm(x: float, g: int, g_lente: float, oct := 4) -> float:
+	# (perf) bruit de valeur et hachage écrits en ligne sur une table de 4096 valeurs (même rendu que _bruit/_h, ~5x moins
+	# cher qu'à travers les appels de fonction GDScript)
+	var tb := _table()
+	var xx := x + g_lente
+	var i := floori(xx)
+	var f := xx - i
+	var h0 := (i * 7919 + 17 * 104729) & 4095
+	var v := tb[h0] + (tb[(h0 + 7919) & 4095] - tb[h0]) * f
+	var fr := 2.3
+	var am := 0.58
+	for o in range(1, oct):
+		xx = x * fr + float(o) * 3.1
+		i = floori(xx)
+		f = xx - i
+		h0 = (i * 7919 + (g + o * 977) * 104729) & 4095
+		v += (tb[h0] + (tb[(h0 + 7919) & 4095] - tb[h0]) * f) * am
+		fr *= 2.3
+		am *= 0.58
+	return v / FBM_NORME[oct]
+
+static var _tb := PackedFloat32Array()
+static func _table() -> PackedFloat32Array:
+	if _tb.is_empty():
+		_tb.resize(4096)
+		for k in 4096:
+			_tb[k] = _h(k, 91)
+	return _tb
 
 static func base_perp(d: Vector3) -> Basis:
 	var dn := d.normalized() if d.length_squared() > 1e-10 else Vector3.FORWARD
@@ -67,7 +94,7 @@ static func base_perp(d: Vector3) -> Basis:
 
 ## Nervure de a à b (Bézier quadratique par c), décalée par le bruit fractal dans le plan perpendiculaire.
 ## `libre` : le bout b n'est pas tenu (branche, filament : l'enveloppe ne revient pas à zéro).
-static func nervure(a: Vector3, c: Vector3, b: Vector3, ampl: float, n: int, g: int, g_lente: float, libre := false) -> PackedVector3Array:
+static func nervure(a: Vector3, c: Vector3, b: Vector3, ampl: float, n: int, g: int, g_lente: float, libre := false, oct := 4) -> PackedVector3Array:
 	var pts := PackedVector3Array()
 	pts.resize(n + 1)
 	var bs := base_perp(b - a)
@@ -78,7 +105,7 @@ static func nervure(a: Vector3, c: Vector3, b: Vector3, ampl: float, n: int, g: 
 		var q := a * (1.0 - t) * (1.0 - t) + c * 2.0 * (1.0 - t) * t + b * t * t
 		var env := pow(sin(PI * t), 0.7) if not libre else pow(sin(PI * 0.5 * t), 0.8)
 		var x := t * freq
-		q += (bs.x * fbm(x, g, g_lente) + bs.y * fbm(x + 37.0, g + 5, g_lente * 0.8 + 11.0)) * ampl * env
+		q += (bs.x * fbm(x, g, g_lente, oct) + bs.y * fbm(x + 37.0, g + 5, g_lente * 0.8 + 11.0, oct)) * ampl * env
 		pts[i] = q
 	return pts
 
@@ -90,9 +117,11 @@ static func arbre(a: Vector3, c: Vector3, b: Vector3, rng: RandomNumberGenerator
 	if l < 0.02:
 		return traits
 	var ampl: float = o.get("ampl", clampf(l * 0.055, 0.012, 0.32))
-	var n := clampi(int(l / 0.11) + 6, 6, MAX_POINTS_TRONC)
+	# (perf) un point tous les 13 cm sur le tronc principal, 18 cm sur les arcs secondaires (option « pas »)
+	var n := clampi(int(l / float(o.get("pas", 0.13))) + 6, 6, MAX_POINTS_TRONC)
 	var g := rng.randi()
-	var tronc := nervure(a, c, b, ampl, n, g, g_lente, bool(o.get("libre", false)))
+	var libre: bool = o.get("libre", false)
+	var tronc := nervure(a, c, b, ampl, n, g, g_lente, libre)
 	var ia := PackedFloat32Array()
 	var iw := PackedFloat32Array()
 	ia.resize(n + 1)
@@ -100,7 +129,7 @@ static func arbre(a: Vector3, c: Vector3, b: Vector3, rng: RandomNumberGenerator
 	var largeur: float = o.get("largeur", 1.0)
 	for i in n + 1:
 		var t := float(i) / n
-		ia[i] = 1.0 if not o.get("libre", false) else lerpf(1.0, 0.35, t * t)
+		ia[i] = 1.0 if not libre else lerpf(1.0, 0.35, t * t)
 		iw[i] = largeur * (lerpf(0.55, 1.0, clampf(t / 0.12, 0.0, 1.0)))   # fin au bout des doigts, il prend corps
 	traits.append({"p": tronc, "niv": 0, "a": ia, "w": iw})
 	# branches : 2 à 4 sur le tronc, de part et d'autre (côtés alternés), tournées vers l'avant
@@ -119,7 +148,7 @@ static func arbre(a: Vector3, c: Vector3, b: Vector3, rng: RandomNumberGenerator
 		lb = minf(lb, 1.4)
 		var fin := p0 + dir * lb
 		var nn := clampi(int(lb / 0.06) + 3, 4, 12)
-		var br := nervure(p0, p0 + dir * lb * 0.5 + cote * lb * 0.12, fin, lb * 0.16, nn, rng.randi(), g_lente * 1.3 + k, true)
+		var br := nervure(p0, p0 + dir * lb * 0.5 + cote * lb * 0.12, fin, lb * 0.16, nn, rng.randi(), g_lente * 1.3 + k, true, 3)
 		var ba := PackedFloat32Array()
 		var bw := PackedFloat32Array()
 		ba.resize(nn + 1)
@@ -142,7 +171,7 @@ static func arbre(a: Vector3, c: Vector3, b: Vector3, rng: RandomNumberGenerator
 			var a2 := rng.randf() * TAU
 			var df := (td * 0.6 + (bf.x * cos(a2) + bf.y * sin(a2)) * 0.8).normalized()
 			var lf := lb * rng.randf_range(0.3, 0.55)
-			var fl := nervure(q0, q0 + df * lf * 0.5, q0 + df * lf, lf * 0.2, 4, rng.randi(), g_lente * 1.7, true)
+			var fl := nervure(q0, q0 + df * lf * 0.5, q0 + df * lf, lf * 0.2, 4, rng.randi(), g_lente * 1.7, true, 2)
 			var fa := PackedFloat32Array([0.55, 0.45, 0.32, 0.2, 0.1])
 			var fw := PackedFloat32Array([0.35, 0.3, 0.3, 0.25, 0.2])
 			traits.append({"p": fl, "niv": 2, "a": fa, "w": fw})
@@ -155,7 +184,7 @@ static func arbre(a: Vector3, c: Vector3, b: Vector3, rng: RandomNumberGenerator
 			continue
 		var dv: Vector3 = gr[2] if gr.size() > 2 else Vector3.ZERO
 		var mid: Vector3 = ga.lerp(gb, 0.5) + dv * lg * 0.25
-		var gp := nervure(ga, mid, gb, lg * 0.18, clampi(int(lg / 0.04) + 3, 4, 10), rng.randi(), g_lente * 2.1)
+		var gp := nervure(ga, mid, gb, lg * 0.18, clampi(int(lg / 0.04) + 3, 4, 10), rng.randi(), g_lente * 2.1, false, 2)
 		var na := PackedFloat32Array()
 		var nw := PackedFloat32Array()
 		na.resize(gp.size())
@@ -492,6 +521,12 @@ class Canal:
 		if img == _img:
 			return   # déjà placé à cette image (le jet est placé par le lanceur ET par GestionMagie._maj_jets)
 		_img = img
+		var t_us := Time.get_ticks_usec()
+		_maj(origine, o, fin, dir, cible, touche, espace, exclus, force, img)
+		FoudreV2.prof_us += Time.get_ticks_usec() - t_us
+		FoudreV2.prof_img += 1
+
+	func _maj(origine: Node3D, o: Vector3, fin: Vector3, dir: Vector3, cible: Node3D, touche: bool, espace: PhysicsDirectSpaceState3D, exclus: Array[RID], force: float, img: int) -> void:
 		var l := o.distance_to(fin)
 		var doigts := FoudreV2.bouts_doigts(origine, dir)
 		# (perf) squelette et os d'accroche de la cible cherchés une fois par cible, pas à chaque image
@@ -511,8 +546,9 @@ class Canal:
 			# départ : le tronc (k = 0) part du majeur, les autres de l'index, de l'annulaire, du pouce, de l'auriculaire
 			var di: int = [2, 1, 3, 0, 4, 2][k % 6]
 			var a: Vector3 = doigts[mini(di, doigts.size() - 1)]
-			var b := _bout(k, a, fin, l, bs, corps, touche)
-			if arc.a_refaire(img):
+			var refaire := arc.a_refaire(img) and (formes_image < FoudreV2.FORMES_MAX_IMAGE or not arc.actif)
+			var b := _bout(k, a, fin, l, bs, corps, refaire)
+			if refaire:
 				_lat[k] = float(_lat[k]) + rng.randf_range(-0.5, 0.5) + 0.35
 				var lat: float = _lat[k]
 				var ecart := clampf(l * (0.07 if k == 0 else 0.13), 0.04, 0.9)
@@ -529,7 +565,7 @@ class Canal:
 				var tr := FoudreV2.arbre(a, c, b, rng, _g_lente + k * 13.0, {
 					"branches": (rng.randi_range(2, 3) if k == 0 else rng.randi_range(0, 1)),
 					"filaments": 0.6 if k == 0 else 0.25, "libre": not touche and corps.is_empty() and k > 0,
-					"largeur": 1.0 if k == 0 else 0.8, "griffes": griffes})
+					"largeur": 1.0 if k == 0 else 0.8, "griffes": griffes, "pas": 0.13 if k == 0 else 0.18})
 				arc.former(tr, a, b, img, rng)
 				formes_image += 1
 				if touche or not corps.is_empty():
@@ -542,17 +578,16 @@ class Canal:
 		FoudreV2.journal = {"o": o, "doigts": doigts, "departs": departs, "bouts": bouts, "img": img, "formes": formes_image}
 
 	## Bout de l'arc k : un os du corps (gardé 2-3 formes), sinon un point du disque autour du point visé.
-	func _bout(k: int, a: Vector3, fin: Vector3, l: float, bs: Basis, corps: Array, _touche: bool) -> Vector3:
+	func _bout(k: int, a: Vector3, fin: Vector3, l: float, bs: Basis, corps: Array, refaire: bool) -> Vector3:
 		if not corps.is_empty():
 			var sq: Skeleton3D = corps[0]
 			var lst: PackedInt32Array = corps[1]
 			if lst.size() > 0 and is_instance_valid(sq):
 				var acc: Array = _accroche[k]
-				var arc: FoudreV2.Arc = arcs[k]
-				if int(acc[0]) < 0 or (arc.a_refaire(Engine.get_process_frames()) and int(acc[1]) <= 0):
+				if int(acc[0]) < 0 or (refaire and int(acc[1]) <= 0):
 					acc[0] = lst[rng.randi() % lst.size()]
 					acc[1] = rng.randi_range(2, 3)
-				elif arc.a_refaire(Engine.get_process_frames()):
+				elif refaire:
 					acc[1] = int(acc[1]) - 1
 				var po := FoudreV2.pos_os(sq, int(acc[0]))
 				return po + (a - po).normalized() * 0.1   # à la surface du corps, côté lanceur (l'os est dedans)
