@@ -6,6 +6,9 @@ extends Node3D
 ##   SangLame.equiper(hote, materiau_lame, garde, pointe)   mains.gd, à chaque changement d'arme (matériau = copie propre au joueur)
 ##   SangLame.coup(intensite, couleur)                        CombatEnnemi.effets_impact, coup d'arme qui fait saigner
 ##   SangLame.instance.quantite / .sec                        état (tests, captures)
+## Sang v3 (2026-11-23) : SangLame.ensanglanter(modele, intensite, couleur[, garde, pointe]) — même sang sur une AUTRE arme (arme
+## lancée qui se plante / traverse, arme d'un ennemi) : ses matériaux PS1 sont dupliqués (variante de shader déjà compilée), un
+## nœud « SangArme » sous le modèle sèche, goutte et s'efface comme la lame du joueur. Couleur : palette SangV3 (draugr noirâtre).
 ## Le rendu est une variante du shader de la lame (shader_de : le code du shader ps1 / reflet + un masque de sang calculé dans le
 ## repère du modèle, texels de SANG_TEXEL m, bruit de valeur étiré le long de la lame + coulures d'un texel de large).
 
@@ -25,6 +28,8 @@ static var instance: SangLame
 static var actif := true
 
 var mat: ShaderMaterial
+## Sang v3 : autres matériaux de la même arme (arme ensanglantée à plusieurs surfaces).
+var autres: Array = []
 var garde := Vector3(0, 0.1, 0)
 var pointe := Vector3(0, 0.9, 0)
 var quantite := 0.0
@@ -72,6 +77,8 @@ static func coup(intensite: float, c: Color) -> void:
 	instance._coup(intensite, c)
 
 func _coup(intensite: float, c: Color) -> void:
+	if SangV3.actif:
+		c = SangV3.couleur(c) * 0.7   # × 1,8 dans le shader : rouge sombre mouillé, jamais fluo ; draugr noirâtre
 	var ajout := PAR_COUP * clampf(intensite, 0.3, 4.5) * (1.0 if Sang.niveau() == 2 else 0.5)
 	# la couleur suit le sang le plus récent (mélange pondéré : le sang frais recouvre le sang sec)
 	var k := ajout / maxf(quantite + ajout, 0.001)
@@ -111,17 +118,106 @@ func _appliquer() -> void:
 		return
 	var v := Vector4(quantite if actif else 0.0, sec, coule, 0.0)
 	if absf(v.x - _envoye.x) > 0.004 or (v.x == 0.0) != (_envoye.x == 0.0):
-		mat.set_shader_parameter("sang_quantite", v.x)
+		_param("sang_quantite", v.x)
 		_envoye.x = v.x
 	if absf(v.y - _envoye.y) > 0.01:
-		mat.set_shader_parameter("sang_sec", v.y)
+		_param("sang_sec", v.y)
 		_envoye.y = v.y
 	if absf(v.z - _envoye.z) > 0.01:
-		mat.set_shader_parameter("sang_coule", v.z)
+		_param("sang_coule", v.z)
 		_envoye.z = v.z
 	if depuis == 0.0 or _envoye.w < 0.0:
-		mat.set_shader_parameter("sang_couleur", couleur)
+		_param("sang_couleur", couleur)
 		_envoye.w = 1.0
+
+func _param(nom: String, v: Variant) -> void:
+	mat.set_shader_parameter(nom, v)
+	for m: ShaderMaterial in autres:
+		m.set_shader_parameter(nom, v)
+
+## Sang v3 : ensanglante une autre arme (arme plantée, lancée par la télékinésie, arme d'un ennemi). `garde` / `pointe` dans le
+## repère de `modele` (défaut : repères « garde » / « pointe » s'ils existent, sinon le grand axe de la boîte englobante, pointe
+## du côté le plus loin de l'origine). Rend le nœud SangArme (ou null : gore coupé, aucun matériau PS1).
+static func ensanglanter(modele: Node3D, intensite: float, c: Color, g := Vector3.INF, p := Vector3.INF) -> SangLame:
+	if not actif or Sang.niveau() == 0 or modele == null or not modele.is_inside_tree():
+		return null
+	var s := modele.get_node_or_null("SangArme") as SangLame
+	if s == null:
+		var inv := modele.global_transform.affine_inverse()
+		if g == Vector3.INF or p == Vector3.INF:
+			var rg := modele.find_child("garde", true, false) as Node3D
+			var rp := modele.find_child("pointe", true, false) as Node3D
+			if rg != null and rp != null:
+				g = inv * rg.global_position
+				p = inv * rp.global_position
+			else:
+				var axes := _axe_modele(modele)
+				g = axes[0]
+				p = axes[1]
+		var mats: Array = []
+		var locaux: Array = []
+		var mailles: Array = modele.find_children("*", "MeshInstance3D", true, false)
+		if modele is MeshInstance3D:
+			mailles.append(modele)
+		for mi: MeshInstance3D in mailles:
+			if mi.mesh == null:
+				continue
+			for k in mi.mesh.get_surface_count():
+				var m := mi.get_active_material(k)
+				if not (m is ShaderMaterial) or (m as ShaderMaterial).shader == null:
+					continue
+				var v := shader_de((m as ShaderMaterial).shader)
+				if v == null or not v.code.contains("sang_quantite"):
+					continue
+				var d := (m as ShaderMaterial).duplicate() as ShaderMaterial
+				if d.shader != v:
+					var sauve := {}
+					for u: Dictionary in d.shader.get_shader_uniform_list():
+						sauve[u["name"]] = d.get_shader_parameter(u["name"])
+					d.shader = v
+					for nom: String in sauve:
+						if sauve[nom] != null:
+							d.set_shader_parameter(nom, sauve[nom])
+				var vers_mi := mi.global_transform.affine_inverse() * modele.global_transform
+				d.set_shader_parameter("sang_garde", vers_mi * g)
+				d.set_shader_parameter("sang_pointe", vers_mi * p)
+				d.set_shader_parameter("sang_graine", randf() * 97.0)
+				mi.set_surface_override_material(k, d)
+				mats.append(d)
+				locaux.append(mi)
+		if mats.is_empty():
+			return null
+		s = SangLame.new()
+		s.name = "SangArme"
+		s.garde = g
+		s.pointe = p
+		s.mat = mats[0]
+		s.autres = mats.slice(1)
+		modele.add_child(s)
+	s._coup(intensite, c)
+	return s
+
+## Grand axe de la boîte englobante (repère du modèle) : [garde, pointe], la pointe du côté le plus loin de l'origine (la prise).
+static func _axe_modele(modele: Node3D) -> Array:
+	var boite := AABB()
+	var premier := true
+	var inv := modele.global_transform.affine_inverse()
+	for mi: MeshInstance3D in modele.find_children("*", "MeshInstance3D", true, false):
+		var b := (inv * mi.global_transform) * mi.get_aabb()
+		boite = b if premier else boite.merge(b)
+		premier = false
+	var i := boite.get_longest_axis_index()
+	var a := boite.position
+	var b2 := boite.end
+	var g := boite.get_center()
+	var p := boite.get_center()
+	g[i] = a[i]
+	p[i] = b2[i]
+	if absf(a[i]) > absf(b2[i]):
+		var t := g
+		g = p
+		p = t
+	return [g.lerp(p, 0.2), p]
 
 ## Remet la lame propre (tests, captures).
 func nettoyer() -> void:
