@@ -54,7 +54,18 @@ casse aussi : à chaque contact d'un objet éveillé, l'énergie PERDUE (½·m·
 Compté par `outils/test_cassables_partout.gd` (partie neuve, village prêt). (a) = petit objet libre, (b) = mobilier léger cassable,
 (c) = gros mobilier FIXE.
 
-RECENSEMENT
+| Lieu | (b) mobilier léger physique | (a) petits objets libres (déjà vivants) |
+|---|---|---|
+| Halle de Gunnar | 20 (tonneaux, tabourets, chaise, bancs, jarres, cageots) | ~60, dont cruches/bouteilles fragiles |
+| Maisons (Sigrún 5, chasseurs 5, Grima 8) | 18 | vaisselle, vivres, potions, livres |
+| Forge de Brodd | 8 (tonneaux, cageots, sac, banc, tabouret, caisse ferrée) | seaux, marmite, outils |
+| Place et ruelles (MobilierVillage POSES/POSES_D) | 40 (tonneaux, caisses, bancs, sacs) | — |
+| Marché (réserves des 3 étals, biens des marchands) | 17 | denrées des étals |
+| Abords (24 compositions : charrette, récoltes, camp de chasseur, réserve des bandits, postes de garde, établis, quai de pêche…) | 48 | — |
+| **Total au démarrage** | **151** | **228** (dont 45 fragiles) |
+
+Les bâtiments ouverts (fermes, ateliers) passent par `Interieurs.q` : leur mobilier léger devient physique quand ils sont posés.
+Crypte et grotte : 40 cassables de la grotte et ceux de la crypte (urnes, tonneaux, caisses : `Cassable`) prennent `recevoir_choc`.
 
 ### (c) Gros mobilier fixe (reste du décor : navigation des PNJ, rien à faire)
 
@@ -74,7 +85,13 @@ ne les voit pas (pas dans le groupe), ce qui revient au refus « Trop lourd. ».
 
 ## Perf
 
-PERF
+Mesures `outils/audit_mesure_lieu.gd` (fenêtre hors écran, 12 s, midi), A/B ENTRELACÉS `--sans-cassables-partout` / normal,
+machine très chargée par les autres agents (les valeurs absolues sont basses, seul l'écart compte) : voir le rapport du chantier.
+- au repos : 0 corps physique actif (tout est gelé) ; casse mesurée en jeu (fenêtre) : 2 à 9 ms pour un objet (éclats 0,6-3 ms,
+  effets 1-5 ms ; découpe préparée dans un fil de fond à la pose) ; calcul des témoins (vol) reporté à l'image suivante ;
+- éclats : plafond 64, gelés en ~3 s, effacés à 40 s ;
+- chargement : la place ne fond plus ses meubles (MobilierVillage 44 992 triangles fondus au lieu de 92 092) ; MultiMesh par modèle
+  (+~20 appels de dessin dans la halle, +~50 sur la place avec les ombres des meubles).
 
 ## Interrupteur
 
