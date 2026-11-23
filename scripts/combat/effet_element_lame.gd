@@ -196,7 +196,14 @@ func _ready() -> void:
 	l = a.distance_to(b)
 	transform = Transform3D(Basis(x, y, z), (a + b) * 0.5)
 	var lq := snappedf(l, 0.05)
-	for c: Dictionary in COUCHES[type]:
+	var v2 := type == "electricite" and not GestionMagie.foudre_v1
+	for c0: Dictionary in COUCHES[type]:
+		var c := c0
+		if v2:
+			# FOUDRE v2 : étincelles plus rares et plus fines (plus de carrés de pixels), les arcs structurés font l'effet
+			c = c0.duplicate()
+			c.n = maxi(4, int(float(c0.n) * 0.5))
+			c.taille = (c0.taille as Vector2) * 0.6
 		var gp := GPUParticles3D.new()
 		var n := int(c.n)
 		gp.amount = n
@@ -235,6 +242,11 @@ func _ready() -> void:
 			_arc.visibility_range_end = portee
 		# repère de l'arc : bas de la lame, axe Y étiré sur la longueur (les zigzags gardent leur largeur en mètres)
 		_arc.transform = Transform3D(Basis(Vector3.RIGHT, Vector3.UP * l, Vector3.BACK), Vector3(0, -l * 0.5, 0))
+		if v2:
+			_arcs_v2_creer(l)
+			_arc.material_override = FoudreV2.materiau(3.0, 1.0, 1.4)
+			_arc.layers = CoucheMagie.CALQUE
+			_arc.transform = Transform3D.IDENTITY
 		add_child(_arc)
 		_t_arc = _rng.randf_range(0.1, 0.6)
 	_t_rafale = _rng.randf_range(0.05, 0.4)
@@ -285,9 +297,11 @@ func _process(dt: float) -> void:
 				# parfois un second arc juste après le premier (crépitement)
 				_t_arc = _rng.randf_range(0.04, 0.08) if _rng.randf() < 0.3 else _rng.randf_range(ARC_PAUSE.x, ARC_PAUSE.y) * lerpf(1.0, 0.4, renfort)
 			else:
-				_arc.mesh = _arcs[_rng.randi() % _arcs.size()]
+				_arc.mesh = _arcs[_rng.randi() % _arcs.size()] if _arcs_v2.is_empty() else _arcs_v2[_rng.randi() % _arcs_v2.size()]
 				var miroir := 1.0 if _rng.randf() < 0.5 else -1.0
 				_arc.basis = Basis(Vector3.RIGHT * miroir, _arc.basis.y, Vector3.BACK)
+				if not _arcs_v2.is_empty():
+					_arc.set_instance_shader_parameter("eclat", 1.0)
 				_arc.visible = true
 				_t_arc = _rng.randf_range(ARC_DUREE.x, ARC_DUREE.y)
 
@@ -326,7 +340,7 @@ static func _mat(c: Dictionary) -> ShaderMaterial:
 
 ## Matériau de process d'une couche pour une lame de longueur `l` (m, arrondie à 5 cm) : boîte d'émission le long du fil.
 static func _pm(c: Dictionary, l: float) -> ParticleProcessMaterial:
-	var cle := "%s|%s" % [str(c.get("rampe")), snappedf(l, 0.05)] + ("|%s" % str(c.get("grav", Vector3.ZERO)))
+	var cle := "%s|%s" % [str(c.get("rampe")), snappedf(l, 0.05)] + ("|%s|%s" % [str(c.get("grav", Vector3.ZERO)), str(c.get("taille"))])
 	if _pms.has(cle):
 		return _pms[cle]
 	var pm := ParticleProcessMaterial.new()
@@ -368,6 +382,24 @@ static func _pm(c: Dictionary, l: float) -> ParticleProcessMaterial:
 	return pm
 
 ## Arcs en zigzag pré-calculés (lignes d'un pixel), repère unitaire : y de 0 (talon) à 1 (bout), x en mètres.
+## FOUDRE v2 : variantes d'arcs de CETTE lame (longueur `l`, repère de la lame : axe Y de -l/2 à +l/2), dessinées comme la
+## canalisation (tronc + branche + filament, bruit fractal cohérent, matériau foudre_v2) ; 6 variantes, faites une fois.
+var _arcs_v2: Array = []
+func _arcs_v2_creer(l: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7731 + int(l * 100.0)
+	for v in 6:
+		var y0 := rng.randf_range(0.0, 0.5) * l - l * 0.5
+		var y1 := minf(l * 0.5, y0 + rng.randf_range(0.3, 0.55) * l)
+		var a := Vector3(0.008, y0, 0.0)
+		var b := Vector3(0.008 * (1.0 if rng.randf() < 0.5 else -1.0), y1, 0.0)
+		var tr := FoudreV2.arbre(a, a.lerp(b, 0.5) + Vector3(rng.randf_range(-0.01, 0.01), 0, 0), b, rng, rng.randf() * 10.0,
+			{"ampl": 0.012, "branches": rng.randi_range(0, 1), "filaments": 0.4, "largeur": 0.8, "pas": 0.06})
+		var m := ArrayMesh.new()
+		FoudreV2.construire(m, tr, Vector3.ZERO)
+		m.custom_aabb = AABB(Vector3(-0.2, -l, -0.2), Vector3(0.4, l * 2.0, 0.4))
+		_arcs_v2.append(m)
+
 static func _mesh_arcs() -> void:
 	if not _arcs.is_empty():
 		return

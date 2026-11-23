@@ -183,6 +183,8 @@ func _go() -> void:
 	await _regarder(_devant(5.0) + Vector3.UP * 1.2, 0.1)
 	if _perf:
 		await _mesure()
+	elif _arg("tous") != "":
+		await _film_tous()
 	else:
 		await _film()
 	_texte("")
@@ -240,6 +242,109 @@ func _film() -> void:
 	await _attendre(0.2)
 	await _capture("chaine2")
 	await _attendre(1.6)
+
+# ------------------------------------------------------------------ film de TOUS les sorts électriques (--tous)
+
+func _titre(rendu: String, t: String) -> void:
+	_texte("%s : %s" % [rendu, t])
+	print("TITRE %.3f %s" % [Engine.get_process_frames() * DT, t])
+
+func _lancer(sort: String, charge := 0.0, maintien := 0.0) -> void:
+	magie.equiper("gauche", sort)
+	await _attendre(0.35)
+	magie.appuyer("gauche")
+	await _attendre(maxf(DT, charge + maintien))
+	magie.relacher("gauche")
+
+func _film_tous() -> void:
+	var rendu := "AVANT (v1)" if GestionMagie.foudre_v1 else "APRÈS (v2)"
+	var d := _draugr(_libre(3.8, 0.3), "guerrier")
+	var d2 := _draugr(_libre(7.0, -2.4), "squelette")
+	var d3 := _draugr(_libre(7.6, 2.2), "guerrier")
+	magie.equiper("gauche", "arc_electrique")
+	await _attendre(0.5)
+	await _regarder(Elements._centre(d) + Vector3.DOWN * 0.15, 0.2)
+	await _attendre(0.6)
+	print("DEBUT_SEQUENCE %.3f" % (Engine.get_process_frames() * DT))
+	# 1. arc électrique (canalisé)
+	_titre(rendu, "arc électrique (canalisé)")
+	await _attendre(0.5)
+	magie.appuyer("gauche")
+	await _attendre(0.8)
+	await _capture("arc")
+	await _regarder(Vector3.ZERO, 1.0, d, -0.15)
+	magie.relacher("gauche")
+	await _attendre(0.5)
+	# 2. chaîne d'éclairs
+	_titre(rendu, "chaîne d'éclairs")
+	magie.equiper("gauche", "chaine_eclairs")
+	await _regarder(Vector3.ZERO, 0.5, d2, -0.1)
+	magie.appuyer("gauche")
+	await _attendre(DT)
+	magie.relacher("gauche")
+	await _attendre(0.25)
+	await _capture("chaine")
+	await _attendre(0.9)
+	# 3. statut choc (étincelles et arcs sur le corps de la cible)
+	_titre(rendu, "statut choc sur la cible")
+	await _regarder(Vector3.ZERO, 0.4, d2, -0.1)
+	await _capture("choc")
+	await _attendre(0.5)
+	# 4. orage runique (sort chargé, éclairs de Force)
+	_titre(rendu, "orage runique (chargé)")
+	magie.equiper("gauche", "orage_runique")
+	await _regarder(Vector3.ZERO, 0.5, d, -0.2)
+	magie.appuyer("gauche")
+	await _attendre(0.5)
+	await _capture("orage_charge")
+	await _attendre(0.65)
+	magie.relacher("gauche")
+	await _attendre(0.3)
+	await _capture("orage")
+	await _attendre(1.1)
+	# 5. tempête statique (zone)
+	_titre(rendu, "tempête statique (zone)")
+	magie.equiper("gauche", "tempete_statique")
+	var milieu := (d2.global_position + d3.global_position) * 0.5
+	await _regarder(milieu + Vector3.UP * 0.3, 0.5)
+	magie.appuyer("gauche")
+	await _attendre(0.75)
+	magie.relacher("gauche")
+	await _attendre(0.9)
+	await _capture("tempete")
+	await _attendre(1.5)
+	# 6. impact électrique au sol (chaîne dans le vide, sur la dalle)
+	_titre(rendu, "impact électrique au sol")
+	magie.equiper("gauche", "chaine_eclairs")
+	await _regarder(_sol(_devant(3.2, -1.6)) + Vector3.UP * 0.05, 0.5)
+	magie.appuyer("gauche")
+	await _attendre(DT)
+	magie.relacher("gauche")
+	await _attendre(0.12)
+	await _capture("impact_sol")
+	await _attendre(1.0)
+	# 7. lame d'orage (enchantement de l'épée), puis coups sur le draugr
+	_titre(rendu, "lame d'orage (enchantement)")
+	magie.equiper("gauche", "enchant_electricite")
+	await _attendre(0.35)
+	magie.appuyer("gauche")
+	await _attendre(0.6)
+	magie.relacher("gauche")
+	await _attendre(0.8)
+	await _regarder(_devant(2.0) + Vector3.UP * 0.6, 0.4)
+	await _capture("lame")
+	var v := d.global_position - j.global_position
+	v.y = 0.0
+	j.global_position = d.global_position - v.normalized() * 1.7
+	await _regarder(Vector3.ZERO, 0.3, d, -0.1)
+	for _k in 2:
+		j.mains.entrees.appuyer()
+		await _attendre(DT * 2)
+		j.mains.entrees.relacher()
+		await _attendre(0.25)
+		await _capture("lame_coup")
+		await _attendre(0.45)
+	await _attendre(0.6)
 
 # ------------------------------------------------------------------ mesure
 

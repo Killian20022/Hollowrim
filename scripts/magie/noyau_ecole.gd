@@ -345,11 +345,13 @@ func _process(dt: float) -> void:
 		# FOUDRE v2 : petite lueur et arcs entre les doigts (GestionMagie._gen_main_v2), plus de grosse boule d'arcs
 		var v2 := not GestionMagie.foudre_v1
 		var sous_canal := v2 and runes.transition != null and runes.transition.canal > 0.5
-		_quad.set_instance_shader_parameter("rayon", float(RAYON[ecole]) * larg_k * ((0.16 if sous_canal else 0.42) if v2 else 1.0))
-		_quad.set_instance_shader_parameter("force", forc * (0.6 if v2 else 1.0))
+		# v2 en charge : la lueur ne gonfle plus en boule (la charge se lit aux arcs des doigts qui se multiplient et convergent)
+		var k_ch := (1.0 / gr) * (1.0 + 0.25 * ch) if v2 else 1.0
+		_quad.set_instance_shader_parameter("rayon", float(RAYON[ecole]) * larg_k * k_ch * ((0.16 if sous_canal else 0.42) if v2 else 1.0))
+		_quad.set_instance_shader_parameter("force", forc * ((0.6 * (1.0 - 0.35 * ch)) if v2 else 1.0))
 		_quad.set_instance_shader_parameter("charge", ch)
 		_etat_arcs = {"r": larg_k, "ch": ch, "f": forc, "n": runes.suivi if v2 else null, "centre": global_position}
-		_maj_plasma(ch, vit, vif * ((0.12 if sous_canal else 0.45) if v2 else 1.0), larg_k * (0.55 if v2 else 1.0))
+		_maj_plasma(ch, vit, vif * ((0.12 if sous_canal else 0.45 * (1.0 - 0.6 * ch)) if v2 else 1.0), larg_k * ((0.55 * k_ch) if v2 else 1.0))
 	else:
 		_maj_tenebres(ch, vit, vif, haut_k, larg_k, conv)
 

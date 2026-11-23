@@ -110,6 +110,28 @@ func _lancer() -> void:
 	while not g._chaines.is_empty() and Time.get_ticks_msec() - t0 < 4000:
 		await process_frame
 	verifier(g._chaines.is_empty(), "chaîne v2 : éteinte après sa durée")
+	# --- autres sorts électriques : éclair ramifié = arbre (orage, tempête, impact, lame), disques sans runes, particules allégées
+	g._teinte_gen = "electricite"
+	var tr: Array = []
+	g.foudre_ramifiee(tr, Vector3.ZERO, Vector3(0, 0, -6), 0.4, 3.0, 3, 5)
+	g._teinte_gen = ""
+	var niveaux := {}
+	for t in tr:
+		if t.size() > 3:
+			niveaux[int(t[3])] = true
+	verifier(tr.size() >= 4 and niveaux.has(0) and niveaux.has(1), "éclair ramifié v2 : arbre tronc + branches (%d traits, niveaux %s)" % [tr.size(), niveaux.keys()])
+	var dv := GestionMagie._disque_v2({"couleur": "#4a3ad0", "runes": 0.9, "texels": 64.0, "epaisseur": 0.05, "remplissage": 0.12, "eclat": 1.4})
+	verifier(float(dv.runes) == 0.0 and float(dv.texels) == 128.0, "disque électrique v2 : sans runes, texels doublés")
+	GestionMagie.foudre_v1 = true
+	var pe1 := g.emettre("elec_impact", null, Transform3D.IDENTITY, false, 1.0)
+	GestionMagie.foudre_v1 = false
+	var pe := g.emettre("elec_impact", null, Transform3D.IDENTITY, false, 1.0)
+	var n1 := pe1.amount if pe1 != null else -1
+	var n2 := pe.amount if pe != null else -1
+	verifier(n1 > 0 and n2 > 0 and n2 <= ceili(n1 * 0.36) + 1, "particules électriques v2 allégées (%d contre %d en v1)" % [n2, n1])
+	var nd := g.get_child_count()
+	g._decharge_ponctuelle(Vector3.ZERO, Vector3(0, 0, -2), 0.3)
+	verifier(g.get_child_count() == nd, "v2 : plus de décharge ponctuelle (formes d'atlas)")
 	print("ECHECS %d" % echecs)
 	print("TEST %s" % ("OK" if echecs == 0 else "ÉCHEC"))
 	quit(0 if echecs == 0 else 1)

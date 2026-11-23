@@ -197,9 +197,12 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 	var reste := tr * (1.0 - actif)            # phase « traces » : plus rien de vif
 	# ------------------------------------------------ forme des arcs (accrochés aux points : le shader les suit)
 	var pas := PAS_JET if maxf(kj, ks) > 0.3 else PAS_CHOC
+	if not GestionMagie.foudre_v1:
+		pas = float(d.get("pas_v2", 0.05))   # FOUDRE v2 : nouvelle forme par à-coups, toutes les 2 à 4 images
 	var _p0 := Time.get_ticks_usec()
 	if h - float(d.t_forme) >= pas:
 		d.t_forme = h
+		d.pas_v2 = float(ic.rng.randi_range(FoudreV2.REGEN_MIN, FoudreV2.REGEN_MAX)) / 60.0
 		_former(ic, f, kj, ks, kc, reste)
 	ImpactCorps.prof("elec former", _p0); _p0 = Time.get_ticks_usec()
 	ic.arcs_regler(f)
@@ -222,7 +225,8 @@ static func maj(ic: ImpactCorps, f: ImpactCorps.Foyer, dt: float) -> bool:
 		ic.activer(f.em[k], r)
 	# ------------------------------------------------ voile et coque : contour qui crépite, veines, traces
 	# (le papillotement est fait par le shader : les canaux ne changent pas à chaque image → pas réécrits)
-	ic.ecoles(f, 0.0, snappedf(clampf(maxf(maxf(kj, ks), kc * 0.75), 0.0, 1.0), 0.05), 0.0, snappedf(tr * (0.35 + 0.65 * (1.0 - actif)), 0.02), 0.0, org + imp, 0.0)
+	var k_coque := 1.0 if GestionMagie.foudre_v1 else 0.45   # FOUDRE v2 : contour et veines de la coque plus discrets
+	ic.ecoles(f, 0.0, snappedf(clampf(maxf(maxf(kj, ks), kc * 0.75) * k_coque, 0.0, 1.0), 0.05), 0.0, snappedf(tr * (0.35 + 0.65 * (1.0 - actif)), 0.02), 0.0, org + imp, 0.0)
 	ImpactCorps.prof("elec reste", _p0)
 	# le corps éclaire le décor par à-coups pendant le choc (sous le jet, la lumière du jet est déjà au contact)
 	# (2026-10-28, budget) une seule lumière par CORPS : sous la brûlure, celle du feu reste (pas une 2e omni par corps)
@@ -269,7 +273,7 @@ static func _former(ic: ImpactCorps, f: ImpactCorps.Foyer, kj: float, ks: float,
 		elif kc > 0.05:
 			# statut choc : petites décharges qui parcourent le corps et papillotent (une forme sur quatre est vide)
 			if rng.randf() < 0.75:
-				for k in (3 if fin else 2):
+				for k in ((3 if fin else 2) if GestionMagie.foudre_v1 else 1):
 					var dep := _point_au_hasard(s, rng, 0.0)
 					var bout := _ramper(ic, f, dep, rng.randi_range(2, 4), g + k * 7.3, 0.7, 0.67 if k > 0 else 1.0)
 					anc.append(dep)
