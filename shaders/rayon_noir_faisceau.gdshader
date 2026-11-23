@@ -14,7 +14,7 @@ uniform vec3 noir : source_color = vec3(0.012, 0.004, 0.025);
 uniform vec3 fume : source_color = vec3(0.16, 0.04, 0.30);
 uniform vec3 bord : source_color = vec3(0.50, 0.15, 0.86);
 uniform vec3 filet : source_color = vec3(0.86, 0.72, 1.0);
-uniform float onde = 0.16;       // amplitude de l'ondulation (part du rayon)
+uniform float onde = 0.28;       // amplitude de l'ondulation (part du rayon)
 uniform float onde_lg = 2.6;     // longueur d'onde (m)
 uniform float onde_vit = 2.2;    // vitesse de l'onde vers la cible (m/s)
 uniform float eclat = 1.0;       // éclat du liseré (double magie : plus)
@@ -46,7 +46,8 @@ float vague(float s) {
 
 float rayon_en(float s) {
 	float ond = 1.0 + onde * vague(s) * smoothstep(0.0, 0.8, s);
-	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * rk() * ond;
+	float evase = 1.0 + 0.35 * smoothstep(longueur - 0.45, longueur, s);   // le rayon s'évase en touchant
+	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * rk() * ond * evase;
 }
 
 void vertex() {
@@ -108,7 +109,7 @@ void fragment() {
 	if (x < s0) {
 		// cœur noir ; des courants violets très sombres défilent dedans (pas un aplat)
 		float cour = smoothstep(0.62, 1.0, mbruit(vec2(tc * 1.6 - TIME * 9.0, v_th * 2.5 + graine)));
-		c = mix(noir, fume * 0.9, cour * 0.55);
+		c = mix(noir, fume * 1.1, cour * 0.7);
 	} else if (x < s0 + 0.04) {
 		c = filet * (1.2 + 0.4 * pv) * eclat;
 	} else if (x < s0 + 0.2) {

@@ -3,7 +3,7 @@ extends Node3D
 ## RAYON NOIR : visuel du sort CONTINU des ténèbres (data/sorts/rayon_noir.tres, type CANALISE, forme « rayon_noir »), sur le modèle du
 ## rayon tiré d'un coup (RayonNeant, scripts/magie/rayon_neant.gd) : même tube englobant (RayonNeant._tube()), shader dérivé
 ## (shaders/rayon_noir_faisceau.gdshader : cœur noir profond, liseré pourpre, ondulation lente qui court vers la cible, fumée déchirée
-## et brins enroulés), même tache d'ombre (shaders/rayon_neant_tache.gdshader) et mêmes bouffées (NoyauEcole.Bouffees).
+## et brins enroulés), tache d'ombre dérivée de celle du néant (shaders/rayon_noir_tache.gdshader) et mêmes bouffées (NoyauEcole.Bouffees).
 ## Un nœud PAR MAIN (par_paume), piloté chaque image par LanceurSorts.canaliser → EffetsMagie.rayon_noir :
 ##   allumage (~0,2 s) : la tête du rayon file de la main à la cible ; tenu : le rayon suit la visée (l'inertie est dans
 ##   LanceurSorts, la même pour les dégâts et l'image), s'arrête au premier décor ou au premier ennemi ;
@@ -21,7 +21,8 @@ const ID := "rayon_noir"
 const FORME := "rayon_noir"
 
 const SH_FAISCEAU := preload("res://shaders/rayon_noir_faisceau.gdshader")
-const SH_TACHE := preload("res://shaders/rayon_neant_tache.gdshader")
+const SH_HALO := preload("res://shaders/rayon_noir_halo.gdshader")
+const SH_TACHE := preload("res://shaders/rayon_noir_tache.gdshader")
 const SH_RUNE := preload("res://shaders/runes_orbite.gdshader")
 ## Allumage (s) : la tête du rayon file de la main à la cible ; extinction (s) : le rayon se resserre et se dissipe.
 const ALLUMAGE := 0.2
@@ -30,12 +31,12 @@ const VIE_TENUE := 0.3
 ## Le nœud s'éteint seul s'il n'est plus nourri (main coupée sans arrêt explicite).
 const OUBLI := 0.25
 ## Rayon du faisceau (m) loin de la main (× largeur du sort) et à la sortie de la paume ; distance d'ouverture.
-const RAYON_LOIN := 0.3
-const RAYON_MAIN := 0.05
+const RAYON_LOIN := 0.2
+const RAYON_MAIN := 0.035
 const OUVERTURE := 2.4
-## Tache d'ombre : diamètre (m) à l'impact, croissance pendant qu'on tient le même point, taches laissées en balayant.
-const TACHE := 0.9
-const TACHE_MAX := 1.7
+## Tache d'ombre : côté du quad (m ; la flaque en couvre ~25 à 80 %) à l'impact, croissance pendant qu'on tient le même point, taches laissées en balayant.
+const TACHE := 1.9
+const TACHE_MAX := 3.2
 const NB_TACHES_LAISSEES := 5
 const PAS_TACHE := 0.7
 const DUREE_TACHE_LAISSEE := 3.0
@@ -45,7 +46,7 @@ const NB_BRAISES := 14
 const NB_RUNES := 5
 const PERIODE_RUNE := 0.34
 const TRAJET_RUNE := 0.95
-const TAILLE_RUNE := 0.075
+const TAILLE_RUNE := 0.12
 const SIGNES := [4, 1, 5, 7, 6]
 const COUL_RUNE := Color("#b98cff")
 const COEUR_RUNE := Color("#f1e4ff")
@@ -73,10 +74,12 @@ var _vu := 0.0         # dernier appel de maj (horloge locale)
 var _fin_l := Vector3.ZERO
 var _faisceau: MeshInstance3D
 var _mat: ShaderMaterial
+var _halo: ShaderMaterial
 var _tache: MeshInstance3D
 var _mat_tache: ShaderMaterial
 var _t_tache := 0.0     # temps passé sur le point actuel
 var _pt_tache := Vector3.INF
+var _dia_k := 1.0          # réduction de la tache pour qu'elle reste sur la surface (arête de pilier, coin)
 var _laissees: Array = []   # [{mi, mat, t}]
 var _fumee: NoyauEcole.Bouffees
 var _braises: NoyauEcole.Bouffees
@@ -155,6 +158,12 @@ func _ready() -> void:
 	_mat.shader = SH_FAISCEAU
 	_mat.set_shader_parameter("graine", _graine)
 	_mat.set_shader_parameter("ouverture", OUVERTURE)
+	_halo = ShaderMaterial.new()
+	_halo.shader = SH_HALO
+	_halo.set_shader_parameter("graine", _graine)
+	_halo.set_shader_parameter("ouverture", OUVERTURE)
+	_halo.render_priority = 1
+	_mat.next_pass = _halo
 	_faisceau = _mi(RayonNeant._tube(), _mat, 50.0)
 	_mat_tache = _nouvelle_tache_mat()
 	_tache = _mi(_quad(), _mat_tache, 2.0)
@@ -202,7 +211,6 @@ func _nouvelle_tache_mat() -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = SH_TACHE
 	m.set_shader_parameter("graine", randf() * 10.0)
-	m.set_shader_parameter("bord", Color(0.50, 0.15, 0.86))
 	return m
 
 func _eteindre() -> void:
@@ -265,11 +273,12 @@ func _placer_faisceau(vie: float) -> void:
 	var y := d.cross(x).normalized()
 	_faisceau.global_transform = Transform3D(Basis(x, y, d * l), debut)
 	var k := clampf(puissance, 1.0, 1.6)
-	_mat.set_shader_parameter("longueur", l)
-	_mat.set_shader_parameter("rayon_max", RAYON_LOIN * largeur * k)
-	_mat.set_shader_parameter("rayon_min", RAYON_MAIN * k)
-	_mat.set_shader_parameter("eclat", 0.95 + 0.3 * (k - 1.0))
-	_mat.set_shader_parameter("vie", vie)
+	for m: ShaderMaterial in [_mat, _halo]:
+		m.set_shader_parameter("longueur", l)
+		m.set_shader_parameter("rayon_max", RAYON_LOIN * largeur * k)
+		m.set_shader_parameter("rayon_min", RAYON_MAIN * k)
+		m.set_shader_parameter("eclat", 0.95 + 0.3 * (k - 1.0))
+		m.set_shader_parameter("vie", vie)
 
 ## Tache d'ombre au bout (décor seulement : sur un ennemi, c'est OmbreCorps qui rampe sur lui).
 func _maj_tache(dt: float, _cb: Basis, g: GestionMagie) -> void:
@@ -280,16 +289,17 @@ func _maj_tache(dt: float, _cb: Basis, g: GestionMagie) -> void:
 				_laisser(_tache.global_transform)
 			_pt_tache = _fin_l
 			_t_tache = 0.0
+			_dia_k = _place_libre(_fin_l, normale)
 		_t_tache += dt
 		var n := normale
-		var dia := lerpf(TACHE, TACHE_MAX, smoothstep(0.0, 2.5, _t_tache)) * clampf(largeur, 0.7, 1.6)
+		var dia := lerpf(TACHE, TACHE_MAX, smoothstep(0.0, 2.5, _t_tache)) * clampf(largeur / 0.6, 0.8, 1.6) * _dia_k
 		var u := n.cross(Vector3.RIGHT if absf(n.x) < 0.9 else Vector3.UP).normalized()
 		var w := n.cross(u)
 		_tache.global_transform = Transform3D(Basis(u * dia, w * dia, n), _fin_l + n * 0.03)
 		_tache.visible = true
 		# le bord bouillonne (la forme change lentement : la tache ronge la surface)
-		_mat_tache.set_shader_parameter("graine", _graine + _t * 0.18)
-		_mat_tache.set_shader_parameter("vie", lerpf(0.04, 0.2, smoothstep(0.0, 0.35, _t_tache)))
+		_mat_tache.set_shader_parameter("etendue", smoothstep(0.0, 1.6, _t_tache) * 0.55 + smoothstep(0.0, 0.25, _t_tache) * 0.45)
+		_mat_tache.set_shader_parameter("fondu", 1.0)
 		if g != null and g.couche != null:
 			g.couche.demander()
 	elif _tache.visible:
@@ -305,7 +315,29 @@ func _maj_tache(dt: float, _cb: Basis, g: GestionMagie) -> void:
 			e.t = -1.0
 			(e.mi as MeshInstance3D).visible = false
 			continue
-		(e.mat as ShaderMaterial).set_shader_parameter("vie", lerpf(0.25, 1.0, k))
+		(e.mat as ShaderMaterial).set_shader_parameter("fondu", 1.0 - k)
+
+## Part de la taille de la tache qui tient sur la surface touchée (4 rayons autour du point, à 0,35 × la taille maxi) : 1, 0,6 ou 0,35.
+## Une tache est un carré posé sur la surface : sans ce test elle déborderait d'une arête de pilier, en l'air.
+func _place_libre(p: Vector3, n: Vector3) -> float:
+	if not is_inside_tree():
+		return 1.0
+	var monde := get_world_3d().direct_space_state
+	var u := n.cross(Vector3.RIGHT if absf(n.x) < 0.9 else Vector3.UP).normalized()
+	var w := n.cross(u)
+	for k: float in [1.0, 0.6, 0.35]:
+		var r := TACHE_MAX * 0.35 * k * clampf(largeur / 0.6, 0.8, 1.6)
+		var ok := true
+		for dv: Vector3 in [u, -u, w, -w]:
+			var a := p + n * 0.25 + dv * r
+			var q := PhysicsRayQueryParameters3D.create(a, a - n * 0.5, 1)
+			var h := monde.intersect_ray(q)
+			if h.is_empty() or absf((h["position"] - p).dot(n)) > 0.08:
+				ok = false
+				break
+		if ok:
+			return k
+	return 0.25
 
 func _laisser(tr: Transform3D) -> void:
 	var libre: Dictionary = {}
@@ -320,6 +352,9 @@ func _laisser(tr: Transform3D) -> void:
 	(libre.mi as MeshInstance3D).global_transform = tr
 	(libre.mi as MeshInstance3D).visible = true
 	(libre.mat as ShaderMaterial).set_shader_parameter("graine", float(_mat_tache.get_shader_parameter("graine")))
+	(libre.mat as ShaderMaterial).set_shader_parameter("etendue", float(_mat_tache.get_shader_parameter("etendue")))
+	(libre.mat as ShaderMaterial).set_shader_parameter("fondu", 1.0)
+	_mat_tache.set_shader_parameter("graine", randf() * 10.0)   # la suivante a sa propre forme
 	libre.t = 0.0
 
 ## 3 à 5 runes qui glissent de la main vers la cible le long du rayon, en tournant lentement autour de l'axe, puis s'éteignent.
@@ -362,7 +397,7 @@ func _maj_runes(dt: float, cb: Basis) -> void:
 		var s := TAILLE_RUNE * (0.75 + 0.35 * sin(PI * minf(p * 1.3, 1.0))) * clampf(puissance, 1.0, 1.4)
 		mi.global_transform = Transform3D(cb.scaled(Vector3.ONE * s), pos)
 		var al := smoothstep(0.0, 0.12, p) * (1.0 - smoothstep(0.62, 1.0, p)) * fondu_fin
-		mi.set_instance_shader_parameter("eclat", 1.5 * al * (0.85 + 0.15 * sin(_t * 9.0 + float(r.h) * 6.0)))
+		mi.set_instance_shader_parameter("eclat", 2.3 * al * (0.85 + 0.15 * sin(_t * 9.0 + float(r.h) * 6.0)))
 		mi.visible = al > 0.01
 
 ## Fumée qui s'échappe du rayon, volutes et braises au point d'impact.
@@ -431,18 +466,19 @@ func _maj_lumieres(g: GestionMagie, vie: float) -> void:
 	var id := get_instance_id()
 	var pulse := 0.9 + 0.1 * sin(_t * 2.6 * TAU / 2.6)
 	var n := normale if touche_decor else (debut - _fin_l).normalized()
-	g.lumiere("rayon_noir_b%d" % id, _fin_l + n * 0.5, LUMIERE, 1.7 * k * pulse * clampf(puissance, 1.0, 1.5), 4.5, 0.6)
+	var e_bout := 1.7 if cible == null else 0.8   # sur un corps, OmbreCorps l'éclaire déjà
+	g.lumiere("rayon_noir_b%d" % id, _fin_l + n * 0.5, LUMIERE, e_bout * k * pulse * clampf(puissance, 1.0, 1.5), 4.5, 0.6)
 	var l := debut.distance_to(_fin_l)
 	if l > 2.5:
 		g.lumiere("rayon_noir_m%d" % id, debut.lerp(_fin_l, 0.55) + Vector3.UP * 0.15, LUMIERE, 0.75 * k * clampf(puissance, 1.0, 1.4), minf(5.5, l * 0.6), 0.45)
 
-## L'ombre qui RAMPE sur la cible (OmbreCorps : éclaboussure sombre qui s'étale, corruption qui monte) : renouvelée toutes les 0,7 s.
+## L'ombre qui RAMPE sur la cible (OmbreCorps : éclaboussure sombre qui s'étale, corruption qui monte) : renouvelée toutes les 1,1 s.
 func _maj_corps(g: GestionMagie) -> void:
 	if cible == null or not is_instance_valid(cible) or g == null or _t < ALLUMAGE * 0.8:
 		return
 	var h := g.horloge
 	var id := cible.get_instance_id()
-	if h - float(_corps_vu.get(id, -INF)) < 0.7:
+	if h - float(_corps_vu.get(id, -INF)) < 1.1:
 		return
 	_corps_vu[id] = h
-	ImpactCorps.embraser(cible, "tenebres", _fin_l, (_fin_l - debut).normalized(), 0.55 * clampf(puissance, 1.0, 1.5), 2.0)
+	ImpactCorps.embraser(cible, "tenebres", _fin_l, (_fin_l - debut).normalized(), 0.4 * clampf(puissance, 1.0, 1.5), 2.0)
