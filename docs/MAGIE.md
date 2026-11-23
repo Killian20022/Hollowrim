@@ -477,6 +477,48 @@ ragdoll prend le relais. Pas d'IA bloquée (test_sorts_esprit, « il s'est relev
 - **Coût en jeu (perf)** : rien tant que les sorts ne servent pas (deux dictionnaires vides parcourus par image) ; la surbrillance de la
   lévitation cherche sa cible 10 fois par seconde, sort en main seulement.
 
+### Ragdoll de projection puis relevé (2026-11-23, branche magie/ragdoll_esprit)
+
+Demande : « pour la répulsion il faudrait vraiment que l'ennemi soit projeté en mode ragdoll et ensuite qu'il se relève » (référence de
+mouvement : la poussée de Force de Star Wars). Code : `scripts/magie/ragdoll_esprit.gd` (`RagdollEsprit`, enfant « RagdollEsprit » de
+SortsEsprit, `SortsEsprit.rag`). Branché dans `SortsEsprit.projeter` (Répulsion, Lévitation lancée, relâchement de l'Attraction, ennemi
+percuté par un autre) et `SortsEsprit.lacher` (Lévitation lâchée / mana épuisé) ; le vol cinématique d'avant reste le repli.
+
+- **Qui** : ennemis de `draugr.gd` (draugrs, bandits, squelettes : squelette humain de 65 os, `Ragdoll.gd`) qui ont les deux relevés ;
+  pas les chefs ; le troll garde sa réaction lourde (SONNE : autre rig, pas de relevé capturé).
+- **Vol** : le corps vivant passe en ragdoll (`Ragdoll.declencher`, le même que celui des morts) depuis sa pose animée, à la vitesse de
+  l'onde, avec un basculement (`ROULIS` 3 rad/s autour de l'axe perpendiculaire à la poussée : le haut du corps part plus vite) et un peu de
+  vrille ; « tonus » léger (`TONUS` 0,35, décroît en 1,6 s, ×0,3 au sol : le corps garde sa tenue en l'air, s'affaisse en touchant) ; os en
+  détection continue (CCD : une main à 17 m/s ne traverse pas le mur), sans sommeil. IA, gravité et capsule coupées ; état CHUTE (frappé,
+  il ne titube pas). Chocs : perte brutale de vitesse = choc (rayon le long de la vitesse d'avant : mur → `SortsEsprit._choc`, sol →
+  dégâts de chute), autres ennemis sur la trajectoire (les deux encaissent, l'autre est emporté), objets traversés (`_chocs_objets` :
+  `recevoir_choc`, casse) — mêmes formules et mêmes coûts qu'avant. Au sol : frottement 0,45 (il glisse), puis amorti 0,9 / 5 (il se pose).
+  Deux corps de la même onde ne se percutent pas entre eux ; une seconde impulsion s'ajoute sans dépasser la plus forte des deux.
+- **Repos** : centre du corps < 0,35 m/s et os le plus rapide < 1,2 m/s pendant 0,3 s (au plus tôt 0,7 s, au plus tard 3,2 s).
+- **Relevé** : sur le dos ou le ventre selon le devant du torse (`spine_03`). Clips CAPTURÉS `Releve_Dos` (Mixamo « zombie stand up »,
+  images 7-94) et `Releve_Ventre` (« zombie stand up (3) », images 15-104), Not So Scary Zombie Pack déjà utilisé pour les draugrs zombies :
+  `sources_blender/scripts/extraire_mixamo_releve.py` → `sources_blender/mixamo/releve_mixamo.json` → `outils/zombie_retarget.gd
+  --source=… --sortie=res://assets/modeles/humains/animations_releve.res` (fusionné par `Humain.bibliotheque()`). Joués ×1,5 (~1,9 s).
+  Raccord : pose affichée de chaque os capturée (`Ragdoll.pose_monde`), physique coupée (`Ragdoll.arreter`), corps replacé pour que le
+  bassin de la 1re image du clip tombe sous celui du ragdoll (lacet aligné sur l'axe bassin → tête du corps couché, pieds sur le sol mesuré
+  sous le bassin), puis fondu de pose 0,3 s (`RagdollEsprit.FonduPose`, modificateur après l'animation) : ni saut ni capsule qui bondit (test :
+  bassin affiché < 4 cm par image). Si la place debout est dans un mur ou un meuble (Releve_Ventre finit 1,2 m côté pieds), elle est
+  rapprochée du bassin et le fondu allongé. Capsule rendue au début du relevé (on peut le frapper), IA rendue à la fin (TRAQUE, Sword_Idle en
+  fondu 0,45 s ; `PiedsAuSol._decal` remis à zéro). Onde → IA : 3,4 à 3,9 s (test).
+- **Mort en vol ou pendant le relevé** : le ragdoll reste et devient le cadavre ordinaire (`draugr._mourir` réutilise le même Ragdoll).
+- **Plafond** : 6 ragdolls en vol à la fois (`PLAFOND`) ; au-delà, vol cinématique d'avant. Rien ne tourne au repos (process coupé tant
+  qu'aucun corps n'est suivi).
+- **Ciblage** : `draugr.point_impact()` rend le centre du corps en ragdoll (méta `es_centre`) : une seconde Répulsion le retrouve ; la
+  Lévitation et le vortex ne saisissent pas un corps en vol (ils reprennent un ennemi qui se relève).
+- **Coop** : l'hôte simule et envoie `es_ragdoll` (vol : vitesse + basculement ; relevé : place, lacet, clip). L'invité rejoue un ragdoll
+  local cosmétique (sans dégâts ni chocs) puis le même relevé à la place choisie par l'hôte (repli : il se relève seul après 5 s). LIMITES :
+  non essayé à 2 PC ; les trajectoires ne sont que voisines (la place finale est celle de l'hôte, le fondu absorbe l'écart) ; pendant le vol
+  la racine de l'ennemi reste où il a décollé (position répliquée inchangée).
+- **Interrupteur** : `-- --sans-ragdoll-esprit` (vol cinématique et chute Death01 d'avant).
+- **Test** : `bash outils/tous_les_tests.sh test_ragdoll_esprit` (28 vérifications) ; `test_sorts_esprit` adapté. **Film / mesure** :
+  `outils/film_ragdoll_esprit.gd` (`--plans=normal,ralenti,levitation`, `--mesure`), rendus dans
+  `rendus/telekinesie_2026-11-23/ragdoll_esprit/`.
+
 ## Sons (branche magie/sons)
 
 `scripts/magie/sons_magie.gd` (`SonsMagie`) : charge (boucle douce, volume et hauteur suivent l'intensité), lancement (2 variantes par école), jet continu (boucle, s'éteint 0,25 s après le dernier appel), impact (2 variantes, volume selon la force), zone, chaîne, réactions (6), double incantation (une note par école), enchantement, « Pas assez de mana » (aussi « Mana épuisé »). Écoles feu, glace, électricité, ténèbres (+ soin, protection). Fichiers : `assets/sons/magie/*.wav` (PCM 16 bits, sources CC0 dans assets/LICENCES.md, fabriqués par `outils/sons_magie/generer.py`). Boucles : `edit/loop_mode=2` dans leur .import.
