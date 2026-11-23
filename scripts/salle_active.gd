@@ -115,7 +115,8 @@ func _englober(a: Vector3, b: Vector3) -> void:
 ## près, le couloir s2 (à 3 m, sur le côté) plutôt que le couloir des niches (6,5 m, droit devant) : niches et salle de préparation
 ## étaient cachées, le couloir vu par la porte restait noir jusqu'à ce qu'on avance d'un ou deux mètres (salle courante = niches).
 ## De même, depuis la salle de préparation, la salle rituelle au bout du couloir de la herse n'était jamais active.
-## `long` : on voit à travers (vestibule, couloir) : la voisine de la voisine reste active. À appeler AVANT `classer`.
+## Joueur DANS la pièce : chaque voisine est active comme si l'on y était (ses voisines et le prolongement des couloirs « longs »).
+## `long` : depuis une voisine, on voit à travers la pièce (couloir de la herse) : la voisine d'en face reste active. À appeler AVANT `classer`.
 func ajouter_piece(id: String, rect: Rect2, y0: float, y1: float, long := true) -> void:
 	var voisins: Array = []
 	for k: String in salles:
@@ -123,7 +124,7 @@ func ajouter_piece(id: String, rect: Rect2, y0: float, y1: float, long := true) 
 		if r.size != Vector2.ZERO and r.grow(0.6).intersects(rect) and float(salles[k]["y0"]) < y1 and float(salles[k]["y1"]) > y0:
 			voisins.append(k)
 			(salles[k]["voisins"] as Array).append(id)
-	salles[id] = {"rect": rect, "y0": y0, "y1": y1, "pts": PackedVector3Array(), "voisins": voisins, "long": long, "noeuds": []}
+	salles[id] = {"rect": rect, "y0": y0, "y1": y1, "pts": PackedVector3Array(), "voisins": voisins, "long": long, "noeuds": [], "piece": true}
 	_englober(Vector3(rect.position.x, y0, rect.position.y), Vector3(rect.end.x, y1, rect.end.y))
 	_visibles[id] = true
 	_force = true
@@ -221,8 +222,14 @@ func _calculer_actives(id: String) -> Dictionary:
 			a[k] = true
 		return a
 	a[id] = true
+	var piece: bool = salles[id].get("piece", false)
 	for v: String in salles[id]["voisins"]:
 		if not salles.has(v):
+			continue
+		if piece and not salles[v].get("piece", false):
+			# pièce du tertre (vestibule…) : on voit dans chacune de ses voisines comme si l'on y était (un pas plus loin, même décor) ;
+			# sinon le couloir des niches est visible mais la salle de préparation, au bout, apparaît au premier pas
+			a.merge(_calculer_actives(v))
 			continue
 		a[v] = true
 		if salles[v]["long"]:

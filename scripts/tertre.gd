@@ -47,7 +47,7 @@ var _couvercles := {}               # L1 : id du coffre -> CoffreCouvercle (coff
 var _file_gardiens: Array = []
 ## Pièces bâties par ce script (mêmes rectangles que d.salle dans _entree, _alcove, _couloir_herse : x0..x1, z) : [id, Rect2 (x, z), hauteur, long]
 const PIECES_TERTRE := [
-	["vestibule", Rect2(-3.0, -6.0, 6.0, 10.0), 3.6, true],
+	["vestibule", Rect2(-3.0, -6.0, 6.0, 10.0), 3.6, false],
 	["alcove", Rect2(-11.0, -27.0, 4.0, 4.0), 3.0, false],
 	["couloir_herse", Rect2(-1.6, -42.0, 3.2, 10.0), 3.2, true],
 ]
