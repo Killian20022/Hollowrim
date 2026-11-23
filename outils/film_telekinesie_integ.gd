@@ -269,12 +269,28 @@ func _go() -> void:
 		await _saisir_lancer(epee, Elements._centre(draugr_b) + Vector3.UP * 0.1, 1.4, "epee_cloue")
 		await _attendre(0.4)
 		print("cloue : ", ImpactsLances.dernier.get("issue", "?"))
-		await _approcher(draugr_b.global_position, 1.9, 1.4)
-		await _attendre(0.8)
+		# l'épée plantée (ArmeLancee du groupe « armes_plantees ») : on s'approche et on la regarde, avec le corps cloué
+		var lame: Node3D = null
+		for a in root.get_tree().get_nodes_in_group("armes_plantees"):
+			if lame == null or (a as Node3D).global_position.distance_to(Vector3(mur["point"])) < lame.global_position.distance_to(Vector3(mur["point"])):
+				lame = a
+		var vise: Vector3 = lame.global_position if lame != null else Vector3(mur["point"]) + Vector3.UP * 1.0
+		await _approcher(vise - Vector3.UP * 1.0, 2.7, 1.3)
+		await _regarder(vise - Vector3.UP * 0.25, 0.4)
+		await _attendre(0.9)
 		await _capture("cloue")
 	# 4. épée dans un squelette qui se disloque
-	j.rotation.y += deg_to_rad(-60.0)
-	await _attendre(0.1)
+	# une direction dégagée (4 m libres à hauteur de torse, sol au même niveau)
+	var cap0 := j.rotation.y
+	for dcap in [-70.0, 70.0, -110.0, 110.0, 180.0, -35.0, 35.0]:
+		var c := cap0 + deg_to_rad(dcap)
+		var dd := Vector3(-sin(c), 0, -cos(c))
+		var o: Vector3 = j.global_position + Vector3.UP * 1.1
+		if _rayon(o, o + dd * 4.6).is_empty() and absf(_sol(j.global_position + dd * 3.6).y - j.global_position.y) < 0.4:
+			cap0 = c
+			break
+	await _regarder(j.global_position + Vector3(-sin(cap0), 0, -cos(cap0)) * 4.0 + Vector3.UP * 1.2, 0.7)
+	j.rotation.y = cap0
 	var dv := Vector3(-sin(j.rotation.y), 0, -cos(j.rotation.y))
 	var sq := _ennemi("squelette", j.global_position + dv * 3.6, 10.0)
 	_lumiere_sur(sq.global_position)
