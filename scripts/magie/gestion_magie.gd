@@ -1831,7 +1831,9 @@ func _foudre_placer(j: Dictionary, o: Vector3, fin: Vector3, vers: Vector3) -> v
 	var excl: Array[RID] = []
 	if origine.is_inside_tree():
 		espace = origine.get_world_3d().direct_space_state
-		excl = _exclus_depuis(origine)
+		if not j.has("foudre_excl"):
+			j.foudre_excl = _exclus_depuis(origine)   # (perf) une fois par jet
+		excl = j.foudre_excl
 	var montee := clampf((horloge - float(j.debut)) / 0.06, 0.0, 1.0)
 	cn.maj(origine, o, fin, vers, j.cible if valide(j.cible) else null, j.touche, espace, excl, montee * (1.15 if j.dbl else 1.0))
 	if cn.formes_image > 0 and not cn.points_touches.is_empty():

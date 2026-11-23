@@ -459,6 +459,8 @@ class Canal:
 	var _lat: Array = []        # par arc : angle de l'éventail
 	var _g_lente := 0.0
 	var _img := -1
+	var _cible: Node3D = null
+	var _corps: Array = []
 	## éclat combiné (0..1) des arcs : la lumière de la scène le suit ; « formes » : nouvelles formes à cette image
 	var eclat := 0.0
 	var formes_image := 0
@@ -492,7 +494,11 @@ class Canal:
 		_img = img
 		var l := o.distance_to(fin)
 		var doigts := FoudreV2.bouts_doigts(origine, dir)
-		var corps: Array = FoudreV2.os_corps(cible) if cible != null and is_instance_valid(cible) else []
+		# (perf) squelette et os d'accroche de la cible cherchés une fois par cible, pas à chaque image
+		if cible != _cible:
+			_cible = cible
+			_corps = FoudreV2.os_corps(cible) if cible != null and is_instance_valid(cible) else []
+		var corps: Array = _corps if _corps.is_empty() or is_instance_valid(_corps[0]) else []
 		var bs := FoudreV2.base_perp(fin - o)
 		_g_lente += 0.016 * 0.9
 		formes_image = 0
