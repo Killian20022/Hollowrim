@@ -94,6 +94,32 @@ func sur_plantee(_dans: Node) -> void:
 	add_child(it)
 	_inter = it
 
+## Fin du vol sans plantage (Telekinesie._fin_suivi) : posée là, RAMASSABLE (« Prendre », touche E) et toujours saisissable.
+func au_repos_telekinesie() -> void:
+	if ImpactsLances.plantee(self) or is_instance_valid(_inter):
+		return
+	var j := _joueur()
+	var dlg := _dialogue(j) if j != null else null
+	if dlg == null:
+		return
+	var it := Node3D.new()
+	it.set_script(preload("res://scripts/interactif.gd"))
+	it.joueur = j
+	it.dialogue = dlg
+	it.nom = String(Inventaire.objet(id_arme).get("nom", _donnees.nom if _donnees else "Arme"))
+	it.verbe = "Prendre"
+	it.rayon = 1.8
+	it.unique = true
+	it.action = func() -> Array:
+		var inv: Variant = j.get("inventaire")
+		if inv != null and Inventaire.connu(id_arme):
+			inv.ajouter(id_arme, 1)
+		queue_free()
+		return []
+	it.condition = func() -> bool: return not ImpactsLances.plantee(self)
+	add_child(it)
+	_inter = it
+
 ## Retirer l'arme plantée = la reprendre : arrachée (giclée si elle est dans un corps) puis rangée dans le sac.
 func reprendre(j: Node) -> bool:
 	if not ImpactsLances.plantee(self):

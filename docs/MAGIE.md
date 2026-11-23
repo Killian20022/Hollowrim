@@ -383,7 +383,7 @@ corps), `corps_telekinesie.gd` (prop physique de test / démo), `shaders/magie_t
   mana à zéro pendant la tenue : l'objet tombe (« Mana épuisé. »).
 - **Lancer** : vitesse `lerp(12, 24, charge) × clamp((4 / masse)^0,3, 0,5, 1,25)` m/s, charge = (tenue − 0,2 s) / 0,9 s : chaise 10-20 m/s,
   tonneau 6,5-13, épée 15-30. Une arme vole POINTE EN AVANT (+Y de la lame aligné sur la vitesse à chaque pas).
-- **Impacts** (contrat avec la branche impacts) : à chaque contact rapide (> 6 m/s) d'un objet lancé — balayage de la trajectoire contre la
+- **Impacts** (intégration 2026-11-23) : au lâcher et au lancer, `ImpactsLances.suivre(objet, joueur)` (SuiviLancer : balayage, lame stabilisée nez en avant) fait TOUTE la détection ; la détection et le repli ci-dessous de Telekinesie ne servent plus que sans ImpactsLances. Une arme plantée se ressaisit (`saisi_telekinesie(true)` l'arrache, giclée). Avant l'intégration : à chaque contact rapide (> 6 m/s) d'un objet lancé — balayage de la trajectoire contre la
   capsule de chaque ennemi, contacts physiques avec le décor — `ImpactsLances.objet_touche(objet, cible, point, normale, vitesse, lanceur)`
   si la classe existe (cherchée dans `ProjectSettings.get_global_class_list()`), sinon REPLI : dégâts par `LanceurSorts.frapper` (chemin des
   sorts : perks, résistances, réseau) = `0,22 × masse^0,83 × vitesse` contondant (chaise à 20 m/s ≈ 22, tonneau à 10 m/s ≈ 35) ou
@@ -391,7 +391,7 @@ corps), `corps_telekinesie.gd` (prop physique de test / démo), `shaders/magie_t
   `recevoir_choc(vitesse, masse, point)` de l'objet et de ce qu'il percute (contrat cassables), sinon `frapper` des Cassable / ObjetVivant.
   Méta posées pendant le vol : `lance_par` (joueur), `lance_jusqu_a` (horloge de Telekinesie).
 - **Armes** : `ObjetMonde.creer` d'une arme et l'arme lâchée par un ennemi mort (`ArmesEnnemis.poser_au_sol`) entrent dans le groupe
-  `telekinesable` (meta `tk_arme`) ; à la saisie elles deviennent une `ArmeTelekinesie` (corps rigide, visuel « ratelier » recentré,
+  `telekinesable` (meta `tk_arme`) ; à la saisie elles deviennent une `ArmeLancee` (scripts/combat/arme_lancee.gd, intégration 2026-11-23 : la seule classe d'arme lancée ; `Telekinesie.arme_depuis_visuel`) (corps rigide,
   masse = `DonneesArme.poids`) ; l'arme quitte le butin du corps (pas de double) ; au repos après le vol, elle reste posée, gelée,
   RAMASSABLE (« Prendre ») et de nouveau saisissable. Râteliers de la crypte : armes fondues dans le décor, PAS saisissables (limite).
 - **Effets** (DA PS1, paliers francs, pas de tramage) : coque additive bleu pâle sur l'objet (bord + motes qui montent + onde, accrochée à la
@@ -405,7 +405,7 @@ corps), `corps_telekinesie.gd` (prop physique de test / démo), `shaders/magie_t
 - **Réseau** : saisie / positions de tenue (10 /s) / lancer / lâcher annoncés (`tk_saisie`, `tk_tenu`, `tk_lancer`, `tk_lacher`), l'objet
   repéré par `ObjetVivant.ident` ou son chemin dans la scène ; chaque machine fait voler sa copie, seuls les impacts du lanceur comptent
   (dégâts de repli : `LanceurSorts.frapper` délègue à l'hôte pour un invité). LIMITES : non essayé à 2 PC ; une arme changée en
-  ArmeTelekinesie n'existe que chez le lanceur (les autres voient l'arme rester au sol).
+  ArmeLancee créée à la saisie n'existe que chez le lanceur (les autres voient l'arme rester au sol).
 - **Interrupteur** : `-- --sans-telekinesie` (le sort n'existe pas : ni connu, ni raccourci, ni groupe sur les armes).
 - **Test** : `bash outils/tous_les_tests.sh test_telekinesie` (37 vérifications). **Film** : `outils/film_telekinesie.gd` (crypte, pilote).
 

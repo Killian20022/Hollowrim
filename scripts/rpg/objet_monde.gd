@@ -558,7 +558,7 @@ static func creer(oid: String, n := 1, joueur: CharacterBody3D = null, dialogue:
 	o.id = oid
 	o.nombre = n
 	o.add_child(visuel(oid, "sol", 1))
-	if Telekinesie.actif and _arme(oid) != null:      # arme posée : saisissable par la télékinésie (ArmeTelekinesie)
+	if Telekinesie.actif and _arme(oid) != null:      # arme posée : saisissable par la télékinésie (ArmeLancee, Telekinesie.arme_depuis_visuel)
 		o.set_meta("tk_arme", oid)
 		o.add_to_group(Telekinesie.GROUPE)
 	if joueur != null and dialogue != null:

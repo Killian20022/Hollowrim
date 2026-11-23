@@ -7,7 +7,7 @@ extends Node
 ## Objets saisissables (contrat docs/MAGIE.md, « Télékinésie ») :
 ##   - groupe `telekinesable` : RigidBody3D, ou nœud qui sait se changer en corps (`corps_telekinesie() -> RigidBody3D`) ;
 ##     méthodes facultatives : `masse_telekinesie() -> float`, `saisi_telekinesie(saisi: bool)`, `donnees_arme() -> DonneesArme` ;
-##   - armes posées (ObjetMonde d'une arme, arme lâchée par un ennemi mort : meta « tk_arme ») : changées en ArmeTelekinesie ;
+##   - armes posées (ObjetMonde d'une arme, arme lâchée par un ennemi mort : meta « tk_arme ») : changées en ArmeLancee (scripts/combat/arme_lancee.gd) ;
 ##   - REPLI tant que la branche « cassables partout » n'est pas fusionnée : les petits objets vivants (ObjetVivant).
 ## Impact d'un objet lancé : `ImpactsLances.objet_touche(objet, cible, point, normale, vitesse, lanceur)` (branche impacts) s'il
 ## existe ; sinon REPLI minimal : dégâts par LanceurSorts.frapper (masse × vitesse, ou dégâts lourds de l'arme), arme plantée
@@ -190,7 +190,7 @@ static func arme_de(n: Node) -> DonneesArme:
 	if n.has_method("donnees_arme"):
 		return n.donnees_arme()
 	if n.has_meta("tk_arme"):
-		return ArmeTelekinesie.donnees_de(String(n.get_meta("tk_arme")))
+		return ArmesEnnemis.donnees_arme(String(n.get_meta("tk_arme")))
 	return null
 
 ## Objet visé : le plus proche du réticule (aide douce), à portée, sans mur entre l'œil et lui. null = rien.
@@ -318,15 +318,50 @@ func _essayer_saisie(m: String, n: Node3D, s: DonneesSort, paume: Node3D, oeil: 
 	joueur.depenser_mana(cout)
 	saisir(m, corps, n, masse, oeil, avant, paume)
 
-## Corps rigide d'un candidat (arme posée : changée en ArmeTelekinesie).
+## Corps rigide d'un candidat (arme posée : changée en ArmeLancee).
 func _corps_de(n: Node3D) -> RigidBody3D:
 	if n is RigidBody3D:
 		return n
 	if n.has_method("corps_telekinesie"):
 		return n.corps_telekinesie()
 	if n.has_meta("tk_arme"):
-		return ArmeTelekinesie.depuis_visuel(n)
+		return arme_depuis_visuel(n)
 	return null
+
+## Arme posée (ObjetMonde d'une arme, arme lâchée par un ennemi mort : meta « tk_arme ») changée en ArmeLancee au même endroit,
+## couchée comme le visuel ; la source disparaît (l'arme quitte le butin du corps : pas de double).
+static func arme_depuis_visuel(v: Node3D) -> ArmeLancee:
+	if v == null or not is_instance_valid(v) or not v.is_inside_tree():
+		return null
+	var oid := String(v.get_meta("tk_arme", ""))
+	var a := ArmeLancee.creer(oid)
+	if a == null:
+		return null
+	var b := _boite_locale(v)
+	var c := v.global_transform * b.get_center()
+	var axe_l := Vector3.RIGHT
+	var t := b.size
+	if t.y >= t.x and t.y >= t.z:
+		axe_l = Vector3.UP
+	elif t.z >= t.x:
+		axe_l = Vector3.BACK
+	var dir := (v.global_basis * axe_l).normalized()
+	var monde: Node = v.get_tree().current_scene if v.get_tree().current_scene != null else v.get_tree().root
+	monde.add_child(a)
+	a.global_position = c
+	_orienter_pointe(a, dir, 1.0)
+	var butin: Node = v.get_parent() if v.get_parent() != null and v.get_parent().has_meta("arme_sol") else null
+	if butin != null:
+		var contenu = butin.get("contenu")
+		if contenu is Dictionary and (contenu as Dictionary).has(oid):
+			var nb := int(contenu[oid]) - 1
+			if nb <= 0:
+				(contenu as Dictionary).erase(oid)
+			else:
+				contenu[oid] = nb
+		butin.remove_meta("arme_sol")
+	v.queue_free()
+	return a
 
 ## Saisit `corps` (déjà payé) : arrachement, objet sans gravité, collisions gardées (sauf avec le joueur).
 func saisir(m: String, corps: RigidBody3D, source: Node, masse: float, oeil: Vector3, avant: Vector3, paume: Node3D = null) -> void:
@@ -385,6 +420,7 @@ func lacher(m: String) -> void:
 	var l := _suivi(corps, e, false)
 	l["coque_t"] = 0.4
 	lances.append(l)
+	_suivre_impacts(corps, false)
 	_noter("lâché %s" % corps.name)
 	_reseau_lacher(corps)
 
@@ -449,6 +485,7 @@ func lancer(m: String, s: DonneesSort, oeil: Vector3, avant: Vector3) -> void:
 	var l := _suivi(corps, e, true)
 	l["charge"] = charge
 	lances.append(l)
+	_suivre_impacts(corps, arme != null)
 	_effets_lancer(corps, vit, charge)
 	SonsMagie.telekinesie_lancer(depart, 0.7 + 0.5 * charge)
 	_noter("lancer %s v=%.1f charge=%.2f" % [corps.name, vit.length(), charge])
@@ -582,7 +619,7 @@ func _tenir(m: String, e: Dictionary, dt: float) -> void:
 static func _orienter_pointe(corps: RigidBody3D, dir: Vector3, k: float) -> void:
 	if dir.length() < 0.01:
 		return
-	var y := corps.global_basis.y.normalized()
+	var y := _axe_lame(corps)
 	var d := dir.normalized()
 	var axe := y.cross(d)
 	var ang := y.angle_to(d)
@@ -590,7 +627,19 @@ static func _orienter_pointe(corps: RigidBody3D, dir: Vector3, k: float) -> void
 	if axe.length() < 1e-5 or ang < 1e-4:
 		return
 	var b := Basis(Quaternion(axe.normalized(), ang * clampf(k, 0.0, 1.0))) * corps.global_basis
+	var c := corps.global_position
 	corps.global_basis = b.orthonormalized()
+	corps.global_position = c
+
+## Axe de la lame (prise -> pointe) en repère monde : celui d'ImpactsLances (nœuds « prise » / « pointe » d'ArmeLancee).
+static func _axe_lame(corps: RigidBody3D) -> Vector3:
+	var d := arme_de(corps)
+	if d != null:
+		var ab := ImpactsLances.axe_monde(corps, d)
+		var a: Vector3 = Vector3(ab[1]) - Vector3(ab[0])
+		if a.length() > 0.01:
+			return a.normalized()
+	return corps.global_basis.y.normalized()
 
 # ====================================================================== objets lancés : impacts
 
@@ -608,8 +657,16 @@ func _suivre_lances(dt: float) -> void:
 		l["t"] = float(l["t"]) + dt
 		var p := c.global_position
 		var v := c.linear_velocity
+		if c.has_meta("plantee"):
+			# plantée par ImpactsLances (corps, mur) : le vol est fini
+			_fin_suivi(l, false)
+			lances.remove_at(i)
+			i -= 1
+			continue
 		if l["plante"] != null:
 			_suivre_plante(l)
+		elif _impacts() != null:
+			pass   # ImpactsLances.suivre (SuiviLancer) détecte les contacts, stabilise la lame et appelle objet_touche
 		else:
 			if bool(l["vol"]) and l["arme"] != null and v.length() > 3.0:
 				_orienter_pointe(c, v, clampf(float(l["t"]) / 0.1, 0.35, 1.0))   # une arme lancée vole pointe en avant (pivote en 0,1 s)
@@ -649,6 +706,8 @@ func _balayer(l: Dictionary, a: Vector3, b: Vector3, v: Vector3) -> void:
 
 ## Contact physique d'un objet suivi avec le décor (ou un corps) : impact rapide -> contrat ImpactsLances / casse.
 func _contact(autre: Node, corps: RigidBody3D) -> void:
+	if _impacts() != null:
+		return   # SuiviLancer s'en charge (pas de double appel)
 	for l: Dictionary in lances:
 		if l["corps"] != corps or l["plante"] != null:
 			continue
@@ -670,6 +729,16 @@ func toucher(l: Dictionary, cible: Node, point: Vector3, normale: Vector3, v: Ve
 		imp.objet_touche(corps, cible, point, normale, v, joueur)
 		return
 	_repli_impact(l, cible, point, normale, v)
+
+## Lâché ou lancé : la détection des contacts passe à ImpactsLances.suivre (SuiviLancer) ; une arme lancée y est stabilisée nez en avant.
+func _suivre_impacts(corps: RigidBody3D, arme: bool) -> void:
+	var imp: Variant = _impacts()
+	if imp == null:
+		return
+	var sv: Node = imp.suivre(corps, joueur, DUREE_LANCER)
+	if sv != null and arme:
+		sv.set("stabiliser", true)
+	_noter("suivi ImpactsLances %s" % corps.name)
 
 ## Classe ImpactsLances (branche impacts) si elle est dans le projet, sinon null.
 func _impacts() -> Variant:

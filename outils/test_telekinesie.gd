@@ -209,8 +209,9 @@ func _lancer_draugr() -> void:
 			touche = true
 			break
 	_verif(touche, "le draugr est touché : %.1f -> %.1f PV" % [vie0, d.vie])
-	var t_imp := tk.journal.filter(func(x): return String(x[1]).begins_with("impact"))
-	_verif(not t_imp.is_empty(), "impact noté (contrat ImpactsLances ou repli) : %s" % (t_imp[0][1] if not t_imp.is_empty() else "-"))
+	var t_imp := tk.journal.filter(func(x): return String(x[1]).begins_with("suivi ImpactsLances"))
+	_verif(not t_imp.is_empty(), "lancer suivi par ImpactsLances.suivre (pas de détection en double)")
+	_verif(not tk.journal.any(func(x): return String(x[1]).begins_with("repli")), "aucun dégât de repli quand ImpactsLances existe")
 	await _sim(1.0)
 	d.queue_free()
 	chaise.queue_free()
@@ -266,7 +267,7 @@ func _armes() -> void:
 	magie.appuyer("gauche")
 	await _sim(1.3)
 	var a := tk.objet_tenu("gauche")
-	_verif(a is ArmeTelekinesie and (a as ArmeTelekinesie).donnees_arme() != null, "épée saisie : changée en ArmeTelekinesie (%s)" % (a.name if a != null else "rien"))
+	_verif(a is ArmeLancee and (a as ArmeLancee).donnees_arme() != null, "épée saisie : changée en ArmeLancee (%s)" % (a.name if a != null else "rien"))
 	_verif(not is_instance_valid(o) or o.is_queued_for_deletion(), "la source au sol a disparu (pas de double)")
 	if a == null:
 		return
@@ -290,8 +291,8 @@ func _armes() -> void:
 	magie.appuyer("gauche")
 	await _sim(0.5)
 	var h := tk.objet_tenu("gauche")
-	_verif(h is ArmeTelekinesie and not (b.get("contenu") as Dictionary).has("hache_guerre"), "hache du corps saisie et retirée de son butin")
+	_verif(h is ArmeLancee and not (b.get("contenu") as Dictionary).has("hache_guerre"), "hache du corps saisie et retirée de son butin")
 	magie.relacher("gauche")
 	await _sim(1.5)
 	if h != null and is_instance_valid(h):
-		_verif((h as ArmeTelekinesie).freeze or h.linear_velocity.length() < 1.0, "l'arme lancée finit posée (ramassable)")
+		_verif(ImpactsLances.plantee(h) or h.linear_velocity.length() < 1.0, "l'arme lancée finit plantée ou posée (%s)" % ("plantée" if ImpactsLances.plantee(h) else "posée"))
