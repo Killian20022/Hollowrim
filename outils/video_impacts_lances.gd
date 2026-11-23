@@ -103,8 +103,7 @@ func _ennemi(genre: String, pos: Vector3, vie: float, lacet := 0.0) -> Character
 ## Faces visibles en QuadMesh (UV 0..1 par face) : textures de crypte de 4 m (CrypteTextures), à l'échelle.
 func _salle() -> void:
 	var t_mur := ImageTexture.create_from_image(CrypteTextures.mur_image(0))
-	var dal: Variant = CrypteTextures.dalle_paire(3)[0]
-	var t_dal: Texture2D = dal if dal is Texture2D else ImageTexture.create_from_image(dal as Image)
+	var t_dal: Texture2D = ImageTexture.create_from_image(CrypteTextures.mur_image(0))   # dalles de pierre de taille (la dalle givrée tachait le sol de bleu)
 	# sol (12 x 14), mur du fond, murs latéraux, plafond ; solides en boîtes, visuels en quads tournés vers la salle
 	_paroi(Vector3(0, -0.03, -2.0), Vector3(12, 0.1, 14), t_dal, Vector3(0, 0.02, -2.0), Vector3.UP, Vector2(12, 14))   # 2 cm au-dessus du sol de la scène (sinon z-fighting)
 	_paroi(Vector3(0, 2.0, -7.15), Vector3(12, 4.0, 0.3), t_mur, Vector3(0, 2.0, -7.0), Vector3.BACK, Vector2(12, 4))
@@ -134,6 +133,12 @@ func _salle() -> void:
 	s.env.fog_enabled = true
 	s.env.fog_light_color = Color(0.22, 0.18, 0.15)
 	s.env.fog_density = 0.03
+	# sol d'origine de la scène de test (neige, 40 m) : caché sous les dalles ; le joueur hors champ entièrement masqué
+	for n in s.get_children():
+		if n is StaticBody3D and (n as StaticBody3D).position.y < -0.4:
+			for mi in n.find_children("*", "MeshInstance3D", true, false):
+				(mi as MeshInstance3D).visible = false
+	s.joueur.visible = false
 	# le joueur (hors champ) n'éclaire rien : sa torche portait une ombre au sol devant la caméra
 	for l in s.joueur.find_children("*", "Light3D", true, false):
 		(l as Light3D).visible = false
