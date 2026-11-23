@@ -109,6 +109,25 @@ func _pts_proches(a: PackedVector3Array, b: PackedVector3Array, d: float) -> boo
 func _englober(a: Vector3, b: Vector3) -> void:
 	volume = volume.expand(a).expand(b) if volume.size != Vector3.ZERO else AABB(a, b - a)
 
+## Pièce bâtie hors de la table des modules (crypte : vestibule, alcôve d'Eirik, couloir de la herse, bâtis par tertre.gd) : salle à part
+## entière, reliée à chaque salle dont le rectangle la touche (les ouvertures « "" » des modules mènent à ces pièces).
+## Bug « crypte noire » (2026-11-23) : sans elle, le joueur arrivé au vestibule (0 ; 0,5) était rangé dans la salle la PLUS PROCHE à 8 m
+## près, le couloir s2 (à 3 m, sur le côté) plutôt que le couloir des niches (6,5 m, droit devant) : niches et salle de préparation
+## étaient cachées, le couloir vu par la porte restait noir jusqu'à ce qu'on avance d'un ou deux mètres (salle courante = niches).
+## De même, depuis la salle de préparation, la salle rituelle au bout du couloir de la herse n'était jamais active.
+## `long` : on voit à travers (vestibule, couloir) : la voisine de la voisine reste active. À appeler AVANT `classer`.
+func ajouter_piece(id: String, rect: Rect2, y0: float, y1: float, long := true) -> void:
+	var voisins: Array = []
+	for k: String in salles:
+		var r: Rect2 = salles[k]["rect"]
+		if r.size != Vector2.ZERO and r.grow(0.6).intersects(rect) and float(salles[k]["y0"]) < y1 and float(salles[k]["y1"]) > y0:
+			voisins.append(k)
+			(salles[k]["voisins"] as Array).append(id)
+	salles[id] = {"rect": rect, "y0": y0, "y1": y1, "pts": PackedVector3Array(), "voisins": voisins, "long": long, "noeuds": []}
+	_englober(Vector3(rect.position.x, y0, rect.position.y), Vector3(rect.end.x, y1, rect.end.y))
+	_visibles[id] = true
+	_force = true
+
 ## Les portes sont à double sens : si A cite B, B cite A.
 func _symetriser() -> void:
 	for id: String in salles:
