@@ -74,6 +74,7 @@ var dernier_cout := 0.0
 var horloge := 0.0
 var _refus_t := {}
 var _reseau_t := 0.0
+var _dernier_but_ennemi := false
 
 func _init(m: MainSort = null) -> void:
 	magie = m
@@ -363,6 +364,7 @@ func projeter(e: CharacterBody3D, v: Vector3, s: DonneesSort) -> void:
 	_debut_vol(e, f)
 
 func _debut_vol(e: CharacterBody3D, f: Dictionary) -> void:
+	f["t_vol"] = 0.0
 	if bool(f["draugr"]):
 		var cst: Dictionary = e.get_script().get_script_constant_map()
 		if int(e.get("etat")) != int(cst.get("CHUTE", -1)):
@@ -422,6 +424,7 @@ func _voler(f: Dictionary, dt: float) -> void:
 			if vn > VITESSE_CHUTE:
 				_frapper(e, (vn - VITESSE_CHUTE) * K_CHUTE, col.get_position(), Vector3.DOWN, 30.0, f.get("sort"))
 			_effet_choc(col.get_position(), n, clampf(vn / 10.0, 0.3, 1.2), true)
+			_chocs_objets(f, e.global_position + Vector3.UP * float(f["h"]) * 0.6, Vector3(v.x, -absf(v.y), v.z))
 			f["v"] = v
 			_rendre(f, true)
 			return
@@ -441,6 +444,9 @@ func _voler(f: Dictionary, dt: float) -> void:
 				nn.y = 0.0
 				_choc(f, c, (ce + dc) * 0.5, nn.normalized() if nn.length() > 0.01 else -v.normalized(), v, v.length())
 				v *= 0.45
+	# objets traversés (urnes, tonneaux, meubles : leur calque n'arrête pas toujours un corps d'ennemi) : choc, casse, poussés
+	if v.length() > VITESSE_CHOC:
+		_chocs_objets(f, e.global_position + Vector3.UP * float(f["h"]), v)
 	f["v"] = v
 	_agiter(f, dt, 0.7)
 	if float(f["t"]) > DUREE_VOL:
@@ -476,6 +482,23 @@ func _choc(f: Dictionary, autre: Object, point: Vector3, n: Vector3, v: Vector3,
 	elif autre is Node and (autre as Node).has_method("frapper") and (autre is Cassable or autre is ObjetVivant):
 		(autre as Node).call("frapper", true, point - v.normalized())
 	_effet_choc(point, n, clampf(vn / 10.0, 0.4, 1.4), false)
+
+## Objets touchés par le corps d'un ennemi en vol (une fois chacun) : `recevoir_choc` (casse selon l'énergie), sinon poussés.
+func _chocs_objets(f: Dictionary, centre: Vector3, v: Vector3) -> void:
+	var touches: Dictionary = f["touches"]
+	var h := float(f["h"])
+	var masse := 70.0 * maxf(float(f["p"]), 0.4)
+	for o in _objets(centre, h + 0.4):
+		var oc := Telekinesie.centre(o)
+		if touches.has(o.get_instance_id()) or Vector2(oc.x - centre.x, oc.z - centre.z).length() > 0.45 + Telekinesie.rayon(o) or absf(oc.y - centre.y) > h + 0.3:
+			continue
+		touches[o.get_instance_id()] = true
+		_noter("choc objet %s v=%.1f" % [o.name, v.length()])
+		var casse := false
+		if o.has_method("recevoir_choc"):
+			casse = bool(o.call("recevoir_choc", v, masse, oc))
+		if not casse and is_instance_valid(o):
+			_pousser_objet(o, v * 0.7 + Vector3.UP * 1.5)
 
 ## Dégâts d'un choc (chemin des sorts : LanceurSorts.frapper, perks, résistances, réseau).
 func _frapper(cible: Node, dg: float, point: Vector3, dir: Vector3, st: float, s: DonneesSort) -> String:
@@ -664,6 +687,8 @@ func relacher(m: String, s: DonneesSort, oeil: Vector3, avant: Vector3) -> bool:
 	var vit := lerpf(s.vitesse_lancer_min, s.vitesse_lancer_max, charge) * clampf(1.0 / sqrt(maxf(p, 0.2)), 0.4, 1.3)
 	var depart := Elements._centre(e)
 	var but := _but(oeil, avant, depart, e)
+	if not bool(_dernier_but_ennemi):
+		but += Vector3.UP * clampf(demi_hauteur(e) * 0.7, 0.3, 1.2)   # visé sur le décor : le corps (et non son centre) y arrive
 	var dir := but - depart
 	var v := avant * vit
 	if dir.length() > 0.1:
@@ -720,6 +745,7 @@ func _but(oeil: Vector3, avant: Vector3, depart: Vector3, exclu: Node) -> Vector
 	if not r.is_empty():
 		but = r["position"]
 	var meilleur := 8.0
+	_dernier_but_ennemi = false
 	for c in _cibles(oeil, 40.0):
 		if c == exclu:
 			continue
@@ -728,6 +754,7 @@ func _but(oeil: Vector3, avant: Vector3, depart: Vector3, exclu: Node) -> Vector
 		if a < meilleur and oeil.distance_to(ce) <= oeil.distance_to(but) + 1.0 and _sans_mur(depart, ce, c):
 			meilleur = a
 			but = ce
+			_dernier_but_ennemi = true
 	return but
 
 func tout_lacher() -> void:

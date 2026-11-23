@@ -314,14 +314,16 @@ func _film_levitation() -> void:
 		await _regarder(Elements._centre(dr), 0.45)
 		magie.appuyer("gauche")
 		await _attendre(0.7)
-		var vise := _devant(6.5, -1.8)
-		urnes = _cassables_vers([vise, vise + _gauche() * 0.55, vise - _gauche() * 0.55, vise + (vise - j.global_position).normalized() * 0.6])
+		# urnes posées dans l'allée dégagée devant (d'où venaient les ennemis), en vue, sur la trajectoire
+		var vise := _libre(9.5, -0.6)
+		var av := (vise - j.global_position)
+		av.y = 0.0
+		av = av.normalized()
+		urnes = _cassables_vers([vise, vise + _gauche() * 0.55, vise - _gauche() * 0.55, vise + av * 0.6])
 		var cible: Vector3 = Telekinesie.centre(urnes[0]) if not urnes.is_empty() else vise
-		var haut := cible
-		haut.y = oeil_y - 0.2
-		await _regarder(haut, 0.7)
+		await _regarder(cible + Vector3.UP * 0.6, 0.9)   # le draugr, lourd, revient devant la main
 		_texte("relâcher : dans les urnes")
-		await _regarder(cible + Vector3.UP * 0.2, 0.3)
+		await _regarder(cible + Vector3.UP * 0.1, 0.25)
 		magie.relacher("gauche")
 		await _attendre(0.5)
 		await _capture("urnes")
@@ -358,7 +360,7 @@ func _film_attraction() -> void:
 	await _attendre(0.4)
 	await _regarder(centre + Vector3.UP * 0.6, 0.1)
 	await _debut("Attraction (U) : lancer un point au milieu du groupe")
-	await _attendre(0.3)
+	await _attendre(0.8)
 	for d in [a, b, c]:
 		_ia(d)
 	magie.appuyer("gauche")
@@ -376,5 +378,16 @@ func _film_attraction() -> void:
 	_texte("puis relâche tout d'un coup")
 	await _attendre(0.5)
 	await _capture("relache")
-	await _attendre(1.7)
+	await _attendre(0.6)
+	_texte("…urnes et tonneaux brisés, ennemis à terre")
+	await _regarder(centre + Vector3.UP * 0.3, 1.0)
+	var loin: CharacterBody3D = null
+	for d in [a, b, c]:
+		if SortsEsprit.vivant(d):
+			loin = d
+			break
+	if loin != null:
+		await _regarder(Vector3.ZERO, 1.2, loin)
+	else:
+		await _attendre(1.2)
 	print("FILM urnes cassées : %d / %d ; chaises %s %s" % [urnes.filter(func(x): return (x as Cassable).casse).size(), urnes.size(), is_instance_valid(c1), is_instance_valid(c2)])
