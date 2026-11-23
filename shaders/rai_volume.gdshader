@@ -9,7 +9,7 @@
 //   des montants), multipliée par la couleur de la surface (lecture de l'écran) : la tache garde le grain des planches ;
 // - poussière en suspension : grains de la taille d'un pixel posés sur 4 tranches fixes du volume (parallaxe juste), qui
 //   dérivent lentement et scintillent quand ils traversent la lumière.
-// Dessiné une seule fois par pixel : seules les faces de SORTIE de la boîte comptent (test géométrique, robuste au cisaillement).
+// Compté une seule fois par pixel : seules les faces de SORTIE de la boîte ajoutent de la lumière (test géométrique, robuste au cisaillement).
 shader_type spatial;
 render_mode unshaded, blend_add, cull_disabled, depth_draw_never, depth_test_disabled, shadows_disabled, fog_disabled;
 
@@ -89,9 +89,8 @@ void vertex() {
 }
 
 void fragment() {
-	if (force <= 0.001) {
-		discard;
-	}
+	ALBEDO = vec3(0.0);                   // mélange additif : un fragment sans lumière n'ajoute rien (pas de discard : test_shaders_sans_discard ;
+	ALPHA = 1.0;                          // pas de return non plus : interdit dans fragment())
 	vec3 ro = cam_l;
 	vec3 rd = pos_l - cam_l;              // s = 0 à la caméra, s = 1 au fragment
 	vec3 inv = 1.0 / (abs(rd) + 1e-6) * sign(rd + 1e-7);
@@ -101,67 +100,66 @@ void fragment() {
 	vec3 tf = max(t0, t1);
 	float sa = max(max(tn.x, tn.y), max(tn.z, 0.0));
 	float sb = min(min(tf.x, tf.y), tf.z);
-	if (sb < 0.995) {
-		discard;                          // face d'entrée : le volume est compté une seule fois, à la face de sortie
-	}
-	float prof_frag = -VERTEX.z;
-	float zs = texture(tex_profondeur, SCREEN_UV).x;
-	vec4 vs = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, zs, 1.0);
-	float prof_scene = -vs.z / vs.w;
-	float s_scene = prof_scene / max(prof_frag, 1e-4);
-	float se = min(sb, s_scene);
-	float lg = length(VERTEX);            // distance caméra → fragment (m)
-	vec3 cw = CAMERA_POSITION_WORLD;
-	float voile = 0.0;
-	if (se > sa) {
-		// décalage par pixel : bruit à gradient entrelacé (bruit, pas de grille de Bayer)
-		float j = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
-		const int N = 12;
-		for (int i = 0; i < N; i++) {
-			float s = mix(sa, se, (float(i) + j) / float(N));
-			vec3 p = ro + rd * s;
-			float proche = smoothstep(0.5, 2.4, s * lg);   // dans le rai, pas d'écran de brume collé à l'œil
-			voile += masque(p.xy) * profil(p) * proche;
-		}
-		// volutes de poussière : une valeur de bruit au milieu du segment (lente)
-		vec3 wm = mix(cw, pos_w, (sa + se) * 0.5);
-		float vol = 0.55 + 0.9 * bruit3(wm * 1.4 + vec3(0.0, TIME * 0.04, TIME * 0.025));
-		voile *= (se - sa) * lg / float(N) * densite * vol * voile_k;
-	}
-	// tache : la surface vue est dans le rai
-	float t = 0.0;
-	vec3 surf = vec3(0.0);
-	if (s_scene > sa && s_scene < sb) {
-		vec3 ps = ro + rd * s_scene;
-		t = masque(ps.xy) * profil_tache(ps) * tache;
-		surf = texture(tex_ecran, SCREEN_UV).rgb;
-	}
-	// grains de poussière : 4 tranches fixes du volume (x = 1/8, 3/8, 5/8, 7/8), cases de 7 cm sur la tranche
-	float g = 0.0;
-	if (se > sa) {
-		for (int k = 0; k < 4; k++) {
-			float xk = (float(k) + 0.5) / 4.0;
-			float s = (xk - ro.x) * inv.x;
-			if (s > sa && s < se) {
+	// face d'entrée (sb < 1) : rien ; le volume est compté une seule fois, à la face de sortie
+	if (force > 0.001 && sb >= 0.995) {
+		float prof_frag = -VERTEX.z;
+		float zs = texture(tex_profondeur, SCREEN_UV).x;
+		vec4 vs = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, zs, 1.0);
+		float prof_scene = -vs.z / vs.w;
+		float s_scene = prof_scene / max(prof_frag, 1e-4);
+		float se = min(sb, s_scene);
+		float lg = length(VERTEX);            // distance caméra → fragment (m)
+		vec3 cw = CAMERA_POSITION_WORLD;
+		float voile = 0.0;
+		if (se > sa) {
+			// décalage par pixel : bruit à gradient entrelacé (bruit, pas de grille de Bayer)
+			float j = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
+			const int N = 12;
+			for (int i = 0; i < N; i++) {
+				float s = mix(sa, se, (float(i) + j) / float(N));
 				vec3 p = ro + rd * s;
-				vec2 q = vec2(p.y * dims.y, p.z * dims.z) / 0.07;
-				q.x += TIME * (0.06 + 0.03 * float(k));          // lente descente
-				vec2 c = floor(q);
-				float hc = h21(c + float(k) * 17.3);
-				if (hc > 0.93) {
-					vec2 centre = c + vec2(h21(c + 3.1), h21(c + 7.7)) * 0.6 + 0.2;
-					centre.y += 0.25 * sin(TIME * 0.4 + hc * 40.0);
-					float d = length((q - centre) * 0.07);
-					float r = 0.0026 * s * lg + 0.001;                  // ≈ un pixel à toute distance
-					float sc = 0.5 + 0.5 * sin(TIME * (1.5 + 3.0 * hc) + hc * 60.0);
-					g += step(d, r) * sc * sc * masque(p.xy) * profil(p) * smoothstep(0.4, 1.2, s * lg);
+				float proche = smoothstep(0.5, 2.4, s * lg);   // dans le rai, pas d'écran de brume collé à l'œil
+				voile += masque(p.xy) * profil(p) * proche;
+			}
+			// volutes de poussière : une valeur de bruit au milieu du segment (lente)
+			vec3 wm = mix(cw, pos_w, (sa + se) * 0.5);
+			float vol = 0.55 + 0.9 * bruit3(wm * 1.4 + vec3(0.0, TIME * 0.04, TIME * 0.025));
+			voile *= (se - sa) * lg / float(N) * densite * vol * voile_k;
+		}
+		// tache : la surface vue est dans le rai
+		float t = 0.0;
+		vec3 surf = vec3(0.0);
+		if (s_scene > sa && s_scene < sb) {
+			vec3 ps = ro + rd * s_scene;
+			t = masque(ps.xy) * profil_tache(ps) * tache;
+			surf = texture(tex_ecran, SCREEN_UV).rgb;
+		}
+		// grains de poussière : 4 tranches fixes du volume (x = 1/8, 3/8, 5/8, 7/8), cases de 7 cm sur la tranche
+		float g = 0.0;
+		if (se > sa) {
+			for (int k = 0; k < 4; k++) {
+				float xk = (float(k) + 0.5) / 4.0;
+				float s = (xk - ro.x) * inv.x;
+				if (s > sa && s < se) {
+					vec3 p = ro + rd * s;
+					vec2 q = vec2(p.y * dims.y, p.z * dims.z) / 0.07;
+					q.x += TIME * (0.06 + 0.03 * float(k));          // lente descente
+					vec2 c = floor(q);
+					float hc = h21(c + float(k) * 17.3);
+					if (hc > 0.93) {
+						vec2 centre = c + vec2(h21(c + 3.1), h21(c + 7.7)) * 0.6 + 0.2;
+						centre.y += 0.25 * sin(TIME * 0.4 + hc * 40.0);
+						float d = length((q - centre) * 0.07);
+						float r = 0.0026 * s * lg + 0.001;                  // ≈ un pixel à toute distance
+						float sc = 0.5 + 0.5 * sin(TIME * (1.5 + 3.0 * hc) + hc * 60.0);
+						g += step(d, r) * sc * sc * masque(p.xy) * profil(p) * smoothstep(0.4, 1.2, s * lg);
+					}
 				}
 			}
 		}
+		vec3 col = couleur * force;
+		vec3 sortie = col * (voile + g * grains) + surf * col * t;
+		sortie += (h21(FRAGCOORD.xy * 1.37) - 0.5) / 255.0;     // grain 32 bits contre les paliers du dégradé
+		ALBEDO = max(sortie, vec3(0.0));
 	}
-	vec3 col = couleur * force;
-	vec3 sortie = col * (voile + g * grains) + surf * col * t;
-	sortie += (h21(FRAGCOORD.xy * 1.37) - 0.5) / 255.0;     // grain 32 bits contre les paliers du dégradé
-	ALBEDO = max(sortie, vec3(0.0));
-	ALPHA = 1.0;
 }

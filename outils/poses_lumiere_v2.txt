@@ -7,4 +7,4 @@ auberge_est interieur 1.5,-1.0,60,-12 bat=h2
 auberge_porte interieur 0,-1.5,180,-8 bat=h2 ouvert
 trappeurs interieur -1.5,0.5,-90,-12 bat=h1
 sigrun interieur -3.0,-0.5,-60,-4 bat=sigrun
-forge interieur 1.4,1.3,48,-5 bat=forge
+forge interieur -0.2,0.0,146,-4 bat=forge

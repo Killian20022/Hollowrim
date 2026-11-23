@@ -1285,8 +1285,9 @@ func finir() -> void:
 			a_porte = a_porte or o["type"] == "porte"
 		if not a_porte:
 			ouverture(Vector3(ip.porte_locale.x, F + 1.0, ip.demi.y + 0.08), Vector3.BACK, 1.1, 1.95, "porte")
-	# lumière v2 : le feu principal (la plus forte lumière qui vacille) projette des ombres, qui bougent avec sa flamme
-	if RaisInterieur.actif() and not OS.get_cmdline_user_args().has("--sans-ombre-feu"):
+	# lumière v2, OPTION --ombre-feu : le feu principal (la plus forte lumière qui vacille) projette des ombres, qui bougent avec
+	# sa flamme. Coupée par défaut : mesurée à +3,4 ms de GPU la nuit dans la halle sur l'Iris Xe (passe d'ombre : +200 000 primitives).
+	if RaisInterieur.actif() and OS.get_cmdline_user_args().has("--ombre-feu"):
 		var meilleure: OmniLight3D = null
 		var e_max := 1.9
 		for l in ip.lumieres:
