@@ -75,6 +75,8 @@ var horloge := 0.0
 var _refus_t := {}
 var _reseau_t := 0.0
 var _dernier_but_ennemi := false
+## Ragdoll de projection + relevé capturé (scripts/magie/ragdoll_esprit.gd) ; null avec --sans-ragdoll-esprit.
+var rag: RagdollEsprit
 
 func _init(m: MainSort = null) -> void:
 	magie = m
@@ -84,6 +86,9 @@ func _ready() -> void:
 	joueur = magie.joueur if magie != null else null
 	_presets()
 	_brancher_reseau()
+	if RagdollEsprit.actif:
+		rag = RagdollEsprit.new(self)
+		add_child(rag)
 
 func _noter(t: String) -> void:
 	journal.append([horloge, t])
@@ -193,7 +198,7 @@ func _sans_mur(a: Vector3, b: Vector3, cible: Node = null) -> bool:
 func viser_ennemi(oeil: Vector3, avant: Vector3, portee: float) -> Node3D:
 	var tries: Array = []
 	for c: Node3D in _cibles(oeil, portee):
-		if _tenu(c):
+		if _tenu(c) or (rag != null and rag.en_vol(c)):
 			continue
 		var ce := Elements._centre(c)
 		var d := ce - oeil
@@ -268,6 +273,8 @@ func oublier_visee(m: String) -> void:
 ## Prend l'ennemi en main : IA et gravité coupées, pieds libres, pas de collision avec le joueur. Idempotent.
 func _prendre(e: CharacterBody3D, mode: String) -> Dictionary:
 	var id := e.get_instance_id()
+	if rag != null and rag.contient(e):
+		rag.abandonner(e)   # il se relevait (ou volait) en ragdoll : ce sort le reprend tel quel
 	if vols.has(id):
 		var f0: Dictionary = vols[id]
 		f0["mode"] = mode
@@ -316,6 +323,16 @@ func _rendre(f: Dictionary, renverser: bool) -> void:
 		_renverser(e, f, plat)
 	_noter("rendu %s%s" % [e.name, " (renversé)" if renverser else ""])
 
+## Rend l'ennemi pris (tenu, aspiré) au RagdollEsprit qui le projette : sorti des vols sans lui rendre son IA (le relevé s'en charge).
+func _liberer(e: CharacterBody3D) -> void:
+	vols.erase(e.get_instance_id())
+	_lueur(e, 0.0)
+	SonsMagie.telekinesie_tenue(e, 0.0)
+	if joueur is PhysicsBody3D:
+		e.remove_collision_exception_with(joueur)
+	if e.has_meta("es_pieds"):
+		e.remove_meta("es_pieds")
+
 ## À terre : le draugr est déjà en CHUTE (posée au décollage) et glisse un peu ; le troll est sonné ; les autres reçoivent une
 ## réaction lourde (EnnemiBase._reagir). Tous se relèvent et reprennent leur IA.
 func _renverser(e: CharacterBody3D, f: Dictionary, plat: Vector3) -> void:
@@ -356,6 +373,9 @@ func projeter(e: CharacterBody3D, v: Vector3, s: DonneesSort) -> void:
 		return
 	if v.y < 2.2:
 		v.y = 2.2   # il décolle (sinon il touche le sol à l'image suivante)
+	if rag != null and rag.prendre(e, v, s):
+		_liberer(e)   # ragdoll de projection : le corps vole en physique puis se relève (RagdollEsprit)
+		return
 	var f := _prendre(e, "vol")
 	f["v"] = v
 	f["sort"] = s
@@ -436,7 +456,7 @@ func _voler(f: Dictionary, dt: float) -> void:
 	if v.length() > VITESSE_CHOC:
 		var ce := e.global_position + Vector3.UP * float(f["h"])
 		for c: CharacterBody3D in _cibles(ce, 1.8):
-			if c == e or (f["touches"] as Dictionary).has(c.get_instance_id()):
+			if c == e or (f["touches"] as Dictionary).has(c.get_instance_id()) or (rag != null and rag.en_vol(c)):
 				continue
 			var dc := Elements._centre(c)
 			if Vector2(ce.x - dc.x, ce.z - dc.z).length() < 0.8 and absf(ce.y - dc.y) < 1.3:
@@ -725,10 +745,13 @@ func lacher(m: String, secoue := false) -> void:
 		v += Vector3(randf_range(-1, 1), 2.5, randf_range(-1, 1))
 		_eclat(Elements._centre(e), 0.7)
 	if _local(e):
-		var f := _prendre(e, "vol")
-		f["v"] = v
-		f["touches"] = {}
-		_debut_vol(e, f)
+		if rag != null and rag.prendre(e, v, _sort("levitation")):
+			_liberer(e)   # lâché : il retombe en ragdoll et se relève
+		else:
+			var f := _prendre(e, "vol")
+			f["v"] = v
+			f["touches"] = {}
+			_debut_vol(e, f)
 	else:
 		_envoyer_ennemi(e, "lacher", {"v": v})
 	_noter("lâché %s%s" % [e.name, " (dégagé)" if secoue else ""])
@@ -915,7 +938,7 @@ func _aspirer(vx: Dictionary, dt: float) -> void:
 	if not bool(vx["distant"]):
 		for e: CharacterBody3D in _cibles(centre, s.rayon):
 			var id := e.get_instance_id()
-			if pris.has(id) or _tenu(e):
+			if pris.has(id) or _tenu(e) or (rag != null and rag.en_vol(e)):
 				continue
 			if not _sans_mur(centre, Elements._centre(e), e):
 				continue

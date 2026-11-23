@@ -17,6 +17,9 @@ const ANIMATIONS := preload("res://assets/modeles/humains/animations.glb")
 const ANIMATIONS_ZOMBIE := "res://assets/modeles/humains/animations_zombie.res"
 ## Réactions de victime des finishers (clips Fin_*, captures Mixamo : outils/zombie_retarget.gd --source=finishers_mixamo.json)
 const ANIMATIONS_FINISHERS := "res://assets/modeles/humains/animations_finishers.res"
+## Relevés capturés après un ragdoll des sorts de l'esprit (Releve_Dos, Releve_Ventre : Mixamo zombie pack, stand up / stand up (3),
+## sources_blender/scripts/extraire_mixamo_releve.py puis outils/zombie_retarget.gd ; scripts/magie/ragdoll_esprit.gd)
+const ANIMATIONS_RELEVE := "res://assets/modeles/humains/animations_releve.res"
 const BOUCLE := ["Idle", "Walk", "Walk_Formal", "Jog_Fwd", "Sprint", "Sword_Idle", "Idle_Talking", "Idle_Torch",
 	"Sitting_Idle", "Fixing_Kneeling", "Spell_Simple_Idle", "Crouch_Idle", "Crouch_Fwd", "Sitting_Talking"]
 const PIECES := ["tunique", "pantalon", "bottes", "ceinture", "mante", "brassards", "gants",
@@ -85,6 +88,10 @@ static func bibliotheque() -> AnimationLibrary:
 		var f := load(ANIMATIONS_FINISHERS) as AnimationLibrary
 		for nom: StringName in f.get_animation_list():
 			bib.add_animation(nom, f.get_animation(nom))
+	if ResourceLoader.exists(ANIMATIONS_RELEVE):
+		var rl := load(ANIMATIONS_RELEVE) as AnimationLibrary
+		for nom: StringName in rl.get_animation_list():
+			bib.add_animation(nom, rl.get_animation(nom))
 	_mx_caches.lock()
 	if _bibliotheque == null:
 		_bibliotheque = bib

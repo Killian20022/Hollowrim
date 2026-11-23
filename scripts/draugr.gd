@@ -466,6 +466,13 @@ func _ligne_de_vue() -> bool:
 	q.exclude = ex
 	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
 
+## Centre visé (Elements._centre) : celui du corps en ragdoll d'un sort de l'esprit (RagdollEsprit, méta es_centre), sinon 1,1 m
+## au-dessus des pieds (la valeur par défaut d'Elements._centre).
+func point_impact() -> Vector3:
+	if has_meta("es_centre"):
+		return get_meta("es_centre")
+	return global_position + Vector3(0, 1.1, 0)
+
 func vivant() -> bool:
 	return etat != MORT
 
