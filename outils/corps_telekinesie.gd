@@ -3,7 +3,8 @@ extends RigidBody3D
 ## PROP PHYSIQUE SAISISSABLE (tonneau, chaise, tabouret, seau…) pour les TESTS et la DÉMO de la télékinésie : un prop Quaternius texturé
 ## (PropsQuat) dans un corps rigide du groupe `telekinesable`, avec la collision du catalogue. C'est un REPLI : rendre les meubles
 ## du monde physiques, saisissables et cassables est le travail de la branche « cassables partout » (Cassable.recevoir_choc) ;
-## ce corps n'est posé que par outils/test_telekinesie.gd et la scène de démo (scenes/test_telekinesie.tscn).
+## ce corps n'est posé que par outils/test_telekinesie.gd et outils/film_telekinesie.gd (aide de TEST : rangée dans outils/ depuis
+## l'intégration avec monde/cassables_partout, où les vrais meubles et objets du monde sont saisissables).
 
 ## Masses (kg) par défaut des props de démo.
 const MASSES := {"pq_tonneau": 28.0, "pq_tonneau_2": 28.0, "pq_chaise": 7.0, "pq_chaise_2": 7.0, "pq_tabouret": 4.0, "pq_seau_bois": 3.0,

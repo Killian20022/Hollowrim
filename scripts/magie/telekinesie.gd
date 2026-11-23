@@ -130,6 +130,8 @@ func candidats() -> Array:
 static func centre(n: Node3D) -> Vector3:
 	if n.has_method("centre_telekinesie"):
 		return n.centre_telekinesie()
+	if n is Cassable:
+		return n.global_position + Vector3.UP * (n as Cassable).haut * 0.5   # origine au pied de l'objet
 	if n is RigidBody3D:
 		return n.global_position
 	if not n.has_meta("tk_centre"):
