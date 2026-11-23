@@ -440,11 +440,17 @@ func canaliser(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, dt:
 		if vise == "ennemis" and s.reduction_physique > 0.0:
 			ReseauProjectiles.proteger_allies(lanceur, s)   # coop : la protection couvre aussi les alliés proches
 		return touchees
+	var noir := s.forme == RayonNoir.FORME
+	if noir:
+		avant = _inertie(cle, avant, dt)   # rayon noir : suit la visée avec une petite inertie (dégâts ET image)
 	var v := viser(oeil, avant, s.portee)
 	var fin: Vector3 = v["point"]
 	var depart := EffetsMagie.pos_origine(paume) if paume != null else oeil
-	var portee_vue := minf(s.portee, depart.distance_to(fin) + 0.3)
-	EffetsMagie.jet(s.ecole, paume, (fin - depart).normalized(), portee_vue, s.largeur, true)
+	if noir:
+		_rayon_noir_image(s, paume, oeil, avant, depart, cle)
+	else:
+		var portee_vue := minf(s.portee, depart.distance_to(fin) + 0.3)
+		EffetsMagie.jet(s.ecole, paume, (fin - depart).normalized(), portee_vue, s.largeur, true)
 	_accum[cle] = float(_accum.get(cle, 0.0)) + dt
 	if float(_accum[cle]) < TIC_CANAL:
 		return touchees
@@ -460,6 +466,8 @@ func canaliser(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, dt:
 	for c in Elements.cibles_dans(oeil, s.portee + 0.5):
 		if _dans_jet(oeil, avant, s, Elements._centre(c)) and not _mur_entre(oeil, Elements._centre(c)):
 			candidats.append(c)
+	if noir:
+		candidats = _premiers(oeil, candidats)   # le rayon noir s'arrête au premier ennemi : c'est lui qui prend le tic
 	var maxi_cibles := 1 + s.traverse
 	for c in candidats:
 		if touchees.size() >= maxi_cibles:
@@ -490,8 +498,73 @@ func canaliser(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, dt:
 
 func arreter_jet(s: DonneesSort, paume: Node3D, cle: String) -> void:
 	_accum.erase(cle)
+	_dir_lisse.erase(cle)
 	if s != null and paume != null:
-		EffetsMagie.jet(s.ecole, paume, Vector3.FORWARD, 0.0, 0.0, false)
+		if s.forme == RayonNoir.FORME:
+			EffetsMagie.rayon_noir(paume, paume.global_position, paume.global_position, Vector3.UP, false, null, 0.0, 1.0, false)
+		else:
+			EffetsMagie.jet(s.ecole, paume, Vector3.FORWARD, 0.0, 0.0, false)
+
+# ------------------------------------------------------------------ rayon noir (sort continu des ténèbres)
+
+## Direction lissée par main (petite inertie du rayon noir : constante de temps ~1/INERTIE s).
+const INERTIE_RAYON_NOIR := 16.0
+var _dir_lisse := {}
+
+func _inertie(cle: String, avant: Vector3, dt: float) -> Vector3:
+	var d: Vector3 = _dir_lisse.get(cle, avant)
+	if d.dot(avant) < 0.5:
+		d = avant   # demi-tour brusque (téléport, reprise) : pas de rayon qui balaie la pièce
+	d = d.slerp(avant, 1.0 - exp(-dt * INERTIE_RAYON_NOIR)).normalized()
+	_dir_lisse[cle] = d
+	return d
+
+## Candidats triés du plus proche au plus loin (le premier ennemi sur le rayon).
+func _premiers(oeil: Vector3, candidats: Array) -> Array:
+	candidats.sort_custom(func(a: Node, b: Node) -> bool: return oeil.distance_squared_to(Elements._centre(a)) < oeil.distance_squared_to(Elements._centre(b)))
+	return candidats
+
+## Bout du rayon noir : premier décor sur la visée, ou premier ennemi dans le rayon avant lui (centre du corps). {point, normale, decor, cible}
+func bout_rayon_noir(s: DonneesSort, oeil: Vector3, avant: Vector3) -> Dictionary:
+	var res := {"point": oeil + avant * s.portee, "normale": -avant, "decor": false, "cible": null}
+	var monde := _monde()
+	if monde != null:
+		var q := PhysicsRayQueryParameters3D.create(oeil, oeil + avant * s.portee)
+		q.exclude = _exclus_rids()
+		var r := monde.intersect_ray(q)
+		if not r.is_empty():
+			res["point"] = r["position"]
+			res["normale"] = r["normal"]
+			res["decor"] = true
+	var d_mur := oeil.distance_to(res["point"])
+	if vise == "joueur":
+		if cible_joueur != null and not bool(cible_joueur.get("mort")):
+			var cj := cible_joueur.global_position + Vector3(0, 1.0, 0)
+			if _dans_jet(oeil, avant, s, cj) and oeil.distance_to(cj) < d_mur + 0.4 and not _mur_entre(oeil, cj):
+				res = {"point": cj, "normale": -avant, "decor": false, "cible": cible_joueur}
+		return res
+	var meilleur := d_mur + 0.4
+	for c in Elements.cibles_dans(oeil, s.portee + 0.5):
+		var ce := Elements._centre(c)
+		var dc := oeil.distance_to(ce)
+		if dc < meilleur and _dans_jet(oeil, avant, s, ce) and not _mur_entre(oeil, ce):
+			meilleur = dc
+			res = {"point": ce, "normale": -avant, "decor": false, "cible": c}
+	return res
+
+func _rayon_noir_image(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, depart: Vector3, cle: String) -> void:
+	var b := bout_rayon_noir(s, oeil, avant)
+	var fin: Vector3 = b["point"]
+	var c: Node3D = b["cible"]
+	if c != null:
+		# le rayon finit SUR le corps (côté lanceur), pas en son centre
+		fin = fin + (depart - fin).normalized() * 0.22
+	var dbl: bool = _doubles.has(s.id) and _doubles[s.id][1] == s
+	derniers_bouts[cle] = b
+	EffetsMagie.rayon_noir(paume, depart, fin, b["normale"], bool(b["decor"]), c, s.largeur, 1.45 if dbl else 1.0, true)
+
+## Dernier bout du rayon noir par main (tests : arrêt au mur, cible visée).
+var derniers_bouts := {}
 
 func _dans_jet(oeil: Vector3, avant: Vector3, s: DonneesSort, centre: Vector3) -> bool:
 	var rel := centre - oeil

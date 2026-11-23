@@ -25,6 +25,7 @@ const ACTIONS := [
 	{"id": "repulsion", "nom": "Répulsion (main gauche)", "defaut": [KEY_G, KEY_NONE]},          # raccourcis de test des sorts de l'esprit
 	{"id": "levitation", "nom": "Lévitation d'ennemi (main gauche)", "defaut": [KEY_N, KEY_NONE]},
 	{"id": "attraction", "nom": "Attraction (main gauche)", "defaut": [KEY_U, KEY_NONE]},
+	{"id": "rayon_noir", "nom": "Rayon noir (main gauche)", "defaut": [KEY_Y, KEY_NONE]},              # raccourci de test du sort continu des ténèbres
 	{"id": "menu", "nom": "Menu du personnage", "defaut": [KEY_TAB, KEY_NONE]},
 	{"id": "inventaire", "nom": "Sac", "defaut": [KEY_I, KEY_NONE]},
 	{"id": "competences", "nom": "Compétences", "defaut": [KEY_K, KEY_NONE]},

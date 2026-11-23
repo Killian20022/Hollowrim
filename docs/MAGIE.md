@@ -143,6 +143,7 @@ valeurs à PLEINE charge.
 | Drain de vie | ténèbres | canalisé, jet | 11 /s | 18 /s, rend 60 % | corruption +10 %, 3 s | 8 m | — | dégâts 1,9, drain 1,3, +1 cible |
 | Explosion obscure | ténèbres | zone visée chargée 1 s, vortex | 48 | 34 | corruption +20 %, 6 s | 14 m, rayon 3,5 | 6 s | rayon 1,5, attraction 1,5 |
 | Rayon du néant | ténèbres | chargé 1,4 s, rayon qui traverse 3 | 52 (×0,55 sans charge) | 78 (×0,4 sans charge) | corruption +20 %, 6 s | 32 m | 3 s | dégâts 2, largeur 1,4 |
+| Rayon noir | ténèbres | canalisé, rayon continu (s'arrête au 1er obstacle ou ennemi) | 9 /s | 15 /s, rend 10 % | corruption +12 %, 3 s | 13 m | — | dégâts 2, coût 2,2, largeur 1,5, portée 1,2 |
 | Soin | soin | canalisé, soi | 12 /s | soin 16 /s | — | — | — | soin 1,9 |
 | Protection | protection | canalisé, soi | 5 /s + 0,4 par point absorbé | absorbe 60 % (coups) / 85 % (sorts) de face, cône 120° | — | — | jamais interrompue | réduction × 1,25 (plafond 90 / 97 %) |
 | Lame ardente / de givre / d'orage / des ténèbres | 4 écoles | enchantement | 35 | +5 par coup d'épée | brûlure / gel / choc / corruption | 30 s | 2 s | — |
@@ -476,6 +477,40 @@ ragdoll prend le relais. Pas d'IA bloquée (test_sorts_esprit, « il s'est relev
   `rendus/telekinesie_2026-11-23/sorts_esprit/`.
 - **Coût en jeu (perf)** : rien tant que les sorts ne servent pas (deux dictionnaires vides parcourus par image) ; la surbrillance de la
   lévitation cherche sa cible 10 fois par seconde, sort en main seulement.
+
+## Rayon noir : sort continu des ténèbres (2026-11-23, branche magie/rayon_noir_continu)
+
+Demande : comme le feu, la glace et l'électricité, un sort CONTINU qui coûte peu, « un rayon noir continu », appuyé sur le rayon
+tiré d'un coup (rayon du néant), avec de petites runes. Données : `data/sorts/rayon_noir.tres` (CANALISE, portée JET, `forme`
+« rayon_noir » : c'est elle, pas le nom, qui choisit le visuel). Tout le reste est le chemin commun des canalisés : tics de 0,2 s
+(`LanceurSorts.TIC_CANAL`), coût par seconde (`MainSort`, « Mana épuisé. » à 0), interruption (seuil 10), double incantation
+(une main meneuse, UN rayon depuis le point de fusion), geste capturé « jet » / « double_jet », coop (les coups passent par
+`frapper` → `ReseauProjectiles.deleguer_coup_sort` ; comme les autres jets, le visuel n'est pas rejoué chez les autres joueurs).
+- **Équilibrage** : 9 mana/s (le moins cher des canalisés offensifs : drain 11, souffle 12, jet 13, arc 14), 15 dégâts/s
+  (= 3 par tic), corruption +12 % 3 s, drain 10 % (1,5 PV/s : un soupçon de survie, le Drain de vie reste le sort de soin, 60 %),
+  stagger 5/s, 13 m. ~1,7 dégât par point de mana (2,0 avec la corruption), dans la cible de l'équilibrage (1,6-1,9), sans zone
+  ni traversée (un seul ennemi). Double : ×2 dégâts, ×2,2 coût, ×1,5 largeur.
+- **Logique** (`LanceurSorts`, branche `forme == "rayon_noir"` de `canaliser`) : la visée est lissée (`_inertie`, constante
+  16 /s : ~15° de retard une image après un coup de 20°, rattrapé en 0,3 s ; demi-tour brusque = pas de balayage), la même
+  direction sert aux dégâts et à l'image ; `bout_rayon_noir` : premier décor, ou premier ennemi dans le rayon avant lui ; les
+  candidats d'un tic sont triés du plus proche (seul le premier est touché, `traverse` 0) ; `derniers_bouts[main]` (tests).
+- **Visuel** (`scripts/magie/rayon_noir.gd`, `RayonNoir`, un nœud par main, piloté par `EffetsMagie.rayon_noir`) : tube de
+  `RayonNeant._tube()` + `shaders/rayon_noir_faisceau.gdshader` (dérivé du faisceau du néant : cœur noir, liseré pourpre, filet
+  pâle, fumée déchirée et brins enroulés, ONDULATION lente qui court vers la cible et avive le liseré) ; allumage 0,2 s (la tête
+  file de la main à la cible), extinction 0,35 s (il se resserre et se dissipe en bouffées le long de l'axe) ; au bout : tache
+  d'ombre (`rayon_neant_tache.gdshader`) qui grandit et bouillonne tant qu'on tient le point, balayée elle en laisse jusqu'à 5 qui
+  s'effacent en 3 s ; volutes et braises violettes (2 MultiMesh, 26 + 14 au plus) ; fumée qui s'échappe du rayon ; 2 lumières
+  violettes faibles du pool (bout et milieu : la crypte se teinte, le noir reste lisible) ; sur un ennemi :
+  `ImpactCorps.embraser(.., "tenebres", ..)` toutes les 0,7 s (l'ombre qui rampe, OmbreCorps) + la corruption du statut ;
+  RUNES : celles de la main (RunesOrbite, état CANALISE : serrées et vives) et 3 à 5 runes violet pâle (shader des runes) qui
+  glissent le long du rayon en tournant autour de l'axe et s'éteignent avant la cible. Ombre au sol (EffetsSol.ombrer) sous le bout.
+- **Son** : `outils/sons_magie/generer_rayon_noir.sh` (synthèse ffmpeg) : boucle de 4 s (grondement 41 Hz qui pulse à 0,5 Hz,
+  souffle sombre, chuchotements), allumage, extinction ; impact : sons de l'école (EffetsMagie.impact via OmbreCorps / GestionMagie).
+- **Raccourci de test** : touche Y (action « rayon_noir », Touches) → main gauche, second appui = la main d'avant ; sort de départ
+  (`inventaire.json`) ; icône `rayon_noir` (IconesCombat).
+- `--sans-rayon-noir` : le sort n'existe pas (ni connu, ni équipable, ni raccourci) : comportement d'avant.
+- Test : `bash outils/tous_les_tests.sh test_rayon_noir` (coût, tics, statut, drain, mur, premier ennemi, relâchement, mana 0,
+  double, inertie) ; film : `outils/film_rayon_noir.gd` (crypte, `--perf` = FPS par phase, `--zoom=<fov>` = gros plans).
 
 ## Sons (branche magie/sons)
 
