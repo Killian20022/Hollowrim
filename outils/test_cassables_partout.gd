@@ -95,9 +95,10 @@ func _tester() -> void:
 		var ok := o.recevoir_choc(Vector3(0, 0, -9.0), 12.0, o.global_position + Vector3(0, 0.3, 0.4))      # 486 J
 		var dt_ms := (Time.get_ticks_usec() - t0) / 1000.0
 		var n_ecl := CasseObjets.nb_eclats() - n0
-		var cache := o.mm.get_instance_transform(o.idx).basis.x.length() < 0.001 if o.mm != null else false
+		var cache := not o.visible      # (l'instance du MultiMesh est mise à l'échelle 0 ; relue du serveur de rendu, elle arrive une image plus tard)
+		print("INFO   %s : coût de la casse %s, dont morceaux (maillages) %.1f ms" % [o.genre, str(CasseObjets.derniere_mesure), CasseObjets.derniere_decoupe_ms])
 		_verif(ok and o.casse and n_ecl >= 3 and cache and o.collision_layer == 0,
-			"%s : casse sous 486 J en %d morceaux (%.1f ms), instance cachée, collision retirée" % [o.genre, n_ecl, dt_ms])
+			"%s : casse sous 486 J en %d morceaux (%.1f ms), instance cachée (%s), collision retirée (%d)" % [o.genre, n_ecl, dt_ms, cache, o.collision_layer])
 		_verif((ObjetsVivants.etats.get(o.ident, {}) as Dictionary).has("casse"), "%s : état « casse » retenu pour la sauvegarde" % o.genre)
 	# éclats : retombent puis se gèlent (aucun coût physique)
 	var gele_en := -1

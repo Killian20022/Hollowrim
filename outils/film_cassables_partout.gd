@@ -33,6 +33,8 @@ func _image() -> void:
 	n += 1
 
 func _cliche(nom: String) -> void:
+	if nom.begins_with("ap_"):
+		print("FILM casse %s : %s" % [nom, str(CasseObjets.derniere_mesure)])
 	await process_frame
 	await RenderingServer.frame_post_draw
 	if planche != "":
@@ -64,17 +66,24 @@ func _proche(genres: Array, de: Vector3, sauf: Array = [], rayon := 1e9) -> Obje
 			best = o
 	return best
 
+## Hauteur du sol (décor, calque 1) sous (x, z), sous `de_haut`.
+func _sol_y(x: float, z: float, de_haut: float) -> float:
+	var q := PhysicsRayQueryParameters3D.create(Vector3(x, de_haut, z), Vector3(x, de_haut - 30.0, z), 1, [j.get_rid()])
+	var r := j.get_world_3d().direct_space_state.intersect_ray(q)
+	return float((r["position"] as Vector3).y) if not r.is_empty() else de_haut - 1.0
+
 ## Le joueur se place à `dist` m de `cible`, du côté de `depuis`, et la regarde.
+var sol_fixe := NAN      ## intérieur : hauteur du plancher (sinon relief du monde)
 func _placer(cible: Vector3, depuis: Vector3, dist: float, h := 0.0) -> void:
 	var d := depuis - cible
 	d.y = 0.0
 	d = d.normalized() if d.length() > 0.01 else Vector3.BACK
-	j.global_position = Vector3(cible.x, j.global_position.y, cible.z) + d * dist
+	var p := Vector3(cible.x, 0, cible.z) + d * dist
+	var y: float = sol_fixe if not is_nan(sol_fixe) else float(s.hauteur(p.x, p.z))
+	j.global_position = Vector3(p.x, y + 0.02 + h, p.z)
 	j.velocity = Vector3.ZERO
-	for i in 3:
+	for i in 2:
 		await physics_frame
-	var y_sol := j.global_position.y
-	j.global_position.y = y_sol + h
 	_regarder(cible)
 
 ## Lance `a` (réveillé, vitesse vers `b`) ; au contact (distance des centres), choc sur les deux, comme ImpactsLances.
@@ -94,7 +103,7 @@ func _lancer(a: ObjetVivant, b: Node3D, vitesse: float, haut := 0.25, max_images
 		await _image()
 		if a.casse or not is_instance_valid(a):
 			break
-		var r := 0.45 + (b.get("_taille").length() * 0.3 if b.get("_taille") != null else 0.2)
+		var r: float = 0.45 + ((b.get("_taille") as Vector3).length() * 0.3 if b.get("_taille") != null else 0.2)
 		if not touche and a.global_position.distance_to(b.global_position + Vector3(0, haut * 0.6, 0)) < r:
 			touche = true
 			var va := a.linear_velocity if a.linear_velocity.length() > 2.0 else v
@@ -127,6 +136,7 @@ func _go() -> void:
 	j.set_physics_process(false)      # pilote automatique : le corps ne bouge que par nous
 	var ip: Interieur = s.village.interieur("halle")
 	var centre := ip.to_global(Vector3(0, ip.sol_y + 0.6, 0))
+	sol_fixe = ip.to_global(Vector3(0, ip.sol_y, 0)).y
 	var meubles := ObjetsVivants._vivants().filter(func(o: ObjetVivant) -> bool: return o.meuble)
 	print("FILM %d meubles physiques" % meubles.size())
 
@@ -134,11 +144,12 @@ func _go() -> void:
 	var tonneau := _proche(["q_tonneau", "pq_tonneau", "q_tonneau_2"], centre, [], 9.0)
 	var jarre := _proche(["q_jarre", "pq_jarre"], centre, [], 9.0)
 	var tabouret := _proche(["q_tabouret", "pq_tabouret"], jarre.global_position if jarre else centre)
-	var chaise := _proche(["q_chaise", "pq_chaise", "q_chaise_2"], centre)
+	var chaise := _proche(["q_chaise", "pq_chaise", "q_chaise_2"], centre, [], 12.0)
+	if chaise == null:
+		chaise = _proche(["q_tabouret", "pq_tabouret"], centre, [tabouret], 12.0)
 	print("FILM halle : tonneau %s, jarre %s, tabouret %s, chaise %s" % [tonneau != null, jarre != null, tabouret != null, chaise != null])
 	if jarre != null and tabouret != null:
 		await _placer(jarre.global_position, centre, 2.6)
-		j.global_position.y = ip.to_global(Vector3(0, ip.sol_y, 0)).y + 0.02
 		_regarder(jarre.global_position + Vector3(0, 0.1, 0))
 		for i in 30:
 			await process_frame
@@ -153,7 +164,6 @@ func _go() -> void:
 		await _filmer(30)
 	if tonneau != null:
 		await _placer(tonneau.global_position, centre, 2.8)
-		j.global_position.y = ip.to_global(Vector3(0, ip.sol_y, 0)).y + 0.02
 		_regarder(tonneau.global_position + Vector3(0, 0.15, 0))
 		for i in 10:
 			await process_frame
@@ -171,7 +181,6 @@ func _go() -> void:
 	if chaise != null:
 		var mur := chaise.global_position - (centre - chaise.global_position).normalized() * 0.2
 		await _placer(chaise.global_position, centre, 2.4)
-		j.global_position.y = ip.to_global(Vector3(0, ip.sol_y, 0)).y + 0.02
 		_regarder(chaise.global_position + Vector3(0, 0.2, 0))
 		for i in 10:
 			await process_frame
@@ -204,13 +213,11 @@ func _go() -> void:
 		await _filmer(35)
 
 	# ---------------------------------------------------------------- 2. place du village
+	sol_fixe = NAN
 	var place := Vector3(49.0, 0.0, 33.0)
 	var t2 := _proche(["q_tonneau", "pq_tonneau", "q_tonneau_2"], place)
-	if t2 != null and t2.ident.begins_with("village") or t2 != null:
-		var vue := t2.global_position + Vector3(-3.0, 0, 2.4)
-		j.global_position = Vector3(vue.x, t2.global_position.y + 0.3, vue.z)
-		for i in 4:
-			await physics_frame
+	if t2 != null:
+		await _placer(t2.global_position, t2.global_position + Vector3(-3.0, 0, 2.4), 3.6)
 		_regarder(t2.global_position + Vector3(0, 0.2, 0))
 		for i in 30:
 			await process_frame
@@ -235,5 +242,5 @@ func _go() -> void:
 			await _filmer(5)
 			cg.frapper(true, j.global_position)
 			await _filmer(40)
-	print("FILM %d images dans %s ; éclats %d" % [n, sortie, CasseObjets.nb_eclats()])
+	print("FILM %d images dans %s ; éclats %d ; dernière casse %s" % [n, sortie, CasseObjets.nb_eclats(), str(CasseObjets.derniere_mesure)])
 	quit(0)
