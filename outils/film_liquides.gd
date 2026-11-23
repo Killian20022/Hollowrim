@@ -164,7 +164,7 @@ func _go() -> void:
 	_cam.current = true
 	_lampe = OmniLight3D.new()       # lumière de tournage (film seulement)
 	_lampe.light_color = Color(1.0, 0.9, 0.78)
-	_lampe.light_energy = 1.1
+	_lampe.light_energy = 0.6
 	_lampe.omni_range = 6.0
 	_lampe.shadow_enabled = false
 	s.add_child(_lampe)
@@ -258,20 +258,18 @@ func _film() -> void:
 	await _cliche("epee_sol")
 	# --- 4. dehors : sang sur la neige
 	_legende("Dehors : le sang sur la neige")
-	(salle["torche"] as Node).queue_free()
-	for c in s.get_children():
-		if c is StaticBody3D and c != s.mannequin and c != s.mur and c.position.z > -8.0 and c.position.z < 8.0 and absf(c.position.x) < 12.0:
-			c.position.x += 60.0      # la salle s'efface (rangée loin)
 	b.queue_free()
+	# plus loin (x + 40) : sol de neige, dehors, soleil
+	var X := Vector3(40.0, 0, 0)
 	EffetsSol.dehors = true
 	s.soleil.visible = true
 	s.env.background_color = Color(0.55, 0.6, 0.68)
 	s.env.ambient_light_energy = 0.8
-	_boite(Vector3(0, -0.035, -1), Vector3(14, 0.08, 14), Palette.materiau(Palette.tex("neige", Palette.NEIGE, 4, 0.5), Vector2(6, 6)))
+	_boite(X + Vector3(0, -0.035, -1), Vector3(14, 0.08, 14), Palette.materiau(Palette.tex("neige", Palette.NEIGE, 4, 0.5), Vector2(6, 6)))
 	EffetsSol.forcer_neige = true
-	var b2 := _ennemi(Vector3(0.2, 0, -2.6), deg_to_rad(-10.0))
+	var b2 := _ennemi(X + Vector3(0.2, 0, -2.6), deg_to_rad(-10.0))
 	b2.set_physics_process(false)
-	_cam_vers(Vector3(1.6, 1.45, -0.4), Vector3(0.0, 0.3, -2.8), 56.0)
+	_cam_vers(X + Vector3(1.6, 1.45, -0.4), X + Vector3(0.0, 0.3, -2.8), 56.0)
 	await _filmer(0.4)
 	b2.recevoir_coup(5.0, _cam.global_position, false, _info(b2, 1.3, Vector3(-0.6, -0.2, -0.8)))
 	await _filmer(0.7)

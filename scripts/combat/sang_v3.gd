@@ -259,7 +259,8 @@ static func _traces(n: Node, point: Vector3, dir: Vector3, k: float, c: Color, n
 		var de := point + plat * (0.4 + j * 0.45 * clampf(k, 0.6, 2.0)) + plat.cross(Vector3.UP) * randf_range(-0.18, 0.18)
 		var r2 := Sang.sol_sous(n as Node3D, de, 0.4, 3.0)
 		if not r2.is_empty():
-			Sang.trace(n, r2["position"], r2["normal"], plat, randf_range(0.3, 0.42) * clampf(k, 0.6, 1.6) * (1.0 - j * 0.22) * (1.0 if niv == 2 else 0.6), c, "giclure", 0.0, 0.12 + j * 0.07)
+			# (liquides : un peu plus larges, le sang au sol d'un intérieur sombre restait trop discret)
+			Sang.trace(n, r2["position"], r2["normal"], plat, randf_range(0.3, 0.42) * clampf(k, 0.6, 1.6) * (1.0 - j * 0.22) * (1.0 if niv == 2 else 0.6) * (1.2 if Liquides.actif else 1.0), c, "giclure", 0.0, 0.12 + j * 0.07)
 
 # ------------------------------------------------------------------ traces : matériau, relief
 

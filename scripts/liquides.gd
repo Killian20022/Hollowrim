@@ -48,25 +48,25 @@ const SORTES := {
 		"visc": 5.0, "film": 3.5, "absorbe": 0.3, "seche": 50.0, "vie": 150.0, "brille": 0.65, "opaque": true, "sang": "troll"},
 	"sang_araignee": {"frais": Color(0.20, 0.24, 0.06), "sec": Color(0.11, 0.12, 0.045), "vol": Color(0.24, 0.28, 0.07), "halo": Color(0.48, 0.52, 0.30),
 		"visc": 3.0, "film": 3.0, "absorbe": 0.35, "seche": 40.0, "vie": 150.0, "brille": 0.7, "opaque": true, "sang": "araignee"},
-	"eau": {"frais": Color(0.58, 0.62, 0.68), "sec": Color(0.86, 0.88, 0.9), "vol": Color(0.62, 0.7, 0.78), "halo": Color(0.78, 0.82, 0.88),
+	"eau": {"frais": Color(0.66, 0.69, 0.74), "sec": Color(0.88, 0.9, 0.92), "vol": Color(0.42, 0.47, 0.53), "halo": Color(0.78, 0.82, 0.88),
 		"visc": 1.0, "film": 2.0, "absorbe": 1.0, "seche": 22.0, "vie": 45.0, "brille": 1.0, "opaque": false},
-	"saumure": {"frais": Color(0.6, 0.62, 0.56), "sec": Color(0.84, 0.85, 0.8), "vol": Color(0.62, 0.66, 0.6), "halo": Color(0.8, 0.82, 0.76),
+	"saumure": {"frais": Color(0.68, 0.7, 0.64), "sec": Color(0.86, 0.87, 0.82), "vol": Color(0.42, 0.45, 0.4), "halo": Color(0.8, 0.82, 0.76),
 		"visc": 1.1, "film": 2.0, "absorbe": 0.9, "seche": 30.0, "vie": 60.0, "brille": 0.9, "opaque": false},
-	"biere": {"frais": Color(0.74, 0.5, 0.2), "sec": Color(0.88, 0.78, 0.62), "vol": Color(0.78, 0.52, 0.18), "halo": Color(0.86, 0.74, 0.5),
+	"biere": {"frais": Color(0.9, 0.74, 0.48), "sec": Color(0.9, 0.82, 0.68), "vol": Color(0.4, 0.24, 0.07), "halo": Color(0.86, 0.74, 0.5),
 		"visc": 1.2, "film": 2.2, "absorbe": 0.9, "seche": 35.0, "vie": 75.0, "brille": 0.9, "opaque": false},
-	"hydromel": {"frais": Color(0.72, 0.46, 0.12), "sec": Color(0.74, 0.56, 0.3), "vol": Color(0.82, 0.55, 0.14), "halo": Color(0.86, 0.7, 0.4),
+	"hydromel": {"frais": Color(0.86, 0.66, 0.34), "sec": Color(0.78, 0.62, 0.38), "vol": Color(0.46, 0.27, 0.05), "halo": Color(0.86, 0.7, 0.4),
 		"visc": 3.0, "film": 3.0, "absorbe": 0.55, "seche": 90.0, "vie": 140.0, "brille": 1.0, "opaque": false},
-	"vin": {"frais": Color(0.42, 0.1, 0.15), "sec": Color(0.6, 0.36, 0.4), "vol": Color(0.36, 0.05, 0.1), "halo": Color(0.7, 0.42, 0.48),
+	"vin": {"frais": Color(0.66, 0.3, 0.34), "sec": Color(0.68, 0.44, 0.48), "vol": Color(0.22, 0.02, 0.05), "halo": Color(0.7, 0.42, 0.48),
 		"visc": 1.1, "film": 2.0, "absorbe": 0.85, "seche": 40.0, "vie": 120.0, "brille": 0.9, "opaque": false},
-	"huile": {"frais": Color(0.6, 0.48, 0.2), "sec": Color(0.62, 0.52, 0.3), "vol": Color(0.7, 0.58, 0.22), "halo": Color(0.8, 0.72, 0.5),
+	"huile": {"frais": Color(0.66, 0.56, 0.32), "sec": Color(0.68, 0.6, 0.4), "vol": Color(0.4, 0.32, 0.1), "halo": Color(0.8, 0.72, 0.5),
 		"visc": 7.0, "film": 2.5, "absorbe": 0.35, "seche": 400.0, "vie": 220.0, "brille": 1.1, "opaque": false},
 	"lait": {"frais": Color(0.82, 0.8, 0.74), "sec": Color(0.72, 0.7, 0.63), "vol": Color(0.88, 0.86, 0.8), "halo": Color(0.86, 0.85, 0.82),
 		"visc": 1.3, "film": 2.0, "absorbe": 0.75, "seche": 40.0, "vie": 70.0, "brille": 0.55, "opaque": true},
-	"potion_soin": {"frais": Color(0.62, 0.06, 0.08), "sec": Color(0.38, 0.06, 0.08), "vol": Color(0.75, 0.1, 0.12), "halo": Color(0.8, 0.4, 0.42),
+	"potion_soin": {"frais": Color(0.62, 0.06, 0.08), "sec": Color(0.38, 0.06, 0.08), "vol": Color(0.55, 0.05, 0.07), "halo": Color(0.8, 0.4, 0.42),
 		"visc": 1.6, "film": 2.2, "absorbe": 0.6, "seche": 50.0, "vie": 90.0, "brille": 1.0, "opaque": true, "lueur": 0.5},
-	"potion_mana": {"frais": Color(0.1, 0.2, 0.62), "sec": Color(0.08, 0.14, 0.36), "vol": Color(0.18, 0.32, 0.8), "halo": Color(0.45, 0.55, 0.85),
+	"potion_mana": {"frais": Color(0.1, 0.2, 0.62), "sec": Color(0.08, 0.14, 0.36), "vol": Color(0.1, 0.18, 0.55), "halo": Color(0.45, 0.55, 0.85),
 		"visc": 1.6, "film": 2.2, "absorbe": 0.6, "seche": 50.0, "vie": 90.0, "brille": 1.0, "opaque": true, "lueur": 0.6},
-	"potion_vigueur": {"frais": Color(0.16, 0.5, 0.12), "sec": Color(0.12, 0.3, 0.08), "vol": Color(0.24, 0.62, 0.16), "halo": Color(0.5, 0.75, 0.45),
+	"potion_vigueur": {"frais": Color(0.16, 0.5, 0.12), "sec": Color(0.12, 0.3, 0.08), "vol": Color(0.12, 0.38, 0.08), "halo": Color(0.5, 0.75, 0.45),
 		"visc": 1.6, "film": 2.2, "absorbe": 0.6, "seche": 50.0, "vie": 90.0, "brille": 1.0, "opaque": true, "lueur": 0.5},
 }
 ## Sorte par numéro (les gouttes portent un octet).
@@ -115,7 +115,7 @@ static func contenu(genre: String, oid: String, ident: String, liquide: bool) ->
 			return []
 		return [("biere" if h < 60 else ("hydromel" if h < 80 else ("eau" if h < 90 else "vin"))), 28.0]
 	if genre.contains("jarre"):
-		return [["eau", "vin", "huile", "lait", "saumure"][h % 5], 5.0]
+		return [["eau", "vin", "huile", "lait", "saumure"][h % 5], 3.0]
 	return ["saumure", 3.0]
 
 # ------------------------------------------------------------------ nœud de scène
@@ -238,14 +238,15 @@ static func impact(n: Node, r: Dictionary, v: Vector3, nom_: String, vol_ml: flo
 	var rasant := tang.length() > absf(vn) * 1.1
 	var sang := est_sang(nom_)
 	# éclaboussures secondaires : un impact rapide renvoie quelques gouttelettes (pas sur la neige, qui boit)
-	if v.length() > 3.5 and vol_ml > 0.4 and surf != "neige" and GouttesSang.en_vol() < GouttesSang._max() * 0.7:
+	var dans_flaque: Flaque = l._flaque_sous(p, nrm, nom_) if nrm.y > PLAT and sup == null else null
+	if v.length() > 3.5 and vol_ml > 0.8 and surf != "neige" and dans_flaque == null and GouttesSang.en_vol() < GouttesSang._max() * 0.5:
 		var nb := clampi(int(v.length() * 0.35 + vol_ml * 0.2), 1, 3)
 		for k in nb:
 			var dv := tang * randf_range(0.15, 0.4) + nrm * randf_range(0.6, 1.4) + Vector3(randf_range(-0.4, 0.4), 0, randf_range(-0.4, 0.4))
 			GouttesSang.lacher_liquide(n, p + nrm * 0.02, dv, nom_, vol_ml * 0.06, 0.5, couleur)
 		vol_ml *= 0.8
 	if nrm.y > PLAT and sup == null:
-		var f := l._flaque_sous(p, nrm, nom_)
+		var f := dans_flaque
 		if f != null:
 			f.ajouter(l, vol_ml / 1000.0, p)
 		elif vol_ml >= SEUIL_FLAQUE_ML:
@@ -262,7 +263,7 @@ static func impact(n: Node, r: Dictionary, v: Vector3, nom_: String, vol_ml: flo
 		# mur, pente, prop : tache, et un filet qui coule si la goutte est assez grosse
 		if tacher:
 			l._tache(n, p, nrm, v, nom_, vol_ml, taille, rasant or nrm.y < PLAT, surf, couleur, sup)
-		if sup == null and vol_ml >= 0.7 * sqrt(sorte(nom_)["visc"]) and surf != "neige":
+		if sup == null and vol_ml >= 0.7 * float(sorte(nom_)["visc"]) * (1.0 if not sang else 0.9) and surf != "neige" and (not sang or randf() < 0.6):
 			l.coulure(n, p, nrm, nom_, vol_ml * 0.75, couleur)
 	cout_us += Time.get_ticks_usec() - t0
 
@@ -272,6 +273,8 @@ static func impact(n: Node, r: Dictionary, v: Vector3, nom_: String, vol_ml: flo
 func _tache(n: Node, p: Vector3, nrm: Vector3, v: Vector3, nom_: String, vol_ml: float, taille: float, allongee: bool, surf: String,
 		couleur: Color, sup: Node3D) -> void:
 	var t := randf_range(0.07, 0.115) * taille * (1.3 if allongee else 1.0)
+	if not bool(sorte(nom_).get("opaque", false)) and nrm.y < PLAT:
+		t *= 0.7      # un liquide clair éclabousse un mur en taches plus petites (il coule aussitôt)
 	if surf == "neige":
 		t *= 1.35     # la neige boit : tache plus large et diffuse
 	if est_sang(nom_):
@@ -279,11 +282,13 @@ func _tache(n: Node, p: Vector3, nrm: Vector3, v: Vector3, nom_: String, vol_ml:
 		Sang.trace(n, p, nrm, v, t, c, "giclure" if allongee else "goutte", 0.0, 0.0, sup)
 		return
 	stats["taches"] += 1
+	var t_us := Time.get_ticks_usec()
 	var mi := _recycler(taches, MAX_TACHES)
 	var forme := "giclure" if allongee else "goutte"
 	mi.material_override = materiau(nom_, surf, 0, SangV3.texture(forme, randi() % 3))
 	_poser_plan(mi, n, p, nrm, v, t * (1.35 if allongee else 1.0), t, sup)
 	_vieillir(mi, nom_, surf)
+	stats["us_taches"] = int(stats.get("us_taches", 0)) + Time.get_ticks_usec() - t_us
 
 ## Une place dans un pool (plein : le plus ancien est repris).
 func _recycler(pool: Array, maxi: int) -> MeshInstance3D:
@@ -320,7 +325,7 @@ func _poser_plan(mi: MeshInstance3D, n: Node, p: Vector3, nrm: Vector3, dir: Vec
 	var z := x.cross(y)
 	var leve := 0.035 if y.y > 0.6 else 0.012
 	var xf := Transform3D(Basis(x, y, z), p + y * leve)
-	mi.mesh = SangV3.maille_projetee(n as Node3D if n is Node3D and demi_long > 0.07 else null, xf, demi_long, demi_larg, leve) if demi_long > 0.07 else _plan
+	mi.mesh = SangV3.maille_projetee(n as Node3D if n is Node3D else null, xf, demi_long, demi_larg, leve) if demi_long > 0.12 else _plan
 	if is_instance_valid(sup) and sup.is_inside_tree() and mi.get_parent() != sup:
 		mi.reparent(sup, false)
 	mi.global_transform = Transform3D(Basis(x * demi_long * 2.0, y, z * demi_larg * 2.0), p + y * leve)
@@ -383,7 +388,7 @@ func _fusionner(f: Flaque) -> void:
 			continue
 		var d := g.centre - f.centre
 		d -= f.nrm * d.dot(f.nrm)
-		if d.length() > (f.r_bati + g.r_bati) * 0.8:
+		if d.length() > (f.r_bati + g.r_bati) * 0.95:
 			continue
 		var gros := f if f.volume >= g.volume else g
 		var petit := g if gros == f else f
@@ -471,7 +476,7 @@ class Flaque extends MeshInstance3D:
 			_attente = true
 		Liquides.stats["fusions"] += 1
 		var r := Liquides.rayon_pour(liquide, surf, volume)
-		if r > r_bati * 1.1 and r_bati < Liquides.R_MAX:
+		if r > r_bati * 1.18 and r_bati < Liquides.R_MAX:
 			r_cible = r
 			_attente = true
 		else:
@@ -486,6 +491,8 @@ class Flaque extends MeshInstance3D:
 
 	## Rayons : la portée de chaque direction s'arrête au mur ou au bord (le surplus coule par les bords), le relief est suivi.
 	func construire(l: Liquides) -> void:
+		var t_us := Time.get_ticks_usec()
+		Liquides.stats["constructions"] = int(Liquides.stats.get("constructions", 0)) + 1
 		var espace := l.get_world_3d().direct_space_state
 		r_cible = Liquides.rayon_pour(liquide, surf, volume)
 		var y := nrm.normalized()
@@ -517,7 +524,7 @@ class Flaque extends MeshInstance3D:
 			var ok := 0.0
 			var hh := 0.0
 			var vide := false
-			var nb := 6
+			var nb := 4 if lim < 0.8 else 6
 			for j in range(1, nb + 1):
 				var s := lim * j / nb
 				var dz := _sonder(espace, c + d * s, y, ex)
@@ -583,6 +590,7 @@ class Flaque extends MeshInstance3D:
 			volume = cap
 		vit = true
 		l._fusionner(self)
+		Liquides.stats["us_constructions"] = int(Liquides.stats.get("us_constructions", 0)) + Time.get_ticks_usec() - t_us
 
 	## Hauteur (le long de la normale) de la surface sous `p` par rapport au plan, ou INF (vide).
 	static func _sonder(espace: PhysicsDirectSpaceState3D, p: Vector3, y: Vector3, ex: Array[RID]) -> float:
@@ -608,14 +616,14 @@ class Flaque extends MeshInstance3D:
 			set_instance_shader_parameter("etendue", etendue)
 		if exces > 0.0005 and not bords.is_empty():
 			var debit := 0.5 / sqrt(visc) * dt      # litres par pas
-			var nb := mini(bords.size(), 2)
+			var nb := mini(bords.size(), 2 if GouttesSang.en_vol() < GouttesSang._max() * 0.6 else 1)
 			var part := minf(exces, debit) / nb
 			for k in nb:
 				var b: Array = bords[(int(_t * 20.0) + k * 7) % bords.size()]
 				var d: Vector3 = b[1]
 				var pt: Vector3 = b[0] + d * 0.012 - nrm * 0.012
 				GouttesSang.lacher_liquide(l, pt + Vector3(randf_range(-0.01, 0.01), 0, randf_range(-0.01, 0.01)), d * randf_range(0.15, 0.35),
-					liquide, part * 1000.0, clampf(pow(part * 1000.0 / 1.5, 0.333), 0.6, 2.4))
+					liquide, part * 1000.0, clampf(pow(part * 1000.0 / 4.0, 0.333), 0.6, 1.4))
 				Liquides.stats["egouttures"] += 1
 			exces -= minf(exces, debit)
 		elif bords.is_empty():
@@ -712,7 +720,7 @@ class Coulure extends RefCounted:
 		col = h2["collider"]
 		parcouru += pas
 		var bu := float(Liquides.SURFACES.get(surf, Liquides.SURFACES["pierre"])["absorbe"]) * float(so["absorbe"])
-		vol -= pas * (3.0 + 2.5 * sqrt(visc)) * (1.0 + bu * 2.0)       # dépôt (mL par m)
+		vol -= pas * (3.0 + 2.5 * visc) * (1.0 + bu * 2.0)       # dépôt (mL par m) : un liquide épais se dépose vite (coulure courte)
 		if n2.dot(nrm) < 0.97:
 			nrm = n2
 			nouveau_segment(l)
@@ -741,7 +749,8 @@ class Coulure extends RefCounted:
 	## Fin : sur le plat, le reste fait une tache ou rejoint une flaque ; sinon une perle au bout du filet.
 	func finir(l: Liquides, sur_plat: bool) -> void:
 		if vol <= 0.0 and not sur_plat:
-			l._tache(l, p, nrm, dir, liquide, 0.5, 0.55, false, surf, couleur, null)
+			# perle au bout du filet (le liquide s'accumule là où il s'arrête)
+			l._tache(l, p + dir * largeur * 0.3, nrm, dir, liquide, 0.5, clampf(largeur / 0.03, 0.45, 0.9), false, surf, couleur, null)
 			return
 		if sur_plat and vol > 0.0:
 			Liquides.impact(l, {"position": p, "normal": nrm, "collider": col if is_instance_valid(col) else l}, Vector3.DOWN * 0.3, liquide, vol, 0.8, couleur)
@@ -775,7 +784,8 @@ static func verser_contenant(n: Node, centre: Vector3, vitesse: Vector3, nom_: S
 	s.taille = taille
 	s.duree = clampf(0.5 + litres * 0.06, 0.5, 2.2)
 	# gerbe : 40 % du contenu d'un coup, des gouttes plus ou moins grosses dans toutes les directions horizontales, un peu vers le haut
-	var nb := clampi(int(8 + litres * 1.2), 8, 34)
+	var libres := GouttesSang._max() - GouttesSang.en_vol()
+	var nb := clampi(mini(int(8 + litres * 1.2), int(libres * 0.6)), 4, 34)
 	var gerbe := litres * 0.4
 	for k in nb:
 		var a := randf() * TAU
@@ -783,7 +793,7 @@ static func verser_contenant(n: Node, centre: Vector3, vitesse: Vector3, nom_: S
 		var v := vitesse * 0.6 + dh + Vector3(0, randf_range(-0.3, 1.6), 0)
 		var ml := gerbe * 1000.0 / nb * randf_range(0.5, 1.5)
 		var p := centre + Vector3(cos(a), randf_range(-0.4, 0.4), sin(a)) * taille * 0.35
-		GouttesSang.lacher_liquide(l, p, v, nom_, ml, clampf(pow(ml / 1.5, 0.333), 0.7, 3.0))
+		GouttesSang.lacher_liquide(l, p, v, nom_, ml, clampf(pow(ml / 4.0, 0.333), 0.7, 1.9))
 	s.reste -= gerbe
 	l.sources.append(s)
 	l._reveiller()
@@ -806,13 +816,16 @@ class Source extends RefCounted:
 			return false
 		var k := 1.0 - t / duree
 		var debit := reste * clampf(dt / maxf(duree - t, dt) * 1.3, 0.0, 1.0)
-		var nb := 2 if k > 0.4 else 1
+		var nb := 3 if k > 0.4 else (2 if k > 0.15 else 1)
+		# pool presque plein (plusieurs contenants à la fois) : moins de gouttes, plus grosses (le volume versé ne change pas)
+		if GouttesSang.en_vol() > GouttesSang._max() * 0.7:
+			nb = 1
 		for j in nb:
 			var a := randf() * TAU
 			var ml := debit * 1000.0 / nb
 			var p := centre + Vector3(cos(a) * taille * 0.3, -taille * 0.3 * (1.0 - k), sin(a) * taille * 0.3)
 			var v := vitesse * 0.2 + Vector3(cos(a), 0, sin(a)) * randf_range(0.3, 1.1) * k + Vector3(0, -0.2, 0)
-			GouttesSang.lacher_liquide(l, p, v, liquide, ml, clampf(pow(ml / 1.5, 0.333), 0.7, 3.0))
+			GouttesSang.lacher_liquide(l, p, v, liquide, ml, clampf(pow(ml / 4.0, 0.333), 0.7, 1.9))
 		reste -= debit
 		return true
 
@@ -991,8 +1004,11 @@ void fragment() {
 		vec2 q = (floor(UV * texels) + 0.5) / texels;
 		float d = length((q - 0.5) * 2.0);
 		n = texture(bruit, q * 2.1).r;
+		vec2 v = (q - 0.5) * 2.0;
+		float ang = atan(v.y, v.x) / 6.2832;
+		float lobes = texture(bruit, vec2(ang * 1.0, 0.21)).r * 0.6 + texture(bruit, vec2(ang * 3.0, 0.67)).r * 0.4;
 		float n2 = texture(bruit, q * 0.7 + vec2(0.37, 0.61)).r;
-		float bord = etendue * (0.66 + 0.3 * n2 + 0.06 * n);
+		float bord = etendue * (0.5 + 0.42 * lobes + 0.1 * n2 + 0.05 * n);
 		garde = step(d, bord);
 		ep = clamp((bord - d) / max(bord * 0.5, 0.02) + (n - 0.5) * 0.3, 0.04, 1.0);
 		lisere = neige * (1.0 - garde) * step(d, bord + 2.4 / texels);
@@ -1019,7 +1035,7 @@ void fragment() {
 	// teinte multipliée : film mince plus léger ; quelques texels de reflet sur une surface dure (éclat de la flaque)
 	c = mix(c, vec3(1.0), (1.0 - ep) * 0.3);
 	c = mix(c, halo, lisere);
-	c *= 1.0 + step(0.86, n) * 0.55 * brille * mouille;
+	c *= 1.0 + step(0.8, n) * 0.9 * clamp(brille + 0.25, 0.0, 1.2) * mouille;
 	ALBEDO = c;
 #else
 	c *= mix(1.15, 0.94, ep);

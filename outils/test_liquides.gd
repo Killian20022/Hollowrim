@@ -111,7 +111,7 @@ func _lancer() -> void:
 	root.add_child(s)
 	await _frames(20)
 	EffetsSol.dehors = false
-	var sol := _boite(Vector3(0, -0.25, 0), Vector3(40, 0.5, 40))      # dessus à y = 0
+	var sol := _boite(Vector3(0, -0.21, 0), Vector3(40, 0.5, 40))      # dessus à y = 0,04 (au-dessus du sol de la scène)
 	var mur := _boite(Vector3(0, 1.5, -6.0), Vector3(8, 3, 0.4))      # face avant à z = -5,8
 	var etagere := _boite(Vector3(4.0, 1.175, -3.0), Vector3(1.2, 0.05, 0.4), "bois")      # planche, dessus à y = 1,2
 	await _frames(5)
@@ -171,21 +171,21 @@ func _lancer() -> void:
 
 	# ---- 4. neige : absorption
 	EffetsSol.forcer_neige = true
-	var neige := _boite(Vector3(-10.0, -0.25, -10.0), Vector3(4, 0.5, 4), "")
+	var neige := _boite(Vector3(-10.0, -0.15, -10.0), Vector3(4, 0.5, 4), "")      # dessus à y = 0,1
 	await _frames(3)
-	ok(Liquides.surface({"position": Vector3(-10, 0, -10), "normal": Vector3.UP, "collider": neige}) == "neige", "surface enneigée reconnue")
+	ok(Liquides.surface({"position": Vector3(-10, 0.1, -10), "normal": Vector3.UP, "collider": neige}) == "neige", "surface enneigée reconnue")
 	ok(Liquides.rayon_pour("eau", "neige", 3.0) < Liquides.rayon_pour("eau", "pierre", 3.0), "la neige boit : flaque plus petite que sur la pierre")
-	var fn := Liquides.flaque(s, Vector3(-10, 0, -10), Vector3.UP, "sang_humain", 0.5) as Liquides.Flaque
+	var fn := Liquides.flaque(s, Vector3(-10, 0.1, -10), Vector3.UP, "sang_humain", 0.5) as Liquides.Flaque
 	await _frames(2)
 	var mn := fn.material_override as ShaderMaterial if fn != null else null
 	ok(mn != null and float(mn.get_shader_parameter("neige")) == 1.0 and float(mn.get_shader_parameter("brille")) == 0.0, "sang sur la neige : tache diffuse, liseré dilué, aucun reflet")
-	var fp := Liquides.flaque(s, Vector3(6.0, 0, 6.0), Vector3.UP, "sang_humain", 0.5) as Liquides.Flaque
+	var fp := Liquides.flaque(s, Vector3(6.0, 0.04, 6.0), Vector3.UP, "sang_humain", 0.5) as Liquides.Flaque
 	var mp := fp.material_override as ShaderMaterial if fp != null else null
-	ok(mp != null and float(mp.get_shader_parameter("brille")) > 0.5, "sang sur la pierre : flaque brillante")
-	var fe := Liquides.flaque(s, Vector3(6.0, 0, 9.0), Vector3.UP, "eau", 0.5) as Liquides.Flaque
+	ok(mp != null and float(mp.get_shader_parameter("brille")) > 0.5, "sang sur la pierre : flaque brillante (%s, brille %s)" % [fp.surf if fp else "-", mp.get_shader_parameter("brille") if mp else "-"])
+	var fe := Liquides.flaque(s, Vector3(6.0, 0.04, 9.0), Vector3.UP, "eau", 0.5) as Liquides.Flaque
 	EffetsSol.forcer_neige = false
 	# séchage différencié : l'eau s'efface avant le sang
-	SangV3.vieillissement(Sang.gestion(s)).avancer(70.0)
+	SangV3.vieillissement(Sang.gestion(s)).avancer(80.0)
 	await _frames(3)
 	ok(not is_instance_valid(fe) and is_instance_valid(fp), "séchage : l'eau a disparu, le sang est encore là")
 	ok(is_instance_valid(fp) and float(fp.get_instance_shader_parameter("seche")) >= 1.0, "séchage : le sang a séché (foncé, mat)")
