@@ -171,6 +171,18 @@ func _tester() -> void:
 	s.add_child(c)
 	c.global_position = j.global_position + Vector3(0, 0, -2)
 	await _images(2)
+	_verif(c is RigidBody3D and c.freeze and c.is_in_group("telekinesable") and c.masse_telekinesie() > 1.0, "urne de crypte : corps gelé, « telekinesable », %.0f kg" % c.mass)
+	c.saisi_telekinesie(true)
+	await _images(2)
+	_verif(not c.freeze and c.collision_mask & 1, "urne saisie : réveillée en corps dynamique (masque du décor)")
+	c.saisi_telekinesie(false)
+	var gel_u := -1
+	for i in 400:
+		await physics_frame
+		if c.freeze:
+			gel_u = i
+			break
+	_verif(gel_u >= 0 and c.deplace, "urne relâchée : retombe et se regèle (%d images)" % gel_u)
 	_verif(not c.recevoir_choc(Vector3(2, 0, 0), 0.5, c.global_position) and not c.casse, "urne de crypte : petit choc (1 J) sans casse")
 	_verif(c.recevoir_choc(Vector3(8, 0, 0), 2.0, c.global_position) and c.casse, "urne de crypte : objet de 2 kg à 8 m/s (64 J) : brisée")
 

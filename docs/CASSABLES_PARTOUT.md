@@ -74,16 +74,32 @@ armoires, étagères (à arche, simples, à fioles), lutrins, porte-manteaux, r�
 (comptoirs), charrettes, tas de bois, tentes, bannières, braseros, murs et bâti. Ils ne sont pas des corps rigides : la télékinésie
 ne les voit pas (pas dans le groupe), ce qui revient au refus « Trop lourd. ».
 
+### Reliquats convertis (2e passe)
+
+- `PropsQuaternius.village` (enclos d'Ylva, caisse ferrée de l'atelier, bancs du village) et `Village._tonneau` (ferme) :
+  `ObjetsVivants.meuble_differe` (spec tout de suite, corps et MultiMesh créés sur le fil principal par appel différé) ; 160 meubles en tout ;
+- compositions du donjon (`CrypteDonjon._compo`) : caisses, caisses ferrées, cageots et tabourets deviennent des `Cassable` ;
+- `Cassable` (urnes, tonneaux, caisses de la crypte et de la grotte) est un RigidBody3D GELÉ (statique, coût nul) dans le groupe
+  `telekinesable` : `saisi_telekinesie` le réveille (masque du décor), regelé à l'arrêt ; un choc sous le seuil le bouscule ; brisé
+  après avoir bougé : morceaux physiques de CasseObjets. Sa nouvelle place n'est pas sauvegardée (il revient à sa pose au chargement).
+
+### Liquide
+
+`CasseObjets.verser_liquide` (fonction isolée, à remplacer par le chantier « liquides réalistes ») : gouttes, flaque posée sur la
+première surface du décor sous le point de casse (≤ 3 m, sinon rien), orientée selon la normale, rayon réduit pour ne pas déborder
+dans le vide ; d'une étagère ou d'une table, une petite flaque se forme aussi au sol, un peu plus tard.
+
 ### Non couverts (limites)
 
-- props posés par `PropsQuaternius.village` / `Village._tonneau` (coin d'abreuvoir de l'enclos d'Ylva, tonneau de la ferme) et par
-  `CrypteDonjon` (caisse et tabouret du donjon) : restent fondus dans le décor ;
-- urnes, tonneaux et caisses de la crypte et de la grotte (`Cassable`) : cassent par `recevoir_choc` (seuils ci-dessus) mais restent
-  des StaticBody : la télékinésie ne peut pas les SAISIR (pas dans le groupe) ;
 - les petits objets non fragiles (chopes, écuelles, livres, nourriture) ne cassent pas (ils rebondissent) ;
 - coop : la trajectoire d'un objet poussé n'est pas répliquée (comme avant ce chantier) ; seule la casse l'est.
 
 ## Perf
+
+Halle, 2e passe (`--stab=30 --attendre-fils` : tout le village posé avant la mesure, A/B entrelacés ×3) : 38,8 / 50,3 / 34,5 ms
+sans, 40,0 / 35,3 / 35,3 ms avec, soit ~26-29 FPS des deux côtés (écart ≤ 1 ms, dans le bruit). Dans un MÊME lancement (bascules
+`meubles_vis`, `meubles_corps`, `meubles`, `vivants_corps` ajoutées à audit_mesure_lieu.gd) : cacher ou couper le mobilier ne change
+rien de mesurable. Les −3 FPS de la 1re passe venaient de la pose étalée du village pas finie pendant la mesure (10 s de stabilisation).
 
 Mesures `outils/audit_mesure_lieu.gd` (fenêtre hors écran, 12 s, midi), A/B ENTRELACÉS `--sans-cassables-partout` / normal,
 machine très chargée par les autres agents (les valeurs absolues sont basses, seul l'écart compte) : voir le rapport du chantier.
