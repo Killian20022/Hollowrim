@@ -133,7 +133,32 @@ func _mur(dmin: float, dmax: float) -> Dictionary:
 		return {"cap": cap, "point": p, "normale": n, "dir": dir}
 	return {}
 
-func _saisir_lancer(objet: Node3D, but: Vector3, tenue: float, nom: String) -> void:
+## Lumière de tournage posée au-dessus d'un ennemi (film seulement : lire le corps cloué, la dislocation).
+func _lumiere_sur(p: Vector3) -> void:
+	var o := OmniLight3D.new()
+	o.light_color = Color(1.0, 0.86, 0.7)
+	o.light_energy = 2.0
+	o.omni_range = 5.0
+	o.shadow_enabled = false
+	s.add_child(o)
+	o.global_position = p + Vector3.UP * 2.2 + (j.global_position - p).normalized() * 0.8
+
+## Quelques pas vers `p` (s'arrête à `reste` m).
+func _approcher(p: Vector3, reste: float, duree: float) -> void:
+	var a := j.global_position
+	var d := Vector3(p.x - a.x, 0, p.z - a.z)
+	var b := a + d.normalized() * maxf(d.length() - reste, 0.0)
+	var n := maxi(1, roundi(duree / DT))
+	for k in n:
+		j.global_position = a.lerp(b, smoothstep(0.0, 1.0, float(k + 1) / n))
+		var v := p + Vector3.UP * 1.0 - j.camera.global_position
+		j.rotation.y = atan2(-v.x, -v.z)
+		j.tete.rotation.x = atan2(v.y, Vector2(v.x, v.z).length())
+		await process_frame
+		_suivre_lampe()
+
+## `charge` >= 0 : charge du lancer imposée (durée de tenue ramenée), pour régler la vitesse (une épée lente se plante sans traverser).
+func _saisir_lancer(objet: Node3D, but: Vector3, tenue: float, nom: String, charge := -1.0) -> void:
 	_texte("Télékinésie : viser, maintenir")
 	await _regarder(Telekinesie.centre(objet), 0.55)
 	await _attendre(0.2)
@@ -145,6 +170,8 @@ func _saisir_lancer(objet: Node3D, but: Vector3, tenue: float, nom: String) -> v
 	_texte("…relâcher : lancer")
 	await _regarder(but, maxf(tenue * 0.45, 0.3))
 	await _attendre(0.08)
+	if charge >= 0.0 and magie.tk.tient("gauche"):
+		magie.tk.tenue["gauche"]["t"] = 0.2 + charge * magie.eq.sort("gauche").temps_charge_lancer   # Telekinesie.charge_de inversée
 	magie.relacher("gauche")
 	await _attendre(0.15)
 	await _capture("lancer_" + nom)
@@ -203,7 +230,7 @@ func _go() -> void:
 	l.position = Vector2(10, 500)
 	calque.add_child(l)
 	# --- mise en place : murs, ennemis, objets de la crypte
-	var mur := _mur(4.0, 7.5)
+	var mur := _mur(3.6, 5.5)
 	print("mur : ", mur)
 	var tonneau := _cassable("tonneau", [])
 	var urne := _cassable("urne", [tonneau])
@@ -229,6 +256,7 @@ func _go() -> void:
 		j.rotation.y = float(mur["cap"])
 		await _attendre(0.1)
 		var draugr_b := _ennemi("guerrier", Vector3(mur["point"]) - dir * 0.42, 15.0)
+		_lumiere_sur(draugr_b.global_position)
 		var epee := ObjetMonde.creer("epee_soldat", 1, j, s.get("dialogue"))
 		s.add_child(epee)
 		epee.global_position = _sol(j.global_position + dir * 1.9 + dir.cross(Vector3.UP) * 0.15)
@@ -237,22 +265,25 @@ func _go() -> void:
 		await _saisir_lancer(epee, Elements._centre(draugr_b) + Vector3.UP * 0.1, 1.4, "epee_cloue")
 		await _attendre(0.4)
 		print("cloue : ", ImpactsLances.dernier.get("issue", "?"))
-		await _regarder(draugr_b.global_position + Vector3.UP * 1.0, 0.8)
-		await _attendre(1.2)
+		await _approcher(draugr_b.global_position, 1.9, 1.4)
+		await _attendre(0.8)
 		await _capture("cloue")
 	# 4. épée dans un squelette qui se disloque
 	j.rotation.y += deg_to_rad(-60.0)
 	await _attendre(0.1)
 	var dv := Vector3(-sin(j.rotation.y), 0, -cos(j.rotation.y))
-	var sq := _ennemi("squelette", j.global_position + dv * 4.0, 10.0)
+	var sq := _ennemi("squelette", j.global_position + dv * 3.6, 10.0)
+	_lumiere_sur(sq.global_position)
 	var epee2 := ObjetMonde.creer("epee_soldat", 1, j, s.get("dialogue"))
 	s.add_child(epee2)
 	epee2.global_position = _sol(j.global_position + dv * 1.8 + dv.cross(Vector3.UP) * -0.2)
 	epee2.rotation.y = j.rotation.y + PI * 0.5
 	await _attendre(0.5)
-	await _saisir_lancer(epee2, Elements._centre(sq), 1.2, "epee_squelette")
+	await _saisir_lancer(epee2, Elements._centre(sq), 1.2, "epee_squelette", 0.05)
 	print("squelette : ", ImpactsLances.dernier.get("issue", "?"))
-	await _attendre(1.6)
+	await _attendre(0.6)
+	await _approcher(sq.global_position, 1.6, 1.0)
+	await _attendre(0.6)
 	await _capture("squelette")
 	_texte("")
 	await _attendre(0.5)
