@@ -36,23 +36,22 @@ void vertex() {
 
 void fragment() {
 	float bord = 1.0 - abs(normalize(n_vue).z);
-	// bord en deux paliers
-	float a = step(0.5, bord) * 0.45 + step(0.78, bord) * 0.55;
-	// motes : cases qui s'allument une à une et montent
+	// bord en deux paliers (silhouette seulement : le bois, le fer restent lisibles au centre)
+	float a = step(0.62, bord) * 0.35 + step(0.85, bord) * 0.45;
+	// motes : quelques cases qui s'allument une à une et montent
 	vec3 q = floor(p_obj * cases + vec3(0.0, -TIME * 2.2, 0.0));
 	float n = h3(q);
-	float clign = step(0.86, fract(n * 13.0 + TIME * 0.7));
-	float mote = step(0.9, n) * (0.55 + 0.45 * clign);
-	// onde lumineuse qui parcourt l'objet de bas en haut (une bande de quelques cases)
-	float onde = step(0.92, fract(h_monde * 1.6 - TIME * 0.9)) * 0.5;
-	a = max(a, max(mote, onde * (0.4 + 0.6 * bord)));
-	// fond très léger (l'objet paraît « habité ») ; s'efface en simple surbrillance
-	a = max(a, 0.12 * clamp(force - 0.5, 0.0, 1.0));
+	float clign = step(0.8, fract(n * 13.0 + TIME * 0.7));
+	float mote = step(0.955, n) * (0.4 + 0.5 * clign);
+	// onde lumineuse qui parcourt l'objet de bas en haut (une fine bande), surtout sur le bord
+	float onde = step(0.95, fract(h_monde * 1.4 - TIME * 0.9)) * 0.45 * (0.3 + 0.7 * bord);
+	a = max(a, max(mote, onde));
 	a *= force;
-	a = ceil(a * 3.0 - 0.05) / 3.0;
+	// paliers francs ; ce qui reste sous le premier palier disparaît (pas de voile sur tout l'objet)
+	a = floor(a * 3.0 + 0.25) / 3.0;
 	if (a <= 0.0) {
 		discard;
 	}
-	ALBEDO = mix(couleur.rgb, coeur.rgb, clamp(mote * clign + step(0.8, bord) * 0.5, 0.0, 1.0));
-	ALPHA = clamp(a, 0.0, 1.0);
+	ALBEDO = mix(couleur.rgb, coeur.rgb, clamp(mote * clign + step(0.85, bord) * 0.6, 0.0, 1.0));
+	ALPHA = clamp(a, 0.0, 0.8);
 }

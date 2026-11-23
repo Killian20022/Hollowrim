@@ -3,8 +3,8 @@ extends SceneTree
 ## saisie d'un tonneau lancé sur un draugr, d'une chaise lancée sur un squelette, puis d'une épée au sol qui part dans un squelette.
 ## FENÊTRE (via godot_slot.sh : hors écran) :
 ##   godot --path . --write-movie <f.avi> --fixed-fps 30 --resolution 960x540 --script res://outils/film_telekinesie.gd -- --nouvelle
-##         --crypte=0,-24,0,-4 --paisible [--vue=tps] [--captures=<dossier>] [--sans-telekinesie]
-## La ligne « DEBUT_SEQUENCE <s> » donne l'instant à garder au montage (ffmpeg -ss). --captures : PNG aux moments clés.
+##         --crypte=0,-24,0,-4 --paisible [--vue=tps] [--images=<dossier>] [--sans-telekinesie]
+## La ligne « DEBUT_SEQUENCE <s> » donne l'instant à garder au montage (ffmpeg -ss). --images : PNG aux moments clés.
 
 const DT := 1.0 / 30.0
 
@@ -93,6 +93,22 @@ func _sol(p: Vector3) -> Vector3:
 	var r := j.get_world_3d().direct_space_state.intersect_ray(q)
 	return r["position"] if not r.is_empty() else p
 
+## Point de sol libre devant le joueur, visible de l'œil (rien entre l'œil et un corps debout là) : de `dist` m en se rapprochant.
+func _libre(dist: float, cote: float) -> Vector3:
+	var d := dist
+	while d > 2.5:
+		var p := _sol(_devant(d, cote))
+		var o: Vector3 = j.camera.global_position
+		var q := PhysicsRayQueryParameters3D.create(o, p + Vector3.UP * 1.1, 1)
+		q.exclude = [j.get_rid()]
+		var r := j.get_world_3d().direct_space_state.intersect_ray(q)
+		if r.is_empty() and absf(p.y - j.global_position.y) < 0.6:
+			print("place libre %.1f m, côté %.1f" % [d, cote])
+			return p
+		d -= 0.5
+	print("PAS DE PLACE LIBRE devant (côté %.1f)" % cote)
+	return _sol(_devant(3.0, cote))
+
 func _devant(dist: float, cote := 0.0) -> Vector3:
 	var av := -j.global_basis.z
 	av.y = 0.0
@@ -124,7 +140,7 @@ func _saisir_et_lancer(objet: Node3D, cible: Node3D, tenue: float, nom: String) 
 
 func _go() -> void:
 	RetourImpact.muet = false
-	_dossier = _arg("captures", "")
+	_dossier = _arg("images", "")
 	if _dossier != "":
 		DirAccess.make_dir_recursive_absolute(_dossier)
 	s = load("res://scenes/foret_test.tscn").instantiate()
@@ -148,6 +164,13 @@ func _go() -> void:
 	if magie.tk != null:
 		magie.equiper("gauche", "telekinesie")
 	_etiquette(s)
+	var hud = s.get("hud")
+	if hud != null:
+		hud.set("aide_t", 0.0)   # encart « Commandes » fermé (vidéo)
+	var ips := root.get_node_or_null("CompteurIps")
+	if ips != null:
+		ips.visible = false
+		ips.process_mode = Node.PROCESS_MODE_DISABLED
 	# décor de la démo : tonneau, chaise, épée au sol ; un draugr et deux squelettes (figés : ils subissent)
 	var tonneau := CorpsTelekinesie.creer("pq_tonneau", s, Transform3D(Basis(Vector3.UP, 0.4), _sol(_devant(2.6, -1.1))))
 	var chaise := CorpsTelekinesie.creer("pq_chaise", s, Transform3D(Basis(Vector3.UP, 2.0), _sol(_devant(2.3, 1.2))))
@@ -155,9 +178,9 @@ func _go() -> void:
 	s.add_child(epee)
 	epee.global_position = _sol(_devant(2.2, 0.15))
 	epee.rotation.y = 0.9
-	var draugr := _draugr(_devant(8.0, -1.5), "guerrier")
-	var squelette := _draugr(_devant(8.5, 1.6), "squelette")
-	var squelette2 := _draugr(_devant(7.0, 0.2), "squelette", 20.0)
+	var draugr := _draugr(_libre(7.0, -1.3), "guerrier")
+	var squelette := _draugr(_libre(7.5, 1.4), "squelette")
+	var squelette2 := _draugr(_libre(6.0, 0.1), "squelette", 20.0)
 	await _attendre(1.2)
 	print("DEBUT_SEQUENCE %.3f (images d'attente : %d)" % [Engine.get_process_frames() * DT, n])
 	await _regarder(_devant(6.0) + Vector3.UP * 1.3, 0.5)

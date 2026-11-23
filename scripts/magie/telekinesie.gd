@@ -116,11 +116,13 @@ func candidats() -> Array:
 	var res: Array = []
 	if not is_inside_tree():
 		return res
+	var vus := {}
 	for n in get_tree().get_nodes_in_group(GROUPE):
 		if n is Node3D and is_instance_valid(n) and (n as Node3D).is_visible_in_tree():
 			res.append(n)
+			vus[n.get_instance_id()] = true
 	for o in ObjetsVivants.tous:
-		if is_instance_valid(o) and not (o as Node).has_meta("pris") and (o as Node).is_inside_tree() and not res.has(o):
+		if is_instance_valid(o) and not vus.has(o.get_instance_id()) and not (o as Node).has_meta("pris") and (o as Node).is_inside_tree():
 			res.append(o)
 	return res
 
@@ -437,7 +439,7 @@ func lancer(m: String, s: DonneesSort, oeil: Vector3, avant: Vector3) -> void:
 	var arme := arme_de(corps)
 	if arme != null:
 		corps.angular_velocity = Vector3.ZERO
-		_orienter_pointe(corps, vit, 1.0)
+		_orienter_pointe(corps, vit, 0.35)
 	else:
 		corps.angular_velocity = Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)) * clampf(6.0 / sqrt(maxf(masse, 0.5)), 1.0, 7.0)
 	corps.set_meta("lance_par", joueur)
@@ -558,8 +560,9 @@ func _tenir(m: String, e: Dictionary, dt: float) -> void:
 	var voulue := (ecart * RAIDEUR).limit_length(VITESSE_TENUE)
 	corps.linear_velocity = corps.linear_velocity.lerp(voulue, 1.0 - exp(-dt * AMORTI))
 	if e["arme"] != null:
-		# arme : la pointe suit le regard (couchée, légèrement inclinée), comme un trait prêt à partir
-		_orienter_pointe(corps, avant + droite * cote * 0.15 + Vector3.UP * 0.05, 1.0 - exp(-dt * 5.0))
+		# arme : couchée EN TRAVERS du regard, pointe vers le centre et un peu en avant (lisible de toute sa longueur, comme
+		# l'épée qui lévite de la référence) ; elle pivote vers la cible au lancer
+		_orienter_pointe(corps, droite * (-cote) * 0.8 + avant * 0.6 + Vector3.UP * 0.04 * sin(t * 1.3 + ph), 1.0 - exp(-dt * 4.0))
 	else:
 		var axe: Vector3 = e["axe"]
 		corps.angular_velocity = corps.angular_velocity.lerp(axe * ROTATION_LENTE, 1.0 - exp(-dt * 2.5))
@@ -568,7 +571,8 @@ func _tenir(m: String, e: Dictionary, dt: float) -> void:
 		_noter("coincé")
 		lacher(m)
 
-## Tourne une arme (repère : +Y le long de la lame, origine au centre) pour que sa pointe suive `dir` ; k = part de rattrapage.
+## Tourne une arme (repère : +Y le long de la lame, origine au centre) pour que sa pointe suive `dir` ; k = part de rattrapage
+## (1 = d'un coup). Rotation posée directement (pas de couple) : la lame ne vrille pas.
 static func _orienter_pointe(corps: RigidBody3D, dir: Vector3, k: float) -> void:
 	if dir.length() < 0.01:
 		return
@@ -576,15 +580,11 @@ static func _orienter_pointe(corps: RigidBody3D, dir: Vector3, k: float) -> void
 	var d := dir.normalized()
 	var axe := y.cross(d)
 	var ang := y.angle_to(d)
+	corps.angular_velocity = corps.angular_velocity * 0.5
 	if axe.length() < 1e-5 or ang < 1e-4:
-		corps.angular_velocity = corps.angular_velocity * 0.5
 		return
-	if k >= 1.0:
-		var b := Basis(Quaternion(axe.normalized(), ang)) * corps.global_basis
-		corps.global_basis = b.orthonormalized()
-		corps.angular_velocity = Vector3.ZERO
-		return
-	corps.angular_velocity = corps.angular_velocity.lerp(axe.normalized() * ang * 8.0, clampf(k * 3.0, 0.0, 1.0))
+	var b := Basis(Quaternion(axe.normalized(), ang * clampf(k, 0.0, 1.0))) * corps.global_basis
+	corps.global_basis = b.orthonormalized()
 
 # ====================================================================== objets lancés : impacts
 
@@ -606,7 +606,7 @@ func _suivre_lances(dt: float) -> void:
 			_suivre_plante(l)
 		else:
 			if bool(l["vol"]) and l["arme"] != null and v.length() > 3.0:
-				_orienter_pointe(c, v, 1.0)   # une arme lancée vole pointe en avant
+				_orienter_pointe(c, v, clampf(float(l["t"]) / 0.1, 0.35, 1.0))   # une arme lancée vole pointe en avant (pivote en 0,1 s)
 			var vp: Vector3 = l["v_prec"]
 			if vp.length() > VITESSE_IMPACT or v.length() > VITESSE_IMPACT:
 				_balayer(l, l["prec"], p, vp if vp.length() > v.length() else v)
@@ -813,7 +813,7 @@ func _effets_saisie(m: String, e: Dictionary) -> void:
 	if not r.is_empty():
 		g.emettre("tk_poussiere", null, Transform3D(Basis(), r["position"] + Vector3.UP * 0.03))
 	g.emettre("tk_arrache", null, Transform3D(Basis(), corps.global_position))
-	g.lumiere("tk_arrache%d" % corps.get_instance_id(), corps.global_position, BLANC, 2.2, 3.0, 3.0, 0.18)
+	g.lumiere("tk_arrache%d" % corps.get_instance_id(), corps.global_position, BLANC, 1.4, 2.5, 3.0, 0.15)
 	# fil d'énergie main -> objet : deux brins fins qui ondulent (traits de la couche fine), étincelles qui courent dessus
 	fx["fil"] = g.eclair(null, ECOLE_VISUELLE, 0.55, -1.0, 0.05, _gen_fil.bind(e))
 	var fils: Array = []
@@ -862,7 +862,7 @@ func _effets_tenue(m: String, e: Dictionary, _dt: float) -> void:
 	var g := _g()
 	if g == null:
 		return
-	g.lumiere("tk_tenu%d" % corps.get_instance_id(), corps.global_position, BLEU, 0.9 + 0.8 * charge, 2.6, 2.0, 0.12)
+	g.lumiere("tk_tenu%d" % corps.get_instance_id(), corps.global_position, BLEU, 0.45 + 0.5 * charge, 2.0, 2.0, 0.12)
 	var fx: Dictionary = e["fx"]
 	var paume = e.get("paume")
 	if paume != null and is_instance_valid(paume):
@@ -883,7 +883,7 @@ func _effets_lancer(corps: RigidBody3D, vit: Vector3, charge: float) -> void:
 	if g == null:
 		return
 	g.emettre("tk_lancer", null, Transform3D(Basis(), corps.global_position), false, 0.8 + 0.6 * charge)
-	g.lumiere("tk_lancer%d" % corps.get_instance_id(), corps.global_position, BLANC, 2.5, 3.5, 3.0, 0.15)
+	g.lumiere("tk_lancer%d" % corps.get_instance_id(), corps.global_position, BLANC, 1.6, 3.0, 3.0, 0.12)
 	for l: Dictionary in lances:
 		if l["corps"] == corps:
 			l["traine"] = g.emettre("tk_traine", corps, Transform3D.IDENTITY, true, clampf(vit.length() / 18.0, 0.5, 1.4))
