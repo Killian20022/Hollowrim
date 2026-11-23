@@ -89,6 +89,10 @@ var _tenue_w := {"gauche": 0.0, "droite": 0.0}
 var _arme_enchantee: Node3D
 ## Gestes des bras capturés (Mixamo) : lancer, charge, jet tenu, double incantation, zone (gestes_magie.gd).
 var gestes := GestesMagie.new()
+## Télékinésie (sort « telekinesie », scripts/magie/telekinesie.gd) : null avec --sans-telekinesie.
+var tk: Telekinesie
+## Main gauche d'avant le raccourci de test de la télékinésie (touche X), rendue au second appui.
+var _avant_tk := ""
 ## Pôle du coude de chaque main (lissé : pas de saut du coude entre un geste capturé et une pose fixe).
 var _pole := {"gauche": Vector3(-0.75, -0.55, 0.25), "droite": Vector3(0.75, -0.55, 0.25)}
 
@@ -107,6 +111,9 @@ func _ready() -> void:
 	_actions()
 	_preparer_os()
 	joueur.touche.connect(_sur_touche)
+	if Telekinesie.actif:
+		tk = Telekinesie.new(self)
+		add_child(tk)
 	_signaler()
 
 ## Actions reconfigurables (InputMap) : main_droite, main_gauche, raccourci_1 … raccourci_0.
@@ -118,6 +125,11 @@ func _actions() -> void:
 			var e := InputEventMouseButton.new()
 			e.button_index = boutons[a]
 			InputMap.action_add_event(a, e)
+	if Telekinesie.actif and not InputMap.has_action("telekinesie"):   # raccourci de test (Touches : remappable)
+		InputMap.add_action("telekinesie")
+		var et := InputEventKey.new()
+		et.physical_keycode = KEY_X
+		InputMap.action_add_event("telekinesie", et)
 	var touches := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0]
 	for i in touches.size():
 		var a := "raccourci_%d" % ((i + 1) % 10)
@@ -137,8 +149,20 @@ func intercepter(e: InputEvent) -> bool:
 				if e.is_action_pressed("raccourci_%d" % ((i + 1) % 10)):
 					raccourci(i)
 					return true
+			if tk != null and InputMap.has_action("telekinesie") and e.is_action_pressed("telekinesie"):
+				raccourci_telekinesie()
+				return true
 		if e is InputEventKey:
 			return false
+	# télékinésie : la molette rapproche / éloigne l'objet tenu
+	if tk != null and e is InputEventMouseButton and e.is_pressed() and (e as InputEventMouseButton).button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+		for m in MAINS:
+			if tk.tient(m):
+				var st := eq.sort(m)
+				var e2: Dictionary = tk.tenue[m]
+				var pas := Telekinesie.PAS_MOLETTE * (1.0 if (e as InputEventMouseButton).button_index == MOUSE_BUTTON_WHEEL_UP else -1.0)
+				e2["dist"] = clampf(float(e2["dist"]) + pas, st.distance_min, st.distance_max)
+				return true
 	if not (e is InputEventMouseButton or e is InputEventKey or e is InputEventJoypadButton or e is InputEventJoypadMotion):
 		return false
 	if e is InputEventJoypadMotion and not Manette.changement(e):
@@ -190,6 +214,20 @@ func raccourci(i: int) -> void:
 		_refuser(r[0], r[1])
 	if i < eq.raccourcis.size():
 		_noter("raccourci %s : %s" % [eq.raccourcis[i].get("touche", ""), eq.raccourcis[i].get("nom", "")])
+
+## Raccourci de test (touche X) : la télékinésie dans la main gauche ; un second appui rend la main d'avant.
+func raccourci_telekinesie() -> void:
+	if tk == null:
+		return
+	if not eq.sorts_connus.has("telekinesie"):
+		eq.sorts_connus.append("telekinesie")   # période de test : le sort s'apprend d'office avec son raccourci
+	var actuel := String(eq.mains["gauche"].get("id", "vide"))
+	if actuel == "telekinesie":
+		equiper("gauche", _avant_tk if _avant_tk != "" and _avant_tk != "telekinesie" else "vide")
+		return
+	_avant_tk = actuel
+	equiper("gauche", "telekinesie")
+	_noter("raccourci télékinésie")
 
 ## Utilise un consommable (raccourci 1-0) : avis « Potion de soin (reste 2) » ou refus dans le HUD. "" ou la raison.
 func utiliser_conso(id: String) -> String:
@@ -301,7 +339,10 @@ func _couper(main: String, interruption: bool) -> void:
 	if i.etat == Incantation.REPOS:
 		return
 	var s := i.sort
-	lanceur.arreter_jet(s, _p(main), main)
+	if tk != null and Telekinesie.est_sort(s):
+		tk.lacher(main)   # coupée (coup reçu, mana, changement de main) : l'objet tombe
+	else:
+		lanceur.arreter_jet(s, _p(main), main)
 	if i.double:
 		EffetsMagie.double(s.ecole if s != null else "", false)
 		i.double = false
@@ -447,6 +488,8 @@ func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 		if i.etat != Incantation.REPOS:
 			_couper(m, false)
 			i.changer(Incantation.REPOS)
+		if tk != null:
+			tk.oublier_visee(m)
 		_aura_vers(m, "", 0.0, dt)
 		return
 	if i.sort != null and i.sort != s and i.etat != Incantation.REPOS:
@@ -513,6 +556,21 @@ func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 				_noter("charge pleine %s %s" % [m, s.id])
 			if not i.tenu:
 				_lancer(m, sd, i.charge)
+		Incantation.CANALISE when tk != null and Telekinesie.est_sort(s):
+			# télékinésie : saisie / tenue (mana payé par Telekinesie), relâcher = lancer (geste capturé « lance »)
+			var vue_tk := _vue()
+			var r_tk := tk.maintenir(m, s, _p(m), vue_tk[0], vue_tk[1], dt)
+			if r_tk != "":
+				_couper(m, false)
+				_refuser(m, r_tk)
+				return
+			t_sans_sort = 0.0
+			if not i.tenu and i.t >= 0.0:
+				if tk.relacher(m, s, vue_tk[0], vue_tk[1]):
+					gestes.forcer(m, "lance", "depart")
+					i.depuis_lancement = 0.0
+				_couper(m, false)
+				_noter("fin télékinésie %s" % m)
 		Incantation.CANALISE:
 			var mult := float(regles.get("simultane", {}).get("mult_deux_canalisations", 1.15)) if deux_canal else 1.0
 			var cout := sd.cout_par_seconde * dt * mult * Progression.facteur_cout_sort(s.ecole, i.double)   # perks de coût (lot B)
@@ -530,6 +588,12 @@ func _avancer_main_etat(m: String, dt: float, deux_canal: bool) -> void:
 				var tampon := i.tampon
 				i.changer(Incantation.REPOS)
 				i.tampon = tampon
+	if tk != null:
+		if Telekinesie.est_sort(s) and i.etat == Incantation.REPOS:
+			var vue_s := _vue()
+			tk.survoler(m, vue_s[0], vue_s[1], s, false)   # surbrillance de ce que la main saisirait
+		elif not Telekinesie.est_sort(s) or i.etat == Incantation.RECUPERATION:
+			tk.oublier_visee(m)
 	_aura_vers(m, s.ecole, _intensite(i, s), dt)
 	_cercle_neant(m, s, i)
 	if i.double and i.etat in [Incantation.RECUPERATION, Incantation.REPOS]:
@@ -579,6 +643,8 @@ func _intensite(i: Incantation, s: DonneesSort) -> float:
 	return k * (1.5 if i.double else 1.0)
 
 func _aura_vers(m: String, ecole: String, k: float, _dt: float) -> void:
+	if ecole == Telekinesie.ECOLE:
+		ecole = Telekinesie.ECOLE_VISUELLE   # l'école « esprit » prend l'aura bleu pâle de la protection
 	_runes_vers(m, ecole, k)
 	if ecole != _ecole_aura[m] or absf(k - _aura[m]) > 0.02:
 		_aura[m] = k

@@ -21,6 +21,7 @@ const ACTIONS := [
 	{"id": "torche", "nom": "Torche", "defaut": [KEY_H, KEY_NONE]},      # lot sommeil : T passe à « Attendre » (comme Skyrim)
 	{"id": "attendre", "nom": "Attendre", "defaut": [KEY_T, KEY_NONE]},
 	{"id": "vue", "nom": "Vue 1re / 3e personne", "defaut": [KEY_V, KEY_NONE]},
+	{"id": "telekinesie", "nom": "Télékinésie (main gauche)", "defaut": [KEY_X, KEY_NONE]},      # raccourci de test du sort (MainSort)
 	{"id": "menu", "nom": "Menu du personnage", "defaut": [KEY_TAB, KEY_NONE]},
 	{"id": "inventaire", "nom": "Sac", "defaut": [KEY_I, KEY_NONE]},
 	{"id": "competences", "nom": "Compétences", "defaut": [KEY_K, KEY_NONE]},

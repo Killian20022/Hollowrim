@@ -213,6 +213,9 @@ static func poser_au_sol(butin: Node3D, id: String, local: Vector3, lacet := 0.0
 	v.position = local
 	v.rotate_y(lacet)
 	butin.set_meta("arme_sol", id)
+	if Telekinesie.actif:      # arme au sol saisissable par la télékinésie (changée en ArmeTelekinesie à la saisie)
+		v.set_meta("tk_arme", id)
+		v.add_to_group(Telekinesie.GROUPE)
 	return v
 
 ## Sol sous `p` (rayon vers le bas, calque 1 : terrain et décors) : {"pos", "normale"} ; `p` et le haut si rien.

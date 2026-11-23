@@ -11,11 +11,14 @@ enum Type { RAPIDE, CANALISE, CHARGE, ZONE, ENCHANT }
 ## Comment le sort atteint ses cibles.
 ## DECHARGE : sort à charge qui part au relâchement en une décharge instantanée (forme « orage » : éclairs de Force ramifiés
 ## qui frappent le point visé et ses abords).
-enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI, DECHARGE }
+## TELEKINESIE : sort canalisé de l'école « esprit » (scripts/magie/telekinesie.gd) : maintenir en visant un objet du groupe
+## `telekinesable` le saisit et le fait léviter devant la main, relâcher le lance (docs/MAGIE.md, « Télékinésie »).
+enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI, DECHARGE, TELEKINESIE }
 
 @export var id := ""
 @export var nom := ""
-## "feu", "glace", "electricite", "tenebres", "soin", "protection".
+## "feu", "glace", "electricite", "tenebres", "soin", "protection", "esprit" (télékinésie ; visuels de la main : ceux de
+## « protection », voir Telekinesie.ECOLE_VISUELLE).
 @export var ecole := "feu"
 @export var type: Type = Type.RAPIDE
 @export var portee_mode: Portee = Portee.PROJECTILE
@@ -93,6 +96,21 @@ enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI, DECHARGE }
 ## Enchantement : durée (s), dégâts ajoutés à chaque coup d'épée, statut appliqué par la lame.
 @export var duree_enchant := 0.0
 @export var degats_enchant := 0.0
+
+@export_group("Télékinésie")
+## Masse maximale saisissable (kg) : au-delà, « Trop lourd. ».
+@export var masse_max := 60.0
+## Mana payé à l'arrachement : `cout` + cout_par_kg × masse. Drain pendant le maintien : `cout_par_seconde` + drain_par_kg × masse.
+@export var cout_par_kg := 0.8
+@export var drain_par_kg := 0.35
+## Distance de tenue devant la main (m, depuis l'œil) et bornes (molette).
+@export var distance_tenue := 2.0
+@export var distance_min := 1.3
+@export var distance_max := 3.2
+## Vitesse du lancer (m/s pour un objet de 4 kg) sans charge et à pleine charge ; temps de maintien pour la pleine charge (s).
+@export var vitesse_lancer_min := 12.0
+@export var vitesse_lancer_max := 24.0
+@export var temps_charge_lancer := 0.9
 
 @export_group("Double incantation")
 ## Multiplicateurs quand les deux mains lancent CE sort ensemble (fenêtre de synchronisation) ; clés lues par

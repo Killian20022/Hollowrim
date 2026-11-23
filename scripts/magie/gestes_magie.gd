@@ -99,6 +99,13 @@ func en_cours(m: String) -> bool:
 func oublier(m: String) -> void:
 	_etat[m]["phase"] = ""
 
+## Enchaîne la main sur la phase `phase` d'un AUTRE geste capturé (télékinésie : le jet tenu se termine par le départ du
+## geste « lance », la poussée paume en avant qui envoie l'objet) ; joué ensuite comme un départ ordinaire.
+func forcer(m: String, geste: String, phase: String) -> void:
+	if not actif or not _a(geste, m, phase):
+		return
+	_etat[m] = {"geste": geste, "phase": phase, "t": 0.0}
+
 func _a(g: String, m: String, ph: String) -> bool:
 	var d: Dictionary = donnees().get(g, {})
 	return d.has(m) and (d[m] as Dictionary).has(ph)
