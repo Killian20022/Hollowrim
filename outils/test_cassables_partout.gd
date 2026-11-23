@@ -52,6 +52,15 @@ func _tester() -> void:
 		par_lieu[l] = int(par_lieu.get(l, 0)) + 1
 	var fragiles := tous.filter(func(o: ObjetVivant) -> bool: return not o.meuble and o.seuil_casse < INF)
 	print("INFO   meubles par lieu : ", par_lieu)
+	var petits := {}
+	for o: ObjetVivant in tous:
+		if not o.meuble:
+			var l := o.ident.get_slice(":", 0)
+			var c: Array = petits.get(l, [0, 0])
+			c[0] += 1
+			c[1] += 1 if o.seuil_casse < INF else 0
+			petits[l] = c
+	print("INFO   petits objets par lieu [tous, fragiles] : ", petits)
 	print("INFO   %d objets vivants, dont %d meubles et %d petits objets fragiles" % [tous.size(), meubles.size(), fragiles.size()])
 	_verif(meubles.size() >= 60 and par_lieu.has("village") and par_lieu.has("halle"), "%d meubles physiques (village, halle… : %s)" % [meubles.size(), str(par_lieu.keys())])
 	_verif(fragiles.size() >= 10, "%d petits objets fragiles (cruches, bouteilles, potions…)" % fragiles.size())

@@ -73,6 +73,37 @@ func _sol_y(x: float, z: float, de_haut: float) -> float:
 	return float((r["position"] as Vector3).y) if not r.is_empty() else de_haut - 1.0
 
 ## Le joueur se place à `dist` m de `cible`, du côté de `depuis`, et la regarde.
+## Point de vue DÉGAGÉ sur `o` : autour de lui (12 directions, 3 distances, d'abord du côté de `depuis`), le premier d'où un rayon
+## tiré de l'œil (1,55 m) touche l'objet lui-même ; Vector3.INF si aucun.
+func _vue_degagee(o: ObjetVivant, depuis: Vector3) -> Vector3:
+	var espace := j.get_world_3d().direct_space_state
+	var base := atan2(depuis.x - o.global_position.x, depuis.z - o.global_position.z)
+	for dist: float in [2.6, 3.2, 2.1]:
+		for k in 12:
+			var a: float = base + float(k / 2) * 0.52 * (1.0 if k % 2 == 0 else -1.0)
+			var p := o.global_position + Vector3(sin(a), 0, cos(a)) * dist
+			var y: float = sol_fixe if not is_nan(sol_fixe) else float(s.hauteur(p.x, p.z))
+			var oeil := Vector3(p.x, y + 1.55, p.z)
+			var q := PhysicsRayQueryParameters3D.create(oeil, o.global_position, 1 | Cassable.CALQUE, [j.get_rid()])
+			var r := espace.intersect_ray(q)
+			var pied := PhysicsRayQueryParameters3D.create(oeil, Vector3(p.x, y - 0.3, p.z), 1, [j.get_rid()])
+			var rp := espace.intersect_ray(pied)      # rien entre l'œil et le plancher (pas dans un meuble, pas dans un mur)
+			if not r.is_empty() and r["collider"] == o and (rp.is_empty() or float((rp["position"] as Vector3).y) < y + 0.1):
+				return Vector3(p.x, y, p.z)
+	return Vector3.INF
+
+## Le joueur se tient au point de vue dégagé sur `o` (sinon à `dist` m du côté de `depuis`) et le regarde.
+func _cadrer(o: ObjetVivant, depuis: Vector3, dist := 2.6) -> void:
+	var v := _vue_degagee(o, depuis)
+	if v == Vector3.INF:
+		await _placer(o.global_position, depuis, dist)
+		return
+	j.global_position = v + Vector3(0, 0.02, 0)
+	j.velocity = Vector3.ZERO
+	for i in 2:
+		await physics_frame
+	_regarder(o.global_position)
+
 var sol_fixe := NAN      ## intérieur : hauteur du plancher (sinon relief du monde)
 func _placer(cible: Vector3, depuis: Vector3, dist: float, h := 0.0) -> void:
 	var d := depuis - cible
@@ -85,6 +116,14 @@ func _placer(cible: Vector3, depuis: Vector3, dist: float, h := 0.0) -> void:
 	for i in 2:
 		await physics_frame
 	_regarder(cible)
+
+## Point de départ d'un lancer vers `cible` : entre le joueur et la cible, à `dist` m de la cible, décalé sur le côté, `haut` m au-dessus.
+func _depart_lancer(cible: Node3D, dist: float, haut: float) -> Vector3:
+	var vers := j.global_position - cible.global_position
+	vers.y = 0.0
+	vers = vers.normalized()
+	var cote := vers.cross(Vector3.UP).normalized()
+	return cible.global_position + (vers * 0.75 + cote * 0.65).normalized() * dist + Vector3(0, haut, 0)
 
 ## Lance `a` (réveillé, vitesse vers `b`) ; au contact (distance des centres), choc sur les deux, comme ImpactsLances.
 func _lancer(a: ObjetVivant, b: Node3D, vitesse: float, haut := 0.25, max_images := 40) -> void:
@@ -107,9 +146,12 @@ func _lancer(a: ObjetVivant, b: Node3D, vitesse: float, haut := 0.25, max_images
 		var r: float = 0.45 + ((b.get("_taille") as Vector3).length() * 0.3 if b.get("_taille") != null else 0.2)
 		if a.global_position.distance_to(bc) < r or i + 1 >= arrivee:
 			var va := a.linear_velocity if a.linear_velocity.length() > 2.0 else v
+			var rb := false
 			if b.has_method("recevoir_choc"):
-				b.call("recevoir_choc", va, a.mass, a.global_position)
-			a.recevoir_choc(va, maxf(a.mass, 8.0), a.global_position)
+				rb = b.call("recevoir_choc", va, a.mass, a.global_position)
+			var ra := a.recevoir_choc(va, maxf(a.mass, 8.0), a.global_position)
+			print("FILM impact %s -> %s : %.1f m/s, %.0f J, cible brisée %s, projectile brisé %s (image %d/%d, dist %.2f)" % [a.genre, b.get("genre"), va.length(),
+				CasseObjets.energie(va, a.mass), rb, ra, i + 1, arrivee, a.global_position.distance_to(bc)])
 			a.linear_velocity *= 0.3
 			break
 
@@ -138,6 +180,8 @@ func _go() -> void:
 	s.hud.aide_t = 0.0
 	j.mains.visible = false
 	j.set_physics_process(false)      # pilote automatique : le corps ne bouge que par nous
+	if s.get("crime") != null:      # film de démonstration : pas de témoins ni de gardes (la casse d'un bien possédé reste un vol en jeu)
+		(s.crime as Node).remove_from_group("crime")
 	var ip: Interieur = s.village.interieur("halle")
 	var centre := ip.to_global(Vector3(0, ip.sol_y + 0.6, 0))
 	sol_fixe = ip.to_global(Vector3(0, ip.sol_y, 0)).y
@@ -146,50 +190,62 @@ func _go() -> void:
 
 	# ---------------------------------------------------------------- 1. halle
 	var tonneau := _proche(["q_tonneau", "pq_tonneau", "q_tonneau_2"], centre, [], 9.0)
-	var jarre: ObjetVivant = null      # de préférence une jarre posée au sol (celles des étagères sont hors du champ)
-	for o: ObjetVivant in ObjetsVivants._vivants():
-		if o.genre in ["q_jarre", "pq_jarre"] and o.ident.begins_with("halle") and (jarre == null or o.global_position.y < jarre.global_position.y - 0.2):
+	var jarre: ObjetVivant = null      # une jarre de la halle qu'on voit d'un point dégagé, de préférence au sol
+	var jarres := ObjetsVivants._vivants().filter(func(o: ObjetVivant) -> bool: return o.genre in ["q_jarre", "pq_jarre"] and o.ident.begins_with("halle"))
+	jarres.sort_custom(func(x: ObjetVivant, y: ObjetVivant) -> bool: return x.global_position.y < y.global_position.y)
+	for o: ObjetVivant in jarres:
+		if _vue_degagee(o, centre) != Vector3.INF:
 			jarre = o
+			break
 	if jarre == null:
 		jarre = _proche(["q_jarre", "pq_jarre"], centre, [], 9.0)
+	var tonneaux := ObjetsVivants._vivants().filter(func(o: ObjetVivant) -> bool: return o.genre in ["q_tonneau", "pq_tonneau", "q_tonneau_2"] and o.ident.begins_with("halle"))
+	for o: ObjetVivant in tonneaux:
+		if _vue_degagee(o, centre) != Vector3.INF:
+			tonneau = o
+			break
 	var tabouret := _proche(["q_tabouret", "pq_tabouret"], jarre.global_position if jarre else centre)
 	var chaise := _proche(["q_chaise", "pq_chaise", "q_chaise_2"], centre, [], 12.0)
 	if chaise == null:
 		chaise = _proche(["q_tabouret", "pq_tabouret"], centre, [tabouret], 12.0)
 	print("FILM halle : tonneau %s, jarre %s, tabouret %s, chaise %s" % [tonneau != null, jarre != null, tabouret != null, chaise != null])
 	if jarre != null and tabouret != null:
-		await _placer(jarre.global_position, centre, 2.6)
+		await _cadrer(jarre, centre, 2.2)
 		_regarder(jarre.global_position + Vector3(0, 0.1, 0))
 		for i in 30:
 			await process_frame
 		await _cliche("av_jarre")
 		await _filmer(20)
-		var source := tabouret
-		if source.global_position.distance_to(jarre.global_position) > 5.0:      # tabouret trop loin : on le pose au bord du champ
-			source.global_position = j.global_position + (jarre.global_position - j.global_position) * 0.35 + Vector3(0, 0.6, 0) + j.global_transform.basis.x * 0.8
-		await _lancer(source, jarre, 8.0, 0.3)
+		# le tabouret part d'un bras du joueur, de biais, et vole droit dans la jarre (rien entre les deux)
+		tabouret.global_position = _depart_lancer(jarre, 1.3, 0.5)
+		tabouret.actualiser_visuel()
+		await _filmer(4)
+		await _lancer(tabouret, jarre, 7.0, 0.25)
 		await _filmer(10)
 		await _cliche("ap_jarre")
-		await _filmer(30)
+		await _filmer(35)
 	if tonneau != null:
-		await _placer(tonneau.global_position, centre, 2.8)
-		_regarder(tonneau.global_position + Vector3(0, 0.15, 0))
+		await _cadrer(tonneau, centre, 2.4)
+		_regarder(tonneau.global_position + Vector3(0, 0.2, 0))
 		for i in 10:
 			await process_frame
 		await _cliche("av_tonneau")
 		await _filmer(15)
-		var cageot := _proche(["q_cageot_vide", "pq_cageot_vide", "q_caisse", "pq_caisse", "q_tabouret", "pq_tabouret"], tonneau.global_position, [tonneau])
-		if cageot != null:
-			cageot.global_position = j.global_position + (tonneau.global_position - j.global_position) * 0.3 + Vector3(0, 0.9, 0) - j.global_transform.basis.x * 0.6
-			await _lancer(cageot, tonneau, 10.0, 0.45)
+		# un autre tonneau de la halle, soulevé, projeté dans le premier : les deux éclatent en douelles et cerclages
+		var autre := _proche(["q_tonneau", "pq_tonneau", "q_tonneau_2", "q_caisse", "pq_caisse"], tonneau.global_position, [tonneau])
+		if autre != null:
+			autre.global_position = _depart_lancer(tonneau, 1.5, 0.7)
+			autre.actualiser_visuel()
+			await _filmer(4)
+			await _lancer(autre, tonneau, 6.5, 0.4)
 		else:
 			tonneau.recevoir_choc(Vector3(0, 0, -10), 15.0, tonneau.global_position)
 		await _filmer(12)
 		await _cliche("ap_tonneau")
-		await _filmer(40)
+		await _filmer(45)
 	if chaise != null:
 		var mur := chaise.global_position - (centre - chaise.global_position).normalized() * 0.2
-		await _placer(chaise.global_position, centre, 2.4)
+		await _cadrer(chaise, centre, 2.1)
 		_regarder(chaise.global_position + Vector3(0, 0.2, 0))
 		for i in 10:
 			await process_frame
@@ -230,14 +286,17 @@ func _go() -> void:
 				and (t2 == null or o.global_position.distance_to(Vector3(place.x, o.global_position.y, place.z)) < t2.global_position.distance_to(Vector3(place.x, t2.global_position.y, place.z))):
 			t2 = o
 	if t2 != null:
-		await _placer(t2.global_position, t2.global_position + Vector3(-2.6, 0, -2.2), 3.4)
+		await _cadrer(t2, t2.global_position + Vector3(-2.6, 0, -2.2), 3.4)
 		_regarder(t2.global_position + Vector3(0, 0.2, 0))
 		for i in 30:
 			await process_frame
 		await _filmer(20)
 		var caisse := _proche(["q_caisse", "pq_caisse", "q_caisse_2", "q_cageot_vide", "pq_cageot_vide"], t2.global_position, [t2], 6.0)
 		if caisse != null:
-			await _lancer(caisse, t2, 11.0, 0.4)
+			caisse.global_position = _depart_lancer(t2, 1.6, 0.6)
+			caisse.actualiser_visuel()
+			await _filmer(4)
+			await _lancer(caisse, t2, 12.0, 0.4)
 		else:
 			t2.recevoir_choc(Vector3(0, 0, -10), 15.0, t2.global_position)
 		await _filmer(35)
