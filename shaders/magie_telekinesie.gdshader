@@ -1,3 +1,4 @@
+// FIN ET DISCRET (v2) : coque de champ de force à peine visible (fin liseré + rares motes + onde lente), aucun lien avec la main.
 // TÉLÉKINÉSIE (scripts/magie/telekinesie.gd) : lueur ADDITIVE posée par-dessus un objet saisi ou visé (material_overlay, ou copie du
 // maillage d'un objet vivant). Même principe que magie_voile.gdshader : on n'ajoute que de la lumière, en paliers francs (pas de
 // tramage) : un BORD bleu pâle qui épouse la silhouette, des motes claires qui montent lentement sur la surface, et une onde qui
@@ -37,14 +38,14 @@ void vertex() {
 void fragment() {
 	float bord = 1.0 - abs(normalize(n_vue).z);
 	// bord en deux paliers (silhouette seulement : le bois, le fer restent lisibles au centre)
-	float a = step(0.62, bord) * 0.35 + step(0.85, bord) * 0.45;
+	float a = step(0.68, bord) * 0.25 + step(0.9, bord) * 0.25;
 	// motes : quelques cases qui s'allument une à une et montent
 	vec3 q = floor(p_obj * cases + vec3(0.0, -TIME * 2.2, 0.0));
 	float n = h3(q);
 	float clign = step(0.8, fract(n * 13.0 + TIME * 0.7));
-	float mote = step(0.955, n) * (0.4 + 0.5 * clign);
+	float mote = step(0.98, n) * (0.4 + 0.5 * clign);
 	// onde lumineuse qui parcourt l'objet de bas en haut (une fine bande), surtout sur le bord
-	float onde = step(0.95, fract(h_monde * 1.4 - TIME * 0.9)) * 0.45 * (0.3 + 0.7 * bord);
+	float onde = step(0.96, fract(h_monde * 1.1 - TIME * 0.5)) * 0.25 * (0.3 + 0.7 * bord);
 	a = max(a, max(mote, onde));
 	a *= force;
 	// paliers francs ; ce qui reste sous le premier palier disparaît (pas de voile sur tout l'objet)
@@ -54,6 +55,6 @@ void fragment() {
 		ALPHA = 0.0;
 		return;
 	}
-	ALBEDO = mix(couleur.rgb, coeur.rgb, clamp(mote * clign + step(0.85, bord) * 0.6, 0.0, 1.0));
-	ALPHA = clamp(a, 0.0, 0.8);
+	ALBEDO = mix(couleur.rgb, coeur.rgb, clamp(mote * clign + step(0.92, bord) * 0.4, 0.0, 1.0));
+	ALPHA = clamp(a, 0.0, 0.8) * 0.8;
 }

@@ -851,17 +851,13 @@ static func _presets() -> void:
 	var esprit := ["#f2faff", "#c8e6fa", "#8cc4f0", "#5a8ec8"]
 	var R: Dictionary = PresetsMagie.R
 	# étincelles fines qui s'élèvent de l'objet tenu (forme : boîte de l'objet, ajustée à la saisie)
-	R["tk_objet"] = {"add": true, "n": 46, "vie": 0.7, "forme": "boite", "ext": Vector3(0.2, 0.2, 0.2), "dir": Vector3.UP, "ecart": 70.0, "vit": Vector2(0.05, 0.35), "grav": Vector3(0, 0.35, 0), "taille": Vector2(0.006, 0.013), "rampe": esprit, "eclat": 1.9, "cap": 3.0, "turb": Vector2(0.1, 0.3), "turb_echelle": 3.0}
-	# lueur douce (motes un peu plus grosses, mélange) qui enveloppe l'objet
-	R["tk_halo"] = {"add": true, "n": 14, "vie": 0.9, "forme": "boite", "ext": Vector3(0.2, 0.2, 0.2), "vit": Vector2(0.0, 0.08), "taille": Vector2(0.03, 0.06), "courbe": "bosse", "rampe": ["#8cc4f060", "#5a8ec840", "#3a5a9020"], "eclat": 1.1, "cap": 9.0}
-	# étincelles du fil main -> objet (émetteurs mobiles, repère du monde : ils dessinent des traînées pointillées)
-	R["tk_fil"] = {"add": true, "n": 26, "vie": 0.32, "forme": "sphere", "r": 0.02, "ecart": 180.0, "vit": Vector2(0.02, 0.18), "taille": Vector2(0.005, 0.01), "rampe": ["#ffffff", "#f2faff", "#c8e6fa", "#8cc4f0"], "eclat": 2.1, "cap": 2.0}
+	R["tk_objet"] = {"add": true, "n": 22, "vie": 0.9, "forme": "boite", "ext": Vector3(0.2, 0.2, 0.2), "dir": Vector3.UP, "ecart": 70.0, "vit": Vector2(0.02, 0.15), "grav": Vector3(0, 0.12, 0), "taille": Vector2(0.005, 0.01), "rampe": esprit, "eclat": 1.3, "cap": 3.0, "turb": Vector2(0.1, 0.3), "turb_echelle": 3.0}
 	# arrachement : poussière au sol (anneau qui s'écarte) et gerbe d'étincelles
 	R["tk_poussiere"] = {"n": 18, "vie": 0.8, "expl": 0.9, "forme": "disque", "r": 0.22, "dir": Vector3.UP, "ecart": 80.0, "vit": Vector2(0.2, 0.8), "radiale_v": Vector2(0.5, 1.2), "amort": Vector2(1.5, 3.0), "grav": Vector3(0, 0.1, 0), "taille": Vector2(0.035, 0.08), "courbe": "bosse", "rampe": ["#6e6a6470", "#5a565250", "#46423f30"], "eclat": 0.9, "cap": 9.0}
-	R["tk_arrache"] = {"add": true, "n": 30, "vie": 0.45, "expl": 1.0, "forme": "sphere", "r": 0.12, "ecart": 180.0, "vit": Vector2(0.6, 2.2), "amort": Vector2(2.0, 4.0), "taille": Vector2(0.006, 0.014), "rampe": esprit, "eclat": 2.0, "cap": 3.0}
+	R["tk_arrache"] = {"add": true, "n": 12, "vie": 0.4, "expl": 1.0, "forme": "sphere", "r": 0.12, "ecart": 180.0, "vit": Vector2(0.6, 2.2), "amort": Vector2(2.0, 4.0), "taille": Vector2(0.006, 0.014), "rampe": esprit, "eclat": 1.4, "cap": 3.0}
 	# lancer : éclat au départ et traînée (repère du monde, émetteur qui suit l'objet)
-	R["tk_lancer"] = {"add": true, "n": 36, "vie": 0.4, "expl": 1.0, "forme": "sphere", "r": 0.1, "ecart": 180.0, "vit": Vector2(1.0, 3.0), "amort": Vector2(3.0, 5.0), "taille": Vector2(0.007, 0.016), "rampe": esprit, "eclat": 2.0, "cap": 3.0}
-	R["tk_traine"] = {"add": true, "n": 70, "vie": 0.45, "forme": "sphere", "r": 0.06, "ecart": 180.0, "vit": Vector2(0.0, 0.25), "taille": Vector2(0.006, 0.014), "courbe": "descend", "rampe": ["#ffffff", "#f2faff", "#c8e6fa", "#8cc4f0", "#5a8ec8"], "eclat": 2.0, "cap": 3.0}
+	R["tk_lancer"] = {"add": true, "n": 14, "vie": 0.35, "expl": 1.0, "forme": "sphere", "r": 0.1, "ecart": 180.0, "vit": Vector2(1.0, 3.0), "amort": Vector2(3.0, 5.0), "taille": Vector2(0.007, 0.016), "rampe": esprit, "eclat": 2.0, "cap": 3.0}
+	R["tk_traine"] = {"add": true, "n": 24, "vie": 0.4, "forme": "sphere", "r": 0.05, "ecart": 180.0, "vit": Vector2(0.0, 0.25), "taille": Vector2(0.006, 0.014), "courbe": "descend", "rampe": ["#ffffff", "#f2faff", "#c8e6fa", "#8cc4f0", "#5a8ec8"], "eclat": 2.0, "cap": 3.0}
 
 func _g() -> GestionMagie:
 	return GestionMagie.obtenir() if not EffetsMagie.muet else null
@@ -880,8 +876,6 @@ func _effets_saisie(m: String, e: Dictionary) -> void:
 	var fx: Dictionary = e["fx"]
 	var pm: ParticleProcessMaterial = g._pm("tk_objet", PresetsMagie.R["tk_objet"], {"ext": Vector3(snappedf(ext.x, 0.05), snappedf(ext.y, 0.05), snappedf(ext.z, 0.05))})
 	fx["aura"] = g.emettre("tk_objet", corps, xf, true, clampf(ext.length() / 0.35, 0.6, 2.0), -1.0, pm)
-	var pmh: ParticleProcessMaterial = g._pm("tk_halo", PresetsMagie.R["tk_halo"], {"ext": Vector3(snappedf(ext.x, 0.05), snappedf(ext.y, 0.05), snappedf(ext.z, 0.05))})
-	fx["halo"] = g.emettre("tk_halo", corps, xf, true, clampf(ext.length() / 0.35, 0.6, 2.0), -1.0, pmh)
 	# poussière au pied de l'objet (s'il reposait au sol) et gerbe d'étincelles
 	var pied := corps.global_position - Vector3.UP * (b.size.y * 0.5)
 	var q := PhysicsRayQueryParameters3D.create(corps.global_position, pied - Vector3.UP * 0.4, 1)
@@ -889,44 +883,8 @@ func _effets_saisie(m: String, e: Dictionary) -> void:
 	var r := corps.get_world_3d().direct_space_state.intersect_ray(q)
 	if not r.is_empty():
 		g.emettre("tk_poussiere", null, Transform3D(Basis(), r["position"] + Vector3.UP * 0.03))
-	g.emettre("tk_arrache", null, Transform3D(Basis(), corps.global_position))
-	g.lumiere("tk_arrache%d" % corps.get_instance_id(), corps.global_position, BLANC, 1.4, 2.5, 3.0, 0.15)
-	# fil d'énergie main -> objet : deux brins fins qui ondulent (traits de la couche fine), étincelles qui courent dessus
-	fx["fil"] = g.eclair(null, ECOLE_VISUELLE, 0.55, -1.0, 0.05, _gen_fil.bind(e))
-	var fils: Array = []
-	for k in 3:
-		var p := g.emettre("tk_fil", null, Transform3D(Basis(), corps.global_position), true)
-		if p != null:
-			fils.append(p)
-	fx["fils"] = fils
-
-## Brins du fil d'énergie (repère du monde) : de la paume à l'objet, courbés vers le bas puis remontant, qui ondulent.
-func _gen_fil(e: Dictionary) -> Array:
-	var traits: Array = []
-	var corps = e.get("corps")
-	var paume = e.get("paume")
-	if corps == null or not is_instance_valid(corps) or paume == null or not is_instance_valid(paume):
-		return traits
-	var a: Vector3 = EffetsMagie.pos_origine(paume)
-	var b: Vector3 = (corps as Node3D).global_position
-	var g := _g()
-	if g == null:
-		return traits
-	for brin in 2:
-		var pts := PackedVector3Array()
-		var n := 10
-		var lat := (b - a).cross(Vector3.UP).normalized()
-		for k in n + 1:
-			var u := float(k) / n
-			var p := a.lerp(b, u)
-			var creux := sin(u * PI)
-			p += Vector3.DOWN * 0.08 * creux
-			var w := horloge * (6.0 + brin * 2.3) + u * 9.0 + brin * 1.7
-			p += (lat * sin(w) + Vector3.UP * cos(w * 1.3)) * 0.025 * creux
-			p += Vector3(g.rng.randf_range(-1, 1), g.rng.randf_range(-1, 1), g.rng.randf_range(-1, 1)) * 0.006 * creux
-			pts.append(p)
-		traits.append([pts, 0.8 if brin == 0 else 0.5, 0.75 if brin == 0 else 0.45])
-	return traits
+	g.emettre("tk_arrache", null, Transform3D(Basis(), corps.global_position), false, 0.5)
+	g.lumiere("tk_arrache%d" % corps.get_instance_id(), corps.global_position, BLANC, 0.5, 2.0, 3.0, 0.15)
 
 func _effets_tenue(m: String, e: Dictionary, _dt: float) -> void:
 	var corps: RigidBody3D = e["corps"]
@@ -939,20 +897,7 @@ func _effets_tenue(m: String, e: Dictionary, _dt: float) -> void:
 	var g := _g()
 	if g == null:
 		return
-	g.lumiere("tk_tenu%d" % corps.get_instance_id(), corps.global_position, BLEU, 0.45 + 0.5 * charge, 2.0, 2.0, 0.12)
-	var fx: Dictionary = e["fx"]
-	var paume = e.get("paume")
-	if paume != null and is_instance_valid(paume):
-		var a: Vector3 = EffetsMagie.pos_origine(paume)
-		var b := corps.global_position
-		var fils: Array = fx.get("fils", [])
-		for k in fils.size():
-			var p = fils[k]
-			if p == null or not is_instance_valid(p):
-				continue
-			var u := fposmod(t * 1.6 + float(k) / maxf(fils.size(), 1.0), 1.0)
-			var pos := a.lerp(b, u) + Vector3.DOWN * 0.08 * sin(u * PI)
-			(p as GPUParticles3D).global_position = pos
+	g.lumiere("tk_tenu%d" % corps.get_instance_id(), corps.global_position, BLEU, 0.15 + 0.3 * charge, 2.0, 2.0, 0.12)
 
 func _effets_lancer(corps: RigidBody3D, vit: Vector3, charge: float) -> void:
 	_coque_force(corps, 1.2)
@@ -960,7 +905,7 @@ func _effets_lancer(corps: RigidBody3D, vit: Vector3, charge: float) -> void:
 	if g == null:
 		return
 	g.emettre("tk_lancer", null, Transform3D(Basis(), corps.global_position), false, 0.8 + 0.6 * charge)
-	g.lumiere("tk_lancer%d" % corps.get_instance_id(), corps.global_position, BLANC, 1.6, 3.0, 3.0, 0.12)
+	g.lumiere("tk_lancer%d" % corps.get_instance_id(), corps.global_position, BLANC, 0.6, 3.0, 3.0, 0.12)
 	for l: Dictionary in lances:
 		if l["corps"] == corps:
 			l["traine"] = g.emettre("tk_traine", corps, Transform3D.IDENTITY, true, clampf(vit.length() / 18.0, 0.5, 1.4))
@@ -970,13 +915,8 @@ func _effets_fin(e: Dictionary) -> void:
 	var fx: Dictionary = e.get("fx", {})
 	var g := _g()
 	if g != null:
-		for k in ["aura", "halo"]:
-			if fx.get(k) != null:
-				g.arreter(fx[k])
-		for p in fx.get("fils", []):
-			g.arreter(p)
-		if not (fx.get("fil", {}) as Dictionary).is_empty():
-			g.eclair_fin(fx["fil"])
+		if fx.get("aura") != null:
+			g.arreter(fx["aura"])
 	fx.clear()
 	var corps = e.get("corps")
 	if corps != null and is_instance_valid(corps):

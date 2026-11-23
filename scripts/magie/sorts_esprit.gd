@@ -242,7 +242,7 @@ func _refuser(m: String, raison: String) -> void:
 func _lueur(n: Node, f: float) -> void:
 	var tk := _tk()
 	if tk != null and n != null and is_instance_valid(n):
-		tk._coque_force(n, f)
+		tk._coque_force(n, f * 0.6)   # coque d'ennemi encore plus discrète
 
 var _prep_t := 0.0
 ## Un sort de l'esprit en main : les ragdolls des ennemis proches sont construits d'avance (RagdollEsprit.preparer, un par image).
@@ -832,7 +832,6 @@ func repulsion(s: DonneesSort, charge: float, paume: Node3D, oeil: Vector3, avan
 			_frapper(e, dg * k, ce, dir, lerpf(18.0, 40.0, c) * k, s)
 			if vivant(e):
 				projeter(e, dir * vit + Vector3.UP * vit * lerpf(0.3, 0.45, c), s)
-			_eclat(ce, 0.6)
 			(res["ennemis"] as Array).append(e)
 	for o in _objets(oeil, portee + 0.5):
 		var oc := Telekinesie.centre(o)
@@ -1090,19 +1089,19 @@ static func _presets() -> void:
 	var esprit := ["#f2faff", "#c8e6fa", "#8cc4f0", "#5a8ec8"]
 	var R: Dictionary = PresetsMagie.R
 	# onde de choc : gerbe d'étincelles fines qui file dans le cône (direction -Z du repère d'émission), freinée à la portée
-	R["es_onde"] = {"add": true, "n": 140, "vie": 0.5, "expl": 1.0, "forme": "sphere", "r": 0.12, "dir": Vector3(0, 0, -1), "ecart": 32.0, "vit": Vector2(7.0, 16.0), "amort": Vector2(10.0, 18.0), "taille": Vector2(0.007, 0.017), "courbe": "descend", "rampe": esprit, "eclat": 2.0, "cap": 3.0}
+	R["es_onde"] = {"add": true, "n": 16, "vie": 0.4, "expl": 1.0, "forme": "sphere", "r": 0.12, "dir": Vector3(0, 0, -1), "ecart": 32.0, "vit": Vector2(7.0, 16.0), "amort": Vector2(10.0, 18.0), "taille": Vector2(0.004, 0.008), "courbe": "descend", "rampe": ["#c8d6e0", "#8fa3b4", "#5f7284"], "eclat": 0.8, "cap": 3.0}
 	# voile d'air (motes plus grosses, douces) qui accompagne l'onde
-	R["es_voile"] = {"add": true, "n": 40, "vie": 0.55, "expl": 1.0, "forme": "sphere", "r": 0.2, "dir": Vector3(0, 0, -1), "ecart": 30.0, "vit": Vector2(4.0, 9.0), "amort": Vector2(6.0, 9.0), "taille": Vector2(0.04, 0.08), "courbe": "bosse", "rampe": ["#8cc4f050", "#5a8ec838", "#3a5a9018"], "eclat": 1.1, "cap": 9.0}
+	R["es_voile"] = {"add": true, "n": 6, "vie": 0.4, "expl": 1.0, "forme": "sphere", "r": 0.2, "dir": Vector3(0, 0, -1), "ecart": 30.0, "vit": Vector2(4.0, 9.0), "amort": Vector2(6.0, 9.0), "taille": Vector2(0.04, 0.08), "courbe": "bosse", "rampe": ["#8cc4f030", "#5a8ec822", "#3a5a9010"], "eclat": 0.7, "cap": 9.0}
 	# poussière soulevée au sol par l'onde
 	R["es_poussiere"] = {"n": 16, "vie": 0.9, "expl": 0.9, "forme": "disque", "r": 0.35, "dir": Vector3.UP, "ecart": 70.0, "vit": Vector2(0.3, 1.0), "radiale_v": Vector2(0.6, 1.6), "amort": Vector2(1.5, 3.0), "grav": Vector3(0, 0.1, 0), "taille": Vector2(0.04, 0.09), "courbe": "bosse", "rampe": ["#6e6a6470", "#5a565250", "#46423f30"], "eclat": 0.9, "cap": 9.0}
 	# orbe du vortex en vol
-	R["es_orbe"] = {"add": true, "n": 40, "vie": 0.35, "forme": "sphere", "r": 0.08, "ecart": 180.0, "vit": Vector2(0.05, 0.4), "taille": Vector2(0.007, 0.015), "courbe": "descend", "rampe": ["#ffffff", "#f2faff", "#c8e6fa", "#8cc4f0"], "eclat": 2.1, "cap": 3.0}
+	R["es_orbe"] = {"add": true, "n": 14, "vie": 0.35, "forme": "sphere", "r": 0.06, "ecart": 180.0, "vit": Vector2(0.05, 0.4), "taille": Vector2(0.007, 0.015), "courbe": "descend", "rampe": ["#ffffff", "#f2faff", "#c8e6fa", "#8cc4f0"], "eclat": 1.4, "cap": 3.0}
 	# vortex ouvert : étincelles fines aspirées vers le centre depuis une sphère (accélération radiale négative)
-	R["es_vortex"] = {"add": true, "n": 120, "vie": 0.8, "forme": "surface", "r": 2.6, "ecart": 180.0, "vit": Vector2(0.0, 0.2), "radial": Vector2(-9.0, -6.0), "taille": Vector2(0.006, 0.013), "courbe": "monte", "rampe": ["#5a8ec8", "#8cc4f0", "#c8e6fa", "#f2faff"], "eclat": 1.9, "cap": 3.0}
+	R["es_vortex"] = {"add": true, "n": 45, "vie": 0.8, "forme": "surface", "r": 2.6, "ecart": 180.0, "vit": Vector2(0.0, 0.2), "radial": Vector2(-9.0, -6.0), "taille": Vector2(0.006, 0.013), "courbe": "monte", "rampe": ["#5a8ec8", "#8cc4f0", "#c8e6fa", "#f2faff"], "eclat": 1.3, "cap": 3.0}
 	# cœur du vortex : motes douces qui palpitent
-	R["es_coeur"] = {"add": true, "n": 22, "vie": 0.6, "forme": "sphere", "r": 0.25, "ecart": 180.0, "vit": Vector2(0.0, 0.3), "taille": Vector2(0.03, 0.07), "courbe": "bosse", "rampe": ["#f2faff90", "#8cc4f060", "#5a8ec830"], "eclat": 1.4, "cap": 9.0}
+	R["es_coeur"] = {"add": true, "n": 8, "vie": 0.6, "forme": "sphere", "r": 0.25, "ecart": 180.0, "vit": Vector2(0.0, 0.3), "taille": Vector2(0.03, 0.07), "courbe": "bosse", "rampe": ["#f2faff90", "#8cc4f060", "#5a8ec830"], "eclat": 0.8, "cap": 9.0}
 	# relâchement : éclat d'étincelles dans toutes les directions
-	R["es_eclat"] = {"add": true, "n": 110, "vie": 0.55, "expl": 1.0, "forme": "sphere", "r": 0.3, "ecart": 180.0, "vit": Vector2(4.0, 10.0), "amort": Vector2(5.0, 9.0), "taille": Vector2(0.007, 0.016), "courbe": "descend", "rampe": esprit, "eclat": 2.1, "cap": 3.0}
+	R["es_eclat"] = {"add": true, "n": 14, "vie": 0.4, "expl": 1.0, "forme": "sphere", "r": 0.3, "ecart": 180.0, "vit": Vector2(4.0, 10.0), "amort": Vector2(5.0, 9.0), "taille": Vector2(0.007, 0.016), "courbe": "descend", "rampe": esprit, "eclat": 1.4, "cap": 3.0}
 	# choc d'un ennemi projeté contre un mur / le sol : poussière et éclats de pierre gris
 	R["es_choc"] = {"n": 20, "vie": 0.7, "expl": 1.0, "forme": "sphere", "r": 0.2, "dir": Vector3.UP, "ecart": 75.0, "vit": Vector2(0.6, 2.2), "amort": Vector2(2.0, 4.0), "grav": Vector3(0, -1.2, 0), "taille": Vector2(0.03, 0.07), "courbe": "bosse", "rampe": ["#7a746c80", "#5e5a5460", "#46423f30"], "eclat": 0.9, "cap": 9.0}
 
@@ -1120,7 +1119,7 @@ func _eclat(pos: Vector3, k: float) -> void:
 	if g == null:
 		return
 	g.emettre("tk_arrache", null, Transform3D(Basis(), pos), false, k)
-	g.lumiere("es_eclat%d" % (randi() % 1000), pos, BLANC, 1.2 * k, 3.0, 2.5, 0.12)
+	g.lumiere("es_eclat%d" % (randi() % 1000), pos, BLANC, 0.5 * k, 3.0, 2.5, 0.12)
 
 func _effets_onde(depart: Vector3, avant: Vector3, portee: float, c: float, demi: float) -> void:
 	var g := _g()
@@ -1132,13 +1131,13 @@ func _effets_onde(depart: Vector3, avant: Vector3, portee: float, c: float, demi
 		g._pm("es_onde", PresetsMagie.R["es_onde"], {"ecart": snappedf(rad_to_deg(demi), 1.0), "vit": Vector2(5.0, 11.0 + 7.0 * c) * maxf(echelle, 0.6)}))
 	g.emettre("es_voile", null, Transform3D(b, depart + avant * 0.35), false, 0.7 + 0.5 * c)
 	# anneaux de l'onde : fins, translucides, qui s'étendent en s'éloignant (le premier à 1,8 m : pas un écran devant la caméra)
-	var reg := {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.94, "epaisseur": 0.035, "texels": 110.0, "eclat": 1.3, "opacite": 0.6}
+	var reg := {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.94, "epaisseur": 0.012, "texels": 110.0, "eclat": 0.6, "opacite": 0.06}
 	g.disque(depart + avant * 1.8, avant, 0.25, 0.8 + 0.5 * c, 0.26, reg, false, false, 0.7)
 	var reg2 := reg.duplicate()
-	reg2["epaisseur"] = 0.025
-	reg2["opacite"] = 0.45
+	reg2["epaisseur"] = 0.01
+	reg2["opacite"] = 0.04
 	g.disque(depart + avant * (3.0 + 1.5 * c), avant, 0.5, 1.4 + 1.2 * c, 0.36, reg2, false, false, 0.7)
-	g.lumiere("es_onde", depart + avant * 1.2, BLANC, 1.4 + 1.2 * c, 4.0 + portee * 0.5, 3.0, 0.16)
+	g.lumiere("es_onde", depart + avant * 1.2, BLANC, 0.6 + 0.6 * c, 4.0 + portee * 0.5, 3.0, 0.16)
 	# poussière soulevée au sol dans le cône
 	var plat := Vector3(avant.x, 0.0, avant.z).normalized()
 	for k in 3:
@@ -1168,39 +1167,7 @@ func _effets_emprise(m: String, em: Dictionary) -> void:
 	var xf := Transform3D(Basis(), Vector3.UP * h)
 	var ext := Vector3(0.35, h * 0.9, 0.35)
 	fx["aura"] = g.emettre("tk_objet", e, xf, true, 1.8, -1.0, g._pm("tk_objet", PresetsMagie.R["tk_objet"], {"ext": Vector3(0.35, snappedf(ext.y, 0.05), 0.35)}))
-	fx["halo"] = g.emettre("tk_halo", e, xf, true, 1.6, -1.0, g._pm("tk_halo", PresetsMagie.R["tk_halo"], {"ext": Vector3(0.35, snappedf(ext.y, 0.05), 0.35)}))
-	g.emettre("tk_poussiere", null, Transform3D(Basis(), e.global_position + Vector3.UP * 0.04), false, 1.6)
-	g.emettre("tk_arrache", null, Transform3D(Basis(), e.global_position + Vector3.UP * h), false, 1.4)
-	g.disque(e.global_position + Vector3.UP * 0.05, Vector3.UP, 0.3, 1.1, 0.5, {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.88, "epaisseur": 0.08, "texels": 40.0, "eclat": 1.3}, false, false, 0.5)
-	fx["fil"] = g.eclair(null, Telekinesie.ECOLE_VISUELLE, 0.6, -1.0, 0.05, _gen_fil.bind(em))
-
-## Fil d'énergie paume -> ennemi (comme la télékinésie, trois brins, plus épais).
-func _gen_fil(em: Dictionary) -> Array:
-	var traits: Array = []
-	var e = em.get("e")
-	var paume = em.get("paume")
-	if not vivant(e) or paume == null or not is_instance_valid(paume):
-		return traits
-	var a: Vector3 = EffetsMagie.pos_origine(paume)
-	var b: Vector3 = Elements._centre(e)
-	var g := _g()
-	if g == null:
-		return traits
-	for brin in 3:
-		var pts := PackedVector3Array()
-		var n := 12
-		var lat := (b - a).cross(Vector3.UP).normalized()
-		for k in n + 1:
-			var u := float(k) / n
-			var p := a.lerp(b, u)
-			var creux := sin(u * PI)
-			p += Vector3.DOWN * 0.12 * creux
-			var w := horloge * (5.0 + brin * 2.1) + u * 8.0 + brin * 2.1
-			p += (lat * sin(w) + Vector3.UP * cos(w * 1.3)) * 0.04 * creux
-			p += Vector3(g.rng.randf_range(-1, 1), g.rng.randf_range(-1, 1), g.rng.randf_range(-1, 1)) * 0.008 * creux
-			pts.append(p)
-		traits.append([pts, 0.85 if brin == 0 else 0.5, 0.8 if brin == 0 else 0.45])
-	return traits
+	g.emettre("tk_poussiere", null, Transform3D(Basis(), e.global_position + Vector3.UP * 0.04), false, 1.2)
 
 func _effets_tenue(_m: String, em: Dictionary, _dt: float) -> void:
 	var e: Node3D = em["e"]
@@ -1209,17 +1176,14 @@ func _effets_tenue(_m: String, em: Dictionary, _dt: float) -> void:
 	SonsMagie.telekinesie_tenue(e, 0.7)
 	var g := _g()
 	if g != null:
-		g.lumiere("es_tenu%d" % e.get_instance_id(), Elements._centre(e), BLEU, 0.6, 2.6, 2.0, 0.12)
+		g.lumiere("es_tenu%d" % e.get_instance_id(), Elements._centre(e), BLEU, 0.2, 2.6, 2.0, 0.12)
 
 func _effets_fin(em: Dictionary) -> void:
 	var fx: Dictionary = em.get("fx", {})
 	var g := _g()
 	if g != null:
-		for k in ["aura", "halo"]:
-			if fx.get(k) != null:
-				g.arreter(fx[k])
-		if not (fx.get("fil", {}) as Dictionary).is_empty():
-			g.eclair_fin(fx["fil"])
+		if fx.get("aura") != null:
+			g.arreter(fx["aura"])
 	fx.clear()
 	var e = em.get("e")
 	if e != null and is_instance_valid(e):
@@ -1238,7 +1202,7 @@ func _effets_vortex_vol(vx: Dictionary) -> void:
 	n.global_position = vx["pos"]
 	fx["noeud"] = n
 	fx["orbe"] = g.emettre("es_orbe", n, Transform3D.IDENTITY, true)
-	g.emettre("tk_lancer", null, Transform3D(Basis(), vx["pos"]), false, 0.8)
+	g.emettre("tk_lancer", null, Transform3D(Basis(), vx["pos"]), false, 0.5)
 
 func _effets_vortex_ouvre(vx: Dictionary) -> void:
 	var s: DonneesSort = vx["s"]
@@ -1256,13 +1220,13 @@ func _effets_vortex_ouvre(vx: Dictionary) -> void:
 	fx["tourbillon"] = g.emettre("es_vortex", n, Transform3D.IDENTITY, true, 1.0, -1.0, g._pm("es_vortex", PresetsMagie.R["es_vortex"], {"r": snappedf(s.rayon * 0.6, 0.1)}))
 	fx["coeur"] = g.emettre("es_coeur", n, Transform3D.IDENTITY, true)
 	# cœur spiralé face caméra et anneau spiralé au sol, qui tournent pendant toute la durée
-	var d1 := g.disque(vx["pos"], Vector3.UP, 0.35, 0.6, s.duree_vortex, {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.6, "epaisseur": 0.12, "spirale": 0.9, "texels": 72.0, "eclat": 1.3, "remplissage": 0.0, "tourne": 0.7, "opacite": 0.75}, false, true, 0.15)
+	var d1 := g.disque(vx["pos"], Vector3.UP, 0.35, 0.6, s.duree_vortex, {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.6, "epaisseur": 0.12, "spirale": 0.9, "texels": 72.0, "eclat": 1.0, "remplissage": 0.0, "tourne": 0.7, "opacite": 0.12}, false, true, 0.15)
 	if not d1.is_empty():
 		d1["suivre"] = n
 	var q := PhysicsRayQueryParameters3D.create(vx["pos"], Vector3(vx["pos"]) + Vector3.DOWN * 4.0, 1)
 	var r := joueur.get_world_3d().direct_space_state.intersect_ray(q)
 	if not r.is_empty():
-		g.disque(r["position"], Vector3.UP, s.rayon * 0.75, s.rayon * 0.3, s.duree_vortex, {"couleur": "#5a8ec8", "coeur": "#c8e6fa", "anneau": 0.85, "epaisseur": 0.03, "spirale": 0.6, "texels": 40.0 * s.rayon, "eclat": 0.9, "opacite": 0.32, "tourne": 0.45}, false, false, 0.2)
+		g.disque(r["position"], Vector3.UP, s.rayon * 0.75, s.rayon * 0.3, s.duree_vortex, {"couleur": "#5a8ec8", "coeur": "#c8e6fa", "anneau": 0.85, "epaisseur": 0.03, "spirale": 0.6, "texels": 40.0 * s.rayon, "eclat": 0.8, "opacite": 0.18, "tourne": 0.45}, false, false, 0.2)
 	g.emettre("es_eclat", null, Transform3D(Basis(), vx["pos"]), false, 0.4)
 
 func _effets_vortex_suivre(vx: Dictionary) -> void:
@@ -1272,7 +1236,7 @@ func _effets_vortex_suivre(vx: Dictionary) -> void:
 		n.global_position = vx["pos"]
 	var g := _g()
 	if g != null:
-		var puls := 0.9 + 0.3 * sin(float(vx["t"]) * 9.0) if String(vx["phase"]) == "actif" else 0.8
+		var puls := 0.35 + 0.1 * sin(float(vx["t"]) * 9.0) if String(vx["phase"]) == "actif" else 0.3
 		g.lumiere("es_vortex%d" % vx.hash(), vx["pos"], BLEU, puls, 4.5 if String(vx["phase"]) == "actif" else 2.5, 3.0, 0.12)
 
 func _effets_vortex_fin(vx: Dictionary) -> void:
@@ -1284,10 +1248,10 @@ func _effets_vortex_fin(vx: Dictionary) -> void:
 		for k in ["tourbillon", "coeur", "orbe"]:
 			if fx.get(k) != null:
 				g.arreter(fx[k])
-		g.emettre("es_eclat", null, Transform3D(Basis(), vx["pos"]), false, 1.2)
-		g.emettre("es_voile", null, Transform3D(_base_vers(Vector3.UP), vx["pos"]), false, 1.0)
-		g.disque(vx["pos"], Vector3.UP, 0.3, s.rayon * 0.9, 0.4, {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.94, "epaisseur": 0.025, "texels": 30.0 * s.rayon, "eclat": 1.4, "opacite": 0.6}, false, true, 0.7)
-		g.lumiere("es_vortex_fin", vx["pos"], BLANC, 2.6, 6.0, 3.0, 0.18)
+		g.emettre("es_eclat", null, Transform3D(Basis(), vx["pos"]), false, 0.8)
+		g.emettre("es_voile", null, Transform3D(_base_vers(Vector3.UP), vx["pos"]), false, 0.7)
+		g.disque(vx["pos"], Vector3.UP, 0.3, s.rayon * 0.9, 0.4, {"couleur": "#8cc4f0", "coeur": "#f2faff", "anneau": 0.94, "epaisseur": 0.025, "texels": 30.0 * s.rayon, "eclat": 1.0, "opacite": 0.3}, false, true, 0.7)
+		g.lumiere("es_vortex_fin", vx["pos"], BLANC, 1.0, 5.0, 3.0, 0.18)
 	if n != null and is_instance_valid(n):
 		SonsMagie.esprit_vortex(n, 0.0)
 		n.get_tree().create_timer(0.6).timeout.connect(n.queue_free)

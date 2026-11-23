@@ -715,6 +715,7 @@ func _intensite(i: Incantation, s: DonneesSort) -> float:
 func _aura_vers(m: String, ecole: String, k: float, _dt: float) -> void:
 	if ecole == Telekinesie.ECOLE:
 		ecole = Telekinesie.ECOLE_VISUELLE   # l'école « esprit » prend l'aura bleu pâle de la protection
+		k *= 0.35                            # ... mais à peine un signe : la force se lit par la physique, pas par la lumière
 	_runes_vers(m, ecole, k)
 	if ecole != _ecole_aura[m] or absf(k - _aura[m]) > 0.02:
 		_aura[m] = k
