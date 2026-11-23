@@ -14,9 +14,11 @@ uniform vec3 noir : source_color = vec3(0.012, 0.004, 0.025);
 uniform vec3 fume : source_color = vec3(0.16, 0.04, 0.30);
 uniform vec3 bord : source_color = vec3(0.50, 0.15, 0.86);
 uniform vec3 filet : source_color = vec3(0.86, 0.72, 1.0);
-uniform float onde = 0.28;       // amplitude de l'ondulation (part du rayon)
-uniform float onde_lg = 2.6;     // longueur d'onde (m)
-uniform float onde_vit = 2.2;    // vitesse de l'onde vers la cible (m/s)
+uniform float onde = 0.0;        // (v1 : ondulation lente ; v2 : rayon tendu, plus d'ondulation)
+uniform float onde_lg = 2.6;
+uniform float onde_vit = 2.2;
+uniform float flux_vit = 26.0;   // v2 : vitesse des impulsions pourpres qui filent de la main vers la cible (m/s)
+uniform float flux_pas = 1.7;    // v2 : écart entre deux impulsions (m) → ~15 par seconde en un point
 uniform float eclat = 1.0;       // éclat du liseré (double magie : plus)
 uniform float vie = 0.0;
 uniform float longueur = 10.0;   // m
@@ -46,7 +48,7 @@ float vague(float s) {
 
 float rayon_en(float s) {
 	float ond = 1.0 + onde * vague(s) * smoothstep(0.0, 0.8, s);
-	float evase = 1.0 + 0.35 * smoothstep(longueur - 0.45, longueur, s);   // le rayon s'évase en touchant
+	float evase = 1.0 + 0.12 * smoothstep(longueur - 0.25, longueur, s);   // à peine évasé en touchant
 	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * rk() * ond * evase;
 }
 
@@ -102,24 +104,31 @@ void fragment() {
 	float n = mfbm2(vec2(tc * 0.9 - TIME * 6.0, v_th * 1.3 + graine));
 	float n2 = mbruit(vec2(tc * 3.0 - TIME * 13.0, v_th * 2.0 + graine * 3.0));
 	// frontière du cœur, déchirée par le bruit (l'axe est à x = 0)
-	float s0 = 0.52 + (n - 0.5) * 0.26;
-	float pv = 0.5 + 0.5 * vague(tc);     // passage de l'onde (0..1) : le liseré s'avive
+	float s0 = 0.46 + (n - 0.5) * 0.03;   // v2 : cœur tendu, bord net (le bruit ne déforme plus la silhouette)
+	// impulsions qui filent vers la cible (rapides, nettes) et scintillement du liseré (24 Hz, par paliers : aucun tramage)
+	float ph = fract((tc - TIME * flux_vit) / flux_pas + graine);
+	float puls = pow(1.0 - smoothstep(0.0, 0.22, min(ph, 1.0 - ph) * 2.0), 2.0);
+	float sc = 0.82 + 0.18 * fract(sin(floor(TIME * 24.0) * 12.9898 + graine) * 43758.5453);
+	float pv = puls;
 	vec3 c = noir;
 	float a = 1.0;
 	if (x < s0) {
 		// cœur noir ; des courants violets très sombres défilent dedans (pas un aplat)
 		float cour = smoothstep(0.62, 1.0, mbruit(vec2(tc * 1.6 - TIME * 9.0, v_th * 2.5 + graine)));
-		c = mix(noir, fume * 1.1, cour * 0.7);
-	} else if (x < s0 + 0.04) {
-		c = filet * (1.2 + 0.4 * pv) * eclat;
-	} else if (x < s0 + 0.2) {
-		float t = (x - s0 - 0.04) / 0.16;
-		c = bord * (1.5 - 0.7 * t + 0.35 * n2 + 0.55 * pv) * eclat;
+		c = mix(noir, fume * 1.1, cour * 0.45);
+		// stries pourpres fines au cœur, qui filent avec les impulsions
+		float st = 1.0 - smoothstep(0.0, 0.06, abs(fract(v_th / TAU * 3.0 + graine) - 0.5) * 2.0 - 0.9);
+		c = mix(c, bord * 1.6, puls * st * 0.8);
+	} else if (x < s0 + 0.05) {
+		c = filet * (1.25 + 1.1 * pv) * eclat * sc;
+	} else if (x < s0 + 0.13) {
+		float t = (x - s0 - 0.05) / 0.08;
+		c = bord * (1.7 - 0.6 * t + 1.2 * pv) * eclat * sc;
 	} else {
 		// fumée déchirée : se dissout vers l'extérieur, par paliers
-		float t = (x - s0 - 0.2) / max(GROS - s0 - 0.2, 0.1);
-		float f = (1.0 - t) * (0.5 + 0.9 * n) - 0.2;
-		a = floor(clamp(f, 0.0, 1.0) * 3.0 + 0.5) / 3.0 * 0.85;
+		float t = (x - s0 - 0.13) / max(GROS - s0 - 0.13, 0.1);
+		float f = (1.0 - t) * (0.4 + 0.8 * n) - 0.25;
+		a = floor(clamp(f, 0.0, 1.0) * 3.0 + 0.5) / 3.0 * 0.55;   // fumée plus légère autour, la silhouette reste le trait
 		c = mix(fume, bord * 0.5, n2 * 0.45 + 0.2 * (1.0 - t) + 0.15 * pv);
 		if (a < 0.05) {
 			discard;
@@ -128,18 +137,18 @@ void fragment() {
 	// brins de fumée enroulés en hélice (3) : ils filent le long du tir, surtout dans la fumée et au bord
 	for (int h = 0; h < 3; h++) {
 		float fh = float(h);
-		float ph = fract(v_th / TAU * (3.0 + fh) + tc * (0.16 + 0.05 * fh) - TIME * (0.55 + 0.2 * fh) + fh * 0.33);
-		float d = min(ph, 1.0 - ph);
+		float phh = fract(v_th / TAU * (3.0 + fh) + tc * (0.16 + 0.05 * fh) - TIME * (3.2 + 0.6 * fh) + fh * 0.33);
+		float d = min(phh, 1.0 - phh);
 		float larg = 0.035 + 0.02 * n2;
-		if (d < larg && x > s0 + 0.12) {
+		if (d < larg && x > s0 + 0.14) {
 			float vif = 1.0 - d / larg;
-			c = mix(c, bord * 1.15, vif * 0.45);
-			a = max(a, 0.85);
+			c = mix(c, bord * 1.15, vif * 0.35);
+			a = max(a, 0.6);
 		}
 	}
 	// sortie du cercle : la source est plus claire ; le front s'amincit en pointe
 	float sortie = (1.0 - smoothstep(0.0, 0.02, v_u)) * step(s0, x);
-	c = mix(c, filet * 1.7, sortie * 0.6 * (1.0 - smoothstep(0.1, 0.3, vie)));
+	c = mix(c, filet * 2.4, sortie * 0.8 * (1.0 - smoothstep(0.1, 0.22, vie)));
 	float tete_fade = smoothstep(0.0, 0.05, tete - u_c);
 	float fin_fade = 1.0 - smoothstep(0.96, 1.0, u_c);
 	ALBEDO = c;

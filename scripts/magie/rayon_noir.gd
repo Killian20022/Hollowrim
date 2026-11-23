@@ -25,8 +25,8 @@ const SH_HALO := preload("res://shaders/rayon_noir_halo.gdshader")
 const SH_TACHE := preload("res://shaders/rayon_noir_tache.gdshader")
 const SH_RUNE := preload("res://shaders/runes_orbite.gdshader")
 ## Allumage (s) : la tête du rayon file de la main à la cible ; extinction (s) : le rayon se resserre et se dissipe.
-const ALLUMAGE := 0.2
-const EXTINCTION := 0.35
+const ALLUMAGE := 0.1
+const EXTINCTION := 0.07
 const VIE_TENUE := 0.3
 ## Le nœud s'éteint seul s'il n'est plus nourri (main coupée sans arrêt explicite).
 const OUBLI := 0.25
@@ -44,13 +44,15 @@ const NB_FUMEE := 26
 const NB_BRAISES := 14
 ## Runes qui glissent le long du rayon : nombre de quads, période d'émission (s), durée du trajet (s), taille (m).
 const NB_RUNES := 5
-const PERIODE_RUNE := 0.34
-const TRAJET_RUNE := 0.95
+const PERIODE_RUNE := 0.22
+const TRAJET_RUNE := 0.42
 const TAILLE_RUNE := 0.12
 const SIGNES := [4, 1, 5, 7, 6]
 const COUL_RUNE := Color("#b98cff")
 const COEUR_RUNE := Color("#f1e4ff")
 const LUMIERE := Color(0.55, 0.22, 1.0)
+## v2 : l'orbe tenu dans la main pendant ce sort (NoyauEcole, runes de la main) est réduit (il cachait la gauche de l'écran).
+const TAILLE_ORBE := 0.64
 const PAL_FUMEE := ["#05020a", "#1e0a34", "#4a1a80", "#9a5ae0"]
 const PAL_BRAISE := ["#07030c", "#8a34d0", "#c88aff", "#f3e6ff"]
 
@@ -106,7 +108,7 @@ static func maj(paume_: Node3D, depart: Vector3, fin_: Vector3, normale_: Vector
 		r.paume = paume_
 		r.debut = depart
 		r.fin = fin_
-		r._fin_l = depart.lerp(fin_, 0.05)
+		r._fin_l = fin_   # v2 : le rayon jaillit d'un coup jusqu'à l'impact (la tête du shader file en 0,1 s)
 		r.largeur = largeur_
 		r.puissance = puissance_
 		var parent := paume_.get_tree().current_scene if paume_.get_tree().current_scene != null else paume_.get_tree().root
@@ -114,6 +116,9 @@ static func maj(paume_: Node3D, depart: Vector3, fin_: Vector3, normale_: Vector
 		par_paume[id] = r
 		stats.crees = int(stats.crees) + 1
 		SonsMagie.rayon_noir_allume(depart)
+		var g := GestionMagie.obtenir()
+		if g != null and not EffetsMagie.muet:   # petit éclair de départ : bref, dans la main
+			g.lumiere("rayon_noir_eclair%d" % id, depart, Color(0.75, 0.45, 1.0), 3.0, 3.0, 0.9, 0.16)
 	r.debut = depart
 	r.fin = fin_
 	r.normale = normale_.normalized() if normale_.length() > 0.01 else Vector3.UP
@@ -384,7 +389,7 @@ func _maj_runes(dt: float, cb: Basis) -> void:
 			continue
 		r.t = float(r.t) + dt
 		# trajet plus court pour un rayon court (vitesse ~ constante, jamais moins de 0,45 s)
-		var duree := clampf(TRAJET_RUNE * l / 8.0, 0.45, TRAJET_RUNE * 1.4)
+		var duree := clampf(TRAJET_RUNE * l / 8.0, 0.22, TRAJET_RUNE * 1.4)
 		var p := float(r.t) / duree
 		if p >= 1.0 or fondu_fin <= 0.01:
 			r.t = -1.0

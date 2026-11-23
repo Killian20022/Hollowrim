@@ -14,7 +14,9 @@ uniform float rayon_max = 1.0;
 uniform float rayon_min = 0.2;
 uniform float ouverture = 14.0;
 uniform float graine = 0.0;
-uniform float onde = 0.28;
+uniform float onde = 0.0;
+uniform float flux_vit = 26.0;
+uniform float flux_pas = 1.7;
 uniform float onde_lg = 2.6;
 uniform float onde_vit = 2.2;
 uniform float eclat = 1.0;
@@ -37,7 +39,7 @@ float vague(float s) {
 
 float rayon_en(float s) {
 	float ond = 1.0 + onde * vague(s) * smoothstep(0.0, 0.8, s);
-	float evase = 1.0 + 0.35 * smoothstep(longueur - 0.45, longueur, s);
+	float evase = 1.0 + 0.12 * smoothstep(longueur - 0.25, longueur, s);
 	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * rk() * ond * evase;
 }
 
@@ -81,9 +83,10 @@ void fragment() {
 	if (x > GROS || x < 0.62) {
 		discard;
 	}
-	float pv = 0.5 + 0.5 * vague(tc);
-	float n = mbruit(vec2(tc * 1.3 - TIME * 4.0, graine));
-	float f = (1.0 - smoothstep(0.62, GROS, x)) * (0.55 + 0.3 * pv + 0.25 * n);
+	float ph = fract((tc - TIME * flux_vit) / flux_pas + graine);
+	float pv = pow(1.0 - smoothstep(0.0, 0.22, min(ph, 1.0 - ph) * 2.0), 2.0);   // impulsions qui filent (comme le faisceau)
+	float n = mbruit(vec2(tc * 1.3 - TIME * 14.0, graine));
+	float f = (1.0 - smoothstep(0.62, GROS * (0.75 + 0.25 * pv), x)) * (0.4 + 0.75 * pv + 0.15 * n);
 	f = floor(f * 3.0 + 0.35) / 3.0;
 	float bouts = smoothstep(0.0, 0.06, u_c) * (1.0 - smoothstep(0.97, 1.0, u_c)) * smoothstep(0.0, 0.05, tete - u_c);
 	ALBEDO = bord * f * force_halo * eclat * k * bouts;
