@@ -132,6 +132,7 @@ TESTS=(
 	"test_menace_bot|--nouvelle"   # banc « bot » de la menace des ennemis courants (2026-11-05) : spam / garde / parade / esquive contre 1 puis 2 draugrs, seuils
 	"test_demembrement|--nouvelle"   # démembrement (draugr, bandit) : choix du membre selon le coup, morceaux, moignons, jets, pool, option
 	"test_sang_v2|--nouvelle"   # sang v2 : sang sur la lame (accumulation, séchage, effacement), giclée qui tache un voisin, entailles qui coulent et gouttent
+	"test_sang_v3|--nouvelle"   # sang v3 : API inchangée, pools plafonnés, variantes par créature, traversée, relief, neige, arme plantée (docs/SANG_V3.md)
 	"test_menu_titre|--nouvelle"   # menu principal : Continuer grisé sans sauvegarde valide, parcours au clavier, mise en page
 	"test_sortie|--nouvelle"   # sortie Hollowrim : migration, copie de secours, options (dossiers temporaires)
 	"test_sauvegarde|ecrire;verifier"   # deux processus à la suite

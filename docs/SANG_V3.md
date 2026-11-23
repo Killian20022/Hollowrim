@@ -62,3 +62,33 @@ Interrupteur : `--sans-sang-v3` (comportement v2 exact). Option existante : **Sa
 
 - Test : `outils/test_sang_v3.gd` (API, pools, variantes, traversée, relief, neige, arme plantée, traînée, gore à 0).
 - Planches / film / banc : `outils/captures_sang_v3.gd -- --sortie=<dossier> --lieu=interieur|neige [--film|--banc] [--sans-sang-v3]`.
+
+## Mesures (2026-11-23, machine partagée avec 2-3 autres Godot)
+
+Banc `captures_sang_v3.gd --banc --lieu=interieur` (6 ennemis, un coup toutes les 0,18 s pendant 12 s, une traversée sur 5,
+fenêtre 640x360 hors écran, sans vsync), deux passes chacun :
+
+| | calme avant | combat | 1 % bas (combat) | calme après |
+|---|---|---|---|---|
+| v2 (`--sans-sang-v3`) | 100,5 / 100,9 FPS | 79,0 / 81,0 FPS | 15,9 / 8,7 FPS | 90,5 / 96,3 FPS |
+| v3 | 98,8 / 93,6 FPS | 86,8 / 87,4 FPS | 18,0 / 15,9 FPS | 102,0 / 112,0 FPS |
+
+Les émetteurs en pool (au lieu d'un GPUParticles3D neuf par giclée) font gagner ~7 FPS en combat ; le coût CPU par giclée
+est plus haut (gouttes balistiques + leurs taches : ~2-3,5 ms répartis sur ~1 s, v2 ~1,5 ms), sans effet visible sur les FPS.
+
+## Pièges
+
+- Le sol ps1 (neige qui tient, relief) est dessiné ~2 cm AU-DESSUS de sa collision : une trace posée à 1 cm est enterrée.
+  Traces au sol relevées de 3,5 cm (murs 1,2 cm), y compris les sommets des grilles projetées.
+- Uniformes d'instance (`seche`, `efface`) : à poser APRÈS l'entrée dans l'arbre, sinon le rendu lit une valeur non
+  initialisée (trace invisible).
+- Les tests de taches orangées au mur (v2 : StandardMaterial teinté × 1,7 sous la torche) disparaissent en v3 : `Sang.trace`
+  passe par le shader des traces et la palette (rouge sombre, draugr noirâtre).
+
+## Limites
+
+- Lanceur de test de `captures_sang_v3.gd` : l'épée plantée n'est pas orientée exactement (repères du glb) ; le vrai
+  plantage est celui d'ImpactsLances (branche impacts). Le sang (traversée, lame ensanglantée) est indépendant.
+- `Sang.traversee` n'est pas répliquée en coop : à diffuser par l'événement d'impact de la branche impacts.
+- Neige : la flaque d'un cadavre reste en partie cachée sous le corps (elle s'étale lentement, ~12 s).
+- Sang de draugr volontairement sombre : peu visible sur un plancher sombre (lisible sur la neige et la pierre claire).
