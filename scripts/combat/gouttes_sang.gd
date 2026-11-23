@@ -14,7 +14,7 @@ extends MultiMeshInstance3D
 ## pool plein reprend sa place, sa trajectoire est résolue d'un coup jusqu'au contact (ou elle est perdue dans le vide).
 
 const MAX := 48
-const MAX_V3 := 96
+const MAX_V3 := 128
 const GRAVITE := 9.8
 const TAILLE := Vector3(0.012, 0.026, 0.012)
 const TRACE_UNE := 3
@@ -145,6 +145,8 @@ func _lacher(pos: Vector3, couleur: Color, vitesse: Vector3, tache: bool, balist
 	_vit[i] = vitesse
 	_vie[i] = 2.0
 	_col[i] = Color(minf(couleur.r * 1.3, 1.0), couleur.g * 1.1, couleur.b * 1.1)
+	if liq >= 4:
+		_col[i] = couleur * 1.3      # liquide (pas du sang) : sa couleur telle quelle (lacher_liquide l'a déjà divisée)
 	_tache[i] = 1 if (tache or _n % TRACE_UNE == 0) else 0
 	_bal[i] = 1 if balistique else 0
 	_taille[i] = taille
@@ -217,7 +219,9 @@ func _process(dt: float) -> void:
 		var bas := Basis.IDENTITY
 		if v.length_squared() > 0.25:
 			var d := -v.normalized() if v.y < 0.0 else v.normalized()
-			bas = Basis(Quaternion(Vector3.UP, d)) * Basis.from_scale(Vector3(1.0, clampf(v.length() * 0.35, 1.0, 2.2), 1.0))
+			# liquide versé : la goutte s'étire le long de sa vitesse (traînée de 1 à 3 px à 480x270 : se lit comme un filet)
+			var etire := clampf(v.length() * 0.35, 1.0, 2.2) if _liq[k] < 4 else clampf(v.length() * 0.9, 1.0, 3.5)
+			bas = Basis(Quaternion(Vector3.UP, d)) * Basis.from_scale(Vector3(1.0 if _liq[k] < 4 else 0.8, etire, 1.0 if _liq[k] < 4 else 0.8))
 		if _taille[k] != 1.0:
 			bas = bas * Basis.from_scale(Vector3.ONE * _taille[k])
 		mm.set_instance_transform(k, Transform3D(bas, _pos[k]))
