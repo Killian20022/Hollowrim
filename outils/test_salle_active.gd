@@ -31,7 +31,7 @@ func _tester() -> void:
 	_verif(sa != null, "SalleActive installée")
 	_verif(sa.classement_fini(), "géométrie classée")
 	var dj: CrypteDonjon = t.donjon
-	_verif(sa.salles.size() == dj.modules.size(), "une salle par module (%d / %d)" % [sa.salles.size(), dj.modules.size()])
+	_verif(sa.salles.size() == dj.modules.size() + t.PIECES_TERTRE.size(), "une salle par module + les pièces du tertre (%d / %d + %d)" % [sa.salles.size(), dj.modules.size(), t.PIECES_TERTRE.size()])
 	var sym := true
 	for id: String in sa.salles:
 		for v: String in sa.salles[id]["voisins"]:
@@ -45,8 +45,29 @@ func _tester() -> void:
 	_verif(sa._noeuds.size() > 500, "plus de 500 maillages gérés par salle")
 
 	var c: Node3D = t.crypte
-	# --- localisation du joueur
 	var j: CharacterBody3D = m.joueur
+	# --- bug « crypte noire » (2026-11-23) : à l'arrivée par la porte (tertre._basculer), le couloir des niches et la salle de préparation,
+	# vus par la porte du vestibule, doivent être visibles dès la 1re image (avant : salle courante = s2, le plus proche à 8 m, niches cachées)
+	_verif(sa.salles.has("vestibule") and (sa.salles["vestibule"]["voisins"] as Array).has("niches") and (sa.salles["vestibule"]["voisins"] as Array).has("s2"), "vestibule : salle reliée à niches et s2 (%s)" % str(sa.salles.get("vestibule", {}).get("voisins", [])))
+	t._basculer(true)
+	_verif(sa.courante == "vestibule", "arrivée au vestibule : salle courante = vestibule (%s)" % sa.courante)
+	var caches_vus := []
+	for e: Dictionary in sa._noeuds.values():
+		var ss: Array = e["s"]
+		if (ss.has("niches") or ss.has("prep") or ss.has("s2")) and not (e["n"] as GeometryInstance3D).visible:
+			caches_vus.append(String((e["n"] as Node).name))
+	_verif(caches_vus.is_empty(), "arrivée : aucun maillage des niches / de la préparation / de s2 caché (%d caché(s))" % caches_vus.size())
+	for k in 20:
+		await process_frame
+	_verif(sa.courante == "vestibule", "arrivée, immobile 20 images : salle courante toujours vestibule (%s)" % sa.courante)
+	# couloir de la herse : depuis la salle de préparation, la salle rituelle au bout du couloir est active (avant : jamais)
+	j.global_position = c.to_global(Vector3(0, 0.1, -28.0))
+	sa.rafraichir(true)
+	_verif(sa.courante == "prep" and sa.actives.has("couloir_herse") and sa.actives.has("rituelle"), "préparation : couloir de la herse et salle rituelle actifs (%s)" % str(sa.actives.keys()))
+	j.global_position = c.to_global(Vector3(0, 0.1, -37.0))
+	sa.rafraichir(true)
+	_verif(sa.courante == "couloir_herse" and sa.actives.has("prep") and sa.actives.has("rituelle"), "couloir de la herse : salle courante, prep et rituelle actives (%s)" % str(sa.actives.keys()))
+	# --- localisation du joueur
 	j.global_position = c.to_global(Vector3(0, 0.1, -12))
 	_verif(sa.salle_de(c.to_local(j.global_position)) == "niches", "joueur dans « niches »")
 	j.global_position = c.to_global(Vector3(0, 0.1, -71))

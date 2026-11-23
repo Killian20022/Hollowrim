@@ -45,6 +45,12 @@ var _inter := {}                    # id -> interactif du donjon
 var _uniques := {}                  # L9 : id de l'interaction -> ObjetUnique (pris = ButinTables « unique:<objet> »)
 var _couvercles := {}               # L1 : id du coffre -> CoffreCouvercle (coffres qui s'ouvrent ; ouvert = quetes.vus["crypte:<id>"])
 var _file_gardiens: Array = []
+## Pièces bâties par ce script (mêmes rectangles que d.salle dans _entree, _alcove, _couloir_herse : x0..x1, z) : [id, Rect2 (x, z), hauteur, long]
+const PIECES_TERTRE := [
+	["vestibule", Rect2(-3.0, -6.0, 6.0, 10.0), 3.6, false],
+	["alcove", Rect2(-11.0, -27.0, 4.0, 4.0), 3.0, false],
+	["couloir_herse", Rect2(-1.6, -42.0, 3.2, 10.0), 3.2, true],
+]
 const BUDGET_POSE_US := 1500        # pose étalée du donjon : ≤ 1,5 ms par image
 const BUDGET_POSE_NOIR_US := 8000   # pendant le fondu au noir de l'entrée (écran noir) : on pose plus vite, sans figer l'image
 var _entree_en_attente := false     # entrée demandée avant la fin du bâti : l'écran reste noir, les images continuent
@@ -368,6 +374,11 @@ func _finir_donjon() -> void:
 ## Salle active : graphe des salles du donjon (modules et leurs portes), géométrie du donjon à masquer hors de la salle courante et voisines.
 func _installer_salles() -> void:
 	salles = SalleActive.depuis_donjon(donjon, crypte, joueur, get_tree())
+	# bug « crypte noire » (2026-11-23) : les pièces bâties ici sont des salles à part entière, reliées aux modules qui s'y ouvrent
+	# (à l'arrivée au vestibule, le couloir des niches était caché jusqu'au premier pas : SalleActive.ajouter_piece)
+	if not ("--sans-pieces-tertre" in OS.get_cmdline_user_args()):
+		for p: Array in PIECES_TERTRE:
+			salles.ajouter_piece(p[0], p[1], -0.8, float(p[2]) + 0.6, p[3])
 	var mobiles: Array = []
 	for id in donjon.portes:
 		mobiles.append(donjon.portes[id])
@@ -1091,6 +1102,8 @@ func _basculer(vers_dedans: bool) -> void:
 		for k in 3:
 			_gerer_zones()
 		_pas_zone = 0.25
+		if salles != null:
+			salles.rafraichir(true)      # salle active du vestibule posée sous l'écran noir (la 1re image montre déjà le bon décor)
 	var t := create_tween()
 	t.tween_method(func(v: float) -> void: monde.post.set_shader_parameter("fondu", v), 1.0, 0.0, 0.6)
 
