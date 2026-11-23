@@ -1,5 +1,8 @@
 class_name Cassable
-extends StaticBody3D
+extends RigidBody3D
+## CASSABLES PARTOUT (2026-11-23) : corps rigide GELÉ (FREEZE_MODE_STATIC : exactement un corps statique, coût nul) qui se RÉVEILLE
+## quand la télékinésie le saisit (saisi_telekinesie) ou qu'un choc trop faible pour le briser le bouscule (recevoir_choc) ; regelé à
+## l'arrêt. Brisé après avoir bougé : morceaux physiques de CasseObjets (sinon les éclats animés d'origine, à sa place).
 ## OBJET CASSABLE du décor (lot L5) : urne ou tonneau de la crypte et de la grotte. Un coup d'arme (mains.gd : groupe « cassables »,
 ## frapper()) ou un sort (briser_sort(), appelé par ProjectileSort et les jets de GestionMagie) le brise.
 ## Fabriqué par CrypteDecor.finir() à partir des triangles que l'objet a versés dans un tampon à part (lot « cass:<id> ») : même
@@ -47,6 +50,7 @@ func monter(id: String, genre_: String, ech: float, tampons: Array, materiaux: D
 		arr[Mesh.ARRAY_COLOR] = t["c"]
 		var m := ArrayMesh.new()
 		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+		m.surface_set_material(0, materiaux[t["nom"]])      # (découpe en morceaux physiques après un déplacement : CasseObjets)
 		var mi := MeshInstance3D.new()
 		mi.mesh = m
 		mi.material_override = materiaux[t["nom"]]
@@ -55,6 +59,14 @@ func monter(id: String, genre_: String, ech: float, tampons: Array, materiaux: D
 		_mis.append(mi)
 	collision_layer = CALQUE | (1 if boite != Vector3.ZERO else 0)
 	collision_mask = 0
+	freeze_mode = RigidBody3D.FREEZE_MODE_STATIC
+	freeze = true
+	can_sleep = true
+	mass = (40.0 if genre == "tonneau" else (18.0 if genre == "caisse" else (4.0 if genre == "tabouret" else 6.0))) * clampf(ech * ech * ech, 0.4, 2.5)
+	angular_damp = 2.5
+	linear_damp = 0.3
+	if CasseObjets.actif:
+		add_to_group("telekinesable")
 	var cs := CollisionShape3D.new()
 	if boite != Vector3.ZERO:
 		var bs := BoxShape3D.new()
@@ -73,6 +85,7 @@ func monter(id: String, genre_: String, ech: float, tampons: Array, materiaux: D
 
 ## Entrée dans l'arbre (fil principal, même pour une crypte bâtie en fil de fond) : inscription au balayage commun.
 func _ready() -> void:
+	set_physics_process(_eveille)
 	if opti_veille and not casse:
 		set_process(_vol >= 0.0)      # plus de _process par pièce intacte : un seul balayage pour toutes (voir _sonder)
 		if not _veilleurs.has(self):
@@ -122,12 +135,89 @@ func recevoir_choc(vitesse: Vector3, masse: float, point: Vector3) -> bool:
 	if e < CasseObjets.seuil(matiere()):
 		if e > 15.0:
 			CasseObjets.son_choc(self, matiere(), point, e)
+		if e > 2.0 and CasseObjets.actif:      # bousculé : réveillé et poussé (quantité de mouvement partagée)
+			reveiller()
+			apply_impulse.call_deferred(vitesse * masse * 0.5, point - global_position)
 		return false
 	casser(true, point)
 	return true
 
 func matiere() -> String:
-	return {"tonneau": "tonneau", "caisse": "bois"}.get(genre, "poterie")
+	return {"tonneau": "tonneau", "caisse": "bois", "tabouret": "bois_leger"}.get(genre, "poterie")
+
+# ------------------------------------------------------------------------------------------------ télékinésie (cassables partout)
+
+var deplace := false        ## a bougé depuis sa pose (la casse utilise alors les morceaux physiques)
+var tenu := false
+var _eveille := false
+var _repos := 0.0
+var _v_prec := Vector3.ZERO
+var _entier: ArrayMesh
+
+func masse_telekinesie() -> float:
+	return mass
+
+## Saisi par la télékinésie : devient un corps dynamique (masque du décor), ne se rendort pas tant qu'il est tenu.
+func saisi_telekinesie(saisi: bool) -> void:
+	if casse:
+		return
+	tenu = saisi
+	if saisi:
+		reveiller()
+
+func reveiller() -> void:
+	if casse or _eveille:
+		return
+	_eveille = true
+	deplace = true
+	_repos = 0.0
+	collision_mask = 1 | CALQUE
+	freeze = false
+	sleeping = false
+	contact_monitor = true
+	max_contacts_reported = 4
+	if not body_entered.is_connected(_contact):
+		body_entered.connect(_contact)
+	set_physics_process(true)
+
+func _physics_process(dt: float) -> void:
+	if not _eveille:
+		set_physics_process(false)
+		return
+	_v_prec = linear_velocity
+	if tenu:
+		return
+	if linear_velocity.length() < 0.08 and angular_velocity.length() < 0.25:
+		_repos += dt
+	else:
+		_repos = 0.0
+	if _repos > 0.4 or global_position.y < -500.0:      # immobile : regelé là où il est (corps statique)
+		_eveille = false
+		contact_monitor = false
+		collision_mask = 0
+		freeze = true
+		set_physics_process(false)
+
+## Chute, choc contre le décor : brisé si l'énergie perdue dépasse le seuil de la matière.
+func _contact(_autre: Node) -> void:
+	if casse or tenu or not _eveille:
+		return
+	var dv := _v_prec - linear_velocity
+	if dv.length() > 2.0 and CasseObjets.energie(dv, mass) >= CasseObjets.seuil(matiere()):
+		casser.call_deferred(true, global_position)
+
+## Tous les morceaux du modèle en un maillage (une surface par matériau), repère du nœud : découpe des morceaux physiques.
+func _maillage_entier() -> ArrayMesh:
+	if _entier != null:
+		return _entier
+	_entier = ArrayMesh.new()
+	for mi in _mis:
+		var m := mi.mesh
+		if m == null or m.get_surface_count() == 0:
+			continue
+		_entier.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, m.surface_get_arrays(0))
+		_entier.surface_set_material(_entier.get_surface_count() - 1, mi.material_override)
+	return _entier
 
 ## Sort (projectile ou jet) : `point` = impact.
 func briser_sort(point: Vector3) -> void:
@@ -190,9 +280,17 @@ func casser(avec_effets: bool, origine: Vector3) -> void:
 	collision_layer = 0
 	if _forme != null:
 		_forme.set_deferred("disabled", true)
-	var centre := global_position + Vector3(0, haut * 0.5, 0)
+	var centre := global_position + global_transform.basis.y * haut * 0.5
+	var v_corps := linear_velocity if not freeze else Vector3.ZERO
+	_eveille = false
+	set_physics_process(false)
+	if not freeze:
+		set_deferred("freeze", true)
 	_briser_dessus(avec_effets)
-	_eclater(avec_effets, centre, origine)
+	if deplace and avec_effets and is_inside_tree():      # déplacé (saisi, bousculé) : vrais morceaux physiques là où il est
+		CasseObjets.eclater(get_parent() as Node3D, _maillage_entier(), global_transform, matiere(), mass, origine, v_corps, ident.hash())
+	else:
+		_eclater(avec_effets, centre, origine)
 	for mi in _mis:
 		mi.visible = false
 	if not avec_effets:
@@ -200,10 +298,10 @@ func casser(avec_effets: bool, origine: Vector3) -> void:
 	var dir := centre - origine
 	dir.y = 0.0
 	dir = (dir.normalized() if dir.length() > 0.01 else Vector3.UP) * 0.6 + Vector3.UP
-	var matiere := "bois" if genre in ["tonneau", "caisse"] else "pierre"
+	var matiere := "bois" if genre in ["tonneau", "caisse", "tabouret"] else "pierre"
 	GerbePixels.emettre(self, centre, dir.normalized(), matiere, 1.5)
 	GerbePixels.emettre(self, global_position + Vector3(0, 0.1, 0), Vector3.UP, "poussiere", 0.9)
-	Sons.jouer_a(self, ["impactWood_heavy_000"] if genre in ["tonneau", "caisse"] else ["impactPlate_medium_000", "impactPlate_medium_001"], centre, 2.0)
+	Sons.jouer_a(self, ["impactWood_heavy_000"] if genre in ["tonneau", "caisse", "tabouret"] else ["impactPlate_medium_000", "impactPlate_medium_001"], centre, 2.0)
 	# coop : le contenu va au premier arrivé (l'hôte arbitre) ; hors ligne : pillé et versé tout de suite, comme avant
 	ReseauLieux.reclamer(ident, func() -> void:
 		ButinTables.piller(ident)
@@ -338,6 +436,8 @@ func _butin(_centre: Vector3) -> void:
 	if joueur == null or hud == null:
 		return
 	var zone := ident.get_slice(":", 0)
+	if ButinTables.table_pour(genre, zone) == "":
+		return      # (tabouret : rien dedans)
 	var liste := ButinTables.tirer_pour(ident, ButinTables.table_pour(genre, zone), zone)
 	var contenu := ButinTables.contenu(liste)
 	if contenu.is_empty():

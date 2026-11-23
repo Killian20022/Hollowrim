@@ -412,7 +412,15 @@ func _compo(m: Dictionary, nom: String, items: Array, wx: float, wz: float, lace
 				"urne":
 					d.urne(_l(pw.x, pw.z, y), e)
 				_:
-					_q(String(it[0]), pw.x, pw.z, lac, y + float(it[4]), bool(it[5]), {}, e)
+					var id := String(it[0])
+					var gc: String = CASSABLES_COMPO.get(id, "")
+					var pc := _l(pw.x, pw.z, y + float(it[4]))
+					# cassables partout : caisses et tabourets des compositions du donjon cassables et saisissables (Cassable : son solide)
+					if gc != "" and CasseObjets.actif and d.cassable_debut(gc, pc, e, PropsQuaternius.boite(id).size * e if gc == "caisse" else Vector3.ZERO):
+						_q(id, pw.x, pw.z, lac, y + float(it[4]), false, {}, e)
+						d.cassable_fin()
+					else:
+						_q(id, pw.x, pw.z, lac, y + float(it[4]), bool(it[5]), {}, e)
 		compos_posees += 1
 		print("PropsMax : composition posée %s / %s (%.1f, %.1f)" % [m["id"], nom, ax, az])
 		return true
@@ -988,6 +996,8 @@ func _x_garde(_m: Dictionary) -> void:
 ## Compositions types (repère de la composition : x = droite, z = devant ; l'avant des props regarde +Z, donc la pièce quand l'ancre
 ## est contre un mur). Items : [id, droite, devant, lacet°, hauteur, solide, échelle, genre].
 const T_PLATEAU := 0.76      # dessus de pq_grande_table
+## Cassables partout : items de composition rendus cassables (genre Cassable).
+const CASSABLES_COMPO := {"pq_caisse": "caisse", "pq_caisse_fer": "caisse", "pq_tabouret": "tabouret", "pq_cageot_vide": "caisse", "pq_cageot_carottes": "caisse"}
 const C_GARDE_MANGER := [["pq_support_tonneau", 0.0, 0.36, 0.0, 0.0, true], ["pq_tonneau", 1.15, 0.42, 0.0, 0.0, false, 0.9, "tonneau"],
 	["pq_caisse", -1.05, 0.4, 8.0, 0.0, true], ["pq_caisse", -1.05, 0.4, -14.0, 0.71, false], ["pq_cageot_vide", -1.05, 0.4, 6.0, 1.42, false],
 	["pq_sac", 0.6, 1.05, 35.0, 0.0, false], ["pq_sac", 1.15, 1.1, -20.0, 0.0, false], ["pq_seau_bois", -0.35, 0.95, 0.0, 0.0, false]]

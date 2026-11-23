@@ -533,11 +533,67 @@ static func effets(n: Node3D, centre: Vector3, pied: Vector3, origine: Vector3, 
 	if bool(prof.get("poussiere", false)):
 		GerbePixels.emettre(n, pied + Vector3(0, 0.08, 0), Vector3.UP, "poussiere", clampf(taille * 1.2, 0.5, 1.1))
 	if liquide:
-		GerbePixels.emettre(n, centre, Vector3.UP, "liquide", 1.6)
-		GerbePixels.emettre(n, pied + Vector3(0, 0.15, 0), dir.normalized(), "liquide", 1.2)
-		Flaque.poser(n, pied, clampf(taille * 1.4, 0.5, 1.3))
+		verser_liquide(n, centre, dir.normalized(), clampf(taille * 1.4, 0.5, 1.3))
 	var sons: Array = prof.get("sons", ["impactWood_heavy_000"])
 	Sons.jouer_a(n, sons, centre, clampf(-8.0 + taille * 4.0, -10.0, 0.0), 0.1)
+
+## VERSEMENT DU LIQUIDE d'un contenant brisé (tonneau, jarre) — fonction isolée, à remplacer par le chantier « liquides réalistes ».
+## Minimal : le liquide gicle en gouttes (GerbePixels « liquide ») ; la flaque se pose là où il atterrit, sur la PREMIÈRE surface du
+## décor (calque 1) sous le point de casse, à moins de PORTEE_LIQUIDE m (sinon aucune flaque : objet brisé en vol au-dessus du vide) ;
+## orientée selon la normale ; son rayon est réduit jusqu'à ce qu'elle ne déborde pas dans le vide (bord d'étagère, de table). Surface
+## surélevée (étagère, table : sol plus bas de > 0,3 m) : les gouttes qui coulent finissent en petite flaque au sol, un peu plus tard.
+const PORTEE_LIQUIDE := 3.0
+
+static func verser_liquide(n: Node3D, centre: Vector3, dir: Vector3, rayon: float) -> void:
+	GerbePixels.emettre(n, centre, Vector3.UP, "liquide", 1.6)
+	GerbePixels.emettre(n, centre, dir, "liquide", 1.2)
+	var espace := n.get_world_3d().direct_space_state
+	var r := _rayon_bas(espace, centre + Vector3(0, 0.05, 0), PORTEE_LIQUIDE)
+	if r.is_empty():
+		return
+	var p: Vector3 = r["position"]
+	var nrm: Vector3 = r["normal"]
+	if nrm.y < 0.6:
+		return      # surface trop pentue : rien ne tient
+	var rr := _rayon_sans_vide(espace, p, nrm, rayon)
+	var arbre := n.get_tree()
+	var chute := sqrt(2.0 * maxf(centre.y - p.y, 0.0) / 9.8)      # le temps que le liquide atteigne la surface
+	if rr >= 0.12:
+		arbre.create_timer(chute).timeout.connect(func() -> void:
+			if is_instance_valid(n) and n.is_inside_tree():
+				Flaque.poser(n, p, rr, nrm))
+	var dessous := _rayon_bas(espace, p - Vector3(0, 0.04, 0), PORTEE_LIQUIDE)      # ce qui déborde coule plus bas
+	if not dessous.is_empty() and p.y - float((dessous["position"] as Vector3).y) > 0.3 and (dessous["normal"] as Vector3).y > 0.6:
+		var q: Vector3 = dessous["position"]
+		var rq := _rayon_sans_vide(espace, q, dessous["normal"], clampf(rayon * 0.45, 0.15, 0.5))
+		var t2 := chute + sqrt(2.0 * (p.y - q.y) / 9.8) + 0.5
+		arbre.create_timer(t2).timeout.connect(func() -> void:
+			if is_instance_valid(n) and n.is_inside_tree():
+				GerbePixels.emettre(n, q + Vector3(0, 0.3, 0), Vector3.DOWN, "goutte", 1.0)
+				if rq >= 0.1:
+					Flaque.poser(n, q, rq, dessous["normal"]))
+
+static func _rayon_bas(espace: PhysicsDirectSpaceState3D, de: Vector3, portee: float) -> Dictionary:
+	var q := PhysicsRayQueryParameters3D.create(de, de - Vector3(0, portee, 0), 1)
+	return espace.intersect_ray(q)
+
+## Plus grand rayon (≤ `rayon`) dont 8 points du bord retrouvent la même surface (± 4 cm) : la flaque ne déborde pas dans le vide.
+static func _rayon_sans_vide(espace: PhysicsDirectSpaceState3D, p: Vector3, nrm: Vector3, rayon: float) -> float:
+	var rr := rayon
+	while rr >= 0.1:
+		var ok := true
+		for k in 8:
+			var a := TAU * k / 8.0
+			var b := p + Vector3(cos(a), 0, sin(a)) * rr * 0.9
+			b.y = p.y - (nrm.x * (b.x - p.x) + nrm.z * (b.z - p.z)) / maxf(nrm.y, 0.3)      # sur le plan de la surface
+			var h := _rayon_bas(espace, b + Vector3(0, 0.12, 0), 0.2)
+			if h.is_empty() or absf(float((h["position"] as Vector3).y) - b.y) > 0.04:
+				ok = false
+				break
+		if ok:
+			return rr
+		rr *= 0.7
+	return 0.0
 
 ## Contenu d'un contenant brisé (caisse, tonneau, sac, jarre) : petite bourse tirée à graine fixe (même tirage que les cassables de la
 ## crypte : ButinTables.tirer_pour), « premier arrivé » en coop (ReseauLieux.reclamer). Rien si l'objet a déjà été pillé.
@@ -583,7 +639,7 @@ class Flaque extends MeshInstance3D:
 	static var _mat: Material
 	static var _disque: ArrayMesh
 
-	static func poser(n: Node3D, pied: Vector3, rayon: float) -> void:
+	static func poser(n: Node3D, pied: Vector3, rayon: float, normale := Vector3.UP) -> void:
 		if _mat == null:
 			var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
 			var rng := RandomNumberGenerator.new()
@@ -623,10 +679,12 @@ class Flaque extends MeshInstance3D:
 		f.material_override = _mat
 		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		f._r = rayon
+		f.add_to_group("flaques")
 		var hote: Node = n.get_tree().current_scene if n.get_tree().current_scene != null else n.get_parent()
 		hote.add_child(f)
-		f.global_position = pied + Vector3(0, 0.02, 0)
-		f.rotation.y = randf() * TAU
+		var y := normale.normalized()
+		var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
+		f.global_transform = Transform3D(Basis(x, y, x.cross(y)) * Basis(Vector3.UP, randf() * TAU), pied + y * 0.015)
 		f.scale = Vector3.ONE * 0.05
 
 	func _process(dt: float) -> void:

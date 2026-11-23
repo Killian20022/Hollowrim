@@ -2190,6 +2190,9 @@ const ENCLOS_PQ := [["pq_tonneau", Vector3(2.85, 0, 1.75), 0.0, true], ["pq_seau
 
 ## Tonneau cerclé (module tonneau_c de mobilier_village.py, lot L7) ; même collision qu'avant (cylindre r 0,3 x 0,8).
 func _tonneau(parent: Node3D, pos: Vector3) -> void:
+	var sub := MobilierVillage.substitut("tonneau_c")      # cassables partout : tonneau physique (son corps tient lieu de collision)
+	if sub.size() == 1 and ObjetsVivants.meuble_differe(self, parent, String(sub[0][0]), Transform3D(Basis(Vector3.UP, pos.x * 2.1), pos) * (sub[0][1] as Transform3D)):
+		return
 	MobilierVillage.poser_dans(self, parent, "tonneau_c", Transform3D(Basis(Vector3.UP, pos.x * 2.1), pos))
 	var forme := CylinderShape3D.new()
 	forme.radius = 0.3
