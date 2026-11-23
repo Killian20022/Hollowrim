@@ -201,12 +201,12 @@ static func _decouper_donnees(src: Array, matiere: String) -> Array:
 	for id in t_s.size():
 		var r := _racine(parent, id)
 		if not groupes.has(r):
-			groupes[r] = PackedInt32Array()
-		(groupes[r] as PackedInt32Array).append(id)
+			groupes[r] = []
+		(groupes[r] as Array).append(id)
 	# 3. grosses composantes tranchées selon la découpe de la matière (le fer n'est jamais tranché : cerclage entier)
-	var lots := []          # PackedInt32Array de triangles
+	var lots := []          # [triangles] (Array d'entiers)
 	for r in groupes:
-		var liste: PackedInt32Array = groupes[r]
+		var liste: Array = groupes[r]
 		var gb := _boite_c(liste, t_c)
 		var gros := gb.size.length() > diag * (0.5 if decoupe == "planches" else 0.35)
 		var fer := est_fer(surfs[t_s[liste[0]]][1])
@@ -223,7 +223,7 @@ static func _decouper_donnees(src: Array, matiere: String) -> Array:
 				secteurs = 4
 				etages = 2
 			_:
-				secteurs = 2 if gb.size.length() < diag * 0.8 else 3
+				secteurs = 3 if gb.size.length() < diag * 0.8 else 4
 				etages = 2
 		var parts := {}
 		for id: int in liste:
@@ -232,18 +232,18 @@ static func _decouper_donnees(src: Array, matiere: String) -> Array:
 			var et := clampi(int((c.y + bb.size.y * 0.5) / maxf(bb.size.y, 0.001) * etages), 0, etages - 1)
 			var cle := sct * 8 + et
 			if not parts.has(cle):
-				parts[cle] = PackedInt32Array()
-			(parts[cle] as PackedInt32Array).append(id)
+				parts[cle] = []
+			(parts[cle] as Array).append(id)
 		for cle in parts:
 			lots.append(parts[cle])
 	# 4. fusion des plus petits (clous, chevilles, éclats d'un seul triangle) jusqu'à maxi_n morceaux ; boîtes fusionnées sans recalcul
 	var boites := []
-	for l: PackedInt32Array in lots:
+	for l: Array in lots:
 		boites.append(_boite_c(l, t_c))
 	while lots.size() > 1 and (lots.size() > maxi_n or _a_minuscule(lots)):
 		var ip := 0
 		for i in lots.size():
-			if (lots[i] as PackedInt32Array).size() < (lots[ip] as PackedInt32Array).size():
+			if (lots[i] as Array).size() < (lots[ip] as Array).size():
 				ip = i
 		var proche := -1
 		var dmin := INF
@@ -255,24 +255,22 @@ static func _decouper_donnees(src: Array, matiere: String) -> Array:
 			if d < dmin:
 				dmin = d
 				proche = i
-		var fusion: PackedInt32Array = lots[proche]
-		fusion.append_array(lots[ip])
-		lots[proche] = fusion
+		(lots[proche] as Array).append_array(lots[ip])
 		boites[proche] = (boites[proche] as AABB).merge(boites[ip])
 		lots.remove_at(ip)
 		boites.remove_at(ip)
 	# 5. sommets de chaque morceau (une entrée par surface source), recentrés sur le centre du morceau
 	var total := float(t_s.size())
 	var res := []
-	for l: PackedInt32Array in lots:
+	for l: Array in lots:
 		var par_s := {}
 		var mb := AABB()
 		var pr := true
 		for id: int in l:
 			var s := t_s[id]
 			if not par_s.has(s):
-				par_s[s] = PackedInt32Array()
-			(par_s[s] as PackedInt32Array).append(t_i[id])
+				par_s[s] = []
+			(par_s[s] as Array).append(t_i[id])
 			var v: PackedVector3Array = (surfs[s][0] as Array)[Mesh.ARRAY_VERTEX]
 			var ii: PackedInt32Array = tris[s]
 			for j in 3:
@@ -320,7 +318,7 @@ static func _decouper_donnees(src: Array, matiere: String) -> Array:
 		res.append({"s": ent, "c": cm, "t": mb.size, "part": float(l.size()) / maxf(total, 1.0)})
 	return res
 
-static func _boite_c(liste: PackedInt32Array, t_c: PackedVector3Array) -> AABB:
+static func _boite_c(liste: Array, t_c: PackedVector3Array) -> AABB:
 	var b := AABB(t_c[liste[0]], Vector3.ZERO)
 	for id: int in liste:
 		b = b.expand(t_c[id])
@@ -337,7 +335,7 @@ static func est_fer(m: Material) -> bool:
 	return m != null and _fers.has(m.get_instance_id())
 
 static func _a_minuscule(m: Array) -> bool:
-	for l: PackedInt32Array in m:
+	for l: Array in m:
 		if l.size() < 4:
 			return true
 	return false
@@ -356,6 +354,8 @@ static func _unir(p: PackedInt32Array, a: int, b: int) -> void:
 
 # ------------------------------------------------------------------------------------------------ éclats physiques
 
+static var derniere_mesure := {}
+static var derniere_decoupe_ms := 0.0     ## coût de la dernière casse (ms : éclats, effets, butin), pour les tests et mesures
 static var _eclats: Array = []      ## [{"b": RigidBody3D, "t": temps de création, "immobile": s}]
 static var _gestion: CasseObjets
 
@@ -365,7 +365,9 @@ static func eclater(parent: Node3D, mesh: Mesh, xf: Transform3D, matiere: String
 	var res := []
 	if parent == null or not parent.is_inside_tree():
 		return res
+	var tm := Time.get_ticks_usec()
 	var mors := morceaux(mesh, matiere)
+	derniere_decoupe_ms = (Time.get_ticks_usec() - tm) / 1000.0
 	if mors.is_empty():
 		return res
 	_assurer_gestion(parent.get_tree())
@@ -549,39 +551,47 @@ static func _bourse(n: Node3D, ident: String, table_genre: String, position: Vec
 	(n.get_parent() if n.get_parent() != null else n).add_child(b)
 	b.global_position = position + Vector3(0, 0.2, 0)
 
-## Flaque laissée par un tonneau ou une jarre brisés : disque sombre et luisant posé au sol, qui s'étale puis sèche (s'efface) en ~14 s.
+## Flaque laissée par un tonneau ou une jarre brisés : disque sombre et luisant (shader ps1 du jeu, texture de bière/saumure bruitée,
+## jamais de tramage) posé au sol, qui s'étale puis sèche (rétrécit et s'efface) en ~14 s.
 class Flaque extends MeshInstance3D:
 	const DUREE := 14.0
 	var _t := 0.0
 	var _r := 1.0
-	static var _mat: StandardMaterial3D
+	static var _mat: Material
 	static var _disque: ArrayMesh
 
 	static func poser(n: Node3D, pied: Vector3, rayon: float) -> void:
 		if _mat == null:
-			_mat = StandardMaterial3D.new()
-			_mat.albedo_color = Color(0.16, 0.09, 0.04, 0.78)
-			_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			_mat.metallic_specular = 0.9
-			_mat.roughness = 0.15
-			_mat.vertex_color_use_as_albedo = true
-			_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		if _disque == null:      # disque irrégulier (12 pans, rayon bruité), bord transparent
+			var img := Image.create(16, 16, false, Image.FORMAT_RGBA8)
+			var rng := RandomNumberGenerator.new()
+			rng.seed = 771
+			for y in 16:
+				for x in 16:
+					var k := rng.randf()
+					var c := Color(0.20, 0.11, 0.05).lerp(Color(0.42, 0.25, 0.09), k * k) if k < 0.93 else Color(0.62, 0.48, 0.26)      # quelques reflets
+					img.set_pixel(x, y, c)
+			_mat = Palette.materiau(ImageTexture.create_from_image(img), Vector2(3, 3), Color.WHITE, true)
+		if _disque == null:      # disque irrégulier (12 pans, rayon bruité)
 			var v := PackedVector3Array()
 			var c := PackedColorArray()
+			var u := PackedVector2Array()
+			var nn := PackedVector3Array()
 			var rr := [1.0, 0.82, 0.95, 0.74, 1.05, 0.88, 0.7, 0.97, 0.8, 1.02, 0.76, 0.9]
 			for k in 12:
 				var a0 := TAU * k / 12.0
 				var a1 := TAU * (k + 1) / 12.0
-				v.append(Vector3.ZERO)
-				v.append(Vector3(cos(a1), 0, sin(a1)) * float(rr[(k + 1) % 12]))
-				v.append(Vector3(cos(a0), 0, sin(a0)) * float(rr[k]))
-				c.append(Color(1, 1, 1, 1))
-				c.append(Color(1, 1, 1, 0.35))
-				c.append(Color(1, 1, 1, 0.35))
+				var p1 := Vector3(cos(a1), 0, sin(a1)) * float(rr[(k + 1) % 12])
+				var p0 := Vector3(cos(a0), 0, sin(a0)) * float(rr[k])
+				for p in [Vector3.ZERO, p1, p0]:
+					v.append(p)
+					u.append(Vector2(p.x, p.z) * 0.5 + Vector2(0.5, 0.5))
+					c.append(Color(1, 1, 1, 1))      # alpha 1 : matière de base (0 = neige)
+					nn.append(Vector3.UP)
 			var arr := []
 			arr.resize(Mesh.ARRAY_MAX)
 			arr[Mesh.ARRAY_VERTEX] = v
+			arr[Mesh.ARRAY_NORMAL] = nn
+			arr[Mesh.ARRAY_TEX_UV] = u
 			arr[Mesh.ARRAY_COLOR] = c
 			_disque = ArrayMesh.new()
 			_disque.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
@@ -590,18 +600,18 @@ class Flaque extends MeshInstance3D:
 		f.material_override = _mat
 		f.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		f._r = rayon
-		n.get_tree().current_scene.add_child(f) if n.get_tree().current_scene != null else n.get_parent().add_child(f)
-		f.global_position = pied + Vector3(0, 0.025, 0)
+		var hote: Node = n.get_tree().current_scene if n.get_tree().current_scene != null else n.get_parent()
+		hote.add_child(f)
+		f.global_position = pied + Vector3(0, 0.02, 0)
 		f.rotation.y = randf() * TAU
 		f.scale = Vector3.ONE * 0.05
 
 	func _process(dt: float) -> void:
 		_t += dt
 		var k := clampf(_t / 1.2, 0.0, 1.0)      # s'étale en 1,2 s
-		scale = Vector3.ONE * maxf(_r * (1.0 - pow(1.0 - k, 3.0)), 0.05)
-		if _t > DUREE * 0.6:      # sèche : rétrécit et s'efface
-			var s := clampf((_t - DUREE * 0.6) / (DUREE * 0.4), 0.0, 1.0)
-			scale = Vector3.ONE * maxf(_r * (1.0 - s * 0.5), 0.05)
-			transparency = s
+		var r := _r * (1.0 - pow(1.0 - k, 3.0))
+		if _t > DUREE * 0.55:      # sèche : rétrécit jusqu'à disparaître
+			r *= 1.0 - clampf((_t - DUREE * 0.55) / (DUREE * 0.45), 0.0, 1.0)
+		scale = Vector3(maxf(r, 0.01), 1.0, maxf(r, 0.01))
 		if _t >= DUREE:
 			queue_free()

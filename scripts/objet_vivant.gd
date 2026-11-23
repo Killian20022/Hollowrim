@@ -303,6 +303,7 @@ func casser(avec_effets: bool, point: Vector3, vitesse := Vector3.ZERO, distant 
 	if casse:
 		return
 	casse = true
+	var t_debut := Time.get_ticks_usec()
 	var xf := global_transform * visuel_local      # repère du modèle (échelle comprise) avant de le cacher
 	var v_objet := linear_velocity if not freeze else Vector3.ZERO
 	var centre := global_position
@@ -322,10 +323,14 @@ func casser(avec_effets: bool, point: Vector3, vitesse := Vector3.ZERO, distant 
 	if not avec_effets:
 		return
 	var parent := get_parent() as Node3D
+	var t0 := Time.get_ticks_usec()
 	CasseObjets.eclater(parent, mm.mesh if mm != null else null, xf, matiere, mass, point, v_objet + vitesse * 0.35, ident.hash())
+	var t1 := Time.get_ticks_usec()
 	CasseObjets.effets(parent, centre, pied, point, matiere, maxf(_taille.x, maxf(_taille.y, _taille.z)), liquide)
+	var t2 := Time.get_ticks_usec()
 	if contenu != "":
 		CasseObjets.verser_butin(parent, ident, contenu, pied)
+	CasseObjets.derniere_mesure = {"eclats_ms": (t1 - t0) / 1000.0, "effets_ms": (t2 - t1) / 1000.0, "butin_ms": (Time.get_ticks_usec() - t2) / 1000.0}
 	var proprio := proprietaire()
 	if proprio != "" and not distant:      # bien d'un PNJ brisé : comme un vol (témoins, prime), règles du lot crime
 		var crime := get_tree().get_first_node_in_group("crime")
@@ -333,3 +338,4 @@ func casser(avec_effets: bool, point: Vector3, vitesse := Vector3.ZERO, distant 
 			crime.signaler_vol(self, proprio, centre)
 	if not distant:
 		ObjetsVivants.diffuser_casse(self, point, vitesse)
+	CasseObjets.derniere_mesure["total_ms"] = (Time.get_ticks_usec() - t_debut) / 1000.0
