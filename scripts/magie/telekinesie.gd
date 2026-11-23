@@ -677,9 +677,11 @@ func _impacts() -> Variant:
 
 ## Dégâts d'un objet lancé sans la branche impacts : masse × vitesse (contondant) ou dégâts lourds de l'arme (tranchant).
 static func degats_repli(masse: float, vitesse: float, arme: DonneesArme) -> float:
+	# repères : chaise de 7 kg à 20 m/s ≈ 22, tonneau de 28 kg à 10 m/s ≈ 35, chope à 30 m/s ≈ 2 ; épée (lourd 28) à 30 m/s ≈ 35
+	# (~1,5 à 2 dégâts par point de mana, comme les sorts : docs/MAGIE.md, « Équilibrage »)
 	if arme != null:
-		return arme.degats_lourd * clampf(vitesse / 18.0, 0.5, 1.6)
-	return clampf(0.9 * sqrt(maxf(masse, 0.05)) * vitesse, 3.0, 90.0)
+		return arme.degats_lourd * clampf(vitesse / 24.0, 0.5, 1.4)
+	return clampf(0.22 * pow(maxf(masse, 0.05), 0.83) * vitesse, 2.0, 70.0)
 
 func _repli_impact(l: Dictionary, cible: Node, point: Vector3, normale: Vector3, v: Vector3) -> void:
 	var corps: RigidBody3D = l["corps"]

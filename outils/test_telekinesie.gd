@@ -104,13 +104,13 @@ func _saisie_maintien() -> void:
 	await _sim(0.4)
 	_verif(tk.tient("gauche") and tk.objet_tenu("gauche") == chaise, "maintenir en visant : la chaise est saisie")
 	var cout_att := sd.cout + sd.cout_par_kg * chaise.mass
-	var paye := m0 - j.mana
+	var paye: float = m0 - float(j.mana)
 	_verif(paye >= cout_att * 0.95 and paye <= cout_att + 3.0, "arrachement payé : %.1f (attendu %.1f + drain)" % [paye, cout_att])
 	_verif(chaise.global_position.y > y0 + 0.25, "arrachée du sol : +%.2f m" % (chaise.global_position.y - y0))
 	_verif(chaise.gravity_scale == 0.0, "sans gravité pendant la tenue")
 	var m1: float = j.mana
 	await _sim(1.0)
-	var drain := m1 - j.mana
+	var drain: float = m1 - float(j.mana)
 	var drain_att := sd.cout_par_seconde + sd.drain_par_kg * chaise.mass
 	_verif(absf(drain - drain_att) < drain_att * 0.25, "drain continu ∝ masse : %.1f /s (attendu %.1f)" % [drain, drain_att])
 	var e: Dictionary = tk.tenue["gauche"]
@@ -188,7 +188,7 @@ func _draugr(p: Vector3, type := "guerrier") -> CharacterBody3D:
 func _lancer_draugr() -> void:
 	await _reset()
 	s.placer_joueur(Vector3(0, 0, 4.0), 0.0)
-	var d := _draugr(Vector3(0.0, 0.0, -3.5))
+	var d := _draugr(Vector3(2.8, 0.0, 0.2))   # hors de la ligne des mannequins de la scène
 	var chaise := CorpsTelekinesie.creer("pq_chaise", s, Transform3D(Basis(), Vector3(-0.3, 0.0, 2.6)))
 	await _sim(1.0)
 	await _viser_point(Telekinesie.centre(chaise))
@@ -234,7 +234,7 @@ func _armes() -> void:
 	b.set("contenu", {"hache_guerre": 1})
 	var v := ArmesEnnemis.poser_au_sol(b, "hache_guerre", Vector3.ZERO, 0.3)
 	_verif(v.is_in_group(Telekinesie.GROUPE) and v.has_meta("tk_arme"), "arme lâchée par un ennemi : saisissable (meta tk_arme)")
-	var squelette := _draugr(Vector3(0.0, 0.0, -2.5), "squelette")
+	var squelette := _draugr(Vector3(-2.8, 0.0, 0.4), "squelette")
 	await _sim(1.0)
 	await _viser_point(Telekinesie.centre(o))
 	magie.appuyer("gauche")
