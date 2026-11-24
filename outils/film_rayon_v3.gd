@@ -47,47 +47,60 @@ func _go() -> void:
 		_bilan_ips()
 	quit(0)
 
-## Directions libres sur l'horizontale (±), triées de la plus longue à la plus courte : [[distance, point]...]
+var _cibles: Array = []
+
+## ARÈNE DÉGAGÉE : grande dalle claire et trois monolithes (à 14, 26 et 38 m), bâtie à 500 m d'altitude (au-dessus du monde, même ciel
+## et même lune) : plus d'arbres entre la caméra et le rayon. Le joueur y est téléporté, regardant vers -Z.
+func _site_ouvert() -> void:
+	var base := Vector3(0.0, 500.0, 0.0)
+	var sol := StaticBody3D.new()
+	sol.collision_layer = 1
+	var cs := CollisionShape3D.new()
+	var bx := BoxShape3D.new()
+	bx.size = Vector3(300, 1, 300)
+	cs.shape = bx
+	sol.add_child(cs)
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = bx.size
+	mi.mesh = bm
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.32, 0.36, 0.46)
+	m.roughness = 1.0
+	mi.material_override = m
+	sol.add_child(mi)
+	s.add_child(sol)
+	sol.global_position = base + Vector3(0, -0.5, 0)
+	var piliers := [[Vector3(-5, 0, -14), Vector3(2.5, 6, 2.5)], [Vector3(6, 0, -26), Vector3(3, 8, 3)], [Vector3(0, 0, -38), Vector3(12, 9, 1.5)]]
+	_cibles.clear()
+	for e in piliers:
+		var pb := StaticBody3D.new()
+		pb.collision_layer = 1
+		var c2 := CollisionShape3D.new()
+		var b2 := BoxShape3D.new()
+		b2.size = e[1]
+		c2.shape = b2
+		pb.add_child(c2)
+		var m2 := MeshInstance3D.new()
+		var bm2 := BoxMesh.new()
+		bm2.size = e[1]
+		m2.mesh = bm2
+		var mt := StandardMaterial3D.new()
+		mt.albedo_color = Color(0.2, 0.2, 0.24)
+		mt.roughness = 1.0
+		m2.material_override = mt
+		pb.add_child(m2)
+		s.add_child(pb)
+		pb.global_position = base + (e[0] as Vector3) + Vector3(0, (e[1] as Vector3).y * 0.5, 0)
+		_cibles.append(pb.global_position + Vector3(0, 1.4 - (e[1] as Vector3).y * 0.5 + 0.2, 0))
+	j.global_position = base + Vector3(0, 0.3, 0)
+	j.velocity = Vector3.ZERO
+	j.rotation.y = 0.0
+	await _attendre(1.5)
+
 func _directions() -> Array:
 	var o: Vector3 = j.camera.global_position
-	var monde := j.get_world_3d().direct_space_state
-	var res: Array = []
-	for i in 48:
-		var d := Vector3(cos(TAU * i / 48.0), 0.0, sin(TAU * i / 48.0)).normalized()
-		var q := PhysicsRayQueryParameters3D.create(o, o + d * 60.0, 1)
-		q.exclude = [j.get_rid()]
-		var r := monde.intersect_ray(q)
-		var dist := 60.0 if r.is_empty() else o.distance_to(r["position"])
-		res.append([dist, o + d * minf(dist, 60.0)])
-	res.sort_custom(func(a: Array, b: Array) -> bool: return a[0] > b[0])
-	return res
-
-## Cherche un endroit dégagé (grille autour du départ) : le joueur y est téléporté, tourné vers la plus grande trouée.
-func _site_ouvert() -> void:
-	var monde := j.get_world_3d().direct_space_state
-	var base := j.global_position
-	var meilleur := -1.0
-	var pos := base
-	for gx in range(-8, 9):
-		for gz in range(-8, 9):
-			var p := base + Vector3(gx * 12.0, 40.0, gz * 12.0)
-			var q := PhysicsRayQueryParameters3D.create(p, p + Vector3.DOWN * 120.0, 1)
-			var r := monde.intersect_ray(q)
-			if r.is_empty() or absf((r["normal"] as Vector3).y) < 0.9:
-				continue
-			var o: Vector3 = (r["position"] as Vector3) + Vector3.UP * 1.6
-			var note := 0.0
-			for i in 24:
-				var d := Vector3(cos(TAU * i / 24.0), 0.0, sin(TAU * i / 24.0))
-				var q2 := PhysicsRayQueryParameters3D.create(o, o + d * 45.0, 1)
-				if monde.intersect_ray(q2).is_empty():
-					note += 1.0
-			if note > meilleur:
-				meilleur = note
-				pos = r["position"]
-	print("FILM site ouvert : %d/24 directions libres à 45 m" % int(meilleur))
-	j.global_position = pos + Vector3.UP * 0.3
-	await _attendre(1.5)
+	return [[38.0, Vector3(o.x, o.y, -38.0)], [26.0, _cibles[1] + Vector3(0, 0.8, 0)], [14.0, _cibles[0] + Vector3(0, 0.8, 0)]]
 
 func _film() -> void:
 	await _site_ouvert()
@@ -118,12 +131,12 @@ func _film() -> void:
 	var dr := av.cross(Vector3.UP).normalized()
 	for k in 3:
 		var u := float(k) / 2.0
-		cam.global_position = o + dr * (3.2 + 1.5 * u) + Vector3.UP * (0.5 + 0.6 * u) - av * (1.5 - 2.5 * u)
+		cam.global_position = o + dr * (4.0 + 2.0 * u) + Vector3.UP * (2.2 + 0.8 * u) - av * (1.5 - 2.5 * u)
 		cam.look_at(o + av * (9.0 + 8.0 * u), Vector3.UP)
 		cam.make_current()
 		await _attendre(0.6 if k < 2 else 0.5)
-		if k == 0:
-			await _capture("cote")
+		if k < 3:
+			await _capture("cote%d" % k)
 	j.camera.make_current()
 	cam.queue_free()
 	_phase = "balayage"

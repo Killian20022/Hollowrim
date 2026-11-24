@@ -29,8 +29,8 @@ const SH_RUNE := preload("res://shaders/runes_orbite.gdshader")
 const SH_CERCLE := preload("res://shaders/rayon_cercle.gdshader")
 const SH_IMPACT := preload("res://shaders/rayon_impact.gdshader")
 ## Cercle runique du départ : diamètre (m), distance devant la paume (m), durée d'ouverture / de fermeture (s).
-const CERCLE_D := 0.5
-const CERCLE_DEVANT := 0.34
+const CERCLE_D := 0.3
+const CERCLE_DEVANT := 0.2
 const CERCLE_OUVRE := 0.22
 const CERCLE_FERME := 0.3
 ## Impact : côté du quad (m).
@@ -60,8 +60,8 @@ const VIE_TENUE := 0.3
 const OUBLI := 0.25
 ## Rayon du faisceau (m) loin de la main (× largeur du sort) et à la sortie de la paume ; distance d'ouverture.
 const RAYON_LOIN := 0.4
-const RAYON_MAIN := 0.06
-const OUVERTURE := 3.0
+const RAYON_MAIN := 0.045
+const OUVERTURE := 7.0
 ## Tache d'ombre : côté du quad (m ; la flaque en couvre ~25 à 80 %) à l'impact, croissance pendant qu'on tient le même point, taches laissées en balayant.
 const TACHE := 1.9
 const TACHE_MAX := 3.2
@@ -71,8 +71,8 @@ const DUREE_TACHE_LAISSEE := 3.0
 const NB_FUMEE := 26
 const NB_BRAISES := 24
 ## Runes qui glissent le long du rayon : nombre de quads, période d'émission (s), durée du trajet (s), taille (m).
-const NB_RUNES := 5
-const PERIODE_RUNE := 0.22
+const NB_RUNES := 9
+const PERIODE_RUNE := 0.11
 const TRAJET_RUNE := 0.42
 const TAILLE_RUNE := 0.12
 const SIGNES := [4, 1, 5, 7, 6]
@@ -115,6 +115,7 @@ var _braises: NoyauEcole.Bouffees
 var _bouf: Array = []       # bouffées vivantes [{p, v, t, vie, s, h, sorte}]
 var _runes: Array = []      # [{mi, t (−1 = libre), h}]
 var _t_rune := 0.0
+var _t_arrache := 0.0
 var _t_bouf := 0.0
 var _t_braise := 0.0
 var _graine := 0.0
@@ -198,6 +199,7 @@ func _ready() -> void:
 	_halo.set_shader_parameter("graine", _graine)
 	_halo.set_shader_parameter("ouverture", OUVERTURE)
 	_halo.set_shader_parameter("bord", Color(pl["bord"]))
+	_halo.set_shader_parameter("force_halo", 0.85)
 	_halo.render_priority = 1
 	_mat.next_pass = _halo
 	_faisceau = _mi(RayonNeant._tube(), _mat, 50.0)
@@ -506,6 +508,14 @@ func _maj_bouffees(dt: float, cb: Basis) -> void:
 			# volutes au point d'impact : montent et s'élargissent
 			var n := normale if (touche_decor or cible == null) else (debut - _fin_l).normalized()
 			_bouffee(_fin_l + n * 0.12, n * randf_range(0.25, 0.55) + Vector3.UP * randf_range(0.35, 0.7) + Vector3(randf_range(-0.2, 0.2), 0, randf_range(-0.2, 0.2)), randf_range(1.0, 1.5), randf_range(0.3, 0.5) * largeur, 0)
+		# étincelles fines qui s'arrachent du rayon (en plus de la fumée)
+		_t_arrache += dt
+		while _t_arrache > 0.045 and l > 1.0:
+			_t_arrache -= 0.045
+			var pa := debut.lerp(_fin_l, randf_range(0.02, 0.8))
+			var dl := (_fin_l - debut).normalized()
+			var lat3 := Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized()
+			_bouffee(pa + lat3 * 0.1, lat3 * randf_range(0.5, 1.4) + dl * randf_range(1.0, 3.0), randf_range(0.3, 0.6), randf_range(0.012, 0.024), 1)
 		# braises violettes au point d'impact (rares)
 		_t_braise += dt
 		while _t_braise > 0.07:

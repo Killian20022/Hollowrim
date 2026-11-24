@@ -69,17 +69,18 @@ void fragment() {
 	float lum = pow(0.5 + 0.5 * sin(t * 4.0 - cell * 1.1), 3.0);      // la vague d'allumage
 	float runes = trait(gd * 0.1, 0.012 + pix * 0.6) * step(abs(loc.x), 1.2) * step(abs(loc.y), 1.2);
 	float lisere_c = trait(abs(r - 0.73), 0.075) * 0.18;                 // sillon sous les runes
-	// hexagramme intérieur (deux triangles), rotation inverse
-	vec2 q = rot(-t * 0.8) * p;
-	float tri1 = 9.0, tri2 = 9.0;
-	for (int i = 0; i < 3; i++) {
-		float a = float(i) * TAU / 3.0 + 1.5707963;
-		float b = float(i + 1) * TAU / 3.0 + 1.5707963;
-		tri1 = min(tri1, seg(q, vec2(cos(a), sin(a)) * 0.4, vec2(cos(b), sin(b)) * 0.4));
-		tri2 = min(tri2, seg(-q, vec2(cos(a), sin(a)) * 0.4, vec2(cos(b), sin(b)) * 0.4));
-	}
-	float hexa = trait(min(tri1, tri2), 0.012 + pix);
+	// triskèle intérieur (3 bras spiralés qui tournent), motif nordique sobre
+	float a3 = fract((ang - t * 0.8) / TAU * 3.0);
+	float rc = 0.07 + 0.31 * a3;
+	float tris = trait(abs(r - rc) * 0.8, 0.014 + pix) * step(r, 0.42) * step(0.06, r);
+	float hexa = tris;
 	float noyau = trait(abs(r - 0.18), 0.012 + pix) * (0.6 + 0.4 * sin(t * 6.0));
+	// vue de face (depuis le lanceur) : le fond et le triskèle s'effacent, anneau et runes restent
+	float face = abs(dot(normalize(VIEW), NORMAL));
+	float leger = mix(1.0, 0.12, smoothstep(0.55, 0.95, face));
+	al *= leger;
+	hexa *= leger;
+	noyau *= leger;
 	// composition HDR
 	vec3 c = col;
 	float aa = al;
@@ -90,7 +91,7 @@ void fragment() {
 	c = mix(c, bord * 0.9, lisere_c); aa = max(aa, lisere_c * 0.6);
 	vec3 cr = mix(bord * 1.3, filet * 2.6, lum);
 	c = mix(c, cr, runes * (0.45 + 0.55 * lum)); aa = max(aa, runes * (0.55 + 0.45 * lum));
-	c = mix(c, accent * 1.8, hexa * 0.55); aa = max(aa, hexa * 0.55);
+	c = mix(c, accent * 1.8, hexa * 0.8); aa = max(aa, hexa * 0.75);
 	c = mix(c, filet * 2.2, noyau); aa = max(aa, noyau * 0.9);
 	// naissance : le front d'ouverture est un anneau vif
 	float front = trait(abs(r - re), 0.05) * (1.0 - smoothstep(0.9, 1.0, ouv));

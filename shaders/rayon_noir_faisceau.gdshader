@@ -49,7 +49,7 @@ float vague(float s) {
 float rayon_en(float s) {
 	float ond = 1.0 + onde * vague(s) * smoothstep(0.0, 0.8, s);
 	float evase = 1.0 + 0.12 * smoothstep(longueur - 0.25, longueur, s);   // à peine évasé en touchant
-	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * rk() * ond * evase;
+	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * (1.0 + 1.8 * smoothstep(5.0, 40.0, s)) * rk() * ond * evase;
 }
 
 void vertex() {
@@ -111,7 +111,7 @@ void fragment() {
 	float n = mfbm2(vec2(tc * 0.9 - TIME * 6.0, v_th * 1.3 + graine));
 	float n2 = mbruit(vec2(tc * 3.0 - TIME * 13.0, v_th * 2.0 + graine * 3.0));
 	// frontière du cœur, déchirée par le bruit (l'axe est à x = 0)
-	float s0 = 0.46 + (n - 0.5) * 0.03;   // v2 : cœur tendu, bord net (le bruit ne déforme plus la silhouette)
+	float s0 = 0.34 + 0.05 * sin(tc * 2.3 - TIME * 6.0 + graine) * smoothstep(0.0, 1.5, tc) + (n - 0.5) * 0.05;   // v3 : le cœur sombre ondule   // v2 : cœur tendu, bord net (le bruit ne déforme plus la silhouette)
 	// impulsions qui filent vers la cible (rapides, nettes) et scintillement du liseré (24 Hz, par paliers : aucun tramage)
 	float ph = fract((tc - TIME * flux_vit) / flux_pas + graine);
 	float puls = pow(1.0 - smoothstep(0.0, 0.22, min(ph, 1.0 - ph) * 2.0), 2.0);
@@ -122,7 +122,7 @@ void fragment() {
 	if (x < s0) {
 		// cœur noir ; des courants violets très sombres défilent dedans (pas un aplat)
 		float cour = smoothstep(0.62, 1.0, mbruit(vec2(tc * 1.6 - TIME * 9.0, v_th * 2.5 + graine)));
-		c = mix(noir, fume * 1.1, cour * 0.45);
+		c = mix(noir, fume * 1.7, cour * 0.85);
 		// stries pourpres fines au cœur, qui filent avec les impulsions
 		float st = 1.0 - smoothstep(0.0, 0.06, abs(fract(v_th / TAU * 3.0 + graine) - 0.5) * 2.0 - 0.9);
 		c = mix(c, bord * 1.6, puls * st * 0.8);
@@ -135,7 +135,7 @@ void fragment() {
 		// fumée déchirée : se dissout vers l'extérieur, par paliers
 		float t = (x - s0 - 0.13) / max(GROS - s0 - 0.13, 0.1);
 		float f = (1.0 - t) * (0.4 + 0.8 * n) - 0.25;
-		a = floor(clamp(f, 0.0, 1.0) * 3.0 + 0.5) / 3.0 * 0.55;   // fumée plus légère autour, la silhouette reste le trait
+		a = floor(clamp(f, 0.0, 1.0) * 4.0 + 0.5) / 4.0 * 0.78;   // fumée plus légère autour, la silhouette reste le trait
 		c = mix(fume, bord * 0.5, n2 * 0.45 + 0.2 * (1.0 - t) + 0.15 * pv);
 		if (a < 0.05) {
 			ALBEDO = vec3(0.0);
@@ -164,6 +164,16 @@ void fragment() {
 		c = mix(c, filet * 1.8, sp * 0.7);
 		a = max(a, sp * 0.9);
 	}
+	// stries lumineuses fines qui défilent vite le long du rayon (tirets, vitesses différentes par strie)
+	float cs = floor(v_th / TAU * 10.0);
+	float lg = 1.0 - smoothstep(0.04, 0.14, abs(fract(v_th / TAU * 10.0) - 0.5));
+	float tir = smoothstep(0.62, 0.92, fract(tc * 0.32 - TIME * (6.0 + 2.0 * mod(cs, 3.0)) + cs * 0.37));
+	float zs = smoothstep(0.08, 0.2, x) * (1.0 - smoothstep(s0 + 0.35, GROS, x));
+	c = mix(c, filet * 1.7, tir * lg * zs * 0.85);
+	a = max(a, tir * lg * zs * 0.9);
+	// intensité variable : plus vive et plus fine près de la main, qui s'apaise en s'évasant, et un battement lent
+	float pres = exp(-tc / 2.8);
+	c *= 1.0 + (0.9 * pres + 0.25 * sin(tc * 0.9 - TIME * 4.0 + graine)) * step(s0 - 0.02, x);
 	// sortie du cercle : la source est plus claire ; le front s'amincit en pointe
 	float sortie = (1.0 - smoothstep(0.0, 0.02, v_u)) * step(s0, x);
 	c = mix(c, filet * 2.4, sortie * 0.8 * (1.0 - smoothstep(0.1, 0.22, vie)));

@@ -40,7 +40,7 @@ float vague(float s) {
 float rayon_en(float s) {
 	float ond = 1.0 + onde * vague(s) * smoothstep(0.0, 0.8, s);
 	float evase = 1.0 + 0.12 * smoothstep(longueur - 0.25, longueur, s);
-	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * rk() * ond * evase;
+	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * (1.0 + 1.8 * smoothstep(5.0, 40.0, s)) * rk() * ond * evase;
 }
 
 void vertex() {
