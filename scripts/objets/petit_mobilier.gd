@@ -171,9 +171,20 @@ static func sac_dechire(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
 	dcr.j0("sac_dechire")
 	dcr.emprise("sac_dechire", pos, Vector2(0.45, 0.35), 0.0, 0.2)
 	dcr.modele("sac_" + variante(dcr, pos, 2), pos, lacet + 0.3, Vector3.ONE, {}, false)
+	var pq := PropsQuaternius.pq and PropsQuaternius.existe("pq_piece")      # retours 2026-11-24 : pièces et bourse = props Quaternius (mêmes tirages de rng)
 	for k in 7:
-		dcr.boite("or", pos + Vector3(dcr.rng.randf_range(-0.4, 0.5), 0.012, dcr.rng.randf_range(-0.3, 0.5)), Vector3(0.05, 0.015, 0.05), dcr.rng.randf() * TAU)
-	dcr.boite("fer", pos + Vector3(0.5, 0.02, -0.1), Vector3(0.12, 0.04, 0.12), dcr.rng.randf() * TAU)
+		var q := pos + Vector3(dcr.rng.randf_range(-0.4, 0.5), 0.012, dcr.rng.randf_range(-0.3, 0.5))
+		var a := dcr.rng.randf() * TAU
+		if pq:
+			dcr._q4("pq_piece", q - Vector3(0, 0.012, 0), a, Vector3.ONE * 1.4)
+		else:
+			dcr.boite("or", q, Vector3(0.05, 0.015, 0.05), a)
+	var qf := pos + Vector3(0.5, 0.02, -0.1)
+	var af := dcr.rng.randf() * TAU
+	if pq:
+		dcr._q4("pq_bourse", qf - Vector3(0, 0.02, 0), af, Vector3.ONE * 0.9)
+	else:
+		dcr.boite("fer", qf, Vector3(0.12, 0.04, 0.12), af)
 	dcr.j1()
 
 static func coffre_force(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
@@ -195,7 +206,12 @@ static func coffre_force(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
 			dcr.boite("fer", pos + b * Vector3(dx, 0.31, 0), Vector3(0.09, 0.64, 0.6), lacet)
 	dcr.solide(pos + Vector3(0, 0.3, 0), (b * Vector3(0.9, 0.6, 0.56)).abs())
 	for k in 5:
-		dcr.boite("or", pos + b * Vector3(dcr.rng.randf_range(-0.5, 0.5), 0.012, dcr.rng.randf_range(0.35, 0.8)), Vector3(0.05, 0.015, 0.05), dcr.rng.randf() * TAU)
+		var q := pos + b * Vector3(dcr.rng.randf_range(-0.5, 0.5), 0.012, dcr.rng.randf_range(0.35, 0.8))
+		var a := dcr.rng.randf() * TAU
+		if PropsQuaternius.pq and PropsQuaternius.existe("pq_piece"):
+			dcr._q4("pq_piece", q - Vector3(0, 0.012, 0), a, Vector3.ONE * 1.4)
+		else:
+			dcr.boite("or", q, Vector3(0.05, 0.015, 0.05), a)
 	dcr.j1()
 
 ## Parchemins, feuillets et livres éparpillés au sol (archives pillées).
@@ -205,8 +221,19 @@ static func parchemins_epars(dcr: CrypteDecor, centre: Vector3, rayon: float, n 
 		var a := dcr.rng.randf() * TAU
 		var r := sqrt(dcr.rng.randf()) * rayon
 		var p := centre + Vector3(cos(a) * r, 0.01 + 0.004 * (k % 3), sin(a) * r)
+		var pq := PropsQuaternius.pq and PropsQuaternius.existe("pq_parchemin")      # retours 2026-11-24 : livres et rouleaux = props Quaternius
 		if k % 4 == 0:
-			dcr.boite("bois", p + Vector3(0, 0.03, 0), Vector3(0.2, 0.06, 0.28), dcr.rng.randf() * TAU)
+			var a0 := dcr.rng.randf() * TAU
+			if pq:
+				dcr._q4("pq_livre_d1" if k % 8 == 0 else "pq_livre_d2", p + Vector3(0, -0.01, 0), a0, Vector3.ONE * 0.8)
+			else:
+				dcr.boite("bois", p + Vector3(0, 0.03, 0), Vector3(0.2, 0.06, 0.28), a0)
 		else:
-			dcr.boite("parchemin", p, Vector3(dcr.rng.randf_range(0.2, 0.34), 0.01, dcr.rng.randf_range(0.14, 0.24)), dcr.rng.randf() * TAU)
+			var tx := dcr.rng.randf_range(0.2, 0.34)
+			var tz := dcr.rng.randf_range(0.14, 0.24)
+			var a1 := dcr.rng.randf() * TAU
+			if pq:
+				dcr._q4("pq_parchemin" if k % 2 == 0 else "pq_parchemin_2", p, a1, Vector3.ONE * (tx / 0.24))
+			else:
+				dcr.boite("parchemin", p, Vector3(tx, 0.01, tz), a1)
 	dcr.j1()

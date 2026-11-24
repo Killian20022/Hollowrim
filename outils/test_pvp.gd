@@ -125,6 +125,10 @@ func _lancer() -> void:
 	_j.global_position = POS_HOTE if _role == "hote" else POS_INVITE
 	_j.velocity = Vector3.ZERO
 	await _pause(0.5)
+	# ===== C2. arme lancée (se plante dans l'avatar), mêlée =====
+	await _phase("arme_lancee", "hote", _jeter_arme)
+	await _phase("arme_lancee_i", "invite", _jeter_arme)
+	await _melee()
 	# ===== D. saisie (lévitation) puis lancer =====
 	await _saisie_et_lancer()
 	# ===== E. dégâts plafonnés : un coup falsifié énorme ne tue pas, un coup hors portée / sans PvP est refusé =====
@@ -150,6 +154,10 @@ func _phase(nom: String, attaquant: String, action: Callable) -> void:
 			var ok := await _attendre(func() -> bool: return _j.vie < 99.9, 9.0)
 			_verif(ok, "%s : la victime encaisse (%.1f PV)" % [nom, _j.vie])
 			_verif(_j.vie > 0.0 and not _j.mort, "%s : pas de one-shot (vie %.1f)" % [nom, _j.vie])
+			if nom.ends_with("boule_feu"):
+				_verif(await _attendre(func() -> bool: return PvpVictime.pour(_j).journal.has("brule"), 3.0), "%s : brûlure appliquée à la victime" % nom)
+			if nom.ends_with("eclat_glace"):
+				_verif(_j.lenteur > 0.0 and _j.lenteur_facteur < 1.0, "%s : gel (ralenti %.1f s x%.2f)" % [nom, _j.lenteur, _j.lenteur_facteur])
 	else:
 		await _pause(2.5)
 		_verif(is_equal_approx(_j.vie, 100.0), "%s : l'attaquant n'est pas blessé (%.1f)" % [nom, _j.vie])
@@ -176,6 +184,52 @@ func _tirer_fleche() -> void:
 	_j.arc.appuyer()
 	await _pause(1.4)
 	_j.arc.relacher()
+
+func _jeter_arme() -> void:
+	# un tir qui frôle le corps (os du squelette de l'avatar, pose de test) continue son vol : on vise le torse à plusieurs hauteurs
+	var o: RigidBody3D = null
+	for h in [1.1, 1.3, 0.9, 1.5]:
+		o = ArmeLancee.creer("epee_soldat")
+		_monde.add_child(o)
+		var depuis := _oeil() + _avant() * 1.0
+		var vers: Vector3 = _avatar.noeud.global_position + Vector3(0, h, 0)
+		var dir := (vers - depuis).normalized()
+		o.global_position = depuis
+		var ab := ImpactsLances.axe_monde(o, o.donnees_arme())
+		var axe: Vector3 = (Vector3(ab[1]) - Vector3(ab[0])).normalized()
+		o.global_basis = Basis(Quaternion(axe, dir)) * o.global_basis
+		o.global_position = depuis
+		o.linear_velocity = dir * 22.0
+		o.set_meta("lance_par", _j)
+		await get_tree().physics_frame
+		ImpactsLances.objet_touche(o, _avatar.noeud, vers, -dir, dir * 22.0, _j)
+		if String(ImpactsLances.dernier.get("issue", "")) != "frole" or _sans:
+			break
+		o.queue_free()
+	await _pause(0.3)
+	if not _sans:
+		_verif(ImpactsLances.plantee(o) or o.has_meta("plantee"), "arme lancée : plantée dans l'avatar (%s)" % String(ImpactsLances.dernier.get("issue", "?")))
+
+## Mêlée : les deux joueurs face à face à 1,3 m ; l'hôte frappe l'invité, puis l'invité l'hôte.
+func _melee() -> void:
+	if _role == "hote":
+		_j.global_position = POS_HOTE
+	else:
+		_j.global_position = Vector3(0, 0.1, -1.3)
+	_j.velocity = Vector3.ZERO
+	await _pause(0.8)
+	_j.arc.ranger()   # arc équipé : plus d'épée (mains._peut_agir)
+	_j.mains.magie.equiper("droite", "epee")
+	await _phase("melee_h", "hote", _frapper_epee)
+	await _phase("melee_i", "invite", _frapper_epee)
+	_j.global_position = POS_HOTE if _role == "hote" else POS_INVITE
+	_j.velocity = Vector3.ZERO
+	await _pause(0.8)
+
+func _frapper_epee() -> void:
+	for i in 3:
+		_j.mains.attaquer()
+		await _pause(1.0)
 
 func _repulser() -> void:
 	var s := ReseauProjectiles.sort_par_id("repulsion")

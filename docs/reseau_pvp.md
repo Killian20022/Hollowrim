@@ -30,3 +30,9 @@ de l'avatar qui perd le contrôle (`en_dialogue`) et suit le point ; sans nouvel
 `bash outils/test_pvp.sh [pvp|sans]` : 2 instances ; passe PvP (boule de feu, éclair en chaîne, rayon noir, glace, flèche dans les deux sens, répulsion,
 saisie + lancer par lévitation, coups falsifiés refusés/plafonnés) puis passe `--sans-pvp` (rien ne touche, pas de saisie). `test_projectiles.sh` passe désormais `--sans-pvp`
 (ses scénarios supposent l'absence de tir allié).
+
+## Ajouts (fusion avec integ/telekinesie_1123 @ 7ef957db)
+- Mêlée : `mains._resoudre_impact` route un coup d'arme sur un avatar vers `PvpCoop.coup_melee` (`TraceLame.cible_de` reconnaît les avatars en PvP) ; même autorité hôte et mêmes plafonds. Arc équipé = pas de mêlée dans le jeu (les flèches à bout portant passent par `projectile.gd`).
+- Objets / armes TK et lancés : `ImpactsLances._appliquer` envoie les dégâts d'un avatar vers `PvpCoop.coup` (courbe `DegatsObjets` × règle PvP), la lame se plante (jamais « traverse ») ; `DegatsObjets.apres_impact` projette l'avatar via `pvp_op`. Sans PvP : l'objet traverse l'avatar.
+- Brûlure (dégâts sur la durée, 50 %, jamais mortelle, `pvp_statut`) et gel prolongé (ralenti >= 2,5 s) appliqués aux joueurs.
+- `test_projectiles` (flèche fichée chez l'invité) et `test_monde_vivant` échouent aussi sur 7ef957db seul (vérifié) : pas de régression.

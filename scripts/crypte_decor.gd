@@ -137,6 +137,20 @@ var objets_audit: Array = []          # {"genre", "id", "v": PackedVector3Array 
 var _obj_n := 0                       # profondeur d'imbrication (0 = aucun objet ouvert)
 var _obj_genre := ""
 var _obj_id := ""
+## Audit « objets maison restants » (outils/audit_props_maison.gd) : compte, par lieu et par genre d'objet de haut niveau, les boîtes
+## primitives et les modules Blender maison (hors structures) posés. INACTIF en jeu (un test de booléen par boîte).
+static var stats_maison_actif := false
+static var stats_maison := {}      # "lieu|genre" -> {"boite": n, "module:xxx": n}
+static var _stats_verrou := Mutex.new()      # les décors se bâtissent dans des fils d'exécution
+func _stat_maison(cle: String) -> void:
+	var lieu := cass_prefixe + ("/donjon" if voisin != null else "")
+	var k := "%s|%s" % [lieu, _obj_genre if _obj_n > 0 else "(hors objet)"]
+	_stats_verrou.lock()
+	var d: Dictionary = stats_maison.get(k, {})
+	d[cle] = int(d.get(cle, 0)) + 1
+	stats_maison[k] = d
+	_stats_verrou.unlock()
+
 var _obj_v := PackedVector3Array()
 var _obj_s: Array = []
 
@@ -753,6 +767,8 @@ const _FACES := [
 ## Boîte pleine (6 faces) ; UV = position en mètres dans le repère de la boîte (points NON tournés + `decal`), projection choisie
 ## avec la normale NON tournée (L0 2026-10-26 : la normale tournée étirait la texture en stries au-delà de ±45° de lacet : trône, coffres, lits…).
 func boite(nom: String, centre: Vector3, taille: Vector3, lacet := 0.0, sans_dessous := false, decal := Vector3.ZERO) -> void:
+	if stats_maison_actif and not muet:
+		_stat_maison("boite")
 	var h := taille * 0.5
 	var basis := Basis(Vector3.UP, lacet)
 	for f in _FACES:
@@ -2497,6 +2513,9 @@ const SUBST_GARDE_PQ := ["table_a", "table_b", "table_c", "ratelier_cadre_a", "r
 const SUBST_V5 := {
 	"coffre_a": ["pq_coffre_ferme", 0], "coffre_b": ["pq_coffre_ferme", 0], "coffre_c": ["pq_coffre_ferme", 0],
 	"bouclier_a": ["pq_bouclier_bois", 0], "bouclier_b": ["pq_bouclier_bois", 0], "bouclier_c": ["pq_bouclier_bois", 0],
+	# retours 2026-11-24 (grotte_props) : tables massives à tréteaux (choix validé, 8312e4e3) : table ovale Ultimate Home Interior 2,58 x 1,35 m
+	# ramenée à l'emprise de la table maison (1,1 x 0,65), plateau à 0,79 m (0,975 x 0,81) = hauteur où les garnitures sont posées.
+	"table_a": ["pq_table_ovale", 0, {}, 0.975], "table_b": ["pq_table_ovale", 0, {}, 0.975], "table_c": ["pq_table_ovale", 0, {}, 0.975],
 }
 
 ## props/detail_v5 : retours au module MAISON (jugés sur planches à 3 colonnes, crypte de nuit) : l'étagère pq_bibliotheque est VIDE (le
@@ -2566,6 +2585,8 @@ func _modele_pose(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, m
 			return rs
 	if PropsQuaternius.pq and (nom.begins_with("q_") or nom.begins_with("pq_")):      # prop texturé (pq_*) à la place du q_* (même encombrement)
 		nom = PropsQuaternius.nom_crypte(nom, mats)
+	if stats_maison_actif and not (nom.begins_with("q_") or nom.begins_with("pq_") or nom.begins_with("pq:")) and not _est_structure(nom):
+		_stat_maison("module:" + nom)
 	var jn := not pose_sol
 	if jn:
 		j0(nom, lacet)

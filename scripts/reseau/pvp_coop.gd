@@ -18,6 +18,7 @@ extends RefCounted
 const EV_REGLAGE := "pvp_reglage"
 const EV_COUP := "pvp_coup"
 const EV_OP := "pvp_op"
+const EV_STATUT := "pvp_statut"
 const FICHIER_PREFS := "user://multijoueur.cfg"
 
 const FACTEUR_DEGATS := 0.6
@@ -88,6 +89,7 @@ static func installer() -> void:
 	r.abonner(EV_REGLAGE, PvpCoop._sur_reglage)
 	r.abonner(EV_COUP, PvpCoop._sur_coup)
 	r.abonner(EV_OP, PvpCoop._sur_op)
+	r.abonner(EV_STATUT, PvpCoop._sur_statut)
 	var arbre := Engine.get_main_loop() as SceneTree
 	if arbre != null:
 		var n := PvpHorloge.new()
@@ -153,6 +155,7 @@ static func exclus_pour_tir_local() -> Array[RID]:
 static func coup(cible: Node, degats: float, origine: Vector3, options := {}, continu := false) -> String:
 	if not pvp_cible(cible) or degats <= 0.0:
 		return ""
+	degats = minf(degats, DEGATS_BRUTS_MAX)
 	var pair := pair_de(cible)
 	var opt := CombatCoop._propre(options)
 	if continu:
@@ -181,12 +184,21 @@ static func _vider_agregats(dt: float) -> void:
 			if actif():
 				_envoyer_coup(pair, float(a["deg"]), a["orig"], a["opt"])
 
+## Coup de MÊLÉE du joueur local (épée, hache, arc au contact…) sur un avatar : même autorité hôte, mêmes plafonds.
+static func coup_melee(cible: Node, degats: float, origine: Vector3, info: Dictionary) -> String:
+	var recul := 4.0 if String(info.get("attaque", "legere")) == "legere" else 6.0
+	return coup(cible, degats, origine, {"type": String(info.get("type", "tranchant")), "recul": recul})
+
 ## Coup d'un SORT (LanceurSorts.frapper).
 static func frapper_sort(lanceur: Node3D, cible: Node, quantite: float, s: DonneesSort, point: Vector3, direction: Vector3, continu: bool) -> String:
 	var opt := {"type": s.type_degats, "recul": 1.5 if continu else 2.5}
 	match s.statut:
-		"gel":
-			opt["ralenti"] = Vector2(s.duree_statut, 1.0 - clampf(s.puissance_statut, 0.0, 0.8))
+		"gel":   # gel prolongé (ralenti, au moins 2,5 s) ; atténué par la victime comme tout ralenti
+			opt["ralenti"] = Vector2(maxf(s.duree_statut, 2.5), 1.0 - clampf(s.puissance_statut, 0.0, 0.8))
+		"brulure":   # brûlure : dégâts sur la durée chez la victime (pvp_statut), atténuée
+			opt["statut"] = "brulure"
+			opt["duree"] = s.duree_statut if s.duree_statut > 0.0 else 3.0
+			opt["puissance"] = s.puissance_statut
 		"choc":
 			opt["secousse"] = 0.6
 	var origine: Vector3 = lanceur.global_position if lanceur != null else point - direction
@@ -224,10 +236,18 @@ static func _valider_coup(att: int, pair: int, degats: float, origine: Vector3, 
 	if o.has("recul"):
 		o["recul"] = clampf(float(o["recul"]), 0.0, 9.0)
 	journal.append({"type": EV_COUP, "att": att, "cible": pair, "deg": deg})
+	var res := "touche"
 	if pair == 1:
-		return String((victime as Node).call("recevoir_coup", deg, origine, o))
-	CombatCoop._coup_vers(deg, origine, o, pair)
-	return "touche"
+		res = String((victime as Node).call("recevoir_coup", deg, origine, o))
+	else:
+		CombatCoop._coup_vers(deg, origine, o, pair)
+	if String(opt.get("statut", "")) == "brulure" and res == "touche":
+		var st := {"nom": "brulure", "duree": clampf(float(opt.get("duree", 3.0)), 0.5, 6.0), "dps": clampf(float(opt.get("puissance", 3.0)) * 0.5, 0.0, 3.0)}
+		if pair == 1:
+			_appliquer_statut(st)
+		else:
+			reseau().envoyer_evenement(EV_STATUT, att, st, pair)
+	return res
 
 static func _refus(raison: String, att: int, pair: int) -> String:
 	refuses += 1
@@ -308,6 +328,18 @@ static func _appliquer_op(d: Dictionary) -> void:
 			v.tenir(d.get("p", j.global_position))
 		"projeter", "lacher":
 			v.lancer(d.get("v", Vector3.ZERO))
+
+## VICTIME : statut reçu (brûlure atténuée : dégâts sur la durée, jamais mortels).
+static func _appliquer_statut(d: Dictionary) -> void:
+	var j := ReseauProjectiles.joueur_local()
+	if j == null or not actif():
+		return
+	if String(d.get("nom", "")) == "brulure":
+		PvpVictime.pour(j).bruler(float(d.get("duree", 3.0)), float(d.get("dps", 1.5)))
+
+static func _sur_statut(exp: int, _id: Variant, d: Variant) -> void:
+	if exp == 1 and not est_hote() and d is Dictionary:
+		_appliquer_statut(d)
 
 # ---------------------------------------------------------------------------------------------------- réglage
 static func _sur_reglage(exp: int, _id: Variant, d: Variant) -> void:

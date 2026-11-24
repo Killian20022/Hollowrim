@@ -113,6 +113,7 @@ TESTS=(
 	"test_sorts_esprit|--nouvelle"   # sorts de l'esprit : Répulsion (projette, coût ∝ charge, choc au mur), Lévitation (coût squelette < draugr < troll, drain, lancer, chef refuse, troll se dégage, chute à mana 0), Attraction (aspire puis relâche), IA rendue
 	"test_rayon_noir|--nouvelle"   # rayon noir (sort continu des ténèbres) : coût par seconde faible, dégâts par tic, corruption, petit drain, arrêt au mur et au premier ennemi, fin au relâchement et à mana 0, double, inertie
 	"test_ragdoll_esprit|--nouvelle"   # ragdoll de projection des sorts de l'esprit : vol physique, chocs, relevé capturé dos/ventre sans saut, IA < 4 s, mort en vol = cadavre, pas de traversée, plafond 6, lévitation, attraction, --sans-ragdoll-esprit
+	"test_degats_ragdoll|--nouvelle"   # dégâts d'objets lancés/attirés sur les ennemis (courbe d'énergie, casse, ragdoll), ennemi lancé : budget de dégâts + relevé
 	"test_magie|--nouvelle"   # magie et deux mains : compatibilité, mana, 12 sorts + soin + protection, double, réactions, interruption, épée + magie, enchantement, sauvegarde (docs/MAGIE.md)
 	"test_gestes_magie|--nouvelle"   # gestes de magie capturés (Mixamo) : données, paume dans l'écran, départ et retour au repos, gestes joués par sort, main sans saut (docs/MAGIE.md)
 	"test_tps_mains|--nouvelle"   # 3e personne : le corps tient ce que tient chaque main (torche seulement si équipée, vraie arme, bouclier, deux mains), effets depuis les paumes du corps, gestes d'incantation par bras (corps_mains_tps.gd)

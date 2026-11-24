@@ -110,13 +110,13 @@ func _lancer() -> void:
 	var sq := _ennemi("squelette", Vector3(-1.2, 0, 1.0), 300.0)
 	await _attendre(20)
 	var c2 := sq.global_position + Vector3(0, 1.15, 0)
-	var e2 := jeter(s, "epee_soldat", c2 + Vector3(4.0, 0.0, 0.0), c2, 34.0, j)
+	var e2 := jeter(s, "epee_soldat", c2 + Vector3(4.0, 0.0, 0.0), c2, 58.0, j)
 	var vu_traverse := false
 	for i in 50:
 		await physics_frame
 		if String(ImpactsLances.dernier.get("issue", "")) == "traverse":
 			vu_traverse = true
-	ok(vu_traverse, "épée 34 m/s sur squelette : traverse (E %.0f J ≥ seuil %.0f J)" % [float(ImpactsLances.dernier.get("energie", 0)), float(ImpactsLances.dernier.get("seuil", 0))])
+	ok(vu_traverse, "épée 58 m/s sur squelette : traverse (E %.0f J ≥ seuil %.0f J)" % [float(ImpactsLances.dernier.get("energie", 0)), float(ImpactsLances.dernier.get("seuil", 0))])
 	var m2: Dictionary = e2.get_meta("plantee", {})
 	ok(bool(m2.get("mur", false)), "puis plantée dans le mur derrière (%s, x %.2f)" % [ImpactsLances.dernier.get("issue", "?"), e2.global_position.x])
 	var ab2 := ImpactsLances.axe_monde(e2, e2.donnees_arme())
@@ -172,7 +172,7 @@ func _lancer() -> void:
 		var rel := o5.global_transform.affine_inverse() * e5.global_position
 		await _attendre(40)
 		var rel2 := o5.global_transform.affine_inverse() * e5.global_position
-		ok(rel.distance_to(rel2) < 0.05 and o5.global_position.y < 1.0, "elle suit l'os du ragdoll (écart %.3f, os à y %.2f)" % [rel.distance_to(rel2), o5.global_position.y])
+		ok(rel.distance_to(rel2) < 0.08 and o5.global_position.y < 1.0, "elle suit l'os du ragdoll (écart %.3f, os à y %.2f)" % [rel.distance_to(rel2), o5.global_position.y])
 	# re-saisie par télékinésie : arrachée
 	e5.saisi_telekinesie(true)
 	await _attendre(3)

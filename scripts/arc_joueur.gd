@@ -127,6 +127,8 @@ var _poing_vm: _Poing
 var main_g_monde := Transform3D()
 ## Écart (m, rad) entre ce repère et la prise voulue sur la poignée, mesuré dans la même image (mesure = true).
 var prise_g := Vector2.ZERO
+## Idem pour le CORPS (3e personne) : écart (m, rad) entre l'os hand_l et la prise voulue sur la poignée (mesure = true).
+var prise_g_tps := Vector2.ZERO
 var _s_rot := 0.0
 var _q_arc_prec := Quaternion.IDENTITY
 ## Mesures (tests) de l'arc de la 1re personne, repère de la caméra : orientation affichée (lacet et tangage de la flèche,
@@ -734,15 +736,18 @@ static func _dir_lacet_tangage(lacet: float, tangage: float) -> Vector3:
 ## suivre en visée (jusqu'à 72° d'écart) : la main tournait autour du poignet et le poing restait à côté de la poignée, dans
 ## le vide. Ici l'orientation voulue est atteignable, donc le creux du poing tombe exactement sur la poignée à toutes les phases ;
 ## l'arc, lui, ne bouge pas (visée, repose-flèche et inclinaison inchangés). Lu sur l'image précédente (l'écart se résorbe en 2-3 images).
-func _poing_g_naturel() -> void:
-	var coude := _sq.global_transform * _sq.get_bone_global_pose(_sq.find_bone("lowerarm_l")).origin
-	var poignet := _sq.global_transform * _sq.get_bone_global_pose(_sq.find_bone("hand_l")).origin
-	var f := _vm.global_transform.basis.inverse() * (poignet - coude)
+func _poing_g_naturel(sq: Skeleton3D = null, modele: ArcModele = null) -> void:
+	if sq == null:
+		sq = _sq
+		modele = _vm
+	var coude := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("lowerarm_l")).origin
+	var poignet := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("hand_l")).origin
+	var f := modele.global_transform.basis.inverse() * (poignet - coude)
 	f.y = 0.0
 	if f.length_squared() < 1e-4 * (poignet - coude).length_squared():
 		return   # avant-bras presque dans l'axe de l'arc : on garde le repère précédent
-	var x0 := _vm.repere_poignee.basis.x.normalized()
-	_vm.repere_poignee.basis = ArcModele.repere_main(x0.slerp(f.normalized(), lerpf(0.85, 1.0, poids_trajet())))   # amorti : pas d'oscillation d'une image à l'autre
+	var x0 := modele.repere_poignee.basis.x.normalized()
+	modele.repere_poignee.basis = ArcModele.repere_main(x0.slerp(f.normalized(), lerpf(0.85, 1.0, poids_trajet())))   # amorti : pas d'oscillation d'une image à l'autre
 
 ## Mesure à l'écran de la 1re personne (mesure = true depuis au moins une image) : demi-côté `demi` du carré autour du réticule
 ## (fraction de la HAUTEUR de l'écran) ; rend le nombre de points de l'arc (sommets) et des mains (os, gonflés de `rayon` m) dans
@@ -909,6 +914,18 @@ func _installer_corps() -> void:
 	_poing_corps = r[0]
 	_ik_corps.assign([r[1], r[2]])
 	_or_corps = [r[3], r[4]]
+	if not _sq_corps.skeleton_updated.is_connected(_sur_squelette_corps):
+		_sq_corps.skeleton_updated.connect(_sur_squelette_corps)
+
+## Os de la main gauche du corps (après l'IK et le poignet) contre la prise voulue sur la poignée (tests, films).
+func _sur_squelette_corps() -> void:
+	if _sq_corps != null and is_instance_valid(_sq_corps) and actif and joueur.troisieme:
+		_poing_g_naturel(_sq_corps, _tp)   # comme en 1re personne : le poing suit l'avant-bras, serré sur la poignée
+	if not mesure or _sq_corps == null or not is_instance_valid(_sq_corps):
+		return
+	var h: Transform3D = _sq_corps.global_transform * _sq_corps.get_bone_global_pose(_sq_corps.find_bone("hand_l"))
+	var cgp: Transform3D = (_tp.repere_poignee.get_child(0) as Node3D).global_transform
+	prise_g_tps = Vector2(h.origin.distance_to(cgp.origin), h.basis.orthonormalized().get_rotation_quaternion().angle_to(cgp.basis.orthonormalized().get_rotation_quaternion()))
 
 func _os_monde(nom: String) -> Vector3:
 	var i := _sq_corps.find_bone(nom)

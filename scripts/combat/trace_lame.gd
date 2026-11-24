@@ -81,7 +81,7 @@ static func cassable(n: Node) -> bool:
 static func cible_de(objet: Object) -> Node:
 	var n := objet as Node
 	while n != null:
-		if n.is_in_group("ennemis") or cassable(n) or n.is_in_group("cibles_combat"):
+		if n.is_in_group("ennemis") or cassable(n) or n.is_in_group("cibles_combat") or PvpCoop.pvp_cible(n):   # PvP : avatar d'un autre joueur
 			return n
 		n = n.get_parent()
 	return null

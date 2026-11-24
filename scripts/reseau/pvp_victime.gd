@@ -84,7 +84,33 @@ func _arreter() -> void:
 	joueur.velocity = Vector3.ZERO
 	_rendre_controle()
 
+## Brûlure (PvP) : `dps` PV/s pendant `duree` s (tics de 0,5 s), jamais mortelle ; une brûlure plus longue remplace la restante.
+var _brule_t := 0.0
+var _brule_dps := 0.0
+var _brule_tic := 0.0
+
+func bruler(duree: float, dps: float) -> void:
+	_brule_t = maxf(_brule_t, duree)
+	_brule_dps = maxf(_brule_dps, dps)
+	journal.append("brule")
+
+func _brulure(dt: float) -> void:
+	_brule_t -= dt
+	_brule_tic += dt
+	if _brule_tic >= 0.5:
+		_brule_tic -= 0.5
+		var dg := minf(_brule_dps * 0.5, maxf(0.0, float(joueur.vie) - 1.0))
+		if dg > 0.0 and not joueur.mort and not joueur.a_terre:
+			joueur.vie = float(joueur.vie) - dg
+			degats_impact_total += dg
+			joueur.touche.emit(dg)
+	if _brule_t <= 0.0:
+		_brule_dps = 0.0
+		_brule_tic = 0.0
+
 func _physics_process(dt: float) -> void:
+	if joueur != null and is_instance_valid(joueur) and _brule_t > 0.0:
+		_brulure(dt)
 	if joueur == null or not is_instance_valid(joueur) or not occupe():
 		return
 	if joueur.mort or joueur.a_terre:
