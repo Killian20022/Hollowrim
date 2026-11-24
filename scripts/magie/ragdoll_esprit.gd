@@ -37,7 +37,11 @@ const FROTTEMENT := 0.45
 const ROULIS := 3.0
 const TONUS := 0.35
 const EV := "es_ragdoll"
-const ATTENTE_HOTE := 5.0
+const ATTENTE_HOTE := 16.0   # invité : repli si l'hôte n'a rien annoncé (> TEMPS_FORCE : l'hôte attend que le corps soit posé)
+## Posé au sol : bassin à moins de HAUT_POSE du sol sous lui (corps couché : ~0,15-0,3 m ; plus haut = encore en l'air ou calé)
+const HAUT_POSE := 0.5
+const TEMPS_FORCE := 12.0   # filet : corps calé en hauteur (arête, objet), relevé forcé au sol sous lui au bout de ce temps
+const TEMPS_CALE := 2.5     # immobile mais pas posé : coup de pouce puis, à TEMPS_CALE x 2, relevé forcé
 
 var es: SortsEsprit
 ## instance_id -> fiche du corps suivi (phase "vol" ou "releve")
@@ -125,6 +129,9 @@ func prendre(e: CharacterBody3D, v: Vector3, s: DonneesSort, cosmetique := false
 		fi["sort"] = s
 		fi["touches"] = {}
 		fi["t_repos"] = 0.0
+		fi["pose"] = false
+		fi["t_cale"] = 0.0
+		fi["pousse"] = false
 		fi["t"] = minf(float(fi["t"]), 0.2)
 		return true
 	if fi.is_empty() and nb_en_vol() >= PLAFOND:
@@ -147,6 +154,9 @@ func prendre(e: CharacterBody3D, v: Vector3, s: DonneesSort, cosmetique := false
 	fi["phase"] = "vol"
 	fi["t"] = 0.0
 	fi["t_repos"] = 0.0
+	fi["pose"] = false
+	fi["t_cale"] = 0.0
+	fi["pousse"] = false
 	fi["touches"] = {}
 	fi["subi"] = 0.0   # budget de dégâts physiques du vol (SortsEsprit.degats_vol)
 	fi["sort"] = s
@@ -336,7 +346,7 @@ func _vol(fi: Dictionary, dt: float) -> void:
 	fi["v_prec"] = vc
 	# au sol (bassin bas, plus de montée) : il glisse puis s'arrête (amorti relevé : il ne roule pas sans fin)
 	var pel: Vector3 = (rd.os["pelvis"] as PhysicalBone3D).global_position
-	if not bool(fi.get("au_sol", false)) and float(fi["t"]) > 0.35 and vc.y < 1.0 and tour % 3 == 0 and pel.y - _sol(e, pel, pel.y - 0.2) < 0.4:
+	if not bool(fi.get("au_sol", false)) and float(fi["t"]) > 0.35 and vc.y < 1.0 and tour % 3 == 0 and pel.y - _sol(e, pel, pel.y - 99.0) < 0.4:
 		fi["au_sol"] = true
 		for pb: PhysicalBone3D in rd.os.values():
 			pb.linear_damp = 0.9
@@ -349,10 +359,23 @@ func _vol(fi: Dictionary, dt: float) -> void:
 	else:
 		fi["t_repos"] = 0.0
 	var pret := float(fi["t_repos"]) >= REPOS_T or float(fi["t"]) > TEMPS_MAX
-	if bool(fi["cosmetique"]):
-		pret = float(fi["t"]) > ATTENTE_HOTE
-	# filet : corps passé sous le sol (ne devrait pas arriver) -> relevé tout de suite, au-dessus du point de départ
-	if com.y < float(fi["y0"]) - 4.0:
+	# JAMAIS de relevé en l'air : le bassin doit être posé (vol long, chute, pente) ; sinon on attend (vérifié une image sur trois)
+	if pret and not bool(fi["cosmetique"]):
+		if tour % 3 == 0:
+			fi["pose"] = pel.y - _sol(e, pel, pel.y - 99.0, 80.0) < HAUT_POSE
+		var posee := bool(fi.get("pose", false))
+		if not posee:
+			if vc.length() < REPOS_V:
+				fi["t_cale"] = float(fi.get("t_cale", 0.0)) + dt
+			else:
+				fi["t_cale"] = 0.0
+			if float(fi.get("t_cale", 0.0)) > TEMPS_CALE and not bool(fi.get("pousse", false)):
+				fi["pousse"] = true   # calé en hauteur : un petit coup de pouce le fait glisser
+				(rd.os["pelvis"] as PhysicalBone3D).apply_central_impulse(Vector3(randf_range(-1, 1), 0.2, randf_range(-1, 1)).normalized() * 6.0)
+			pret = float(fi["t"]) > TEMPS_FORCE or float(fi.get("t_cale", 0.0)) > TEMPS_CALE * 2.0
+		# filet : corps passé sous le sol (ne devrait pas arriver) -> relevé tout de suite, au-dessus du point de départ
+	# (un corps lâché de haut descend de plus de 4 m : on ne déclenche que s'il n'y a plus AUCUN sol sous lui)
+	if com.y < float(fi["y0"]) - 4.0 and tour % 3 == 1 and _sol(e, com, INF, 80.0) == INF:
 		_noter("ECHEC filet : %s sous le sol (y=%.1f)" % [e.name, com.y])
 		pret = true
 	if pret and _releves_image < 1:
@@ -421,11 +444,11 @@ static func _ordre(sq: Skeleton3D) -> Array[int]:
 	return res
 
 ## Sol sous `p` (décor, pas les capsules des personnages) ; `defaut` si rien.
-func _sol(e: Node3D, p: Vector3, defaut: float) -> float:
+func _sol(e: Node3D, p: Vector3, defaut: float, portee := 2.5) -> float:
 	var espace := e.get_world_3d().direct_space_state
 	var ex: Array[RID] = []
 	for essai in 4:
-		var q := PhysicsRayQueryParameters3D.create(p + Vector3.UP * 0.6, p + Vector3.DOWN * 2.5, 1, ex)
+		var q := PhysicsRayQueryParameters3D.create(p + Vector3.UP * 0.3, p + Vector3.DOWN * portee, 1, ex)
 		var r := espace.intersect_ray(q)
 		if r.is_empty():
 			return defaut
@@ -500,7 +523,7 @@ func relever(fi: Dictionary, impose := {}) -> void:
 		lacet = axe_clip.signed_angle_to(axe_rd, Vector3.UP)
 	var B := Basis(Vector3.UP, lacet)
 	var pos := W[ip].origin - B * (K * p0)
-	pos.y = _sol(e, W[ip].origin, e.global_position.y)
+	pos.y = _sol(e, W[ip].origin, W[ip].origin.y - 0.2, 80.0)   # surface sous le CORPS (sol, table, pente), pas l'ancienne place de la capsule
 	var decale := 0.0
 	if not impose.has("pos"):
 		# le relevé finit debout à `pos` (Releve_Ventre : 1,2 m du bassin, côté pieds) : place libre et atteignable depuis le bassin, sinon
@@ -514,7 +537,7 @@ func relever(fi: Dictionary, impose := {}) -> void:
 		if k > 0.0 and d0 > 0.01:
 			decale = minf(k, d0)
 			pos += vers.normalized() * decale
-			pos.y = _sol(e, pos + Vector3.UP * 0.3, pos.y)
+			pos.y = _sol(e, pos + Vector3.UP * 0.3, pos.y, 80.0)
 	if impose.has("pos"):
 		pos = impose["pos"]
 		lacet = float(impose["lacet"])
