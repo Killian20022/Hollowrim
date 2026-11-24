@@ -18,10 +18,16 @@ const SOCKET_DEFAUT := "hollowrim"
 var chemin_cfg := chemin_cfg_defaut()
 ## Nom affiché du joueur dans EOS (écran Multijoueur) ; vide = « nom_joueur » de eos.cfg.
 var nom_joueur := ""
+## Outil d'essai uniquement (2 instances sur la même machine) : Device ID recréé à chaque connexion (identité différente).
+var device_id_jetable := false
 var _adaptateur: RefCounted = null
 var _code := ""
 var _hote_id := ""
 var _pret := false
+static var _actif: ReseauTransportEOS = null   # transport dont EOS a été initialisé (pour la sortie propre)
+const DELAI_CONNEXION := 15.0
+const DELAI_SALON := 15.0
+const DELAI_REJOINDRE := 20.0   # inclut les réessais de recherche (indexation Epic différée)
 
 ## Le plugin (classe native EOSGMultiplayerPeer) est-il chargé ?
 static func plugin_present() -> bool:
@@ -137,19 +143,24 @@ func preparer_async() -> bool:
 	var valeurs: Dictionary = r.valeurs
 	if nom_joueur.strip_edges() != "":
 		valeurs["nom_joueur"] = nom_joueur.strip_edges()
-	var err: String = await _adaptateur.call("preparer", valeurs)
+	if device_id_jetable:
+		valeurs["device_id_jetable"] = "true"
+	var err: String = await _avec_delai(func(): return await _adaptateur.call("preparer", valeurs), DELAI_CONNEXION,
+		"EOS : connexion trop longue (plus de %d s) : vérifier l'accès Internet puis réessayer." % int(DELAI_CONNEXION))
 	if err != "":
 		message = err
 		erreur = FAILED
 		return false
 	_pret = true
+	_actif = self
 	return true
 
 func ouvrir_salon_async() -> String:
 	if not await preparer_async():
 		return ""
 	var code := ReseauSalonCode.generer()
-	var err: String = await _adaptateur.call("creer_salon", code, MAX_JOUEURS)
+	var err: String = await _avec_delai(func(): return await _adaptateur.call("creer_salon", code, MAX_JOUEURS), DELAI_SALON,
+		"EOS : création du salon trop longue (plus de %d s) : réessayer." % int(DELAI_SALON))
 	if err != "":
 		message = err
 		erreur = FAILED
@@ -165,7 +176,8 @@ func rejoindre_salon_async(code: String) -> bool:
 		return false
 	if not await preparer_async():
 		return false
-	var rep: Dictionary = await _adaptateur.call("trouver_salon", c)
+	var rep: Dictionary = await _avec_delai(func(): return await _adaptateur.call("trouver_salon", c), DELAI_REJOINDRE,
+		{"erreur": "EOS : recherche du salon trop longue (plus de %d s) : réessayer." % int(DELAI_REJOINDRE)})
 	if str(rep.get("erreur", "")) != "":
 		message = rep.erreur
 		erreur = ERR_DOES_NOT_EXIST
@@ -179,6 +191,44 @@ func fermer_salon_async() -> void:
 		await _adaptateur.call("quitter_salon")
 	_code = ""
 	_hote_id = ""
+
+## Arrêt propre du SDK EOS avant de quitter le processus (sinon quit() peut rester bloqué). Sans effet si EOS n'a pas démarré.
+func arreter_async() -> void:
+	if _adaptateur != null and _pret:
+		await _adaptateur.call("arreter")
+	_pret = false
+	_code = ""
+	_hote_id = ""
+
+## Sortie rapide du jeu quand EOS a été initialisé : quitte le salon et se déconnecte (1 s au plus) puis sortie forcée
+## (le shutdown du SDK plante et le quit() normal reste bloqué). Renvoie true si elle a pris la main (le processus sera tué) ;
+## false si EOS n'a pas été initialisé : le comportement de sortie reste alors inchangé. Un seul appel : Jeu.quitter().
+static func sortie_propre() -> bool:
+	if _actif == null or not _actif._pret:
+		return false
+	_actif._sortie_async()
+	return true
+
+func _sortie_async() -> void:
+	var etat := {"fini": false}
+	(func():
+		await arreter_async()
+		etat.fini = true).call()
+	var t0 := Time.get_ticks_msec()
+	while not etat.fini and Time.get_ticks_msec() - t0 < 1000:
+		await Engine.get_main_loop().create_timer(0.05).timeout
+	OS.kill(OS.get_process_id())
+
+## Exécute `appel` (coroutine) avec un délai maximal ; renvoie `si_delai` si elle n'a pas fini à temps.
+func _avec_delai(appel: Callable, delai: float, si_delai: Variant) -> Variant:
+	var etat := {"fini": false, "val": null}
+	(func():
+		etat.val = await appel.call()
+		etat.fini = true).call()
+	var t0 := Time.get_ticks_msec()
+	while not etat.fini and Time.get_ticks_msec() - t0 < delai * 1000.0:
+		await Engine.get_main_loop().create_timer(0.1).timeout
+	return etat.val if etat.fini else si_delai
 
 # ---------- Interne ----------
 

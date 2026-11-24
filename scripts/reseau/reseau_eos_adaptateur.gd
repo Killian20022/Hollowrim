@@ -8,6 +8,8 @@ extends RefCounted
 
 const BUCKET := "hollowrim"
 const CLE_CODE := "CODE"
+const ESSAIS_RECHERCHE := 8      # recherches successives (indexation Epic différée)
+const PAUSE_RECHERCHE := 1.5     # secondes entre deux recherches
 
 var _salon = null   # HLobby
 
@@ -26,9 +28,31 @@ func preparer(cfg: Dictionary) -> String:
 	var nom := str(cfg.get("nom_joueur", "")).strip_edges()
 	if nom == "":
 		nom = "Joueur"
-	if not await HAuth.login_anonymous_async(nom):
-		return "EOS : connexion anonyme (Device ID) refusée (vérifier l'accès réseau et que « Device ID » est autorisé dans le portail développeur, voir docs/EOS_PAS_A_PAS.md)."
-	return ""
+	if str(cfg.get("device_id_jetable", "")) == "true":
+		# Outil d'essai seulement (2e instance sur la MÊME machine : il faut une identité différente) : méthode du plugin,
+		# qui supprime puis recrée le Device ID. Jamais utilisé par le jeu.
+		if not await HAuth.login_anonymous_async(nom):
+			return "EOS : connexion anonyme (Device ID jetable) refusée."
+		return ""
+	# Device ID PERSISTANT : créé une seule fois par machine, jamais supprimé (le login_anonymous du plugin le supprime
+	# puis le recrée à chaque lancement : lent et source de blocages). DuplicateNotAllowed = il existe déjà : c'est normal.
+	var login := EOS.Connect.LoginOptions.new()
+	login.credentials = EOS.Connect.Credentials.new()
+	login.credentials.type = EOS.ExternalCredentialType.DeviceidAccessToken
+	login.credentials.token = null
+	login.user_login_info = EOS.Connect.UserLoginInfo.new()
+	login.user_login_info.display_name = nom
+	HAuth.display_name = nom
+	for essai in 2:   # 2e passage : le Device ID a pu disparaître entre sa création et la connexion (autre instance du jeu)
+		var opts_id := EOS.Connect.CreateDeviceIdOptions.new()
+		opts_id.device_model = " ".join(PackedStringArray([OS.get_name(), OS.get_model_name()]))
+		EOS.Connect.ConnectInterface.create_device_id(opts_id)
+		var rep_id = await IEOS.connect_interface_create_device_id_callback
+		if not EOS.is_success(rep_id) and rep_id.result_code != EOS.Result.DuplicateNotAllowed:
+			return "EOS : création du Device ID refusée (%s)." % EOS.result_str(rep_id)
+		if await HAuth.login_game_services_async(login):
+			return ""
+	return "EOS : connexion anonyme (Device ID) refusée (vérifier l'accès réseau et que « Device ID » est autorisé dans le portail développeur, voir docs/EOS_PAS_A_PAS.md)."
 
 func creer_salon(code: String, max_joueurs: int) -> String:
 	var o := EOS.Lobby.CreateLobbyOptions.new()
@@ -48,12 +72,20 @@ func creer_salon(code: String, max_joueurs: int) -> String:
 	return ""
 
 ## Renvoie {erreur: String, hote: String (ProductUserId du propriétaire)}.
+## Le service de recherche d'Epic indexe un salon avec un léger retard (constaté en réel : 0 résultat dans la première
+## seconde, puis trouvé) : on réessaie quelques fois avant de conclure que le code n'existe pas.
 func trouver_salon(code: String) -> Dictionary:
-	var trouves = await HLobbies.search_by_attribute_async([
-		{"key": EOS.Lobby.SEARCH_BUCKET_ID, "value": BUCKET},
-		{"key": CLE_CODE, "value": code}])
-	if trouves == null:
-		return {"erreur": "EOS : recherche du salon impossible (réseau ?)."}
+	var trouves = null
+	for essai in ESSAIS_RECHERCHE:
+		trouves = await HLobbies.search_by_attribute_async([
+			{"key": EOS.Lobby.SEARCH_BUCKET_ID, "value": BUCKET},
+			{"key": CLE_CODE, "value": code}])
+		if trouves == null:
+			return {"erreur": "EOS : recherche du salon impossible (réseau ?)."}
+		if not (trouves as Array).is_empty():
+			break
+		if essai < ESSAIS_RECHERCHE - 1:
+			await Engine.get_main_loop().create_timer(PAUSE_RECHERCHE).timeout
 	if (trouves as Array).is_empty():
 		return {"erreur": "Aucun salon avec le code %s (vérifier le code, l'hôte doit avoir ouvert son salon)." % code}
 	var s = trouves[0]
@@ -73,3 +105,9 @@ func quitter_salon() -> void:
 	else:
 		await _salon.leave_async()
 	_salon = null
+
+## Arrêt propre du SDK : salon quitté, déconnexion, libération de la plateforme. Sans cela le processus peut rester
+## bloqué à quit() (threads du SDK encore actifs). À appeler juste avant de quitter le jeu.
+func arreter() -> void:
+	await quitter_salon()
+	await HAuth.logout_async()
