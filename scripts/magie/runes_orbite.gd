@@ -14,6 +14,8 @@ const ECOLES := {
 	"feu": {"couleur": Color("#ff6a1a"), "coeur": Color("#ffc27a"), "signes": [6, 7, 8, 9, 1, 10, 6, 7], "rayon": 0.115, "taille": 0.026, "centre": 0.15},
 	"glace": {"lueur_k": 2.0, "couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 10, 0, 5, 3, 9, 8], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
 	"electricite": {"lueur_k": 1.7, "couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 9, 2, 4, 8, 10], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
+	# esprit : runes du Futhark (Raidho, Othala, Fehu, Ingwaz, Tiwaz, Dagaz, Kenaz) qui gravitent autour de l'orbe (OrbeEsprit)
+	"esprit": {"lueur_k": 0.45, "couleur": Color("#8fd0ff"), "coeur": Color("#f0fbff"), "signes": [6, 7, 8, 5, 4, 10, 1, 7], "rayon": 0.14, "taille": 0.042, "centre": 0.15},
 	"tenebres": {"lueur_k": 1.8, "couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 7, 4, 1, 5, 6], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
 }
 ## Deux anneaux très fins, PARTIELS (un arc qui tourne, ni cercle complet ni grand cercle devant la caméra) : rayon (m),
@@ -97,6 +99,9 @@ const LUEUR_AVANCE := 0.025
 var lueur_bras: OmniLight3D
 ## Noyau 3D propre à l'école (glace, électricité, ténèbres ; la flamme du feu est dessinée par l'aura) : NoyauEcole.
 var noyau: NoyauEcole
+## École « esprit » : orbe de verre, anneaux et éclats de pierre (OrbeEsprit) ; `sort` = variante (telekinesie, repulsion, levitation, attraction).
+var orbe: OrbeEsprit
+var sort := "telekinesie"
 const LUEUR_BRAS := 0.45
 const LUEUR_BRAS_POS := Vector3(-0.14, -0.02, 0.3)   # main gauche (x en miroir pour la droite), repère caméra
 
@@ -189,6 +194,17 @@ func _ready() -> void:
 		noyau.lumi_k = lumi_k
 		noyau.vitesse_k = vitesse_k
 		add_child(noyau)
+	if ecole == "esprit":
+		orbe = OrbeEsprit.new()
+		orbe.runes = self
+		orbe.sort = sort
+		orbe.cote = cote
+		add_child(orbe)
+		var v: Dictionary = OrbeEsprit.VARIANTES.get(sort, OrbeEsprit.VARIANTES["telekinesie"])
+		_mat_rune.set_shader_parameter("couleur", (v.teinte as Color).lerp(e.couleur, 0.3))
+		_mat_rune.set_shader_parameter("coeur", v.clair)
+		lueur.light_color = Color(0.86, 0.92, 1.0)   # reflet blanc-bleuté faible : la peau reste naturelle, quel que soit le sort
+		lueur_bras.light_color = Color(0.86, 0.92, 1.0)
 	_suivre()
 
 func _h(i: int) -> float:
@@ -295,7 +311,7 @@ func _process(dt: float) -> void:
 		f.basis = bs.scaled(Vector3.ONE * resserre)
 		f.set_instance_shader_parameter("defile", _t * 0.02 * signf(float(an.vit)) * cote)
 		f.set_instance_shader_parameter("eclat", force * 0.8 * (0.85 + 0.15 * sin(_t * 2.3 + o)) * fondu_fils)
-		f.visible = fondu_fils > 0.02
+		f.visible = fondu_fils > 0.02 and orbe == null   # l'orbe d'esprit a ses propres anneaux
 	# hélice du jet : longueur, profil du cône
 	var lg := 2.0
 	var r0 := 0.05
