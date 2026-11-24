@@ -5,16 +5,19 @@ extends ReseauTransport
 ## (MultiplayerPeerExtension) et les assistants HPlatform / HAuth / HLobbies. Voir docs/reseau_lot6.md.
 ## ISOLATION : aucun identifiant du plugin n'est écrit en dur ici (ClassDB + chargement dynamique de l'adaptateur) ;
 ## sans plugin le projet compile, disponible() renvoie false et `message` dit quoi faire. ENet reste le transport par défaut.
-## ÉCRIT CONTRE LA DOC/LE CODE SOURCE DU PLUGIN, NON TESTÉ AVEC LE PLUGIN INSTALLÉ (pas de compte Epic côté développement).
+## Plugin 2.3.1 installé et vérifié en Godot 4.7.2 (classe et signatures du pair confirmées) ; reste à valider avec un vrai compte Epic.
 
 const MAX_JOUEURS := 4
 const CLASSE_PAIR := "EOSGMultiplayerPeer"
 const ADAPTATEUR := "res://scripts/reseau/reseau_eos_adaptateur.gd"
 const CFG := "user://eos.cfg"                  # JAMAIS commité (user:// est hors du dépôt)
+const CFG_EXE := "eos.cfg"                     # variante : fichier posé À CÔTÉ de l'exe (un seul fichier fourni avec le zip)
 const CLES_OBLIGATOIRES := ["product_name", "product_version", "product_id", "sandbox_id", "deployment_id", "client_id", "client_secret"]
 const SOCKET_DEFAUT := "hollowrim"
 
-var chemin_cfg := CFG
+var chemin_cfg := chemin_cfg_defaut()
+## Nom affiché du joueur dans EOS (écran Multijoueur) ; vide = « nom_joueur » de eos.cfg.
+var nom_joueur := ""
 var _adaptateur: RefCounted = null
 var _code := ""
 var _hote_id := ""
@@ -23,6 +26,25 @@ var _pret := false
 ## Le plugin (classe native EOSGMultiplayerPeer) est-il chargé ?
 static func plugin_present() -> bool:
 	return ClassDB.class_exists(CLASSE_PAIR)
+
+## Fichier de réglages à utiliser : `eos.cfg` à côté de l'exe s'il existe, sinon `user://eos.cfg` (%APPDATA%\\Hollowrim).
+static func chemin_cfg_defaut() -> String:
+	if not OS.has_feature("editor"):
+		var a_cote := OS.get_executable_path().get_base_dir().path_join(CFG_EXE)
+		if FileAccess.file_exists(a_cote):
+			return a_cote
+	return CFG
+
+## Explication destinée au joueur quand EOS n'est pas utilisable (affichée dans le menu Multijoueur).
+func aide_configuration() -> String:
+	if not plugin_present():
+		return "Le jeu par Internet n'est pas disponible dans cette version (plugin Epic absent). Utilisez l'adresse IP."
+	var r := lire_cfg(chemin_cfg)
+	if not r.fichier:
+		return "Jeu par Internet non configuré : placez le fichier eos.cfg à côté de Hollowrim.exe (fichier fourni par l'organisateur, voir Hollowrim_EPIC_PAS_A_PAS.txt)."
+	if not (r.manquants as Array).is_empty():
+		return "eos.cfg incomplet : il manque %s." % ", ".join(r.manquants)
+	return message
 
 ## Lit le fichier de réglages. Renvoie {valeurs: Dictionary, manquants: Array[String], fichier: bool}.
 static func lire_cfg(chemin: String = CFG) -> Dictionary:
@@ -48,11 +70,11 @@ func salon_supporte() -> bool:
 func disponible() -> bool:
 	message = ""
 	if not plugin_present():
-		message = "le plugin EOSG (classe %s) n'est pas installé dans addons/ (voir docs/reseau_lot6.md, étape 6)." % CLASSE_PAIR
+		message = "le plugin EOSG (classe %s) n'est pas installé dans addons/ (voir docs/EOS_PAS_A_PAS.md)." % CLASSE_PAIR
 		return false
 	var r := lire_cfg(chemin_cfg)
 	if not r.fichier:
-		message = "fichier de réglages %s absent (voir docs/reseau_lot6.md, étape 5)." % chemin_cfg
+		message = "fichier de réglages eos.cfg absent (à placer à côté de Hollowrim.exe, ou dans %s ; voir docs/EOS_PAS_A_PAS.md)." % CFG
 		return false
 	if not (r.manquants as Array).is_empty():
 		message = "réglages EOS manquants dans %s : %s." % [chemin_cfg, ", ".join(r.manquants)]
@@ -112,7 +134,10 @@ func preparer_async() -> bool:
 	if _adaptateur == null:
 		_adaptateur = (load(ADAPTATEUR) as GDScript).new()
 	var r := lire_cfg(chemin_cfg)
-	var err: String = await _adaptateur.call("preparer", r.valeurs)
+	var valeurs: Dictionary = r.valeurs
+	if nom_joueur.strip_edges() != "":
+		valeurs["nom_joueur"] = nom_joueur.strip_edges()
+	var err: String = await _adaptateur.call("preparer", valeurs)
 	if err != "":
 		message = err
 		erreur = FAILED

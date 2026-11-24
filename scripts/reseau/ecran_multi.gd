@@ -46,6 +46,16 @@ var _emplacements: Array[int] = []
 var _indice_monde := 0
 var _role := ""   ## "hote" | "invite" | ""
 var _abonne := false
+## Jeu par Internet (relais Epic EOS, code de salon) : le transport EOS remplace ENet le temps de la connexion.
+var _internet := false
+var _eos: ReseauTransportEOS = null
+var _transport_avant: ReseauTransport = null
+var _code_salon := ""
+var _operation := 0   ## numéro de la demande Internet en cours (une demande périmée est abandonnée)
+var _b_choix_heberger_net: Button
+var _b_choix_rejoindre_code: Button
+var _etq_port: Label
+var _etq_adresse: Label
 
 # ---------- analyse des saisies (statique : testable sans interface) ----------
 
@@ -267,13 +277,16 @@ func _construire_choix(pile: VBoxContainer) -> void:
 	v.add_child(l)
 	_b_choix_heberger = _bouton("Héberger une partie", func() -> void: _aller("heberger"), "BoutonHeberger")
 	_b_choix_rejoindre = _bouton("Rejoindre une partie", func() -> void: _aller("rejoindre"), "BoutonRejoindre")
+	_b_choix_heberger_net = _bouton("Héberger par Internet (code)", func() -> void: _choisir_internet(true), "BoutonHebergerInternet")
+	_b_choix_rejoindre_code = _bouton("Rejoindre avec un code", func() -> void: _choisir_internet(false), "BoutonRejoindreCode")
 	var retour_b := _bouton("Retour", retour, "BoutonRetour")
-	for b in [_b_choix_heberger, _b_choix_rejoindre, retour_b]:
+	var boutons_choix: Array[Button] = [_b_choix_heberger, _b_choix_rejoindre, _b_choix_heberger_net, _b_choix_rejoindre_code, retour_b]
+	for b in boutons_choix:
 		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		b.custom_minimum_size = Vector2(430, 0)
+		b.custom_minimum_size = Vector2(520, 0)
 		v.add_child(b)
 	v.set_meta("focus", _b_choix_heberger)
-	v.set_meta("boutons", [_b_choix_heberger, _b_choix_rejoindre, retour_b])
+	v.set_meta("boutons", boutons_choix)
 
 func _construire_heberger(pile: VBoxContainer) -> void:
 	var v := _vue("heberger", pile)
@@ -292,7 +305,8 @@ func _construire_heberger(pile: VBoxContainer) -> void:
 	v.add_child(_etiquette("Votre nom"))
 	_champ_nom_h = _champ("NomHote", "Nom du joueur")
 	v.add_child(_champ_nom_h)
-	v.add_child(_etiquette("Port (%d par défaut ; à ouvrir sur la box pour jouer par Internet)" % PORT_DEFAUT))
+	_etq_port = _etiquette("Port (%d par défaut ; à ouvrir sur la box pour jouer par Internet)" % PORT_DEFAUT)
+	v.add_child(_etq_port)
 	_champ_port_h = _champ("PortHote", str(PORT_DEFAUT))
 	v.add_child(_champ_port_h)
 	_case_pvp = CheckBox.new()
@@ -318,7 +332,8 @@ func _construire_heberger(pile: VBoxContainer) -> void:
 
 func _construire_rejoindre(pile: VBoxContainer) -> void:
 	var v := _vue("rejoindre", pile)
-	v.add_child(_etiquette("Adresse de l'hôte (IP:port)"))
+	_etq_adresse = _etiquette("Adresse de l'hôte (IP:port)")
+	v.add_child(_etq_adresse)
 	_champ_adresse = _champ("Adresse", "exemple : 192.168.1.20:%d" % PORT_DEFAUT)
 	v.add_child(_champ_adresse)
 	v.add_child(_etiquette("Votre nom"))
@@ -386,9 +401,17 @@ func ouvrir() -> void:
 
 func _aller(nom: String) -> void:
 	vue = nom
+	if nom == "choix" and (_internet or _eos != null):
+		_abandonner_internet()
 	for k in _vues:
 		(_vues[k] as Control).visible = k == nom
 	_avis.text = ""
+	_etq_port.visible = not _internet
+	_champ_port_h.visible = not _internet
+	_etq_adresse.text = "Code du salon (6 caractères, donné par l'hôte)" if _internet else "Adresse de l'hôte (IP:port)"
+	_champ_adresse.placeholder_text = "exemple : K7PQ4X" if _internet else "exemple : 192.168.1.20:%d" % PORT_DEFAUT
+	_b_ouvrir.text = "Ouvrir le salon" if _internet else "Ouvrir la partie"
+	_b_connecter.text = "Rejoindre le salon" if _internet else "Se connecter"
 	if nom == "heberger":
 		_actualiser_mondes()
 	if nom == "salon":
@@ -462,6 +485,9 @@ func _ouvrir_partie() -> void:
 		_avis.text = n["erreur"]
 		_champ_nom_h.grab_focus()
 		return
+	if _internet:
+		_ouvrir_salon_internet(n["nom"])
+		return
 	var p := analyser_port(_champ_port_h.text)
 	if not p["ok"]:
 		_avis.text = p["erreur"]
@@ -496,6 +522,9 @@ func _lancer_hote() -> void:
 # ---------- Rejoindre ----------
 
 func _connecter() -> void:
+	if _internet:
+		_rejoindre_salon_internet()
+		return
 	var a := analyser_adresse(_champ_adresse.text)
 	if not a["ok"]:
 		_avis.text = a["erreur"]
@@ -575,9 +604,116 @@ func _maj_salon() -> void:
 		_liste_joueurs.add_child(l)
 	var hote := _role == "hote"
 	_b_lancer.visible = hote
-	_etat_salon.text = ("Communiquer l'adresse IP et le port (%d) aux autres joueurs.\nLancer la partie quand tout le monde est là ; un joueur peut aussi rejoindre ensuite." % _port_hote()) if hote \
+	if hote and _code_salon != "":
+		_etat_salon.text = "CODE DU SALON :  %s\nDonnez ce code aux autres joueurs (ils choisissent « Rejoindre avec un code »).\nLancer la partie quand tout le monde est là ; un joueur peut aussi rejoindre ensuite." % _code_salon
+	else:
+		_etat_salon.text = ("Communiquer l'adresse IP et le port (%d) aux autres joueurs.\nLancer la partie quand tout le monde est là ; un joueur peut aussi rejoindre ensuite." % _port_hote()) if hote \
 		else "En attente du lancement de la partie par l'hôte…"
 	(_vues["salon"] as Control).set_meta("focus", _b_lancer if hote else (_vues["salon"] as Control).get_meta("boutons")[1])
+
+# ---------- Internet (relais Epic EOS) ----------
+
+## Clic sur « Héberger par Internet » / « Rejoindre avec un code » : vérifie que EOS est utilisable, sinon explique quoi faire.
+func _choisir_internet(heberger: bool) -> void:
+	var t := ReseauTransportEOS.new()
+	if not t.disponible():
+		_avis.text = t.aide_configuration()
+		return
+	_eos = t
+	_internet = true
+	_aller("heberger" if heberger else "rejoindre")
+
+## Revient à ENet : ferme le salon EOS éventuel et rend à Reseau son transport d'origine.
+func _abandonner_internet() -> void:
+	_operation += 1
+	if _eos != null:
+		_eos.fermer_salon_async()   # coroutine : lancée sans attendre
+	_restaurer_transport()
+	_eos = null
+	_internet = false
+	_code_salon = ""
+
+func _installer_transport_eos() -> void:
+	var r := _R()
+	if _transport_avant == null:
+		_transport_avant = r.get("transport")
+	r.set("transport", _eos)
+
+func _restaurer_transport() -> void:
+	if _transport_avant != null:
+		_R().set("transport", _transport_avant)
+		_transport_avant = null
+
+func _ouvrir_salon_internet(nom: String) -> void:
+	_operation += 1
+	var mon_op := _operation
+	var t := _eos
+	t.nom_joueur = nom
+	_b_ouvrir.disabled = true
+	_avis.text = "Connexion au relais Epic…"
+	var code: String = await t.ouvrir_salon_async()
+	if mon_op != _operation or not is_inside_tree():
+		return   # annulé entre-temps
+	_b_ouvrir.disabled = false
+	if code == "":
+		_avis.text = t.message if t.message != "" else "Impossible d'ouvrir le salon."
+		return
+	_installer_transport_eos()
+	var r := _R()
+	r.set("nom_joueur", nom)
+	var err: int = r.call("heberger", 0)
+	if err != OK:
+		_avis.text = t.message if t.message != "" else texte_erreur(err, 0)
+		t.fermer_salon_async()
+		_restaurer_transport()
+		return
+	r.set("infos_partie", {"lancee": false, "monde": texte_monde(monde_choisi())})
+	if persistance:
+		sauver_prefs(nom, "", PORT_DEFAUT)
+	_code_salon = code
+	_role = "hote"
+	_abonner()
+	_aller("salon")
+
+func _rejoindre_salon_internet() -> void:
+	var code := ReseauSalonCode.normaliser(_champ_adresse.text)
+	if code == "":
+		_avis.text = "Code invalide : 6 caractères (lettres sans I, L, O, et chiffres de 2 à 9), par exemple K7PQ4X."
+		_champ_adresse.grab_focus()
+		return
+	var n := analyser_nom(_champ_nom_r.text)
+	if not n["ok"]:
+		_avis.text = n["erreur"]
+		_champ_nom_r.grab_focus()
+		return
+	_operation += 1
+	var mon_op := _operation
+	var t := _eos
+	t.nom_joueur = n["nom"]
+	_b_connecter.disabled = true
+	_avis.text = "Recherche du salon %s…" % code
+	var trouve: bool = await t.rejoindre_salon_async(code)
+	if mon_op != _operation or not is_inside_tree():
+		return
+	_b_connecter.disabled = false
+	if not trouve:
+		_avis.text = t.message if t.message != "" else "Salon introuvable."
+		return
+	_installer_transport_eos()
+	var r := _R()
+	r.set("nom_joueur", n["nom"])
+	var err: int = r.call("rejoindre", "", 0)
+	if err != OK:
+		_avis.text = t.message if t.message != "" else texte_erreur(err, 0)
+		t.fermer_salon_async()
+		_restaurer_transport()
+		return
+	if persistance:
+		sauver_prefs(n["nom"], "", PORT_DEFAUT)
+	_role = "invite"
+	_abonner()
+	_texte_connexion.text = "Connexion au salon %s (relais Epic)…" % code
+	_aller("connexion")
 
 func _port_hote() -> int:
 	return int(analyser_port(_champ_port_h.text)["port"]) if _champ_port_h != null else PORT_DEFAUT
@@ -622,4 +758,9 @@ func _quitter_reseau() -> void:
 	var r := _R()
 	if r != null and bool(r.call("est_en_ligne")):
 		r.call("deconnecter")
+	if _eos != null:   # jeu par Internet : ferme le salon et rend ENet à Reseau
+		_operation += 1
+		_eos.fermer_salon_async()
+		_restaurer_transport()
+		_code_salon = ""
 	_role = ""

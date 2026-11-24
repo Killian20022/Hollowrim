@@ -33,6 +33,43 @@ fi
 grep -E "ERROR|SCRIPT ERROR" "$DIST/export.log" | head -20 || true
 echo "export : $((SECONDS - t0)) s"
 
+# Plugin EOS (jeu par Internet) : le SDK Epic doit être À CÔTÉ de l'exe. Le plugin d'export les y copie normalement ;
+# sinon on les copie depuis addons/. Sans le plugin (addons/ absent) : build ENet seul, avertissement.
+EOS_ADDON="$ICI/addons/epic-online-services-godot/bin/windows"
+DLL_EOS=()
+if [[ -d "$EOS_ADDON" ]]; then
+	# l'export les pose À PLAT à côté de l'exe (vérifié) ; xaudio2 n'est dans addons/ que sous x64/
+	for f in EOSSDK-Win64-Shipping.dll xaudio2_9redist.dll; do
+		if [[ ! -f "$BUILD/$f" ]]; then
+			src="$EOS_ADDON/$f"; [[ -f "$src" ]] || src="$EOS_ADDON/x64/$f"
+			cp "$src" "$BUILD/$f"; echo "EOS : $f copié depuis addons/"
+		fi
+		DLL_EOS+=("$f")
+	done
+	# la bibliothèque du plugin (libeosg.*.dll) : copiée par l'export (GDExtension) ; sinon la version release
+	for f in "$BUILD"/libeosg*.dll; do [[ -f "$f" ]] && DLL_EOS+=("$(basename "$f")"); done
+	if ! ls "$BUILD"/libeosg*.dll >/dev/null 2>&1; then
+		cp "$EOS_ADDON/libeosg.windows.template_release.x86_64.dll" "$BUILD/" && DLL_EOS+=("libeosg.windows.template_release.x86_64.dll")
+		echo "EOS : libeosg release copiée depuis addons/ (non copiée par l'export)"
+	fi
+else
+	echo "AVERTISSEMENT : addons/epic-online-services-godot absent -> pas de jeu par Internet dans ce build (ENet seul)." >&2
+fi
+cat > "$BUILD/eos.cfg.exemple" <<'EOC'
+; Renommer ce fichier en « eos.cfg » (sans .exemple), le laisser à côté de Hollowrim.exe et remplacer les COLLE_ICI.
+; Voir Hollowrim_EPIC_PAS_A_PAS.txt. Fichier à transmettre en privé : il contient le Client Secret.
+[eos]
+product_name="Hollowrim"
+product_version="0.1"
+product_id="COLLE_ICI"
+sandbox_id="COLLE_ICI"
+deployment_id="COLLE_ICI"
+client_id="COLLE_ICI"
+client_secret="COLLE_ICI"
+EOC
+sed -i 's/$/\r/' "$BUILD/eos.cfg.exemple"
+[[ -f "$ICI/docs/EOS_PAS_A_PAS.md" ]] && cp "$ICI/docs/EOS_PAS_A_PAS.md" "$BUILD/EOS_PAS_A_PAS.txt" && sed -i 's/$/\r/' "$BUILD/EOS_PAS_A_PAS.txt"
+
 # LISEZMOI.txt (CRLF : lisible dans le Bloc-notes)
 cat > "$BUILD/LISEZMOI.txt" <<EOF
 $NOM - démo $VERSION (Windows)
@@ -58,6 +95,11 @@ CONFIGURATION
 - Minimale (estimation) : Windows 10/11 64 bits, carte graphique intégrée récente
   (type Intel Iris Xe), 8 Go de mémoire, ~1 Go d'espace disque.
 - Pilote graphique compatible Vulkan ; à défaut le jeu bascule seul en OpenGL.
+
+JOUER PAR INTERNET (facultatif)
+- Menu Multijoueur > « Héberger par Internet (code) » / « Rejoindre avec un code ». Il faut le fichier eos.cfg
+  (modèle : eos.cfg.exemple ; mode d'emploi : EOS_PAS_A_PAS.txt) à côté de $NOM.exe, ainsi que les DLL fournies.
+  Sans eos.cfg : jeu en réseau local / IP directe seulement.
 
 SAUVEGARDES
 - Dossier : %APPDATA%\\$NOM\\  (taper %APPDATA%\\$NOM dans la barre de l'Explorateur)
@@ -85,7 +127,9 @@ sed -i 's/$/\r/' "$BUILD/LISEZMOI.txt" "$BUILD/CREDITS.txt"
 
 ZIP="$DIST/$NOM-$VERSION-windows.zip"
 rm -f "$ZIP"
-FICHIERS=("$NOM.exe" LISEZMOI.txt CREDITS.txt)
+FICHIERS=("$NOM.exe" LISEZMOI.txt CREDITS.txt eos.cfg.exemple)
+[[ -f "$BUILD/EOS_PAS_A_PAS.txt" ]] && FICHIERS+=(EOS_PAS_A_PAS.txt)
+FICHIERS+=("${DLL_EOS[@]}")
 [[ -f "$BUILD/$NOM.pck" ]] && FICHIERS+=("$NOM.pck")
 (cd "$BUILD" && python3 -I -c '
 import sys, zipfile
