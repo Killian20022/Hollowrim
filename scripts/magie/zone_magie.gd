@@ -18,7 +18,7 @@ func _physics_process(dt: float) -> void:
 		attirer(global_position, rayon, attraction)
 	if _tic >= intervalle:
 		_tic -= intervalle
-		for c in Elements.cibles_dans(global_position, rayon):
+		for c in PvpCoop.cibles(global_position, rayon):
 			if rappel.is_valid():
 				rappel.call(c)
 	if _t >= duree:
@@ -26,7 +26,7 @@ func _physics_process(dt: float) -> void:
 
 ## Attire vers `centre` les cibles dans `rayon` (draugr, EnnemiBase : propriété `_recul`, amortie par l'ennemi).
 static func attirer(centre: Vector3, rayon: float, force: float) -> void:
-	for c in Elements.cibles_dans(centre, rayon):
+	for c in PvpCoop.cibles(centre, rayon):
 		if c.get("_recul") is Vector3:
 			var v: Vector3 = centre - (c as Node3D).global_position
 			v.y = 0.0

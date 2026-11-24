@@ -29,6 +29,7 @@ var _vues := {}
 var _avis: Label
 var _champ_nom_h: LineEdit
 var _champ_port_h: LineEdit
+var _case_pvp: CheckBox
 var _champ_nom_r: LineEdit
 var _champ_adresse: LineEdit
 var _b_monde: Button
@@ -294,6 +295,14 @@ func _construire_heberger(pile: VBoxContainer) -> void:
 	v.add_child(_etiquette("Port (%d par défaut ; à ouvrir sur la box pour jouer par Internet)" % PORT_DEFAUT))
 	_champ_port_h = _champ("PortHote", str(PORT_DEFAUT))
 	v.add_child(_champ_port_h)
+	_case_pvp = CheckBox.new()
+	_case_pvp.name = "CasePvp"
+	_case_pvp.text = "Combat entre joueurs (PvP) : sorts, télékinésie et flèches touchent les autres joueurs"
+	_case_pvp.focus_mode = Control.FOCUS_ALL
+	_case_pvp.add_theme_font_size_override("font_size", 22)
+	_case_pvp.button_pressed = (not PvpCoop.arg_sans_pvp()) and PvpCoop.charger_reglage()
+	_case_pvp.focus_entered.connect(func() -> void: son.emit("survol"))
+	v.add_child(_case_pvp)
 	_b_ouvrir = _bouton("Ouvrir la partie", _ouvrir_partie, "BoutonOuvrir")
 	var retour_b := _bouton("Retour", retour, "BoutonRetourHeberger")
 	var h := HBoxContainer.new()
@@ -303,7 +312,7 @@ func _construire_heberger(pile: VBoxContainer) -> void:
 	h.add_child(retour_b)
 	v.add_child(h)
 	v.set_meta("focus", _b_monde)
-	v.set_meta("boutons", [_b_monde, _champ_nom_h, _champ_port_h, _b_ouvrir, retour_b])
+	v.set_meta("boutons", [_b_monde, _champ_nom_h, _champ_port_h, _case_pvp, _b_ouvrir, retour_b])
 	_champ_nom_h.text_submitted.connect(func(_t: String) -> void: _champ_port_h.grab_focus())
 	_champ_port_h.text_submitted.connect(func(_t: String) -> void: _b_ouvrir.grab_focus())
 
@@ -467,6 +476,7 @@ func _ouvrir_partie() -> void:
 	r.set("infos_partie", {"lancee": false, "monde": texte_monde(monde_choisi())})
 	if persistance:
 		sauver_prefs(n["nom"], "", int(p["port"]))
+	PvpCoop.definir(_case_pvp.button_pressed, persistance)   # réglage de l'hôte, diffusé aux invités
 	_role = "hote"
 	_abonner()
 	_aller("salon")

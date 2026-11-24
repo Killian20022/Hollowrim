@@ -132,6 +132,7 @@ static func installer() -> void:
 	if r == null:
 		return
 	_pret = true
+	PvpCoop.installer()   # PvP : coups et états entre joueurs (scripts/reseau/pvp_coop.gd)
 	r.abonner(EV_SPAWN, ReseauProjectiles._sur_spawn)
 	r.abonner(EV_COUP, ReseauProjectiles._sur_coup)
 	r.abonner(EV_FIN, ReseauProjectiles._sur_fin)

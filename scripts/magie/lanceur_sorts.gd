@@ -82,7 +82,7 @@ func viser(oeil: Vector3, avant: Vector3, portee: float, couloir := 0.0) -> Dict
 			res["decor"] = true
 	if vise == "ennemis":
 		var meilleur := AIDE_VISEE
-		for c in Elements.cibles_dans(oeil, portee):
+		for c in PvpCoop.cibles(oeil, portee):
 			var centre := Elements._centre(c)
 			var a := rad_to_deg(avant.angle_to(centre - oeil))
 			if a < meilleur and oeil.distance_to(centre) <= oeil.distance_to(res["point"]) + 0.6 and not _mur_entre(oeil, centre):
@@ -93,7 +93,7 @@ func viser(oeil: Vector3, avant: Vector3, portee: float, couloir := 0.0) -> Dict
 				res["decor"] = false
 		if couloir > 0.0 and res["cible"] == null:
 			var plus_pres := oeil.distance_to(res["point"]) + 0.6
-			for c in Elements.cibles_dans(oeil, portee):
+			for c in PvpCoop.cibles(oeil, portee):
 				var rel := Elements._centre(c) - oeil
 				var t := rel.dot(avant)
 				if t > 0.5 and t < plus_pres and (rel - avant * t).length() <= couloir and not _mur_entre(oeil, Elements._centre(c)):
@@ -118,6 +118,7 @@ func _exclus_rids() -> Array[RID]:
 				ex.append((e as CollisionObject3D).get_rid())
 	if cible_joueur is CollisionObject3D:
 		ex.append((cible_joueur as CollisionObject3D).get_rid())
+	ex.append_array(ReseauProjectiles.exclus_avatars())   # un avatar ne bloque pas la visée (PvP : il est ciblé par PvpCoop.cibles)
 	return ex
 
 func _mur_entre(a: Vector3, b: Vector3) -> bool:
@@ -165,6 +166,8 @@ func frapper(cible: Node, quantite: float, s: DonneesSort, point: Vector3, direc
 		res = String(cible.recevoir_coup(quantite, origine, opt))
 		if res == "touche" and s.vol_mana > 0.0 and cible.get("mana") != null:
 			cible.set("mana", maxf(0.0, float(cible.get("mana")) - s.vol_mana))
+	elif PvpCoop.pvp_cible(cible):
+		res = PvpCoop.frapper_sort(lanceur as Node3D, cible, quantite, s, point, direction, continu)   # PvP : l'hôte valide, la victime encaisse
 	else:
 		var st := s.stagger if stagger < 0.0 else stagger
 		if ReseauProjectiles.deleguer_coup_sort(cible, quantite, s, point, direction, continu, st):
@@ -281,7 +284,7 @@ func _rayon_neant(s: DonneesSort, paume: Node3D, depart: Vector3, oeil: Vector3,
 			touchees.append(cible_joueur)
 	else:
 		var candidats := []
-		for c in Elements.cibles_dans(oeil, s.portee + 0.5):
+		for c in PvpCoop.cibles(oeil, s.portee + 0.5):
 			var ce: Vector3 = Elements._centre(c)
 			if _dans_jet(oeil, avant, s, ce) and oeil.distance_to(ce) <= oeil.distance_to(fin) + 0.8 and not _mur_entre(oeil, ce):
 				candidats.append(c)
@@ -314,7 +317,7 @@ func _impact_projectile(s: DonneesSort, k: float, cible: Node, point: Vector3, n
 	if s.rayon > 0.0:
 		EffetsMagie.zone(s.ecole, point, s.rayon, 0.3)
 		if vise == "ennemis":
-			for c in Elements.cibles_dans(point, s.rayon):
+			for c in PvpCoop.cibles(point, s.rayon):
 				if c != cible:
 					frapper(c, s.degats * k * PART_EXPLOSION, s, Elements._centre(c), Elements._centre(c) - point, false, s.stagger * k * 0.5)
 
@@ -325,7 +328,7 @@ func _chaine(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k: 
 	var premiere: Node = v["cible"]
 	if premiere == null and vise == "ennemis":
 		# l'éclair cherche une cible dans un cône plus large (12°) avant de partir dans le vide
-		for c in Elements.cibles_dans(oeil, s.portee):
+		for c in PvpCoop.cibles(oeil, s.portee):
 			if rad_to_deg(avant.angle_to(Elements._centre(c) - oeil)) < 12.0 and not _mur_entre(oeil, Elements._centre(c)):
 				premiere = c
 				break
@@ -347,7 +350,7 @@ func _chaine(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k: 
 			break
 		degats *= s.attenuation_rebond
 		var suivante: Node = null
-		for e in Elements.cibles_dans(c, s.distance_rebond):
+		for e in PvpCoop.cibles(c, s.distance_rebond):
 			if not touchees.has(e) and not _mur_entre(c, Elements._centre(e)):
 				suivante = e
 				break
@@ -380,7 +383,7 @@ func _decharge(s: DonneesSort, depart: Vector3, oeil: Vector3, avant: Vector3, k
 	if premiere != null:
 		touchees.append(premiere)
 		frapper(premiere, s.degats * k, s, Elements._centre(premiere), direction, false, s.stagger * k)
-	for c in Elements.cibles_dans(point, rayon):
+	for c in PvpCoop.cibles(point, rayon):
 		if c != premiere:
 			touchees.append(c)
 			frapper(c, s.degats * k * (1.0 if premiere == null else PART_EXPLOSION * 1.2), s, Elements._centre(c), Elements._centre(c) - point, false, s.stagger * k * 0.7)
@@ -415,7 +418,7 @@ func _zone(s: DonneesSort, centre: Vector3, k: float) -> Dictionary:
 				frapper(cible_joueur, s.degats * k, s, cible_joueur.global_position, cible_joueur.global_position - centre)
 				touchees.append(cible_joueur)
 		return {"genre": "zone", "cibles": touchees}
-	for c in Elements.cibles_dans(centre, s.rayon):
+	for c in PvpCoop.cibles(centre, s.rayon):
 		touchees.append(c)
 		frapper(c, s.degats * k, s, Elements._centre(c), Elements._centre(c) - centre, false, s.stagger * k)
 	return {"genre": "zone", "cibles": touchees}
@@ -463,7 +466,7 @@ func canaliser(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, dt:
 			touchees.append(cible_joueur)
 		return touchees
 	var candidats := []
-	for c in Elements.cibles_dans(oeil, s.portee + 0.5):
+	for c in PvpCoop.cibles(oeil, s.portee + 0.5):
 		if _dans_jet(oeil, avant, s, Elements._centre(c)) and not _mur_entre(oeil, Elements._centre(c)):
 			candidats.append(c)
 	if noir:
@@ -481,7 +484,7 @@ func canaliser(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, dt:
 		var qq := q
 		for i in s.rebonds:
 			var suivante: Node = null
-			for e in Elements.cibles_dans(Elements._centre(courante), s.distance_rebond):
+			for e in PvpCoop.cibles(Elements._centre(courante), s.distance_rebond):
 				if not touchees.has(e):
 					suivante = e
 					break
@@ -544,7 +547,7 @@ func bout_rayon_noir(s: DonneesSort, oeil: Vector3, avant: Vector3) -> Dictionar
 				res = {"point": cj, "normale": -avant, "decor": false, "cible": cible_joueur}
 		return res
 	var meilleur := d_mur + 0.4
-	for c in Elements.cibles_dans(oeil, s.portee + 0.5):
+	for c in PvpCoop.cibles(oeil, s.portee + 0.5):
 		var ce := Elements._centre(c)
 		var dc := oeil.distance_to(ce)
 		if dc < meilleur and _dans_jet(oeil, avant, s, ce) and not _mur_entre(oeil, ce):

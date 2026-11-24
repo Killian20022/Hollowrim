@@ -152,6 +152,8 @@ static func duree_emprise(p: float) -> float:
 static func vivant(e: Variant) -> bool:
 	if e == null or not is_instance_valid(e) or not (e as Node).is_inside_tree():
 		return false
+	if ReseauProjectiles.est_avatar(e) and (e.get("mort") == true or e.get("a_terre") == true):
+		return false   # PvP : un joueur à terre ou mort n'est plus ciblable
 	if (e as Node).has_method("vivant"):
 		return bool(e.vivant())
 	return e.get("est_mort") != true
@@ -161,14 +163,14 @@ static func demi_hauteur(e: Node3D) -> float:
 	return clampf(Elements._centre(e).y - e.global_position.y, 0.4, 2.5)
 
 func _local(e: Node) -> bool:
-	return not bool(e.get("marionnette"))
+	return e.get("marionnette") != true and not ReseauProjectiles.est_avatar(e)   # PvP : un avatar est une marionnette (pvp_op vers son propriétaire)
 
 # ====================================================================== cibles
 
 func _cibles(centre: Vector3, rayon: float) -> Array:
 	var res: Array = []
-	for c in Elements.cibles_dans(centre, rayon):
-		if c is CharacterBody3D and not ReseauProjectiles.est_avatar(c) and c != joueur and vivant(c):
+	for c in PvpCoop.cibles(centre, rayon):
+		if c is CharacterBody3D and c != joueur and vivant(c):   # PvP : PvpCoop.cibles ne renvoie les avatars que si le PvP est actif
 			res.append(c)
 	return res
 
@@ -508,7 +510,7 @@ func _choc(f: Dictionary, autre: Object, point: Vector3, n: Vector3, v: Vector3,
 	_noter("choc %s -> %s v=%.1f dg=%.1f" % [e.name, (autre as Node).name if autre is Node else "?", vn, dg])
 	_frapper(e, dg, point, -n, 32.0, s)
 	var masse := 70.0 * maxf(float(f["p"]), 0.4)
-	if autre is CharacterBody3D and Elements.cibles_dans(point, 3.0).has(autre) and autre != joueur and not ReseauProjectiles.est_avatar(autre):
+	if autre is CharacterBody3D and PvpCoop.cibles(point, 3.0).has(autre) and autre != joueur:
 		# un ennemi projeté dans un autre : les deux encaissent, l'autre est emporté (s'il n'est pas un chef)
 		_frapper(autre, dg_autre, point, v.normalized(), 30.0, s)
 		if not est_chef(autre as Node) and vivant(autre):
@@ -1060,6 +1062,24 @@ func _aspirer(vx: Dictionary, dt: float) -> void:
 			_suivre_vortex(vx, corps2)   # objet qui fonce vers le centre (tiré dans le dos d'un ennemi) : ses impacts comptent (dégâts, casse)
 		corps2.angular_velocity = corps2.angular_velocity.lerp(tang * 4.0, 1.0 - exp(-dt * 2.0))
 		corps2.sleeping = false
+	if not bool(vx["distant"]):
+		_tirer_avatars(vx, dt)
+
+## PvP : les joueurs pris dans le vortex sont maintenus en orbite sous le centre (ordres « tenir » à 10 /s, exécutés chez eux par PvpVictime).
+func _tirer_avatars(vx: Dictionary, dt: float) -> void:
+	vx["t_op"] = float(vx.get("t_op", 0.0)) - dt
+	if float(vx["t_op"]) > 0.0:
+		return
+	vx["t_op"] = PERIODE_RESEAU
+	var centre: Vector3 = vx["pos"]
+	for id in (vx["pris"] as Dictionary):
+		var d: Dictionary = vx["pris"][id]
+		var e = d["e"]
+		if bool(d["lourd"]) or not ReseauProjectiles.est_avatar(e) or not vivant(e):
+			continue
+		var ang := float(vx["t"]) * 2.0 + float(int(id) % 7)
+		var cible := centre + Vector3(cos(ang), 0.0, sin(ang)) * 0.75 - Vector3.UP * (demi_hauteur(e) + 0.35)
+		_envoyer_ennemi(e, "tenir", {"p": cible})
 
 ## Suivi des impacts d'un objet aspiré qui fonce (SuiviLancer : balayage de sa forme, ImpactsLances.objet_touche ; il s'éteint seul sous
 ## 4 m/s, donc l'orbite lente autour du centre ne fait aucun dégât, et reprend dès que l'objet repasse VITESSE_IMPACT).
@@ -1350,6 +1370,10 @@ func _envoyer(type: String, id: String, d: Dictionary) -> void:
 	r.envoyer_evenement(type, id, d)
 
 func _envoyer_ennemi(e: Node, op: String, d: Dictionary) -> void:
+	if ReseauProjectiles.est_avatar(e):
+		if joueur.get("est_local") != false:
+			PvpCoop.op(e, op, d)   # PvP : l'hôte route vers le propriétaire de l'avatar (PvpVictime)
+		return
 	if not e.has_meta("coop_id"):
 		return
 	var dd := d.duplicate()

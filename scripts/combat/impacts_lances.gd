@@ -83,6 +83,8 @@ static func objet_touche(objet: RigidBody3D, cible: Node, point: Vector3, normal
 	var arme: DonneesArme = null
 	if armes_plantees() and objet.has_method("donnees_arme"):
 		arme = objet.donnees_arme() as DonneesArme
+	if ennemi != null and ReseauProjectiles.est_avatar(ennemi) and not PvpCoop.pvp_cible(ennemi):
+		return   # coop sans PvP (ou joueur à terre) : pas de tir allié, l'objet passe à travers l'avatar
 	if ennemi == null:
 		_toucher_decor(objet, cible, point, normale, vitesse, arme, masse, lanceur)
 		return
@@ -126,6 +128,13 @@ static func masse_arme(d: DonneesArme) -> float:
 	return float(MASSES.get(d.famille, clampf(d.poids * 0.3, 0.4, 4.0)))
 
 # ------------------------------------------------------------------------------------------------ ennemis
+
+## Coup d'un objet / d'une arme lancés : un AVATAR (PvP coop) passe par PvpCoop (l'hôte valide, la victime encaisse, plafonds PvP), le reste par DegatsCombat.
+static func _appliquer(ennemi: Node, degats: float, origine: Vector3, puissant: bool, info: Dictionary) -> String:
+	if PvpCoop.pvp_cible(ennemi):
+		var d: Vector3 = info.get("direction", Vector3.FORWARD)
+		return PvpCoop.coup(ennemi, degats, origine, {"type": String(info.get("type", "contondant")), "recul": clampf(float(info.get("stagger", 8.0)) * 0.15, 3.0, 9.0)}) if d != Vector3.ZERO else ""
+	return DegatsCombat.appliquer(ennemi, degats, origine, puissant, info)
 
 static func _ennemi_de(n: Node, lanceur: Node) -> Node3D:
 	var c := n
@@ -206,13 +215,13 @@ static func _arme_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3,
 		seuil *= 1.25     # mailles : la lame passe moins facilement
 	var degats := arme.degats_lourd * BONUS_LANCER * clampf(v / V_REF_ARME, 0.6, 1.3)
 	var tue_probable := degats * MULT_TRAVERSEE >= _vie(ennemi)
-	var traverse := e >= seuil or (tue_probable and e >= seuil * PART_TRAVERSEE_MORT)
+	var traverse := (e >= seuil or (tue_probable and e >= seuil * PART_TRAVERSEE_MORT)) and not ReseauProjectiles.est_avatar(ennemi)   # PvP : la lame reste plantée dans l'avatar
 	if traverse:
 		degats *= MULT_TRAVERSEE
 	var hache := _hache(arme)
 	# le contact arrive sur la capsule de l'ennemi (0,38 m de rayon) : le vrai point d'entrée est sur le corps, le long du vol
 	var vc := visee_corps(ennemi, point, dir)
-	if bool(vc["frole"]):
+	if bool(vc["frole"]) and not ReseauProjectiles.est_avatar(ennemi):   # PvP : la capsule d'un avatar EST son corps (pas d'os de visée chez lui)
 		# la lame passe à côté du corps (contact sur le bord de la capsule) : elle continue son vol
 		if ennemi is PhysicsBody3D:
 			objet.add_collision_exception_with(ennemi)
@@ -224,7 +233,7 @@ static func _arme_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3,
 	var info := {"type": "tranchant", "point": point, "direction": dir, "normale": normale if normale.length() > 0.1 else -dir,
 		"zone": DegatsCombat.zone(ennemi, point), "attaque": "lourde", "arme_lancee": arme.id, "lancer": true,
 		"stagger": 14.0 + 0.6 * masse * v, "collider": ennemi, "affaibli": false, "charge": 0.0, "instant": 0.0}
-	var res := DegatsCombat.appliquer(ennemi, degats, point - dir * 2.0, traverse, info)
+	var res := _appliquer(ennemi, degats, point - dir * 2.0, traverse, info)
 	dernier = {"issue": "traverse" if traverse else "plantee", "degats": degats, "resultat": res, "energie": e, "seuil": seuil, "ennemi": ennemi,
 		"hache": hache}
 	if res == "bloque":
@@ -431,7 +440,7 @@ static func _arme_rebond(objet: RigidBody3D, ennemi: Node3D, point: Vector3, nor
 	var info := {"type": "contondant", "point": point, "direction": dir, "normale": normale if normale.length() > 0.1 else -dir,
 		"zone": DegatsCombat.zone(ennemi, point), "attaque": "lourde" if contondante else "legere", "arme_lancee": arme.id, "lancer": true,
 		"stagger": 6.0 + 0.45 * masse * v, "collider": ennemi, "affaibli": false, "charge": 0.0, "instant": 0.0}
-	var res := DegatsCombat.appliquer(ennemi, degats, point - dir * 2.0, contondante and masse * v > 60.0, info)
+	var res := _appliquer(ennemi, degats, point - dir * 2.0, contondante and masse * v > 60.0, info)
 	dernier = {"issue": "rebond", "degats": degats, "resultat": res, "energie": e, "ennemi": ennemi}
 	var n := normale.normalized() if normale.length() > 0.1 else -dir
 	objet.linear_velocity = dir.bounce(n) * v * 0.25 + Vector3.UP * 1.2
@@ -653,7 +662,7 @@ static func _objet_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3
 		"zone": "torse" if renverse else DegatsCombat.zone(ennemi, point), "attaque": "lourde" if q >= 40.0 else "legere", "lancer": true,
 		"objet_lance": String(objet.name), "stagger": clampf(q * 0.25, 4.0, 60.0), "collider": ennemi, "affaibli": false, "charge": 0.0, "instant": 0.0,
 		"renverser": renverse, "recul_mult": clampf(q / 80.0, 0.6, 2.2)}
-	var res := DegatsCombat.appliquer(ennemi, degats, point - dir_h * 2.0, projete, info)
+	var res := _appliquer(ennemi, degats, point - dir_h * 2.0, projete, info)
 	var ve := DegatsObjets.apres_impact(ennemi, dir, masse, v, lanceur, String(res))   # choc fort : l'ennemi part en ragdoll puis se relève
 	dernier = {"issue": "objet", "degats": degats, "resultat": res, "energie": e, "quantite_mvt": q, "renverse": renverse, "ennemi": ennemi, "ragdoll": ve}
 	# l'objet encaisse le choc (il casse : branche cassables) ; sinon il retombe devant la cible

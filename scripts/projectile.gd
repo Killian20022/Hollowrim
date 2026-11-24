@@ -313,7 +313,8 @@ func _physics_process(dt: float) -> void:
 		for e in get_tree().get_nodes_in_group("ennemis"):
 			if e is CollisionObject3D:
 				ex.append((e as CollisionObject3D).get_rid())
-	ex.append_array(ReseauProjectiles.exclus_avatars())   # coop : jamais de tir allié, la victime résout chez elle
+	if not (genre == "fleche_joueur" and not distant and PvpCoop.actif()):   # PvP : la flèche du joueur touche les autres joueurs
+		ex.append_array(ReseauProjectiles.exclus_avatars())   # coop : jamais de tir allié, la victime résout chez elle
 	if distant and genre == "fleche_joueur":
 		var loc := ReseauProjectiles.joueur_local() as CollisionObject3D   # flèche d'un autre joueur : ne blesse pas non plus le joueur local
 		if loc != null:
@@ -348,6 +349,8 @@ func _physics_process(dt: float) -> void:
 					"stagger": 0.35 * clampf(degats_impact / 36.0, 0.2, 1.0), "collider": corps, "affaibli": false, "charge": 0.0, "instant": 0.0}
 				if distant:
 					resultat = "touche"    # copie d'une flèche tirée ailleurs : visuel seulement
+				elif PvpCoop.pvp_cible(corps):
+					resultat = PvpCoop.coup_fleche(corps, degats_impact, p_imp, dir_v)   # PvP
 				elif ReseauProjectiles.invite():
 					resultat = "touche"    # invité : l'hôte valide et applique (proj_coup)
 					ReseauProjectiles.envoyer_coup_fleche(self, corps, degats_impact, p_imp, dir_v, v)
@@ -376,6 +379,8 @@ func _physics_process(dt: float) -> void:
 				"stagger": 0.35 * clampf(degats_impact / 36.0, 0.2, 1.0), "collider": cible, "affaibli": false, "charge": 0.0, "instant": 0.0}
 			if distant:
 				resultat = "touche"
+			elif PvpCoop.pvp_cible(cible):
+				resultat = PvpCoop.coup_fleche(cible as Node, degats_impact, p_imp, dir_v)   # PvP : l'hôte valide, la victime encaisse
 			elif ReseauProjectiles.invite():
 				resultat = "touche"
 				ReseauProjectiles.envoyer_coup_fleche(self, cible as Node, degats_impact, p_imp, dir_v, v)

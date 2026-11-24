@@ -1419,6 +1419,13 @@ func _resoudre_impact(e: Dictionary) -> String:
 			var cible: Node = e["objet"]
 			var degats := DegatsCombat.calculer(arme, _lourd, _charge, _affaibli, joueur.competences.multiplicateur_degats(Progression.competence_arme(arme)), equipement.bonus_trophee(joueur.inventaire)) * float(_geste.get("force", 1.0))
 			var info := _info_coup(e)
+			if PvpCoop.pvp_cible(cible):
+				# PvP : mêlée sur l'avatar d'un autre joueur ; l'hôte valide et plafonne, la victime résout (garde, armure, esquive)
+				PvpCoop.coup_melee(cible, degats, joueur.global_position, info)
+				_coup_touche = true
+				_mordre()
+				RetourCoups.touche(joueur, _lourd or _contre)
+				return ""
 			degats += _element(cible, info)
 			var r := DegatsCombat.appliquer(cible, degats, joueur.global_position, _puissant, info)
 			if cible.is_in_group("ennemis") or cible.is_in_group("cibles_combat"):

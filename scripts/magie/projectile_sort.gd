@@ -127,6 +127,8 @@ func _candidats() -> Array:
 		for e in get_tree().get_nodes_in_group(g):
 			if e is Node3D and is_instance_valid(e) and not res.has(e) and e.get("est_mort") != true and (not e.has_method("vivant") or e.vivant()):
 				res.append(e)
+	if not distant:
+		res.append_array(PvpCoop.avatars_cibles())   # PvP : les autres joueurs (la copie distante ne blesse personne)
 	return res
 
 func _mur_entre(a: Vector3, b: Vector3) -> bool:
