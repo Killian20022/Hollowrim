@@ -108,10 +108,15 @@ void fragment() {
 		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 
+	// v3f (1re personne) : faisceau vu dans son axe -> cœur fin, quasi invisible tout près de l'œil, couleurs/lignes qui dominent
+	float axial = smoothstep(0.7, 0.97, abs(b));                       // 0 : vue de côté (inchangée), 1 : dans l'axe
+	float dcam = length(VERTEX);                                       // distance œil -> fragment (m)
+	float pres_cam = smoothstep(0.5, 3.2, dcam);                       // 0 collé à l'œil, 1 au-delà de ~3 m
+	float vis = mix(1.0, pres_cam, axial);                             // la vue de côté ne change pas
 	float n = mfbm2(vec2(tc * 0.9 - TIME * 6.0, v_th * 1.3 + graine));
 	float n2 = mbruit(vec2(tc * 3.0 - TIME * 13.0, v_th * 2.0 + graine * 3.0));
 	// frontière du cœur, déchirée par le bruit (l'axe est à x = 0)
-	float s0 = 0.34 + 0.05 * sin(tc * 2.3 - TIME * 6.0 + graine) * smoothstep(0.0, 1.5, tc) + (n - 0.5) * 0.05;   // v3 : le cœur sombre ondule   // v2 : cœur tendu, bord net (le bruit ne déforme plus la silhouette)
+	float s0 = mix(0.34, 0.13, axial) + 0.05 * sin(tc * 2.3 - TIME * 6.0 + graine) * smoothstep(0.0, 1.5, tc) + (n - 0.5) * 0.05;   // v3 : le cœur sombre ondule   // v2 : cœur tendu, bord net (le bruit ne déforme plus la silhouette)
 	// impulsions qui filent vers la cible (rapides, nettes) et scintillement du liseré (24 Hz, par paliers : aucun tramage)
 	float ph = fract((tc - TIME * flux_vit) / flux_pas + graine);
 	float puls = pow(1.0 - smoothstep(0.0, 0.22, min(ph, 1.0 - ph) * 2.0), 2.0);
@@ -122,10 +127,12 @@ void fragment() {
 	if (x < s0) {
 		// cœur noir ; des courants violets très sombres défilent dedans (pas un aplat)
 		float cour = smoothstep(0.62, 1.0, mbruit(vec2(tc * 1.6 - TIME * 9.0, v_th * 2.5 + graine)));
-		c = mix(noir, fume * 1.7, cour * 0.85);
+		c = mix(noir, fume * 1.7, cour * mix(0.85, 1.0, axial));
+		a = 1.0 - 0.7 * axial;                                         // cœur sombre fin et translucide dans l'axe (pas un aplat)
 		// stries pourpres fines au cœur, qui filent avec les impulsions
 		float st = 1.0 - smoothstep(0.0, 0.06, abs(fract(v_th / TAU * 3.0 + graine) - 0.5) * 2.0 - 0.9);
 		c = mix(c, bord * 1.6, puls * st * 0.8);
+		c = mix(c, bord * 1.2, axial * 0.45);
 	} else if (x < s0 + 0.05) {
 		c = filet * (1.25 + 1.1 * pv) * eclat * sc;
 	} else if (x < s0 + 0.13) {
@@ -179,7 +186,8 @@ void fragment() {
 	c = mix(c, filet * 2.4, sortie * 0.8 * (1.0 - smoothstep(0.1, 0.22, vie)));
 	float tete_fade = smoothstep(0.0, 0.05, tete - u_c);
 	float fin_fade = 1.0 - smoothstep(0.96, 1.0, u_c);
+	c *= 1.0 + 0.5 * axial * step(s0 - 0.02, x);                     // liseré et lignes plus vifs dans l'axe
 	ALBEDO = c;
-	ALPHA = clamp(a * tete_fade * fin_fade * mix(0.5, 1.0, k), 0.0, 1.0);
+	ALPHA = clamp(a * tete_fade * fin_fade * mix(0.5, 1.0, k) * vis, 0.0, 1.0);
 } while (false);
 }

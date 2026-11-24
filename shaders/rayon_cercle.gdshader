@@ -97,6 +97,7 @@ void fragment() {
 	float front = trait(abs(r - re), 0.05) * (1.0 - smoothstep(0.9, 1.0, ouv));
 	c = mix(c, filet * 3.0, front); aa = max(aa, front);
 	aa *= fen * smoothstep(0.0, 0.15, ouv);
+	aa *= mix(1.0, 0.5, smoothstep(0.55, 0.95, face));   // v3f : cercle discret quand on le regarde de face (1re personne)
 	ALBEDO = c;
 	ALPHA = clamp(aa, 0.0, 1.0);
 }
