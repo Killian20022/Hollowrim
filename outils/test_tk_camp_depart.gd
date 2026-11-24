@@ -72,13 +72,13 @@ func _tester() -> void:
 		for i in 3:
 			await physics_frame
 		_verif(CasseObjets.nb_eclats() > 0, "tonneau du camp brisé : %d éclats physiques" % CasseObjets.nb_eclats())
-	# aucun saisissable incassable (hors métal)
+	# aucun saisissable incassable (hors métal solide et papier/livres : incassables au lancer par choix de casse_realiste, ils rebondissent)
 	var incassables := {}
 	for n in get_nodes_in_group("telekinesable"):
-		if n is ObjetVivant and (n as ObjetVivant).seuil_casse == INF and (n as ObjetVivant).matiere != "fer":
+		if n is ObjetVivant and (n as ObjetVivant).seuil_casse == INF and (n as ObjetVivant).matiere not in ["fer", "papier"]:
 			var k := "%s [%s]" % [(n as ObjetVivant).genre, (n as ObjetVivant).matiere]
 			incassables[k] = int(incassables.get(k, 0)) + 1
-		elif n is Cassable and (n as Cassable).genre == "objet" and CasseObjets.seuil((n as Cassable).matiere_objet) == INF and (n as Cassable).matiere_objet != "fer":
+		elif n is Cassable and (n as Cassable).genre == "objet" and CasseObjets.seuil((n as Cassable).matiere_objet) == INF and (n as Cassable).matiere_objet not in ["fer", "papier"]:
 			incassables["objet"] = int(incassables.get("objet", 0)) + 1
 	_verif(incassables.is_empty(), "aucun saisissable incassable hors métal solide (%s)" % str(incassables))
 	print("ECHECS : %d" % (0 if _ok else 1))

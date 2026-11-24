@@ -160,6 +160,7 @@ func _lancer() -> void:
 	# ===== B. flèche de l'hôte : visible et plantée chez l'invité =====
 	if _role == "hote":
 		_equiper_arc()
+		_j.tete.rotation.x = deg_to_rad(-8.0)   # visée plongeante : à ~90 m/s une flèche horizontale quitterait le sol de 80 m avant de se ficher
 		await _tirer_arc(1.4)
 	else:
 		_verif(await _attendre(func() -> bool: return _journal(ReseauProjectiles.EV_SPAWN).size() >= 1, 8.0), "flèche de l'hôte : l'invité reçoit le spawn")

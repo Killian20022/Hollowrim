@@ -398,12 +398,12 @@ func _physique() -> void:
 	j.global_position = Vector3(0, 0, 4)
 	j.rotation.y = 0.0
 	await _sim(0.3)
-	# portée : même visée légèrement plongeante, tensions croissantes -> impacts au sol de plus en plus loin
+	# portée : même visée plongeante (-8° : à pleine tension la flèche (100 m/s) doit retomber sur le sol de 40 m de l'arène), tensions croissantes -> impacts de plus en plus loin
 	var portees: Array[float] = []
 	var nez_ok := true
 	var nez_max := 0.0
 	for tenu in [0.13, 0.35, 1.2]:
-		j.tete.rotation.x = deg_to_rad(-3.0)
+		j.tete.rotation.x = deg_to_rad(-8.0)
 		await _sim(0.7)
 		await _tirer(tenu, false)
 		var p: Projectile = arc.dernier_tir["projectile"]
@@ -417,7 +417,7 @@ func _physique() -> void:
 				nez_max = maxf(nez_max, ang)
 				nez_ok = nez_ok and ang < deg_to_rad(2.0)
 		portees.append(Vector2(p.point_impact.x - depart.x, p.point_impact.z - depart.z).length() if is_instance_valid(p) and p.plantee else -1.0)
-	_verif(portees[0] > 0.0 and portees[0] < portees[1] and portees[1] < portees[2], "portée croissante avec la tension : %.1f m, %.1f m, %.1f m (visée -3°)" % portees)
+	_verif(portees[0] > 0.0 and portees[0] < portees[1] and portees[1] < portees[2], "portée croissante avec la tension : %.1f m, %.1f m, %.1f m (visée -8°)" % portees)
 	_verif(nez_ok, "en vol, le nez de la flèche suit sa vitesse (écart max %.2f°)" % rad_to_deg(nez_max))
 	var p_lob: Projectile = arc.dernier_tir["projectile"]
 	# palissade de 2 cm à 6 m : à pleine vitesse la flèche s'y fiche (raycast entre deux images), sans la traverser
