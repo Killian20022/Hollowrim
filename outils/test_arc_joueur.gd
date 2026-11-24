@@ -353,12 +353,43 @@ func _tester() -> void:
 	arc.relacher()
 	await _sim(0.8)
 	_verif(arc.tirs > 0 and arc.dernier_tir.get("tension", 0.0) > 0.9, "troisième personne : flèche partie")
+	await _cycle_tps()
 	j.basculer_vue(false)
 	# rangement
 	arc.ranger()
 	_verif(not arc.actif and j.mains._peut_agir() and j.mains.visible, "arc rangé : l'épée reprend la main")
 	print("ECHECS : %d" % (0 if _ok else 1), "  (", _n, " vérifications)")
 	quit(0 if _ok else 1)
+
+## 3e personne : la main gauche serre la poignée à TOUTES les phases (repos, levée, tension, tir, relâche, rechargement), à l'arrêt
+## puis en marche/course (le corps animé bouge sous l'IK). Le pire écart (m, rad) de toutes les images.
+func _cycle_tps() -> void:
+	arc.mesure = true
+	for allure in ["arrêt", "course"]:
+		var pire := Vector2.ZERO
+		var ou := ""
+		for k in 260:
+			if k == 0:
+				arc.appuyer()
+			if k == 75:
+				arc.relacher()
+			if allure == "course":
+				var dir := -j.global_transform.basis.z
+				j.velocity = dir * 5.5
+				j.global_position += dir * 5.5 * DT
+			j.mains.avancer(DT)
+			await physics_frame
+			if k < 3:
+				continue
+			var e: Vector2 = arc.prise_g_tps
+			if e.x > pire.x:
+				pire.x = e.x
+				ou = "image %d, levée %.2f, état %d" % [k, arc._levee, arc.etat]
+			pire.y = maxf(pire.y, e.y)
+		print("TPS %s pire ecart %.1f mm %.1f deg (%s)" % [allure, pire.x * 1000.0, rad_to_deg(pire.y), ou])
+		_verif(pire.x < (0.012 if allure == "arrêt" else 0.02) and pire.y < deg_to_rad(15.0), "3e personne (%s) : la main gauche serre la poignée à toutes les phases (pire : %.1f mm, %.1f°, %s)" % [allure, pire.x * 1000.0, rad_to_deg(pire.y), ou])
+		j.velocity = Vector3.ZERO
+		await _sim(1.0)
 
 ## Balistique des flèches du joueur, avec le vrai arc (tirs sur le sol dégagé, sur une palissade fine).
 func _physique() -> void:
