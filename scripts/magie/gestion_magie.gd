@@ -166,6 +166,11 @@ const ARCS := {
 static var instance: GestionMagie
 ## Rendu de la foudre : false = FoudreV2 (scripts/magie/foudre_v2.gd, docs/MAGIE_FOUDRE_V2.md) ; `-- --foudre-v1` remet l'ancien rendu.
 static var foudre_v1: bool = "--foudre-v1" in OS.get_cmdline_user_args()
+## FEU v2 (scripts/magie/feu_v2.gd) : `-- --feu-v1` remet l'ancien rendu (boule runique en carré, bouffée d'impact, léchage en aura).
+static var feu_v1: bool = "--feu-v1" in OS.get_cmdline_user_args()
+## Dernière explosion de FEU v2 (instant, position) : la zone qui suit l'impact d'une boule ne redessine pas une seconde boule.
+var _expl_feu_t := -10.0
+var _expl_feu_pos := Vector3.INF
 
 var horloge := 0.0
 var rng := RandomNumberGenerator.new()
@@ -1555,7 +1560,13 @@ func _maj_auras() -> void:
 			var rb := AURA_BOULE * (0.85 + 0.25 * minf(i, 1.0)) * (BOULE_TENUE if tenue else 1.0)
 			var chg: float = float(charges_aura.get(id, 0.0))
 			a.ch = lerpf(float(a.get("ch", 0.0)), chg, 0.12)
-			bm.set_instance_shader_parameter("rayon", rb * k * (1.0 + 0.3 * float(a.ch)))
+			var fond := 1.0
+			if not feu_v1:
+				# FEU v2 : en charge, l'orbe structurée (feu_v2.gd) prend la place de la flamme tenue, qui se résorbe
+				fond = 1.0 - 0.97 * smoothstep(0.06, 0.4, float(a.ch))
+				_orbe_main(a, float(a.ch), dbl, k, tr)
+			bm.visible = fond > 0.04 and not sans_procedural
+			bm.set_instance_shader_parameter("rayon", rb * k * (1.0 + 0.3 * float(a.ch)) * maxf(fond, 0.05))
 			bm.set_instance_shader_parameter("charge", float(a.ch))
 			bm.position = Vector3.UP * (rb * FLAMME_ASSISE * (1.0 + 0.3 * float(a.ch)) + FLAMME_HAUT)
 			# sous un jet (i réduit), la flamme se résorbe en foyer ; au repos elle brûle franchement
@@ -1581,6 +1592,25 @@ func _maj_auras() -> void:
 			scint = 0.9 + 0.2 * sin(horloge * 23.0) * sin(horloge * 7.0)
 		lumiere("aura%d" % id, ancre.position + Vector3.UP * 0.05, c, (1.5 + 4.0 * i) * scint * (1.5 if dbl else 1.0), 4.5 + 3.5 * i, 2.0 + i, -1.0,
 			0xFFFFF & ~CALQUE_AVANT_BRAS)
+
+## FEU v2 : orbe de charge au creux de la main (taille et éclat suivent la charge 0..1). En double incantation, l'orbe de chaque
+## main s'éteint : celle d'entre les deux mains (_maj_double) prend le relais.
+func _orbe_main(a: Dictionary, ch: float, dbl: bool, k: float, tr: TransitionSort) -> void:
+	var o: Variant = a.get("orbe")
+	# double : une seule orbe, portée par la main MENEUSE (sa source est au point de fusion, entre les deux mains), plus grosse
+	var suiveuse := dbl and (tr == null or (tr.double and not tr.meneuse))
+	var veut := ch > 0.03 and not suiveuse and fin_actif and valide(a.main)
+	if not veut:
+		if o != null and is_instance_valid(o):
+			FeuV2.regler(o, 0.0, 0.0)
+		return
+	if o == null or not is_instance_valid(o):
+		o = FeuV2.orbe(a.ancre, Vector3.UP, rng.randf() * 10.0)
+		a.orbe = o
+	var ro := lerpf(0.03, 0.062, clampf(ch, 0.0, 1.0)) * (1.35 if dbl else 1.0)
+	(o as Node3D).position = Vector3.UP * (ro * 1.1 + 0.03) / maxf(k, 0.1)
+	(o as Node3D).scale = Vector3.ONE * ro / maxf(k, 0.1)
+	FeuV2.regler(o, smoothstep(0.03, 0.2, ch) * lerpf(0.95, 1.2, ch), 0.1 + 0.25 * ch)
 
 # ====================================================================== jets canalisés
 
@@ -2607,6 +2637,8 @@ func _jet_placer(j: Dictionary) -> void:
 		fx.set_instance_shader_parameter("etale", lerpf(float(fx.get_meta("etale", 0.0)), et, 1.0 - exp(-dt_j * 8.0)))
 		fx.set_meta("etale", lerpf(float(fx.get_meta("etale", 0.0)), et, 1.0 - exp(-dt_j * 8.0)))
 		fx.set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.12, 0.0, 1.0))
+	if j.ecole == "feu" and j.vague != null and not feu_v1:
+		_jet_filets_v2(j, o, vers, l)
 	if j.vague != null and is_instance_valid(j.vague):
 		_vague_placer(j, o, b, fin, vers)
 		if j.ecole == "glace":
@@ -2633,7 +2665,13 @@ func _jet_placer(j: Dictionary) -> void:
 		var bn := base_normale(j.normale)
 		match j.ecole:
 			"feu":
-				emettre("feu_lechage", null, Transform3D(bn, fin), false)
+				if fin_actif and not feu_v1:
+					# FEU v2 : les langues qui lèchent la surface sont dessinées par FeuV2.lechage (_jet_eclabousse) ; ici quelques braises fines
+					emettre("feu_fin_eclats_braise", null, Transform3D(bn, fin), false, 0.25)
+					if j.cible == null:
+						_roussir(fin, j.normale)
+				else:
+					emettre("feu_lechage", null, Transform3D(bn, fin), false)
 			"glace":
 				emettre("glace_bouffee", null, Transform3D(bn, fin), false)
 			"electricite":
@@ -2663,6 +2701,9 @@ func _jet_placer(j: Dictionary) -> void:
 
 ## Couche fine : flammes (ou givre) procédurales qui lèchent la surface touchée par le jet (mur, sol), hors cible.
 func _jet_eclabousse(j: Dictionary, fin: Vector3) -> void:
+	if j.ecole == "feu" and not feu_v1 and fin_actif:
+		_jet_lechage_v2(j, fin)
+		return
 	var veut: bool = fin_actif and (j.flux != null or j.vague != null) and j.touche and j.cible == null and j.ecole in ["feu", "glace", "soin"]
 	var e: Variant = j.eclabousse
 	if not veut:
@@ -2678,7 +2719,52 @@ func _jet_eclabousse(j: Dictionary, fin: Vector3) -> void:
 	mi.position = fin + n * 0.12 + Vector3.UP * 0.1
 	mi.set_instance_shader_parameter("force", clampf((horloge - float(j.debut)) / 0.3, 0.0, 1.0))
 
+## FEU v2 : langues qui lèchent la surface (mur, sol) touchée par le jet ; absentes sur un corps (ImpactCorps fait brûler la peau).
+func _jet_lechage_v2(j: Dictionary, fin: Vector3) -> void:
+	var veut: bool = j.touche and j.cible == null
+	var e: Variant = j.get("lechage")
+	if not veut:
+		if e != null and is_instance_valid(e):
+			(e as Node).queue_free()
+		j.lechage = null
+		return
+	if e == null or not is_instance_valid(e):
+		e = FeuV2.lechage(self)
+		j.lechage = e
+	FeuV2.placer_lechage(e, fin, j.normale, clampf((horloge - float(j.debut)) / 0.25, 0.0, 1.0), (1.25 if j.dbl else 1.0))
+
+## FEU v2 : filets de flamme qui accompagnent le jet (rubans fins qui s'enroulent et filent de la paume à la cible).
+func _jet_filets_v2(j: Dictionary, o: Vector3, vers: Vector3, l: float) -> void:
+	var e: Variant = j.get("filets")
+	if e == null or not is_instance_valid(e):
+		e = FeuV2.jet(self)
+		j.filets = e
+	var ouv := clampf(l * tan(deg_to_rad(float(j.ecart) * 0.5)) * 1.0, 0.22, 0.6) * (1.2 if j.dbl else 1.0)
+	FeuV2.placer_jet(e, o, vers, maxf(l - (0.1 if j.touche else 0.0), 0.3), ouv, clampf((horloge - float(j.debut)) / 0.12, 0.0, 1.0))
+
+## Roussi discret laissé par un jet sur une surface (au plus 14 vivants, une tache par 0,35 s et par 0,3 m).
+var _roussis: Array = []
+var _roussi_t := -10.0
+var _roussi_pos := Vector3.INF
+func _roussir(pos: Vector3, normale: Vector3) -> void:
+	if horloge - _roussi_t < 0.35 or _roussi_pos.distance_to(pos) < 0.3:
+		return
+	_roussi_t = horloge
+	_roussi_pos = pos
+	_roussis = _roussis.filter(func(r: Variant) -> bool: return is_instance_valid(r))
+	while _roussis.size() >= 14:
+		var vieux = _roussis.pop_front()
+		if is_instance_valid(vieux):
+			vieux.queue_free()
+	_roussis.append(FeuV2.roussi(self, pos, normale))
+
 func _jet_arreter(j: Dictionary) -> void:
+	if j.get("lechage") != null and is_instance_valid(j.lechage):
+		(j.lechage as Node).queue_free()
+	j.lechage = null
+	if j.get("filets") != null and is_instance_valid(j.filets):
+		(j.filets as Node).queue_free()
+	j.filets = null
 	if j.get("eclabousse") != null and is_instance_valid(j.eclabousse):
 		(j.eclabousse as Node).queue_free()
 	j.eclabousse = null
@@ -2756,6 +2842,7 @@ func projectile_visuel(ecole: String, forme: String, taille := 1.0) -> Node3D:
 	var k := (1.4 if dbl else 1.0) * taille
 	var coeur: Array = []
 	var aura_proj: MeshInstance3D = null
+	var orbe_proj: Node3D = null
 	match forme:
 		"eclat", "lance":
 			var lance := forme == "lance"
@@ -2785,12 +2872,18 @@ func projectile_visuel(ecole: String, forme: String, taille := 1.0) -> Node3D:
 		"boule", "orbe" when fin_actif or ecole == "feu":
 			# feu : la boule bouillonnante procédurale aussi en rétro (les sphères additives empilées faisaient « plastique »)
 			if ecole == "feu" and forme == "boule":
-				# boule RUNIQUE (v5) : tourbillon + queue (aura forme 3), et les mêmes runes en orbite que la flamme tenue
-				aura_proj = _aura_fine(visuel, ecole, PROJ_RAYON * k, 3)
+				# FEU v2 : orbe structurée (cœur, gaine, peau, flammèches qui s'enroulent, queue qui file derrière) + les mêmes runes
+				# en orbite que la flamme tenue ; `feu_v1` (--feu-v1) remet la boule runique d'avant (quad procédural, forme 3)
+				if feu_v1:
+					aura_proj = _aura_fine(visuel, ecole, PROJ_RAYON * k, 3)
+				else:
+					orbe_proj = FeuV2.orbe(visuel, Vector3.BACK, rng.randf() * 10.0)
+					orbe_proj.scale = Vector3.ONE * 0.27 * k
+					FeuV2.regler(orbe_proj, 1.0, 1.0)
 				_runes_projectile(racine, ecole, k)
 			else:
 				_aura_fine(visuel, ecole, (0.3 if forme == "boule" else 0.18) * k, 1)
-			if ecole == "feu" and aura_proj == null:
+			if ecole == "feu" and aura_proj == null and orbe_proj == null:
 				coeur.append(emettre("feu_boule_coeur", visuel, Transform3D.IDENTITY, true))
 			elif ecole == "tenebres":
 				coeur.append(emettre("ten_coeur", visuel, Transform3D.IDENTITY, true))
@@ -2812,7 +2905,7 @@ func projectile_visuel(ecole: String, forme: String, taille := 1.0) -> Node3D:
 	if _projectiles.size() >= MAX_PROJECTILES:
 		refus += 1
 	else:
-		var e := {"noeud": racine, "visuel": visuel, "ecole": ecole, "forme": forme, "emit": [], "coeur": coeur, "prec": null, "entre": false, "eclair": {}, "dbl": dbl, "aura": aura_proj, "taille": taille, "rayon_aura": PROJ_RAYON * k}
+		var e := {"noeud": racine, "visuel": visuel, "ecole": ecole, "forme": forme, "emit": [], "coeur": coeur, "prec": null, "entre": false, "eclair": {}, "dbl": dbl, "aura": aura_proj, "orbe": orbe_proj, "taille": taille, "rayon_aura": PROJ_RAYON * k}
 		if forme in ["eclat", "lance"]:
 			# cristal : sa queue dépasse de 0,25 × sa longueur DERRIÈRE le point de départ. Né dans la paume (~0,5 m de
 			# l'œil), l'éclat (0,43 m de queue) ou la lance (1 m) traversait le plan proche de la caméra pendant la
@@ -2862,7 +2955,7 @@ func _maj_projectiles() -> void:
 			if not e.entre:
 				e.entre = true
 				var noms: Array = [PresetsMagie.de(e.ecole, "trainee")]
-				if e.ecole == "feu" and e.get("aura") != null:
+				if e.ecole == "feu" and (e.get("aura") != null or e.get("orbe") != null):
 					# boule runique : la queue est dessinée par le shader ; seules de fines braises s'en échappent
 					noms = ["feu_trainee_braise"]
 				elif e.ecole == "feu":
@@ -2924,10 +3017,18 @@ func impact(ecole: String, position: Vector3, normale: Vector3, force: float) ->
 	var kn := clampf(0.6 + 0.4 * f, 0.5, 1.6)
 	match ecole:
 		"feu":
-			bouffee("feu", position + b.y * 0.2, 0.12, 0.55 * sqrt(f), 0.42)
-			emettre("feu_impact", null, xf, false, kn)
-			emettre("feu_impact_braise", null, xf, false, kn)
-			emettre("feu_impact_fumee", null, xf, false, kn)
+			if fin_actif and not feu_v1:
+				# FEU v2 : boule qui s'ouvre + éclats en rubans ; braises fines et fumée légère (plus de gros carrés orange)
+				FeuV2.explosion(self, position, normale, f)
+				_expl_feu_t = horloge
+				_expl_feu_pos = position
+				emettre("feu_fin_eclats_braise", null, xf, false, kn)
+				emettre("feu_impact_fumee", null, xf, false, kn * 0.5)
+			else:
+				bouffee("feu", position + b.y * 0.2, 0.12, 0.55 * sqrt(f), 0.42)
+				emettre("feu_impact", null, xf, false, kn)
+				emettre("feu_impact_braise", null, xf, false, kn)
+				emettre("feu_impact_fumee", null, xf, false, kn)
 			if not fin_actif:   # couche fine : la boule procédurale remplace l'onde en anneau
 				disque(position, normale, 0.1, 1.7 * f, 0.45, {"couleur": "#ec6a1f", "coeur": "#fff0a8", "anneau": 0.85, "epaisseur": 0.14, "texels": 40.0})
 		"glace":
@@ -2992,12 +3093,20 @@ func zone(ecole: String, position: Vector3, rayon: float, duree: float) -> void:
 	match ecole:
 		"feu":
 			# explosion DANS un corps (boule de feu) : le souffle l'entoure déjà (ImpactCorps.impact) ; pas de boule posée devant
+			var v2 := fin_actif and not feu_v1
 			if not ImpactCorps.zone_sur_corps(self, position):
-				bouffee("feu", position + Vector3.UP * 0.6, 0.4, r * 0.75, 0.7)
-				emettre("feu_explosion", null, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * kz), position + Vector3.UP * 0.4), false, kz)
-			emettre("feu_explosion_fumee", null, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * kz), position + Vector3.UP * 0.5), false, kz)
+				if v2:
+					# FEU v2 : une seule boule (celle de l'impact qui précède, sinon la nôtre à la taille de la zone)
+					if horloge - _expl_feu_t > 0.25 or _expl_feu_pos.distance_to(position) > 1.5:
+						FeuV2.explosion(self, position, Vector3.UP, clampf(r / 1.6, 0.4, 2.5))
+					emettre("feu_fin_explosion_langues", null, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * kz), position + Vector3.UP * 0.3), false, kz * 0.5)
+				else:
+					bouffee("feu", position + Vector3.UP * 0.6, 0.4, r * 0.75, 0.7)
+					emettre("feu_explosion", null, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * kz), position + Vector3.UP * 0.4), false, kz)
+			emettre("feu_explosion_fumee", null, Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * kz), position + Vector3.UP * 0.5), false, kz * (0.5 if v2 else 1.0))
 			emettre("feu_impact_braise", null, base, false, 1.5)
-			disque(position, Vector3.UP, 0.2, r * 1.15, 0.55, {"couleur": "#ec6a1f", "coeur": "#fff0a8", "anneau": 0.88, "epaisseur": 0.08, "texels": 64.0})
+			if not v2:
+				disque(position, Vector3.UP, 0.2, r * 1.15, 0.55, {"couleur": "#ec6a1f", "coeur": "#fff0a8", "anneau": 0.88, "epaisseur": 0.08, "texels": 64.0})
 			disque(position, Vector3.UP, r, r, d, {"couleur": "#5a1a1c", "coeur": "#b3341f", "anneau": 0.95, "epaisseur": 0.05, "remplissage": 0.35, "texels": 48.0, "eclat": 1.0}, false, false, 0.3)
 			for nom in ["feu_sol", "feu_sol_braise"]:
 				var pd: Dictionary = PresetsMagie.R[nom]
