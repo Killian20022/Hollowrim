@@ -196,7 +196,7 @@ static func substitut(mod: String) -> Array:
 				for c in 8 - (rg % 2):
 					var x := -0.88 + c * 0.25 + (rg % 2) * 0.125
 					var bv := PropsQuaternius.buche_v5("q_buche")      # v5 : rondin Quaternius (Survival) à la place de la bûche kitbash maison
-					r.append([bv[0], Transform3D(Basis(Vector3.UP, PI * 0.5 + 0.04 * ((c + rg) % 3)) * Basis.from_scale(Vector3(1.7, 1.15, 1.15)), Vector3(x, 0.12 + rg * 0.22, 0.0)) * (bv[1] as Transform3D), {}])
+					r.append([bv[0], Transform3D(Basis(Vector3.UP, PI * 0.5 + 0.04 * ((c + rg) % 3)) * Basis.from_scale(Vector3(1.7, 1.15, 1.15)), Vector3(x, rg * 0.22, 0.0)) * (bv[1] as Transform3D), {}])
 		"etal":      # deux étals Quaternius côte à côte (3,1 m de comptoir), clients côté -Z
 			for sx in [-0.78, 0.78]:
 				r.append(["q_etal", _fit("q_etal", Vector3(sx, 0, -0.45), 0.0, Vector3(1.55, 2.4, 1.1)), {"bois": "planches_l4", "lin": "lin_l4"} if PropsQuaternius.lot4 else {}])

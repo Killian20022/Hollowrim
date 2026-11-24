@@ -310,18 +310,18 @@ func _signes_des_bandits() -> void:
 	var frise_q: bool = AbordsQ.actif and _q_pret()
 	for k in 5:
 		var x := -7.6 + k * 1.2
-		var z := 5.2 + 0.4 * sin(k * 1.7)
+		var z := 5.2      # alignés : la longrine passe par le croisement de chaque paire de pieux
 		var pied := _sol(x, z)
 		if frise_q:
 			for sg: float in [-1.0, 1.0]:
-				_poutre(pied + Vector3(0.0, 0.0, -0.55 * sg), pied + Vector3(0.05 * sg, 1.25 + 0.1 * (k % 3), 0.62 * sg), 0.055)
+				_poutre(pied + Vector3(0.0, 0.0, -0.55 * sg), pied + Vector3(0.0, 1.3, 0.62 * sg), 0.055)
 		else:
 			decor.prisme("bois", pied + Vector3(0, -0.1, 0), pied + Vector3(0.06 * (k % 2 - 0.5), 1.35 + 0.15 * (k % 3), 0.55), 0.06, 5, 0.012)
 		decor.solide_rond(pied + Vector3(0, 0.6, 0.15), 0.1, 1.2)
 	if frise_q:
-		var a0 := _sol(-8.1, 5.2)
-		var a1 := _sol(-2.5, 5.2 + 0.4 * sin(4 * 1.7))
-		_poutre(a0 + Vector3(0, 0.42, 0.0), a1 + Vector3(0, 0.42, 0.0), 0.075)
+		var a0 := _sol(-7.9, 5.2)
+		var a1 := _sol(-2.5, 5.2)
+		_poutre(a0 + Vector3(0, 0.61, 0.0), a1 + Vector3(0, 0.61, 0.0), 0.075)      # au croisement des pieux (0,47 x 1,3 m)
 	# butin et campement léger à droite de la voûte
 	var c := _sol(5.2, 1.4)
 	decor.caisse(c, Vector3(0.85, 0.55, 0.6), 0.35)
@@ -352,7 +352,10 @@ func _signes_des_bandits() -> void:
 	if AbordsQ.actif and _q_pret():
 		# gen/abords : perches en poutres rondes, peau = tissu de bannière Quaternius (Banner_1_Cloth) teint en cuir sombre
 		_poutre(e + Vector3(0, -0.1, 0), e + Vector3(0, 3.2, 0), 0.05)
-		_poutre(e + Vector3(-0.08, 3.02, 0), e + Vector3(1.08, 3.05, 0), 0.035)
+		var e2 := _sol(-5.4, 2.6)      # deuxième perche : la traverse repose sur deux appuis (elle était en porte-à-faux)
+		_poutre(e2 + Vector3(0, -0.1, 0), e2 + Vector3(0, 3.2, 0), 0.05)
+		decor.solide_rond(e2 + Vector3(0, 1.5, 0), 0.07, 3.0)
+		_poutre(e + Vector3(-0.08, 3.02, 0), e2 + Vector3(0.08, 3.02, 0), 0.035)
 		_q("q_banniere_toile", e + Vector3(0.5, 3.0 - 2.25 * 0.62, 0.05), Basis(Vector3(0, 0, 1), 0.03).scaled(Vector3(1.15, 0.62, 1.0)), {"toile": "peau"})
 	else:
 		decor.prisme("bois", e + Vector3(0, -0.1, 0), e + Vector3(0, 3.2, 0), 0.045, 5)
@@ -376,14 +379,14 @@ func _portique() -> void:
 	var pg := _sol(xg, zp)
 	var pd := _sol(xd, zp)
 	var pq: bool = AbordsQ.actif and _q_pret()      # gen/abords : poteaux, linteau et jambes de force en poutres rondes Quaternius
-	for pp: Vector3 in [pg, pd]:
+	var yl := maxf(pg.y, pd.y) + h - 0.1
+	for pp: Vector3 in [pg, pd]:      # les deux poteaux montent jusqu'au linteau (sol différent d'un pied à l'autre : jamais de jour dessous)
 		if pq:
-			_poutre(pp + Vector3(0, -0.2, 0), pp + Vector3(0, h, 0), 0.16)
+			_poutre(pp + Vector3(0, -0.2, 0), Vector3(pp.x, yl + 0.1, pp.z), 0.16)
 		else:
-			decor.prisme("bois", pp + Vector3(0, -0.2, 0), pp + Vector3(0, h, 0), 0.15, 6)
+			decor.prisme("bois", pp + Vector3(0, -0.2, 0), Vector3(pp.x, yl + 0.1, pp.z), 0.15, 6)
 	decor.solide_rond(pg + Vector3(0, 1.5, 0), 0.17, 3.0)
 	decor.solide_rond(pd + Vector3(0, 1.5, 0), 0.17, 3.0)
-	var yl := maxf(pg.y, pd.y) + h - 0.1
 	if pq:
 		_poutre(Vector3(xg - 0.35, yl, zp), Vector3(xd + 0.35, yl, zp), 0.14)
 	else:
@@ -391,9 +394,9 @@ func _portique() -> void:
 	for s: float in [-1.0, 1.0]:
 		var p := pg if s < 0.0 else pd
 		if pq:
-			_poutre(p + Vector3(0, h - 0.9, 0), Vector3(p.x - s * 0.9, yl - 0.05, zp), 0.075)
+			_poutre(Vector3(p.x, yl - 0.8, p.z), Vector3(p.x - s * 0.9, yl - 0.05, zp), 0.075)
 		else:
-			decor.prisme("bois", p + Vector3(0, h - 0.9, 0), Vector3(p.x - s * 0.9, yl - 0.05, zp), 0.07, 5)
+			decor.prisme("bois", Vector3(p.x, yl - 0.8, p.z), Vector3(p.x - s * 0.9, yl - 0.05, zp), 0.07, 5)
 		decor.boite("fer", Vector3(p.x, yl, zp), Vector3(0.34, 0.05, 0.3))
 	var lx := 1.7
 	var ch := decor.lanterne(Vector3(lx, yl - 0.1, zp + 0.1), 0.45)

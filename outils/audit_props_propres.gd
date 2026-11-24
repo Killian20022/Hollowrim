@@ -48,7 +48,7 @@ func _go() -> void:
 		if not par_lieu.has(e[0]):
 			par_lieu[e[0]] = []
 		par_lieu[e[0]].append(e)
-	var total := {"FLOTTANT": 0, "ENFONCE": 0, "JOUR": 0, "INTERPEN": 0, "ISOLE": 0}
+	var total := {"FLOTTANT": 0, "ENFONCE": 0, "JOUR": 0, "INTERPEN": 0, "ISOLE": 0, "PENCHE": 0}
 	var rapport := {}
 	for lieu: String in par_lieu:
 		var items: Array = par_lieu[lieu]
@@ -72,6 +72,11 @@ func _go() -> void:
 					porte = true      # pendu sous une traverse
 				if recouvre and bas > o.position.y and bas < o.end.y and o.get_volume() > b.get_volume():
 					porte = true      # cloué / posé contre une pièce plus grosse (planche au poteau, lanterne)
+			if e[1] == "q_poutre_ronde" or e[1] == "q_tronc":
+				var ax: Vector3 = ((e[2] as Transform3D).basis.x if e[1] == "q_poutre_ronde" else (e[2] as Transform3D).basis.z).normalized()
+				var ang := rad_to_deg(acos(clampf(absf(ax.y), 0.0, 1.0)))      # 0 = debout, 90 = couché
+				if (ang > 3.0 and ang < 87.0) and e[1] == "q_poutre_ronde":
+					lignes.append("PENCHE %s à %.0f° de la verticale" % [e[1], ang])
 			var hsol: float = e[5]
 			if bas - hsol > 0.15 and not porte and float(e[3]) < 0.05:
 				lignes.append("FLOTTANT %s dessous %.2f m au-dessus du sol" % [e[1], bas - hsol])
