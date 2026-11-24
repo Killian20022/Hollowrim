@@ -1,5 +1,7 @@
 class_name RayonNoir
 extends Node3D
+## v3 : RAYON droit à longue portée (40 m), cercle runique animé au départ, impact soigné (anneaux, étincelles), palette au choix
+##   (--palette-rayon=0|1|2, voir PALETTES). Plus de drain : c'est un rayon, pas un sort ciblé.
 ## RAYON NOIR : visuel du sort CONTINU des ténèbres (data/sorts/rayon_noir.tres, type CANALISE, forme « rayon_noir »), sur le modèle du
 ## rayon tiré d'un coup (RayonNeant, scripts/magie/rayon_neant.gd) : même tube englobant (RayonNeant._tube()), shader dérivé
 ## (shaders/rayon_noir_faisceau.gdshader : cœur noir profond, liseré pourpre, ondulation lente qui court vers la cible, fumée déchirée
@@ -24,6 +26,32 @@ const SH_FAISCEAU := preload("res://shaders/rayon_noir_faisceau.gdshader")
 const SH_HALO := preload("res://shaders/rayon_noir_halo.gdshader")
 const SH_TACHE := preload("res://shaders/rayon_noir_tache.gdshader")
 const SH_RUNE := preload("res://shaders/runes_orbite.gdshader")
+const SH_CERCLE := preload("res://shaders/rayon_cercle.gdshader")
+const SH_IMPACT := preload("res://shaders/rayon_impact.gdshader")
+## Cercle runique du départ : diamètre (m), distance devant la paume (m), durée d'ouverture / de fermeture (s).
+const CERCLE_D := 0.5
+const CERCLE_DEVANT := 0.34
+const CERCLE_OUVRE := 0.22
+const CERCLE_FERME := 0.3
+## Impact : côté du quad (m).
+const IMPACT_D := 1.5
+## Palettes : cœur sombre + liseré lumineux. noir, fume, bord, filet (faisceau), accent (cercle/impact), lumiere, rune, coeur_rune, fumee[4], braise[4].
+const PALETTES := [
+	{"nom": "magenta_nocturne", "noir": "#05010c", "fume": "#3a0b5c", "bord": "#c622a8", "filet": "#ffc4f2", "accent": "#e23cc4", "lumiere": "#a02cd8",
+		"rune": "#e89cff", "coeur_rune": "#fff0ff", "fumee": ["#04010a", "#1c0836", "#5a1a86", "#b45ae0"], "braise": ["#07030c", "#a02ab8", "#ff8ae8", "#fff0fb"]},
+	{"nom": "indigo_aurore", "noir": "#030615", "fume": "#16124a", "bord": "#5a46ff", "filet": "#b8f4ff", "accent": "#54d8ff", "lumiere": "#4a52ff",
+		"rune": "#9fd8ff", "coeur_rune": "#f0fcff", "fumee": ["#02030c", "#0c0e38", "#2c2a98", "#6a90f0"], "braise": ["#03050f", "#3a3ad0", "#78e4ff", "#f0fdff"]},
+	{"nom": "pourpre_braise", "noir": "#0a0108", "fume": "#4a0a38", "bord": "#d02468", "filet": "#ffd6b8", "accent": "#ff7a4a", "lumiere": "#c42a6a",
+		"rune": "#ffa0c0", "coeur_rune": "#fff2e6", "fumee": ["#07010a", "#2a0824", "#7a1850", "#d8607a"], "braise": ["#0a0206", "#c02060", "#ff9a5a", "#fff4e0"]},
+]
+static var palette_n := clampi(int(_arg_palette()), 0, PALETTES.size() - 1)
+static func _arg_palette() -> int:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--palette-rayon="):
+			return int(a.get_slice("=", 1))
+	return 0
+static func pal() -> Dictionary:
+	return PALETTES[palette_n]
 ## Allumage (s) : la tête du rayon file de la main à la cible ; extinction (s) : le rayon se resserre et se dissipe.
 const ALLUMAGE := 0.1
 const EXTINCTION := 0.07
@@ -31,9 +59,9 @@ const VIE_TENUE := 0.3
 ## Le nœud s'éteint seul s'il n'est plus nourri (main coupée sans arrêt explicite).
 const OUBLI := 0.25
 ## Rayon du faisceau (m) loin de la main (× largeur du sort) et à la sortie de la paume ; distance d'ouverture.
-const RAYON_LOIN := 0.2
-const RAYON_MAIN := 0.035
-const OUVERTURE := 2.4
+const RAYON_LOIN := 0.4
+const RAYON_MAIN := 0.06
+const OUVERTURE := 3.0
 ## Tache d'ombre : côté du quad (m ; la flaque en couvre ~25 à 80 %) à l'impact, croissance pendant qu'on tient le même point, taches laissées en balayant.
 const TACHE := 1.9
 const TACHE_MAX := 3.2
@@ -41,20 +69,15 @@ const NB_TACHES_LAISSEES := 5
 const PAS_TACHE := 0.7
 const DUREE_TACHE_LAISSEE := 3.0
 const NB_FUMEE := 26
-const NB_BRAISES := 14
+const NB_BRAISES := 24
 ## Runes qui glissent le long du rayon : nombre de quads, période d'émission (s), durée du trajet (s), taille (m).
 const NB_RUNES := 5
 const PERIODE_RUNE := 0.22
 const TRAJET_RUNE := 0.42
 const TAILLE_RUNE := 0.12
 const SIGNES := [4, 1, 5, 7, 6]
-const COUL_RUNE := Color("#b98cff")
-const COEUR_RUNE := Color("#f1e4ff")
-const LUMIERE := Color(0.55, 0.22, 1.0)
 ## v2 : l'orbe tenu dans la main pendant ce sort (NoyauEcole, runes de la main) est réduit (il cachait la gauche de l'écran).
 const TAILLE_ORBE := 0.64
-const PAL_FUMEE := ["#05020a", "#1e0a34", "#4a1a80", "#9a5ae0"]
-const PAL_BRAISE := ["#07030c", "#8a34d0", "#c88aff", "#f3e6ff"]
 
 ## Un rayon par main (id de la paume → RayonNoir).
 static var par_paume := {}
@@ -75,6 +98,10 @@ var _t_fin := -1.0     # depuis le relâchement (-1 = tenu)
 var _vu := 0.0         # dernier appel de maj (horloge locale)
 var _fin_l := Vector3.ZERO
 var _faisceau: MeshInstance3D
+var _cercle: MeshInstance3D
+var _mat_cercle: ShaderMaterial
+var _impact: MeshInstance3D
+var _mat_impact: ShaderMaterial
 var _mat: ShaderMaterial
 var _halo: ShaderMaterial
 var _tache: MeshInstance3D
@@ -163,10 +190,14 @@ func _ready() -> void:
 	_mat.shader = SH_FAISCEAU
 	_mat.set_shader_parameter("graine", _graine)
 	_mat.set_shader_parameter("ouverture", OUVERTURE)
+	var pl := pal()
+	for k in ["noir", "fume", "bord", "filet"]:
+		_mat.set_shader_parameter(k, Color(pl[k]))
 	_halo = ShaderMaterial.new()
 	_halo.shader = SH_HALO
 	_halo.set_shader_parameter("graine", _graine)
 	_halo.set_shader_parameter("ouverture", OUVERTURE)
+	_halo.set_shader_parameter("bord", Color(pl["bord"]))
 	_halo.render_priority = 1
 	_mat.next_pass = _halo
 	_faisceau = _mi(RayonNeant._tube(), _mat, 50.0)
@@ -178,20 +209,34 @@ func _ready() -> void:
 		var t := _mi(_quad(), m, 2.0)
 		t.visible = false
 		_laissees.append({"mi": t, "mat": m, "t": -1.0})
-	_fumee = NoyauEcole.Bouffees.new(NB_FUMEE, RayonNeant._mat_bouffee(0, PAL_FUMEE, 0.9, 0.95))
-	_braises = NoyauEcole.Bouffees.new(NB_BRAISES, RayonNeant._mat_bouffee(1, PAL_BRAISE, 0.7, 1.25))
+	_fumee = NoyauEcole.Bouffees.new(NB_FUMEE, RayonNeant._mat_bouffee(0, pl["fumee"], 0.9, 0.95))
+	_braises = NoyauEcole.Bouffees.new(NB_BRAISES, RayonNeant._mat_bouffee(1, pl["braise"], 0.7, 1.25))
 	for b: NoyauEcole.Bouffees in [_fumee, _braises]:
 		b.mi.custom_aabb = AABB(Vector3(-200, -50, -200), Vector3(400, 100, 400))
 		add_child(b.mi)
 	var mr := ShaderMaterial.new()
 	mr.shader = SH_RUNE
-	mr.set_shader_parameter("couleur", COUL_RUNE)
-	mr.set_shader_parameter("coeur", COEUR_RUNE)
+	mr.set_shader_parameter("couleur", Color(pl["rune"]))
+	mr.set_shader_parameter("coeur", Color(pl["coeur_rune"]))
 	for i in NB_RUNES:
 		var q := _mi(_quad(), mr, 4.0)
 		q.set_instance_shader_parameter("symbole", float(SIGNES[i % SIGNES.size()]))
 		q.visible = false
 		_runes.append({"mi": q, "t": -1.0, "h": randf()})
+	_mat_cercle = ShaderMaterial.new()
+	_mat_cercle.shader = SH_CERCLE
+	_mat_cercle.set_shader_parameter("accent", Color(pl["accent"]))
+	_mat_cercle.set_shader_parameter("bord", Color(pl["bord"]))
+	_mat_cercle.set_shader_parameter("filet", Color(pl["filet"]))
+	_mat_cercle.set_shader_parameter("noir", Color(pl["noir"]))
+	_cercle = _mi(_quad(), _mat_cercle, 2.0)
+	_mat_impact = ShaderMaterial.new()
+	_mat_impact.shader = SH_IMPACT
+	_mat_impact.set_shader_parameter("accent", Color(pl["accent"]))
+	_mat_impact.set_shader_parameter("bord", Color(pl["bord"]))
+	_mat_impact.set_shader_parameter("filet", Color(pl["filet"]))
+	_impact = _mi(_quad(), _mat_impact, 2.0)
+	_impact.visible = false
 	_t_rune = PERIODE_RUNE * 0.6   # première rune peu après l'allumage
 
 func _mi(mesh: Mesh, mat: Material, marge: float) -> MeshInstance3D:
@@ -255,6 +300,8 @@ func _process(dt: float) -> void:
 		_placer_faisceau(vie)
 		if g != null and g.couche != null:
 			g.couche.demander()
+	_maj_cercle(g)
+	_maj_impact(g)
 	_maj_tache(dt, cb, g)
 	_maj_runes(dt, cb)
 	_maj_bouffees(dt, cb)
@@ -284,6 +331,45 @@ func _placer_faisceau(vie: float) -> void:
 		m.set_shader_parameter("rayon_min", RAYON_MAIN * k)
 		m.set_shader_parameter("eclat", 0.95 + 0.3 * (k - 1.0))
 		m.set_shader_parameter("vie", vie)
+
+## Cercle runique au départ : perpendiculaire au rayon, devant la paume ; il s'ouvre en tournant, ses runes s'allument une à une.
+func _maj_cercle(g: GestionMagie) -> void:
+	var ouv := clampf(_t / CERCLE_OUVRE, 0.0, 1.0) if allume else 1.0 - clampf(_t_fin / CERCLE_FERME, 0.0, 1.0)
+	if ouv <= 0.01:
+		_cercle.visible = false
+		return
+	var axe := _fin_l - debut
+	var d := axe / maxf(axe.length(), 0.1)
+	var x := Vector3.UP.cross(d)
+	if x.length() < 0.05:
+		x = Vector3.RIGHT
+	x = x.normalized()
+	var y := d.cross(x).normalized()
+	var dia := CERCLE_D * clampf(puissance, 1.0, 1.3)
+	# quad : X, Y dans le plan du cercle, Z = le rayon (face visible côté caméra grâce à cull_disabled)
+	_cercle.global_transform = Transform3D(Basis(x * dia, y * dia, d), debut + d * CERCLE_DEVANT)
+	_cercle.visible = true
+	_mat_cercle.set_shader_parameter("ouv", ouv)
+	_mat_cercle.set_shader_parameter("t", _t)
+	if g != null and g.couche != null:
+		g.couche.demander()
+
+## Impact soigné : disque lumineux, anneaux qui s'élargissent, étincelles rayonnantes, petit cercle de runes.
+func _maj_impact(g: GestionMagie) -> void:
+	var k := clampf(_t / 0.12, 0.0, 1.0) if allume else 1.0 - clampf(_t_fin / 0.18, 0.0, 1.0)
+	if k <= 0.01 or _t < ALLUMAGE * 0.8:
+		_impact.visible = false
+		return
+	var n := normale if (touche_decor or cible == null) else (debut - _fin_l).normalized()
+	var u := n.cross(Vector3.RIGHT if absf(n.x) < 0.9 else Vector3.UP).normalized()
+	var w := n.cross(u)
+	var dia := IMPACT_D * clampf(largeur / 0.6, 0.8, 1.5) * clampf(puissance, 1.0, 1.3) * (0.4 + 0.6 * k)
+	_impact.global_transform = Transform3D(Basis(u * dia, w * dia, n), _fin_l + n * 0.07)
+	_impact.visible = true
+	_mat_impact.set_shader_parameter("ouv", k)
+	_mat_impact.set_shader_parameter("t", _t)
+	if g != null and g.couche != null:
+		g.couche.demander()
 
 ## Tache d'ombre au bout (décor seulement : sur un ennemi, c'est OmbreCorps qui rampe sur lui).
 func _maj_tache(dt: float, _cb: Basis, g: GestionMagie) -> void:
@@ -472,10 +558,10 @@ func _maj_lumieres(g: GestionMagie, vie: float) -> void:
 	var pulse := 0.9 + 0.1 * sin(_t * 2.6 * TAU / 2.6)
 	var n := normale if touche_decor else (debut - _fin_l).normalized()
 	var e_bout := 1.7 if cible == null else 0.8   # sur un corps, OmbreCorps l'éclaire déjà
-	g.lumiere("rayon_noir_b%d" % id, _fin_l + n * 0.5, LUMIERE, e_bout * k * pulse * clampf(puissance, 1.0, 1.5), 4.5, 0.6)
+	g.lumiere("rayon_noir_b%d" % id, _fin_l + n * 0.5, Color(pal()["lumiere"]), e_bout * k * pulse * clampf(puissance, 1.0, 1.5), 4.5, 0.6)
 	var l := debut.distance_to(_fin_l)
 	if l > 2.5:
-		g.lumiere("rayon_noir_m%d" % id, debut.lerp(_fin_l, 0.55) + Vector3.UP * 0.15, LUMIERE, 0.75 * k * clampf(puissance, 1.0, 1.4), minf(5.5, l * 0.6), 0.45)
+		g.lumiere("rayon_noir_m%d" % id, debut.lerp(_fin_l, 0.55) + Vector3.UP * 0.15, Color(pal()["lumiere"]), 0.75 * k * clampf(puissance, 1.0, 1.4), minf(5.5, l * 0.6), 0.45)
 
 ## L'ombre qui RAMPE sur la cible (OmbreCorps : éclaboussure sombre qui s'étale, corruption qui monte) : renouvelée toutes les 1,1 s.
 func _maj_corps(g: GestionMagie) -> void:

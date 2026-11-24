@@ -151,9 +151,18 @@ void fragment() {
 		float larg = 0.035 + 0.02 * n2;
 		if (d < larg && x > s0 + 0.14) {
 			float vif = 1.0 - d / larg;
-			c = mix(c, bord * 1.15, vif * 0.35);
-			a = max(a, 0.6);
+			c = mix(c, bord * 1.5, vif * 0.6);
+			a = max(a, 0.7);
 		}
+	}
+	// deux spirales fines et claires (magenta-blanc) qui s'enroulent sur la gaine et filent vers la cible
+	for (int h2 = 0; h2 < 2; h2++) {
+		float sens = h2 == 0 ? 1.0 : -1.0;
+		float ph2 = fract(v_th / TAU * 2.0 + tc * 0.55 * sens - TIME * 1.6 + float(h2) * 0.5);
+		float d2 = abs(ph2 - 0.5);
+		float sp = (1.0 - smoothstep(0.0, 0.06, d2)) * smoothstep(s0 + 0.04, s0 + 0.12, x) * (1.0 - smoothstep(s0 + 0.2, s0 + 0.5, x));
+		c = mix(c, filet * 1.8, sp * 0.7);
+		a = max(a, sp * 0.9);
 	}
 	// sortie du cercle : la source est plus claire ; le front s'amincit en pointe
 	float sortie = (1.0 - smoothstep(0.0, 0.02, v_u)) * step(s0, x);
