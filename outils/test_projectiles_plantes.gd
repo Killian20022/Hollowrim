@@ -188,6 +188,6 @@ func _trainee() -> void:
 	if t != null:
 		var im := t.mesh as ImmediateMesh
 		await physics_frame
-		_verif(im.get_surface_count() == 1 and Projectile.TRAINEE_DUREE >= 0.35, "traînée : ruban tracé en vol (%d surface, durée %.2f s)" % [im.get_surface_count(), Projectile.TRAINEE_DUREE])
+		_verif(im.get_surface_count() == 2 and Projectile.TRAINEE_DUREE >= 0.6, "traînée : ruban + lueur tracés en vol (%d surfaces, durée %.2f s)" % [im.get_surface_count(), Projectile.TRAINEE_DUREE])
 	if is_instance_valid(f):
 		f.queue_free()
