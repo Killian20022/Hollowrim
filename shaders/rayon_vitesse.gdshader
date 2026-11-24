@@ -68,6 +68,7 @@ void fragment() {
 		vec3 c = mix(bord * 1.7, vec3(1.0, 0.95, 1.0) * 3.4, tete_l);
 		float bout = smoothstep(0.0, 0.5 / max(longueur, 0.5), v_u) * (1.0 - smoothstep(0.96, 1.0, v_u / max(tete, 0.01)));
 		ALBEDO = c * force;
-		ALPHA = clamp(b * bout * k * 0.95, 0.0, 1.0);
+		float pc = smoothstep(0.08, 0.4, length(VERTEX));              // v3f : pas de traits collés à l'œil
+		ALPHA = clamp(b * bout * k * 0.95 * pc, 0.0, 1.0);
 	} while (false);
 }

@@ -36,6 +36,8 @@ const CERCLE_OUVRE := 0.22
 const CERCLE_FERME := 0.3
 ## Impact : côté du quad (m).
 const IMPACT_D := 1.5
+## v3f : le faisceau démarre un peu devant la paume (m, en vue joueur il ne sort plus de l'œil) ; le dégradé de fondu près de la caméra est dans les shaders.
+const DECALAGE_DEPART := 0.5
 ## Palettes : cœur sombre + liseré lumineux. noir, fume, bord, filet (faisceau), accent (cercle/impact), lumiere, rune, coeur_rune, fumee[4], braise[4].
 const PALETTES := [
 	{"nom": "magenta_nocturne", "noir": "#05010c", "fume": "#3a0b5c", "bord": "#c622a8", "filet": "#ffc4f2", "accent": "#e23cc4", "lumiere": "#a02cd8",
@@ -87,6 +89,7 @@ static var stats := {"crees": 0, "images": 0, "arrets": 0}
 
 var paume: Node3D
 var debut := Vector3.ZERO
+var paume_pos := Vector3.ZERO   # départ réel (paume) : le cercle y reste collé
 var fin := Vector3.ZERO
 var normale := Vector3.UP
 var touche_decor := false
@@ -137,7 +140,8 @@ static func maj(paume_: Node3D, depart: Vector3, fin_: Vector3, normale_: Vector
 		r = RayonNoir.new()
 		r.name = "RayonNoir"
 		r.paume = paume_
-		r.debut = depart
+		r.debut = _decale(depart, fin_)
+		r.paume_pos = depart
 		r.fin = fin_
 		r._fin_l = fin_   # v2 : le rayon jaillit d'un coup jusqu'à l'impact (la tête du shader file en 0,1 s)
 		r.largeur = largeur_
@@ -150,7 +154,8 @@ static func maj(paume_: Node3D, depart: Vector3, fin_: Vector3, normale_: Vector
 		var g := GestionMagie.obtenir()
 		if g != null and not EffetsMagie.muet:   # petit éclair de départ : bref, dans la main
 			g.lumiere("rayon_noir_eclair%d" % id, depart, Color(0.75, 0.45, 1.0), 3.0, 3.0, 0.9, 0.16)
-	r.debut = depart
+	r.debut = _decale(depart, fin_)
+	r.paume_pos = depart
 	r.fin = fin_
 	r.normale = normale_.normalized() if normale_.length() > 0.01 else Vector3.UP
 	r.touche_decor = touche_decor_
@@ -160,6 +165,14 @@ static func maj(paume_: Node3D, depart: Vector3, fin_: Vector3, normale_: Vector
 	r._vu = r._t
 	stats.images = int(stats.images) + 1
 	return r
+
+## Départ visuel du faisceau : DECALAGE_DEPART devant la paume, sur l'axe de tir (au plus 30 % de la longueur : un rayon court reste entier).
+static func _decale(depart: Vector3, fin_: Vector3) -> Vector3:
+	var axe := fin_ - depart
+	var l := axe.length()
+	if l < 0.01:
+		return depart
+	return depart + axe / l * minf(DECALAGE_DEPART, l * 0.3)
 
 ## Relâchement (ou mana à 0, interruption) : le rayon de cette main se dissipe.
 static func arreter(paume_: Node3D) -> void:
@@ -368,7 +381,7 @@ func _maj_cercle(g: GestionMagie) -> void:
 	var y := d.cross(x).normalized()
 	var dia := CERCLE_D * clampf(puissance, 1.0, 1.3)
 	# quad : X, Y dans le plan du cercle, Z = le rayon (face visible côté caméra grâce à cull_disabled)
-	_cercle.global_transform = Transform3D(Basis(x * dia, y * dia, d), debut + d * CERCLE_DEVANT)
+	_cercle.global_transform = Transform3D(Basis(x * dia, y * dia, d), paume_pos + d * CERCLE_DEVANT)
 	_cercle.visible = true
 	_mat_cercle.set_shader_parameter("ouv", ouv)
 	_mat_cercle.set_shader_parameter("t", _t)
