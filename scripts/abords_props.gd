@@ -37,6 +37,7 @@ const CAMP_CHASSEUR := [["q_tente", 0.0, 0.0, 0.0, 0.0, true, 0.8],
 	["q_brique_3", 0.30, 2.18, -270, 0.0, false, Vector3(1.5, 1.2, 1.3)], ["q_brique_4", 0.88, 2.42, -315, 0.0, false, Vector3(1.5, 1.2, 1.3)],
 	["q_feu_bois", 0.3, 3.0, 0.0, 0.0, false, 0.85], ["q_marmite_camp", 1.45, 3.45, 20.0, 0.0, false],
 	["q_rondin", -1.25, 3.3, 75.0, 0.0, true], ["q_poutre_ronde", 2.2, 1.0, 0.0, 0.0, true, Vector3(1.5, 1, 1), 0.0, 90.0], ["q_poutre_ronde", 2.2, 2.6, 0.0, 0.0, true, Vector3(1.5, 1, 1), 0.0, 90.0],
+	["q_poutre_ronde", 2.2, 1.8, 90.0, 0.0, false, Vector3(1.6, 1, 1)],      # semelle couchée entre les pieds des deux poteaux : même niveau de sol (grappe), poteaux de même hauteur
 	["q_poutre_ronde", 2.2, 1.8, 90.0, 1.5, false, Vector3(1.75, 1, 1)], ["q_viande", 2.2, 1.5, 0.0, 1.15, false, 1.6, 90.0], ["q_viande", 2.2, 2.0, 0.0, 1.15, false, 1.6, 90.0],
 	["q_poisson", 2.2, 2.3, 90.0, 0.94, false, 1.4, 0.0, 90.0], ["q_piege_ours", -1.8, 1.4, 20.0, 0.0, false], ["q_piege_ours", -2.0, 0.6, -35.0, 0.0, false],
 	["pq_sac", 1.15, -0.6, 25.0, 0.0, false], ["pq_corde_3", -0.9, 2.2, 0.0, 0.0, false], ["pq_seau_bois", 1.75, 4.0, 0.0, 0.0, false],
