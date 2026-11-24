@@ -14,7 +14,7 @@ uniform float rayon_max = 1.0;
 uniform float rayon_min = 0.2;
 uniform float ouverture = 7.0;
 uniform float graine = 0.0;
-uniform float coque = 3.0;       // rayon de la coque / rayon de la gaine
+uniform float coque = 4.0;       // rayon de la coque / rayon de la gaine
 uniform float force = 1.7;
 uniform float cellules = 40.0;
 
@@ -53,18 +53,19 @@ void fragment() {
 		float cell = floor(th);
 		float loc = fract(th);
 		float h1 = h11(cell), h2 = h11(cell + 17.0), h3 = h11(cell + 41.0), h4 = h11(cell + 73.0), h5 = h11(cell + 97.0);
-		float dens = mix(1.0, 0.6, smoothstep(0.0, 0.85, v_u));
-		float vit = 35.0 + 60.0 * h2;
-		float per = 9.0 + 14.0 * h3;
-		float lon = 3.0 + 7.0 * h4;
+		float dens = mix(0.85, 0.42, smoothstep(0.0, 0.85, v_u));
+		float rare = step(0.93, h5);                  // quelques traits très longs et très rapides (hyperespace)
+		float vit = mix(45.0 + 70.0 * h2, 170.0 + 60.0 * h2, rare);
+		float per = mix(22.0 + 25.0 * h3, 70.0 + 30.0 * h3, rare);
+		float lon = mix(8.0 + 14.0 * h4, 30.0 + 20.0 * h4, rare);
 		float q = fract((v_s - TIME * vit) / per + h5);
 		float lf = lon / per;
 		float tail = (q - (1.0 - lf)) / lf;                     // 0 : bout de traîne, 1 : tête
 		float on = step(0.0, tail) * step(h1, dens);
-		float lig = 1.0 - smoothstep(0.0, 0.04 + 0.05 * h4, abs(loc - 0.5) - 0.04);
-		float tete_l = smoothstep(0.82, 1.0, tail);
-		float b = pow(clamp(tail, 0.0, 1.0), 2.2) * (1.0 - smoothstep(0.985, 1.0, q)) * on * lig;
-		vec3 c = mix(bord * 1.5, filet * 2.2, tete_l);
+		float lig = 1.0 - smoothstep(0.0, 0.07 + 0.06 * h4, abs(loc - 0.5) - 0.07);
+		float tete_l = smoothstep(0.7, 0.97, tail);
+		float b = pow(clamp(tail, 0.0, 1.0), 1.8) * (1.0 - smoothstep(0.985, 1.0, q)) * on * lig;
+		vec3 c = mix(bord * 1.7, vec3(1.0, 0.95, 1.0) * 3.4, tete_l);
 		float bout = smoothstep(0.0, 0.5 / max(longueur, 0.5), v_u) * (1.0 - smoothstep(0.96, 1.0, v_u / max(tete, 0.01)));
 		ALBEDO = c * force;
 		ALPHA = clamp(b * bout * k * 0.95, 0.0, 1.0);
