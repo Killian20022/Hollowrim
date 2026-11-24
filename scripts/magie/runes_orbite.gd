@@ -15,7 +15,7 @@ const ECOLES := {
 	"glace": {"lueur_k": 2.0, "couleur": Color("#4fb4ff"), "coeur": Color("#e2f6ff"), "signes": [5, 3, 10, 0, 5, 3, 9, 8], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
 	"electricite": {"lueur_k": 1.7, "couleur": Color("#8a6cff"), "coeur": Color("#e6deff"), "signes": [2, 4, 2, 9, 2, 4, 8, 10], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
 	# esprit : runes du Futhark (Raidho, Othala, Fehu, Ingwaz, Tiwaz, Dagaz, Kenaz) qui gravitent autour de l'orbe (OrbeEsprit)
-	"esprit": {"lueur_k": 0.9, "couleur": Color("#8fd0ff"), "coeur": Color("#f0fbff"), "signes": [6, 7, 8, 5, 4, 10, 1, 7], "rayon": 0.14, "taille": 0.042, "centre": 0.15},
+	"esprit": {"lueur_k": 0.45, "couleur": Color("#8fd0ff"), "coeur": Color("#f0fbff"), "signes": [6, 7, 8, 5, 4, 10, 1, 7], "rayon": 0.14, "taille": 0.042, "centre": 0.15},
 	"tenebres": {"lueur_k": 1.8, "couleur": Color("#a23cff"), "coeur": Color("#e7b8ff"), "signes": [4, 1, 5, 7, 4, 1, 5, 6], "rayon": 0.115, "taille": 0.029, "centre": 0.15},
 }
 ## Deux anneaux très fins, PARTIELS (un arc qui tourne, ni cercle complet ni grand cercle devant la caméra) : rayon (m),
@@ -203,8 +203,8 @@ func _ready() -> void:
 		var v: Dictionary = OrbeEsprit.VARIANTES.get(sort, OrbeEsprit.VARIANTES["telekinesie"])
 		_mat_rune.set_shader_parameter("couleur", (v.teinte as Color).lerp(e.couleur, 0.3))
 		_mat_rune.set_shader_parameter("coeur", v.clair)
-		lueur.light_color = (v.teinte as Color).lerp(Color(0.8, 0.9, 1.0), 0.65)   # reflet pâle : la main ne prend pas la teinte du sort
-		lueur_bras.light_color = Color(0.8, 0.88, 1.0)
+		lueur.light_color = Color(0.86, 0.92, 1.0)   # reflet blanc-bleuté faible : la peau reste naturelle, quel que soit le sort
+		lueur_bras.light_color = Color(0.86, 0.92, 1.0)
 	_suivre()
 
 func _h(i: int) -> float:
