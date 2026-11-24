@@ -8,6 +8,8 @@ extends RefCounted
 
 const BUCKET := "hollowrim"
 const CLE_CODE := "CODE"
+const ESSAIS_RECHERCHE := 8      # recherches successives (indexation Epic différée)
+const PAUSE_RECHERCHE := 1.5     # secondes entre deux recherches
 
 var _salon = null   # HLobby
 
@@ -48,12 +50,20 @@ func creer_salon(code: String, max_joueurs: int) -> String:
 	return ""
 
 ## Renvoie {erreur: String, hote: String (ProductUserId du propriétaire)}.
+## Le service de recherche d'Epic indexe un salon avec un léger retard (constaté en réel : 0 résultat dans la première
+## seconde, puis trouvé) : on réessaie quelques fois avant de conclure que le code n'existe pas.
 func trouver_salon(code: String) -> Dictionary:
-	var trouves = await HLobbies.search_by_attribute_async([
-		{"key": EOS.Lobby.SEARCH_BUCKET_ID, "value": BUCKET},
-		{"key": CLE_CODE, "value": code}])
-	if trouves == null:
-		return {"erreur": "EOS : recherche du salon impossible (réseau ?)."}
+	var trouves = null
+	for essai in ESSAIS_RECHERCHE:
+		trouves = await HLobbies.search_by_attribute_async([
+			{"key": EOS.Lobby.SEARCH_BUCKET_ID, "value": BUCKET},
+			{"key": CLE_CODE, "value": code}])
+		if trouves == null:
+			return {"erreur": "EOS : recherche du salon impossible (réseau ?)."}
+		if not (trouves as Array).is_empty():
+			break
+		if essai < ESSAIS_RECHERCHE - 1:
+			await Engine.get_main_loop().create_timer(PAUSE_RECHERCHE).timeout
 	if (trouves as Array).is_empty():
 		return {"erreur": "Aucun salon avec le code %s (vérifier le code, l'hôte doit avoir ouvert son salon)." % code}
 	var s = trouves[0]
