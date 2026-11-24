@@ -644,7 +644,7 @@ static func _degats_energie(e: float) -> float:
 static func _objet_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3, normale: Vector3, dir: Vector3, v: float, masse: float, lanceur: Node) -> void:
 	var e := 0.5 * masse * v * v
 	var q := masse * v
-	var degats := _degats_energie(e)
+	var degats := DegatsObjets.degats(e, ennemi, _degats_energie(e))   # courbe d'énergie + résistance des chefs (scripts/magie/degats_objets.gd)
 	var renverse := q >= P_RENVERSER and masse >= 6.0
 	point = point.lerp(visee_corps(ennemi, point, dir)["entree"], 0.7)   # un objet large touche la surface du corps, pas son axe
 	var projete := q >= P_PROJETER and masse >= 6.0
@@ -654,7 +654,8 @@ static func _objet_dans_corps(objet: RigidBody3D, ennemi: Node3D, point: Vector3
 		"objet_lance": String(objet.name), "stagger": clampf(q * 0.25, 4.0, 60.0), "collider": ennemi, "affaibli": false, "charge": 0.0, "instant": 0.0,
 		"renverser": renverse, "recul_mult": clampf(q / 80.0, 0.6, 2.2)}
 	var res := DegatsCombat.appliquer(ennemi, degats, point - dir_h * 2.0, projete, info)
-	dernier = {"issue": "objet", "degats": degats, "resultat": res, "energie": e, "quantite_mvt": q, "renverse": renverse, "ennemi": ennemi}
+	var ve := DegatsObjets.apres_impact(ennemi, dir, masse, v, lanceur, String(res))   # choc fort : l'ennemi part en ragdoll puis se relève
+	dernier = {"issue": "objet", "degats": degats, "resultat": res, "energie": e, "quantite_mvt": q, "renverse": renverse, "ennemi": ennemi, "ragdoll": ve}
 	# l'objet encaisse le choc (il casse : branche cassables) ; sinon il retombe devant la cible
 	var casse := false
 	if objet.has_method("recevoir_choc"):
