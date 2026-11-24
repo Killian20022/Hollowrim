@@ -14,11 +14,11 @@ extends Node3D
 signal touche(resultat: String)
 signal plante(position_: Vector3)
 
-const VITESSE := 21.0
+const VITESSE := 40.0     # m/s : flèche d'archer ennemi (la visée compense la chute : Projectile.cap_visee)
 const GRAVITE := 5.0
 const VIE_VOL := 4.0     # s : au-delà, la flèche disparaît
-const VIE_PLANTEE := 4.0 # s : une flèche fichée reste visible un moment
-const VIE_PLANTEE_JOUEUR := 25.0 # s : flèche du joueur fichée (non ramassable)
+const VIE_PLANTEE := 15.0 # s : une flèche fichée dans le décor reste visible un moment
+const VIE_PLANTEE_JOUEUR := 60.0 # s : flèche du joueur fichée (non ramassable)
 const VITESSE_GIVRE := 11.0
 ## Ralentissement infligé par un trait de givre qui touche : (durée s, facteur de vitesse).
 const RALENTI_GIVRE := Vector2(1.8, 0.55)
@@ -40,10 +40,14 @@ const VIE_RAMASSABLE := 90.0
 const PORTEE_RAMASSAGE := 1.7
 ## FLÈCHE DU JOUEUR (ArcJoueur) : vraie balistique — gravité terrestre, traînée quadratique légère, le nez suit la vitesse ;
 ## dégâts selon la vitesse à l'IMPACT : degats × (v / vitesse_reference)², au moins degats_min (énergie cinétique).
-const GRAVITE_JOUEUR := 9.8
-const TRAINEE := 0.0009          # décélération = TRAINEE · v² (m/s² ; ~1,9 m/s² à 46 m/s)
-## Flèche fichée dans un corps (ennemi, mannequin) : elle y reste ce temps (s), elle suit le corps.
-const VIE_DANS_CORPS := 8.0
+const GRAVITE_JOUEUR := 6.5      # chute « de jeu » : un tir horizontal à pleine tension (100 m/s) porte ~60-70 m avant de toucher le sol
+const TRAINEE := 0.0003          # décélération = TRAINEE · v² (m/s² ; ~3 m/s² à 100 m/s)
+## Flèche fichée dans un corps (ennemi, cadavre, mannequin) : elle y reste ce temps (s), elle suit l'os touché (animation et ragdoll).
+const VIE_DANS_CORPS := 30.0
+## TRAÎNÉE discrète : fine ligne qui s'estompe vite derrière une flèche en vol (style PS1) ; durée (s) et longueur maximale (m).
+const TRAINEE_DUREE := 0.22
+const TRAINEE_LONGUEUR := 5.0
+const TRAINEE_COULEUR := Color(0.92, 0.9, 0.8)
 var vitesse_reference := 46.0
 var degats_min := 3.0
 ## Dégâts réellement infligés à l'impact (0 tant qu'elle vole) et vitesse à l'impact.
@@ -53,6 +57,9 @@ var vitesse_impact := 0.0
 var point_impact := Vector3.ZERO
 var dir_impact := Vector3.ZERO
 var _modele_fleche: Node3D
+var _trainee: MeshInstance3D
+var _trainee_pts: Array = []   # [Vector3, âge]
+var _dans_corps := false
 ## Coop (lot 4c) : identifiant réseau (vide hors ligne) ; `distant` = copie d'un projectile tiré sur une autre machine (visuel seulement :
 ## ne blesse pas les ennemis, ne ramasse rien ; un projectile ENNEMI copié ne blesse que le joueur LOCAL). Voir reseau/reseau_projectiles.gd.
 var id_reseau := ""
@@ -125,6 +132,17 @@ func _ready() -> void:
 	var f := ArcModele.creer_fleche()
 	f.position.z = ArcModele.longueur_pointe()
 	_modele_fleche.add_child(f)
+	_trainee = MeshInstance3D.new()
+	_trainee.name = "Trainee"
+	_trainee.top_level = true
+	_trainee.mesh = ImmediateMesh.new()
+	_trainee.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var mt := StandardMaterial3D.new()
+	mt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mt.vertex_color_use_as_albedo = true
+	mt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_trainee.material_override = mt
+	add_child(_trainee)
 	if tireur != null:
 		_ex.append(tireur.get_rid())
 
@@ -193,18 +211,22 @@ func degats_pour(v: float) -> float:
 	return maxf(degats_min, degats * k * k)
 
 ## Fichée : la flèche reste à l'angle de son vol, la pointe enfoncée selon la vitesse, et vibre un instant.
-func _ficher(point: Vector3, dir_v: Vector3, v: float, dans: Node3D = null) -> void:
+## `dans` : nœud qui la porte (os d'un corps : BoneAttachment3D, qui suit l'animation et le ragdoll) ; `enfonce_force` > 0 : profondeur de la pointe (m).
+func _ficher(point: Vector3, dir_v: Vector3, v: float, dans: Node3D = null, enfonce_force := -1.0) -> void:
 	point_impact = point
 	dir_impact = dir_v
 	vitesse_impact = v
 	var enfonce := clampf(0.03 + 0.14 * v / 46.0, 0.03, 0.17) * (1.4 if dans != null else 1.0)
+	if enfonce_force > 0.0:
+		enfonce = enfonce_force
 	global_position = point + dir_v * enfonce
 	_orienter_vers(dir_v)
 	if dans != null:
 		var g := global_transform
 		get_parent().remove_child(self)
 		dans.add_child(self)
-		global_transform = g
+		global_transform = Transform3D(g.basis.orthonormalized(), g.origin)
+		_dans_corps = true
 	plantee = true
 	_t = 0.0
 	_vibre = 0.0 if v > 14.0 else -1.0
@@ -212,6 +234,43 @@ func _ficher(point: Vector3, dir_v: Vector3, v: float, dans: Node3D = null) -> v
 func _orienter_vers(d: Vector3) -> void:
 	var haut := Vector3.UP if absf(d.normalized().y) < 0.98 else Vector3.RIGHT
 	look_at(global_position + d, haut)
+
+func _process(dt: float) -> void:
+	_maj_trainee(dt)
+
+## Traînée : points de la pointe (repère monde) vieillis, rognés à TRAINEE_LONGUEUR ; deux traits qui s'estompent. Elle finit de s'effacer une fois la flèche fichée.
+func _maj_trainee(dt: float) -> void:
+	if _trainee == null:
+		return
+	for p: Array in _trainee_pts:
+		p[1] = float(p[1]) + dt
+	if not plantee:
+		_trainee_pts.append([global_position, 0.0])
+	while not _trainee_pts.is_empty() and float((_trainee_pts[0] as Array)[1]) > TRAINEE_DUREE:
+		_trainee_pts.pop_front()
+	var im := _trainee.mesh as ImmediateMesh
+	im.clear_surfaces()
+	if _trainee_pts.size() < 2:
+		return
+	var reste := TRAINEE_LONGUEUR
+	im.surface_begin(Mesh.PRIMITIVE_LINES)
+	for i in range(_trainee_pts.size() - 1, 0, -1):
+		var a: Array = _trainee_pts[i]
+		var b: Array = _trainee_pts[i - 1]
+		var pa: Vector3 = a[0]
+		var pb: Vector3 = b[0]
+		reste -= pa.distance_to(pb)
+		if reste < 0.0:
+			break
+		var ca := TRAINEE_COULEUR
+		ca.a = 0.55 * clampf(1.0 - float(a[1]) / TRAINEE_DUREE, 0.0, 1.0) * clampf(reste / TRAINEE_LONGUEUR + 0.3, 0.0, 1.0)
+		var cb := TRAINEE_COULEUR
+		cb.a = 0.55 * clampf(1.0 - float(b[1]) / TRAINEE_DUREE, 0.0, 1.0) * clampf(reste / TRAINEE_LONGUEUR + 0.3, 0.0, 1.0)
+		im.surface_set_color(ca)
+		im.surface_add_vertex(pa)
+		im.surface_set_color(cb)
+		im.surface_add_vertex(pb)
+	im.surface_end()
 
 func _physics_process(dt: float) -> void:
 	_t += dt
@@ -224,7 +283,7 @@ func _physics_process(dt: float) -> void:
 			_vibre = -1.0
 			_modele_fleche.rotation = Vector3.ZERO
 	if plantee:
-		if genre == "fleche_joueur" and get_parent() is CollisionObject3D and _t > VIE_DANS_CORPS:
+		if genre == "fleche_joueur" and _dans_corps and _t > VIE_DANS_CORPS:
 			queue_free()
 			return
 		if recuperable and joueur != null and is_instance_valid(joueur) and joueur.global_position.distance_to(global_position) < PORTEE_RAMASSAGE \
@@ -271,23 +330,61 @@ func _physics_process(dt: float) -> void:
 		var v := vitesse.length()
 		var p_imp: Vector3 = r["position"]
 		vitesse_impact = v
+		# le contact arrive sur la capsule (ou un os du ragdoll) : le VRAI point d'entrée est sur le corps (ImpactsLances.visee_corps),
+		# l'os touché porte la flèche ; un tir qui frôle la capsule sans toucher le corps continue son vol
+		var corps: Node3D = ImpactsLances._ennemi_de(cible as Node, joueur) if cible is Node else null
+		if corps != null and corps != joueur:
+			var vc := ImpactsLances.visee_corps(corps, p_imp, dir_v)
+			if bool(vc["frole"]):
+				_ignorer_corps(corps)
+				global_position = p_imp + dir_v * 0.1
+				return
+			p_imp = vc["entree"]
+			var vivant: bool = not corps.has_method("vivant") or bool(corps.vivant())
+			if vivant and corps.has_method("recevoir_coup"):
+				degats_impact = degats_pour(v)
+				var info := {"type": "perforant", "point": p_imp, "direction": dir_v, "normale": r["normal"],
+					"zone": DegatsCombat.zone(corps, p_imp), "attaque": "legere", "arme": "arc",
+					"stagger": 0.35 * clampf(degats_impact / 36.0, 0.2, 1.0), "collider": corps, "affaibli": false, "charge": 0.0, "instant": 0.0}
+				if distant:
+					resultat = "touche"    # copie d'une flèche tirée ailleurs : visuel seulement
+				elif ReseauProjectiles.invite():
+					resultat = "touche"    # invité : l'hôte valide et applique (proj_coup)
+					ReseauProjectiles.envoyer_coup_fleche(self, corps, degats_impact, p_imp, dir_v, v)
+				else:
+					resultat = DegatsCombat.appliquer(corps, degats_impact, p_imp - dir_v * 2.0, false, info)
+				if resultat == "":
+					resultat = "touche"
+				touche.emit(resultat)
+				GerbePixels.emettre(self, p_imp, (-dir_v + Vector3.UP * 0.4).normalized(), "sang", 0.8)
+			else:
+				resultat = "touche"        # cadavre : la flèche s'y fiche sans dégâts
+			# la flèche reste fichée DANS le corps : portée par l'os touché (suit l'animation et le ragdoll), sans se ramasser
+			recuperable = false
+			if is_instance_valid(corps) and corps.is_inside_tree():
+				var porte: Node3D = vc["accroche"] if vc.get("accroche") != null else corps
+				var prof := clampf(float(vc["vers_axe"]) * 0.85, 0.06, 0.22)
+				_ficher(p_imp, dir_v, v, porte, prof)
+				Sons.jouer_a(self, ["knifeSlice2"], p_imp, -8.0, 0.2)
+			else:
+				queue_free()
+			return
 		if cible != null and cible != joueur and cible.has_method("recevoir_coup"):
 			degats_impact = degats_pour(v)
-			var info := {"type": "perforant", "point": p_imp, "direction": dir_v, "normale": r["normal"],
+			var info2 := {"type": "perforant", "point": p_imp, "direction": dir_v, "normale": r["normal"],
 				"zone": DegatsCombat.zone(cible as Node3D, p_imp), "attaque": "legere", "arme": "arc",
 				"stagger": 0.35 * clampf(degats_impact / 36.0, 0.2, 1.0), "collider": cible, "affaibli": false, "charge": 0.0, "instant": 0.0}
 			if distant:
-				resultat = "touche"    # copie d'une flèche tirée ailleurs : visuel seulement
+				resultat = "touche"
 			elif ReseauProjectiles.invite():
-				resultat = "touche"    # invité : l'hôte valide et applique (proj_coup)
+				resultat = "touche"
 				ReseauProjectiles.envoyer_coup_fleche(self, cible as Node, degats_impact, p_imp, dir_v, v)
 			else:
-				resultat = DegatsCombat.appliquer(cible as Node, degats_impact, p_imp - dir_v * 2.0, false, info)
+				resultat = DegatsCombat.appliquer(cible as Node, degats_impact, p_imp - dir_v * 2.0, false, info2)
 			if resultat == "":
 				resultat = "touche"
 			touche.emit(resultat)
 			GerbePixels.emettre(self, p_imp, (-dir_v + Vector3.UP * 0.4).normalized(), "sang", 0.8)
-			# la flèche reste fichée dans le corps (elle le suit), sans se ramasser
 			recuperable = false
 			if is_instance_valid(cible) and (cible as Node).is_inside_tree():
 				_ficher(p_imp, dir_v, v, cible as Node3D)
@@ -331,6 +428,13 @@ func _physics_process(dt: float) -> void:
 	set_physics_process(true)
 	plante.emit(global_position)
 	Sons.jouer_a(self, ["knifeSlice2"], global_position, -8.0, 0.2)
+
+## Un tir qui frôle un corps (bord de la capsule) l'ignore pour le reste du vol : le corps et ses os de ragdoll sortent du rayon.
+func _ignorer_corps(corps: Node) -> void:
+	if corps is CollisionObject3D:
+		_ex.append((corps as CollisionObject3D).get_rid())
+	for pb in corps.find_children("*", "PhysicalBone3D", true, false):
+		_ex.append((pb as PhysicalBone3D).get_rid())
 
 ## Éclatement du trait de givre : éclats de glace, buée, tintement.
 func _briser(sur_joueur: bool) -> void:
