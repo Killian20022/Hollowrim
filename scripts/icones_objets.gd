@@ -73,7 +73,7 @@ static func _atlas_de(taille: int) -> Texture2D:
 	return tex
 
 ## Icône `taille` px (16 ou 32) de l'objet `id`, ou null s'il n'a pas d'icône dessinée depuis son modèle.
-static func icone(id: String, taille := 16) -> Texture2D:
+static func icone(id: String, taille := 16) -> Texture2D:   # tome_<sort> : livre + image du sort
 	_lire()
 	var c := cle(id)
 	if not _index.has(c):
@@ -89,7 +89,28 @@ static func icone(id: String, taille := 16) -> Texture2D:
 	t.atlas = atlas
 	t.region = Rect2((n % _colonnes) * taille, (n / _colonnes) * taille, taille, taille)
 	_cache[k] = t
+	var sort := c.substr(5) if c.begins_with("tome_") else ""
+	if sort != "" and IconesCombat.connu(sort):      # tome : le livre porte l'image du sort qu'il enseigne (coin bas-droit)
+		var tex := _tome_avec_sort(t, sort, taille)
+		_cache[k] = tex
+		return tex
 	return t
+
+## Livre de l'atlas + icône du sort en médaillon dans le coin bas-droit (10 px sur l'icône 16, 16 px sur l'icône 32).
+static func _tome_avec_sort(livre: AtlasTexture, sort: String, taille: int) -> Texture2D:
+	var img := livre.get_image().duplicate() as Image
+	img.convert(Image.FORMAT_RGBA8)
+	var s := IconesCombat.icone(sort).get_image().duplicate() as Image
+	s.convert(Image.FORMAT_RGBA8)
+	var d := 10 if taille <= 16 else 16
+	if d != s.get_width():
+		s.resize(d, d, Image.INTERPOLATE_LANCZOS)
+		for y in d:
+			for x in d:
+				var c := s.get_pixel(x, y)
+				s.set_pixel(x, y, Color(c.r, c.g, c.b, 1.0 if c.a >= 0.5 else 0.0))
+	img.blend_rect(s, Rect2i(0, 0, d, d), Vector2i(taille - d, taille - d))
+	return ImageTexture.create_from_image(img)
 
 ## Icône 16 px d'un identifiant de MAIN ou de raccourci (barre d'objets) : objet dessiné s'il existe, sinon IconesCombat (sorts,
 ## main nue, torche…).

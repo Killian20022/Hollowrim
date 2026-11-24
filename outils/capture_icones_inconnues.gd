@@ -46,7 +46,7 @@ func _go() -> void:
 	var j: CharacterBody3D = m.joueur
 	var inv: Inventaire = j.inventaire
 	inv.pieces = 1840
-	for o: Array in [["arc_chasseur", 1], ["fleche", 40], ["crochet", 6], ["epee_rubis", 1], ["potion_soin", 2], ["cle_archives", 1]]:
+	for o: Array in [["arc_chasseur", 1], ["fleche", 40], ["crochet", 6], ["epee_rubis", 1], ["potion_soin", 2], ["cle_archives", 1], ["tome_boule_feu", 1], ["tome_chaine_eclairs", 1], ["tome_rayon_neant", 1], ["tome_drain_vie", 1], ["tome_nova_gelee", 1]]:
 		inv.ajouter(o[0], o[1])
 	var mains: EquipementMains = j.mains.magie.eq
 	mains.apprendre_tout()
@@ -54,7 +54,7 @@ func _go() -> void:
 	ui.ouvrir("sac")
 	await _images(10)
 	var sac := ui.onglet("sac") as OngletSac
-	for v: Array in [["arme", "arc_chasseur", "1_sac_armes"], ["divers", "crochet", "2_sac_divers"]]:
+	for v: Array in [["arme", "arc_chasseur", "1_sac_armes"], ["divers", "crochet", "2_sac_divers"], ["consommable", "tome_rayon_neant", "2b_sac_tomes"]]:
 		sac.filtrer(v[0])
 		sac.choisir(v[1])
 		sac.queue_redraw()
@@ -71,9 +71,22 @@ func _go() -> void:
 		await _capturer(v[1])
 	ui.fermer()
 	await _images(10)
+	var j2: CharacterBody3D = m.joueur
+	mains.assigner_raccourci(0, "telekinesie", "attraction")
+	mains.assigner_raccourci(1, "repulsion", "levitation")
+	mains.assigner_raccourci(2, "rayon_noir", "enchant_feu")
+	mains.assigner_raccourci(3, "drain_vie", "soin")
+	var hc: Node = m.hud.combat_ui
+	hc.set("_force_visible", true)
+	await _images(40)
+	var barre := await _capturer("3e_barre")
+	j2.mains.magie.raccourci(1)
+	await _images(14)
+	await _capturer("3f_barre_ruban")
+	hc.set("_force_visible", false)
 	var sv: ServicesPnj = m.services
 	var g := Stockage.conteneur("coffre_grima")
-	for o: Array in [["arc_chasseur", 1], ["fleche", 20], ["crochet", 3], ["epee_rubis", 1]]:
+	for o: Array in [["arc_chasseur", 1], ["fleche", 20], ["crochet", 3], ["tome_chaine_eclairs", 1], ["tome_nova_gelee", 1], ["tome_drain_vie", 1]]:
 		g.ajouter(o[0], o[1])
 	var fc: FenetreCoffre = sv.fenetre_coffre
 	fc.ouvrir("coffre_grima")
@@ -88,7 +101,7 @@ func _go() -> void:
 	await _capturer("5_boutique")
 	mb.fermer()
 	var fb: FenetreButin = m.fenetre_butin
-	fb.ouvrir("Coffre de bandit", {"arc_chasseur": 1, "fleche": 12, "crochet": 2}, 37)
+	fb.ouvrir("Coffre de bandit", {"arc_chasseur": 1, "tome_boule_feu": 1, "tome_rayon_neant": 1, "crochet": 2}, 37)
 	await _images(10)
 	await _capturer("6_butin")
 	fb.fermer()
