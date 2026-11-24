@@ -211,6 +211,15 @@ func _cycle_complet() -> void:
 					proche = minf(proche, p.length())
 	sqc.skeleton_updated.disconnect(lu)
 	_verif(arc.tirs == n0 + 1, "tir complet mesuré image par image")
+	# mains de la 1re personne : taille humaine (main <= 85 % de l'avant-bras, paume <= 9 cm), pas une moufle agrandie avec le bras
+	var sq1: Skeleton3D = arc._sq
+	var ech_main: float = ArcJoueur.ECHELLE_BRAS * ArcJoueur.ECHELLE_MAIN
+	assert(is_equal_approx(arc._poing_vm.echelle_main, ArcJoueur.ECHELLE_MAIN))
+	var pose1 := func(n: String) -> Vector3: return sq1.get_bone_global_rest(sq1.find_bone(n)).origin
+	var l_avb: float = (pose1.call("lowerarm_l") as Vector3).distance_to(pose1.call("hand_l")) * ArcJoueur.ECHELLE_BRAS
+	var l_main: float = (pose1.call("hand_l") as Vector3).distance_to(pose1.call("middle_04_leaf_l")) * ech_main
+	var l_paume: float = (pose1.call("index_01_l") as Vector3).distance_to(pose1.call("pinky_01_l")) * ech_main
+	_verif(l_main <= 0.85 * l_avb and l_paume <= 0.09, "1re personne : mains à taille humaine (main %.1f cm = %.0f %% de l'avant-bras %.1f cm, paume %.1f cm)" % [l_main * 100.0, 100.0 * l_main / l_avb, l_avb * 100.0, l_paume * 100.0])
 	_verif(pire.x <= 0.005 and pire.y <= deg_to_rad(10.0), "1re personne : le poing gauche reste fermé sur la poignée à TOUTES les phases (pire : %.1f mm, %.1f°, %s)" % [pire.x * 1000.0, rad_to_deg(pire.y), ou])
 	_verif(n_trajet > 10 and vu_descente and hors <= 1.0, "levée et descente : l'arc reste entre sa pose de repos et celle de visée (lacet et tangage de la flèche, inclinaison ; pire dépassement %.2f°%s)" % [hors, (" : " + ou_hors) if ou_hors != "" else ""])
 	_verif(rot_max <= 8.0, "1re personne : l'arc ne tourne pas de plus de 8° d'une image à l'autre hors lâcher (60 i/s ; pire %.1f°, %s ; recul au lâcher %.1f°)" % [rot_max, ou_rot, rot_lacher])
