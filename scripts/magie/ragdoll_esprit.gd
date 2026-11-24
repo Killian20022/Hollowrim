@@ -148,6 +148,7 @@ func prendre(e: CharacterBody3D, v: Vector3, s: DonneesSort, cosmetique := false
 	fi["t"] = 0.0
 	fi["t_repos"] = 0.0
 	fi["touches"] = {}
+	fi["subi"] = 0.0   # budget de dégâts physiques du vol (SortsEsprit.degats_vol)
 	fi["sort"] = s
 	fi["cosmetique"] = cosmetique
 	fi["n_vols"] = int(fi["n_vols"]) + 1
@@ -386,7 +387,7 @@ func _choc_decor(fi: Dictionary, com: Vector3, vp: Vector3) -> void:
 		if not touches.has("sol"):
 			touches["sol"] = true
 			if vn > SortsEsprit.VITESSE_CHUTE:
-				es._frapper(e, (vn - SortsEsprit.VITESSE_CHUTE) * SortsEsprit.K_CHUTE, point, Vector3.DOWN, 30.0, fi.get("sort"))
+				es._frapper(e, es.degats_vol(fi, e, (vn - SortsEsprit.VITESSE_CHUTE) * SortsEsprit.K_CHUTE, vn), point, Vector3.DOWN, 30.0, fi.get("sort"))
 			es._effet_choc(point, n, clampf(vn / 10.0, 0.3, 1.2), true)
 		return
 	if vn > SortsEsprit.VITESSE_CHOC:

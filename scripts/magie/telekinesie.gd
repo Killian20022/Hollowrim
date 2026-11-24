@@ -619,6 +619,11 @@ func _tenir(m: String, e: Dictionary, dt: float) -> void:
 	var ecart := cible - corps.global_position
 	var voulue := (ecart * RAIDEUR).limit_length(VITESSE_TENUE)
 	corps.linear_velocity = corps.linear_velocity.lerp(voulue, 1.0 - exp(-dt * AMORTI))
+	# objet ATTIRÉ vers la main à vive allure (jusqu'à VITESSE_TENUE) : s'il traverse un ennemi (saisi dans son dos, par exemple), il le
+	# percute, lui fait des dégâts selon son énergie et casse ; suivi seulement près d'un ennemi (pas de casse contre le décor en tenue)
+	if DegatsObjets.actif and corps.linear_velocity.length() >= VITESSE_IMPACT and corps.get_node_or_null("SuiviLancer") == null \
+			and not Elements.cibles_dans(corps.global_position, 2.5).is_empty():
+		ImpactsLances.suivre(corps, joueur, 0.8)
 	if e["arme"] != null:
 		# arme : couchée EN TRAVERS du regard, pointe vers le centre et un peu en avant (lisible de toute sa longueur, comme
 		# l'épée qui lévite de la référence) ; elle pivote vers la cible au lancer
@@ -848,14 +853,14 @@ func _fin_suivi(l: Dictionary, normal: bool) -> void:
 	var corps = l["corps"]
 	if corps == null or not is_instance_valid(corps):
 		return
-	if (corps as Node).has_meta("lance_par"):
-		(corps as Node).remove_meta("lance_par")
-		(corps as Node).remove_meta("lance_jusqu_a")
 	if joueur is PhysicsBody3D:
 		(corps as RigidBody3D).remove_collision_exception_with(joueur)
 	(corps as RigidBody3D).can_sleep = true
 	if normal and corps.has_method("au_repos_telekinesie"):
-		corps.au_repos_telekinesie()
+		corps.au_repos_telekinesie()   # AVANT le retrait des métas : ArmeLancee y relit « lance_par » (erreur get_meta sinon)
+	if (corps as Node).has_meta("lance_par"):
+		(corps as Node).remove_meta("lance_par")
+		(corps as Node).remove_meta("lance_jusqu_a")
 
 # ====================================================================== effets (DA PS1 : couche fine des sorts, pas de tramage)
 

@@ -627,3 +627,22 @@ d'abord : enchantement et deux mains). Les 21 sorts sont connus d'office (pas en
 - Pas d'arme à deux mains dans les données (gérée par les règles, testée). Bouclier : vrai modèle depuis 2026-10-27.
 - Équilibrage : fait au banc « bot » le 2026-11-05 (voir « Équilibrage ») ; il reste à le confirmer à la manette / au clavier : le bot vise
   toujours et ne rate jamais (plafond d'efficacité), un vrai joueur dépensera davantage de mana par draugr.
+
+### Objets lancés sur les ennemis, ennemi lancé (2026-11-24, branche magie/ragdoll_lance)
+
+Demande : « si j'attire un objet par derrière un ennemi et qu'il s'écrase sur lui à pleine vitesse, ça doit lui faire des dégâts et l'objet
+doit exploser » ; « quand je lance un ennemi lévité : dégâts de chute légers, beau ragdoll, animation de relevé ».
+- **Dégâts d'objets** (`scripts/magie/degats_objets.gd`, appelé par `ImpactsLances._objet_dans_corps` : 2 lignes) : bruts = 0,0053 × E^1,3
+  (E = ½mv²), divisés par la résistance (chef et troll ×0,35). Repères mesurés sur un bandit (104 PV, test) : chope 30 m/s ≈ 4 PV, caisse
+  18 kg à 15 m/s ≈ 85, tonneau 28 kg à 13,4 m/s = mort ; un guerrier (135 PV) survit au même tonneau (85 perdus), un chef en perd ~40 %.
+  Choc fort (m·v >= 110 kg·m/s, m >= 5 kg) : l'ennemi part en ragdoll (`SortsEsprit.projeter`, vitesse = m·v / (70 × puissance) × 1,25) puis
+  se relève. L'objet casse selon sa matière (`recevoir_choc`, inchangé). Le lanceur n'est jamais touché par ses objets.
+- **Attiré dans le dos** : un objet saisi qui file vers la main (jusqu'à 16 m/s, `Telekinesie._tenir`) est suivi (`ImpactsLances.suivre`) dès
+  6 m/s près d'un ennemi (< 2,5 m) : il le percute, le blesse, casse. Même chose pour les objets aspirés par le vortex (vitesse portée de
+  9 à 14 m/s, `SortsEsprit.VITESSE_ASPIRE`). Le vortex flotte à 1,6 m : un objet au sol le rejoint en passant AU-DESSUS d'un ennemi resté debout.
+- **Ennemi lancé** : le ragdoll existait déjà (section précédente) ; ajouts : dégâts physiques de la Lévitation ×0,7 (`FACTEUR_LEVITATION`)
+  et budget par vol (`SortsEsprit.degats_vol` : au plus 60 % des PV max, sauf choc >= 22 m/s). Mesure : bandit lancé contre un mur 19 PV
+  sur 104, squelette 28 sur 65. Relevé : clips CAPTURÉS Releve_Dos / Releve_Ventre (zombie pack) : ce sont les SEULS clips de relevé du dépôt
+  (aucun « Getting Up » / « Kip Up » Mixamo normal) ; l'allure est celle d'un zombie qui se redresse.
+- **Interrupteur** : `-- --sans-degats-objets` (courbe d'avant). **Test** : `bash outils/tous_les_tests.sh test_degats_ragdoll` (25 vérifications).
+  **Film** : `outils/film_degats_ragdoll.gd` (`--plans=dos,tonneau,mur`), rendus dans `rendus/retours_2026-11-24/tk_degats_ragdoll/`.

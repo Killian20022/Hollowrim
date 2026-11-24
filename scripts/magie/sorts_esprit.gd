@@ -41,12 +41,19 @@ const VITESSE_CHOC := 4.5
 const K_CHOC := 1.0
 const VITESSE_CHUTE := 7.0
 const K_CHUTE := 1.5
+## Budget de dégâts PHYSIQUES d'un même vol (murs, sol, objets : somme des chocs subis par l'ennemi projeté) : au plus cette part de ses PV
+## max, jamais un coup fatal à lui seul, sauf choc ÉNORME (vitesse d'impact >= VITESSE_ENORME : chute de falaise, mur à pleine vitesse).
+const PART_VOL_MAX := 0.6
+const VITESSE_ENORME := 22.0
+const FACTEUR_LEVITATION := 0.7
 ## Durée maximale d'un vol (s) : l'ennemi est rendu à son IA quoi qu'il arrive.
 const DUREE_VOL := 3.0
 ## Vitesse minimale (m/s) pour qu'un ennemi décolle ; en dessous il titube seulement (recul).
 const VITESSE_DECOLLE := 3.5
 ## Objets projetés : vitesse au-delà de laquelle leurs contacts comptent (contrat ImpactsLances, comme la télékinésie).
 const VITESSE_IMPACT := 6.0
+## Vitesse maximale (m/s) d'un objet aspiré vers le centre du vortex (9 avant : une caisse tirée dans le dos d'un ennemi arrivait mollement).
+const VITESSE_ASPIRE := 14.0
 const PERIODE_RESEAU := 0.1
 const EV_ONDE := "es_onde"
 const EV_VORTEX := "es_vortex"
@@ -453,7 +460,7 @@ func _voler(f: Dictionary, dt: float) -> void:
 		if n.y > 0.6:
 			# sol : dégâts de chute selon la vitesse verticale, poussière, il est rendu à son IA (renversé)
 			if vn > VITESSE_CHUTE:
-				_frapper(e, (vn - VITESSE_CHUTE) * K_CHUTE, col.get_position(), Vector3.DOWN, 30.0, f.get("sort"))
+				_frapper(e, degats_vol(f, e, (vn - VITESSE_CHUTE) * K_CHUTE, vn), col.get_position(), Vector3.DOWN, 30.0, f.get("sort"))
 			_effet_choc(col.get_position(), n, clampf(vn / 10.0, 0.3, 1.2), true)
 			_chocs_objets(f, e.global_position + Vector3.UP * float(f["h"]) * 0.6, Vector3(v.x, -absf(v.y), v.z))
 			f["v"] = v
@@ -496,12 +503,14 @@ func _choc(f: Dictionary, autre: Object, point: Vector3, n: Vector3, v: Vector3,
 		# contre un mur : une part de la vie max (un garde en armure à pleine vie en perd ~40-50 % à pleine charge, il survit et se relève)
 		dg += float(e.get("vie_max")) * 0.28 * clampf(vn / 12.0, 0.0, 1.2) if e.get("vie_max") != null else 0.0
 	var s: DonneesSort = f.get("sort")
+	var dg_autre := dg * 0.8
+	dg = degats_vol(f, e, dg, vn)
 	_noter("choc %s -> %s v=%.1f dg=%.1f" % [e.name, (autre as Node).name if autre is Node else "?", vn, dg])
 	_frapper(e, dg, point, -n, 32.0, s)
 	var masse := 70.0 * maxf(float(f["p"]), 0.4)
 	if autre is CharacterBody3D and Elements.cibles_dans(point, 3.0).has(autre) and autre != joueur and not ReseauProjectiles.est_avatar(autre):
 		# un ennemi projeté dans un autre : les deux encaissent, l'autre est emporté (s'il n'est pas un chef)
-		_frapper(autre, dg * 0.8, point, v.normalized(), 30.0, s)
+		_frapper(autre, dg_autre, point, v.normalized(), 30.0, s)
 		if not est_chef(autre as Node) and vivant(autre):
 			projeter(autre, Vector3(v.x, 0.0, v.z) * 0.55 / sqrt(maxf(puissance(autre), 0.4)) + Vector3.UP * 3.0, s)
 	elif autre is Node and (autre as Node).has_method("recevoir_choc"):
@@ -535,6 +544,20 @@ func _chocs_objets(f: Dictionary, centre: Vector3, v: Vector3) -> void:
 			casse = bool(o.call("recevoir_choc", v, masse, oc))
 		if not casse and is_instance_valid(o):
 			_pousser_objet(o, v * 0.7 + Vector3.UP * 1.5)
+
+## Dégâts physiques que l'ennemi du vol `f` (fiche de vols ou de RagdollEsprit) peut encore subir : `dg` borné par le budget du vol.
+## Lévitation lancée / lâchée : FACTEUR_LEVITATION (écrasement léger à moyen ; la Répulsion garde ses dégâts validés).
+func degats_vol(f: Dictionary, e: Node, dg: float, vn: float) -> float:
+	var so: Variant = f.get("sort")
+	if so is DonneesSort and (so as DonneesSort).portee_mode == DonneesSort.Portee.LEVITATION:
+		dg *= FACTEUR_LEVITATION
+	if vn >= VITESSE_ENORME or e.get("vie_max") == null:
+		return dg
+	var deja := float(f.get("subi", 0.0))
+	var reste := maxf(0.0, PART_VOL_MAX * float(e.get("vie_max")) - deja)
+	dg = minf(dg, reste)
+	f["subi"] = deja + dg
+	return dg
 
 ## Dégâts d'un choc (chemin des sorts : LanceurSorts.frapper, perks, résistances, réseau).
 func _frapper(cible: Node, dg: float, point: Vector3, dir: Vector3, st: float, s: DonneesSort) -> String:
@@ -1031,9 +1054,23 @@ func _aspirer(vx: Dictionary, dt: float) -> void:
 		var r := corps2.global_position - centre
 		var tang := Vector3.UP.cross(r).normalized() if Vector2(r.x, r.z).length() > 0.05 else Vector3.RIGHT
 		var voulu := -r * 2.6 + tang * 3.2 * clampf(r.length(), 0.3, 1.5) + Vector3.UP * sin(float(vx["t"]) * 3.0 + float(id4 % 7)) * 0.6
-		corps2.linear_velocity = corps2.linear_velocity.lerp(voulu.limit_length(9.0) * montee, 1.0 - exp(-dt * 3.0))
+		corps2.linear_velocity = corps2.linear_velocity.lerp(voulu.limit_length(VITESSE_ASPIRE) * montee, 1.0 - exp(-dt * 3.0))
+		if not bool(vx["distant"]) and DegatsObjets.actif and corps2.linear_velocity.length() >= VITESSE_IMPACT and corps2.get_node_or_null("SuiviLancer") == null \
+				and not Elements.cibles_dans(corps2.global_position, 2.5).is_empty():
+			_suivre_vortex(vx, corps2)   # objet qui fonce vers le centre (tiré dans le dos d'un ennemi) : ses impacts comptent (dégâts, casse)
 		corps2.angular_velocity = corps2.angular_velocity.lerp(tang * 4.0, 1.0 - exp(-dt * 2.0))
 		corps2.sleeping = false
+
+## Suivi des impacts d'un objet aspiré qui fonce (SuiviLancer : balayage de sa forme, ImpactsLances.objet_touche ; il s'éteint seul sous
+## 4 m/s, donc l'orbite lente autour du centre ne fait aucun dégât, et reprend dès que l'objet repasse VITESSE_IMPACT).
+func _suivre_vortex(vx: Dictionary, corps: RigidBody3D) -> void:
+	if not is_instance_valid(corps):
+		return
+	if joueur is PhysicsBody3D:
+		corps.add_collision_exception_with(joueur)
+	corps.set_meta("lance_par", joueur)
+	corps.set_meta("lance_jusqu_a", horloge + Telekinesie.DUREE_LANCER)
+	ImpactsLances.suivre(corps, joueur, float((vx["s"] as DonneesSort).duree_vortex) + 1.0)
 
 ## Ennemi aspiré : il tourne autour du centre en se rapprochant, soulevé, en se débattant.
 func _attirer(f: Dictionary, dt: float) -> void:
