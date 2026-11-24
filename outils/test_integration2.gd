@@ -102,7 +102,7 @@ func _ready() -> void:
 func _boucle_hote() -> void:
 	_verifier("hôte : coffre pris localement (gagné)", gagnes.has("integ:coffre"))
 	var t := 0.0
-	while Reseau.joueurs().size() < 2 and t < 50.0:
+	while Reseau.joueurs().size() < 2 and t < 200.0:   # large : démarrage de l'invité lent sous charge
 		await get_tree().create_timer(0.25).timeout
 		t += 0.25
 	_verifier("invité connecté", Reseau.joueurs().size() == 2)

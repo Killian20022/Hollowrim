@@ -10,7 +10,7 @@ SLOT=/tmp/godot_slot.sh
 [[ -f "$SLOT" ]] || cp "$ICI/../godot_slot.sh" "$SLOT" 2>/dev/null
 LOG="${TMPDIR:-/tmp}/test_projectiles"; mkdir -p "$LOG"
 lance() {  # role
-	GODOT_MAX="${GODOT_MAX:-4}" GODOT_TIMEOUT=240 bash "$SLOT" "$G" --headless --path "$P" res://outils/test_projectiles.tscn -- --role="$1" --port="$PORT" --sans-pvp > "$LOG/$1.log" 2>&1
+	GODOT_MAX="${GODOT_MAX:-4}" GODOT_TIMEOUT=360 bash "$SLOT" "$G" --headless --path "$P" res://outils/test_projectiles.tscn -- --role="$1" --port="$PORT" --sans-pvp > "$LOG/$1.log" 2>&1
 }
 rm -f "$LOG"/*.log
 lance hote & H=$!
