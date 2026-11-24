@@ -28,8 +28,37 @@ static func _tirage(dcr: CrypteDecor, pos: Vector3, n: int, decal := 0) -> int:
 static func _actif(dcr: CrypteDecor) -> bool:
 	return dcr.est_crypte and not dcr.muet and CrypteDecor.modele_existe("garniture_autel_a")
 
+## Retours 2026-11-24 (grotte_props) : les garnitures sont des props Quaternius posés un à un (livres, chandelier, écuelle, chope, crâne,
+## parchemin…), donc télékinésables et cassables par la règle unique ObjetsVivants.mobile (CrypteDecor.modele), au lieu des modules maison
+## fondus dans le décor. Même disposition que les modules : [prop, x, y, z, lacet, échelle] dans le repère du meuble (y = dessus).
+const GARN_PQ := {
+	"garniture_table_a1": [["pq_pile_livres", -0.33, 0.79, -0.22, 0.15, 1.0]],
+	"garniture_table_a2": [["pq_chandelier_table", 0.06, 0.79, 0.17, 0.0, 1.0]],
+	"garniture_table_a3": [["pq_tas_pieces", 0.04, 0.79, -0.22, 0.4, 1.0]],
+	"garniture_table_b1": [["pq_potion_1", -0.47, 0.79, 0.17, 0.0, 1.0]],
+	"garniture_table_b2": [["pq_chope", -0.45, 0.79, -0.12, 0.6, 0.9]],
+	"garniture_table_b3": [["pq_ecuelle", 0.05, 0.79, 0.14, 0.0, 0.6]],
+	"garniture_table_c1": [["pq_crane", 0.05, 0.79, 0.1, -0.45, 0.8]],
+	"garniture_table_c2": [["pq_livre_ouvert", -0.3, 0.79, -0.215, 0.1, 0.55]],
+	"garniture_table_c3": [["pq_parchemin", 0.47, 0.79, -0.18, 1.57, 1.0]],
+	"garniture_autel_a": [["pq_ecuelle_2", 0.0, 0.0, 0.05, 0.0, 0.7], ["pq_crane", -0.3, 0.0, -0.18, 0.4, 0.8],
+		["pq_livre_d1", 0.32, 0.0, -0.2, -0.3, 0.8], ["pq_tas_pieces_2", 0.12, 0.0, 0.22, 0.0, 1.0]],
+	"garniture_autel_b": [["pq_chandelier_table", -0.28, 0.0, -0.25, 0.0, 1.0], ["pq_ecuelle", 0.06, 0.0, 0.02, 0.0, 0.6],
+		["pq_chope", 0.3, 0.0, -0.14, 0.5, 0.9], ["pq_parchemin", -0.12, 0.0, 0.22, 0.25, 1.0]],
+	"garniture_etagere_a": [["pq_crane", 0.76, 1.375, 0.01, 0.25, 0.8], ["pq_crane", -0.55, 1.995, 0.03, -0.2, 0.8],
+		["pq_ecuelle", -0.05, 1.995, 0.03, 0.0, 0.6], ["pq_chandelier_table", 0.5, 1.995, 0.02, 0.0, 1.0]],
+	"garniture_etagere_b": [["pq_crane", 0.76, 1.375, 0.01, -0.3, 0.8], ["pq_pile_livres", -0.45, 2.06, 0.02, 0.1, 1.0],
+		["pq_chope", 0.12, 2.06, 0.04, 0.0, 0.9], ["pq_crane", 0.58, 2.06, 0.03, 0.35, 0.8]],
+}
+
 static func _poser(dcr: CrypteDecor, nom: String, pos: Vector3, lacet: float, ech := Vector3.ONE) -> void:
-	dcr.modele(nom, pos, lacet, ech, {}, false)
+	if GARN_PQ.has(nom) and PropsQuaternius.pq and PropsQuaternius.existe("pq_crane"):
+		var bp := Basis(Vector3.UP, lacet)
+		for e: Array in GARN_PQ[nom]:
+			var loc := Vector3(float(e[1]) * ech.x, float(e[2]) * ech.y, float(e[3]) * ech.z)
+			dcr._q4(String(e[0]), pos + bp * loc, lacet + float(e[4]), Vector3.ONE * float(e[5]))
+	else:
+		dcr.modele(nom, pos, lacet, ech, {}, false)
 	var b := Basis(Vector3.UP, lacet)
 	var disques: Array = dcr.get_meta("c6_disques", [])
 	for d: Array in DISQUES.get(nom, []):

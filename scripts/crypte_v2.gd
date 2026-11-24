@@ -435,7 +435,12 @@ static func _auto_contenu(k: DonjonKit, m: Dictionary, v2: Dictionary) -> void:
 			d.j0("crane_os")
 			d.crane(p, r.randf() * TAU)
 			for q in 3:
-				d.boite("os", p + Vector3(r.randf_range(-0.25, 0.25), 0.02, r.randf_range(-0.25, 0.25)), Vector3(0.3, 0.04, 0.04), r.randf() * TAU)
+				var po := p + Vector3(r.randf_range(-0.25, 0.25), 0.02, r.randf_range(-0.25, 0.25))
+				var ao := r.randf() * TAU
+				if PropsQuaternius.pq and PropsQuaternius.existe("pq_os_tas_2"):      # retours 2026-11-24 : os épars = props Quaternius
+					d._q4("pq_os_tas_2", po - Vector3(0, 0.02, 0), ao, Vector3.ONE * 0.5)
+				else:
+					d.boite("os", po, Vector3(0.3, 0.04, 0.04), ao)
 			d.j1()
 		else:
 			for off: Vector3 in [Vector3(0, 0, 0), Vector3(0.13, 0, 0.08), Vector3(-0.09, 0, 0.12)]:
