@@ -22,10 +22,10 @@ extends RefCounted
 ## corps / un mur = événements « lance_plante » / « lance_plante_mur » (copie visuelle de l'arme plantée chez les autres).
 
 const V_MIN_PLANTER := 9.0
-const COS_PLANTER := 0.72          # pointe à moins de ~44° de la trajectoire
+const COS_PLANTER := 0.5           # pointe à moins de ~60° de la trajectoire (une lame qui tournoie se plante quand même)
 const COS_FIL_HACHE := 0.6         # hache : le fil (+X du modèle) en avant
-const SEUIL_TRAVERSEE := 480.0     # J (× ProfilCible.poids)
-const PART_TRAVERSEE_MORT := 0.7   # un coup qui tue traverse plus facilement
+const SEUIL_TRAVERSEE := 2000.0    # J (× ProfilCible.poids) : une arme lancée SE PLANTE dans le corps ; seule une lame très rapide traverse
+const PART_TRAVERSEE_MORT := 0.9   # un coup qui tue traverse un peu plus facilement
 const BONUS_LANCER := 1.2
 const V_REF_ARME := 16.0
 const MULT_TRAVERSEE := 1.35
