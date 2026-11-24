@@ -54,6 +54,9 @@ const ECHELLE_ARC_VM := 0.72
 ## Bras 1re personne (bras_fps.glb) : agrandis (le modèle a un bras de 0,49 m, trop court pour tenir un arc à bout de bras) et
 ## légèrement avancés sous l'œil, les épaules hors champ.
 const ECHELLE_BRAS := 1.3
+## Mains des bras 1re personne ramenées à leur taille SOURCE (1 / ECHELLE_BRAS) : l'agrandissement du bras (portée) faisait une main de
+## 27,8 cm (paume 10,1 cm, 146 % d'une main humaine) = grosse moufle sans doigts lisibles, 3 fois la poignée. Mesure : outils/mesure_bras_arc.gd.
+const ECHELLE_MAIN := 1.0 / ECHELLE_BRAS
 const DECALAGE_BRAS := Vector3(0.0, -0.1, -0.42)
 ## Carquois (dos, à droite, hors champ) : la main droite y prend la flèche suivante.
 const CARQUOIS := Vector3(0.3, -0.5, 0.05)
@@ -207,10 +210,17 @@ class _Poing extends SkeletonModifier3D:
 	var decalages := {}
 	## Main de corde (1re personne) : doigts de la main droite en CROCHET {os: rotation} au lieu du poing (prise méditerranéenne).
 	var crochet := {}
+	## Échelle propre des os hand_l / hand_r (1 = inchangée).
+	var echelle_main := 1.0
 	func _process_modification_with_delta(_dt: float) -> void:
 		var sq := get_skeleton()
 		if sq == null:
 			return
+		if echelle_main != 1.0:
+			for nom in ["hand_l", "hand_r"]:
+				var ih := sq.find_bone(nom)
+				if ih >= 0:
+					sq.set_bone_pose_scale(ih, Vector3.ONE * echelle_main)
 		if os_decale != "":
 			var i := sq.find_bone(os_decale)
 			var parent := sq.get_bone_global_rest(sq.get_bone_parent(i))
@@ -416,12 +426,13 @@ func _installer_bras() -> void:
 		_rig.add_child(c)
 		c.position = p
 		coudes.append(c)
-	var r := _installer_ik(_bras, _sq, _vm.repere_poignee, _pivot_d, coudes, ECHELLE_BRAS / ECHELLE_ARC_VM, ECHELLE_BRAS)
+	var r := _installer_ik(_bras, _sq, _vm.repere_poignee, _pivot_d, coudes, ECHELLE_BRAS / ECHELLE_ARC_VM * ECHELLE_MAIN, ECHELLE_BRAS * ECHELLE_MAIN)
 	_coude_d_vm = coudes[1]
 	_coude_g_vm = coudes[0]
 	_poing_vm = r[0]
 	_or_g_vm = r[3]
 	_poing_vm.ouvert_repos = true
+	_poing_vm.echelle_main = ECHELLE_MAIN
 	# main de corde en crochet (et non en poing) : doigts, repère de la corde dans la main, cible de l'IK et du poignet
 	_poing_vm.crochet = crochet_doigts(_sq, _poing_vm.doigts, "r")
 	for i: int in _poing_vm.crochet:
@@ -430,7 +441,7 @@ func _installer_bras() -> void:
 	for i: int in _poing_vm.doigts:
 		_sq.set_bone_pose_rotation(i, _poing_vm.doigts[i])
 	var cd: Node3D = _pivot_d.get_child(0)
-	cd.transform = Transform3D(prise_c.basis, prise_c.origin * ECHELLE_BRAS).affine_inverse()
+	cd.transform = Transform3D(prise_c.basis, prise_c.origin * ECHELLE_BRAS * ECHELLE_MAIN).affine_inverse()
 	(r[4] as SkeletonModifier3D).set("prise", prise_c)
 	prise_corde = prise_c
 	# épaule droite reculée à sa vraie place (le modèle est avancé pour que le bras d'arc atteigne la poignée)
