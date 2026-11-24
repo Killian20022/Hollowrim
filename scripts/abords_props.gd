@@ -14,6 +14,7 @@ class_name AbordsProps
 
 const PORTEE := 70.0          # les lots disparaissent au-delà (brouillard)
 const PENTE_MAX := 0.57       # écart de sol maximal sous un petit item (m) : il est posé à mi-pente, flotte ou s'enfonce de ~0,1 m au plus
+const PENTE_ENSEMBLE := 0.65   # écart de sol maximal sous une grappe de petits items qui se touchent (ils partagent un niveau)
 const PENTE_GRAND := 0.9      # sous un grand item solide (charrette, tente) : il est incliné comme le terrain (≤ ~15°)
 
 ## Charrette abandonnée au bord d'un champ : roue côté champ, sacs de grain renversés, tonneau, pioche couchée dans la neige.
@@ -23,16 +24,23 @@ const CHARRETTE := [["q_chariot", 0.0, 0.0, 0.0, 0.0, true], ["pq_sac", 1.05, 0.
 const EPOUVANTAIL := [["q_poutre_ronde", 0.0, 0.0, 0.0, 0.0, true, Vector3(2.15, 1, 1), 0.0, 90.0], ["q_poutre_ronde", 0.0, 0.0, 0.0, 1.45, false, Vector3(1.36, 1, 1)],
 	["pq_sac", 0.0, 0.0, 15.0, 1.72, false, 0.62], ["pq_banniere_2_toile", 0.0, 0.08, 0.0, 0.42, false, 0.56]]
 ## Bûcher de bois de chauffage contre une lisière : rondins empilés en trois rangs, billot (souche) et hache plantée, bûches.
-const BUCHER := [["q_rondin", 0.0, 0.0, 0.0, 0.0, true], ["q_rondin", 0.0, 0.42, 4.0, 0.0, false], ["q_rondin", 0.0, -0.42, -3.0, 0.0, false],
-	["q_rondin", 0.05, 0.21, 2.0, 0.36, false], ["q_rondin", -0.05, -0.21, -2.0, 0.36, false], ["q_rondin", 0.0, 0.0, 6.0, 0.72, false],
+const BUCHER := [["q_rondin", 0.0, 0.0, 0.0, 0.0, true], ["q_rondin", 0.0, 0.41, 0.0, 0.0, false], ["q_rondin", 0.0, -0.41, 0.0, 0.0, false],
+	["q_rondin", 0.0, 0.205, 0.0, 0.355, false], ["q_rondin", 0.0, -0.205, 0.0, 0.355, false], ["q_rondin", 0.0, 0.0, 0.0, 0.71, false],
 	["q_souche", 1.75, 0.55, 30.0, 0.0, true, 0.62], ["q_hache_camp", 1.78, 0.55, 75.0, 0.38, false, 1.0, 0.0, 12.0],
 	["q_buche", 1.3, 1.25, 50.0, 0.0, false], ["q_buche", 1.6, 1.15, -20.0, 0.0, false], ["q_buche", 2.2, 0.95, 80.0, 0.0, false]]
 ## Campement de chasseur : tente, foyer éteint et marmite, rondin-banc, séchoir (deux perches et traverse) et prises, pièges, sac, corde.
-const CAMP_CHASSEUR := [["q_tente", 0.0, 0.0, 0.0, 0.0, true, 0.8], ["q_feu_bois", 0.3, 3.0, 0.0, 0.0, false], ["q_marmite_camp", 0.35, 3.05, 20.0, 0.12, false],
-	["q_rondin", -1.25, 3.3, 75.0, 0.0, true], ["q_poutre_ronde", 2.2, 1.0, 0.0, 0.0, true, Vector3(1.65, 1, 1), 0.0, 90.0], ["q_poutre_ronde", 2.2, 2.6, 0.0, 0.0, true, Vector3(1.65, 1, 1), 0.0, 90.0],
-	["q_poutre_ronde", 2.2, 1.8, 90.0, 1.5, false, Vector3(1.75, 1, 1)], ["q_viande", 2.2, 1.5, 0.0, 1.32, false, 1.6, 90.0], ["q_viande", 2.2, 2.0, 0.0, 1.3, false, 1.6, 90.0],
-	["q_poisson", 2.2, 2.3, 90.0, 1.28, false, 1.4, 0.0, 90.0], ["q_piege_ours", -1.8, 1.4, 20.0, 0.0, false], ["q_piege_ours", -2.0, 0.6, -35.0, 0.0, false],
-	["pq_sac", 1.15, -0.6, 25.0, 0.0, false], ["pq_corde_3", -0.9, 2.2, 0.0, 0.0, false], ["pq_seau_bois", 1.0, 3.4, 0.0, 0.0, false],
+const CAMP_CHASSEUR := [["q_tente", 0.0, 0.0, 0.0, 0.0, true, 0.8],
+	# foyer : couronne de huit pierres posées au sol, bûches croisées au centre (rien dedans, rien qui flotte), marmite et seau à côté
+	["q_brique_1", 1.12, 3.00, 0, 0.0, false, Vector3(1.5, 1.2, 1.3)], ["q_brique_2", 0.88, 3.58, -45, 0.0, false, Vector3(1.5, 1.2, 1.3)],
+	["q_brique_3", 0.30, 3.82, -90, 0.0, false, Vector3(1.5, 1.2, 1.3)], ["q_brique_4", -0.28, 3.58, -135, 0.0, false, Vector3(1.5, 1.2, 1.3)],
+	["q_brique_1", -0.52, 3.00, -180, 0.0, false, Vector3(1.5, 1.2, 1.3)], ["q_brique_2", -0.28, 2.42, -225, 0.0, false, Vector3(1.5, 1.2, 1.3)],
+	["q_brique_3", 0.30, 2.18, -270, 0.0, false, Vector3(1.5, 1.2, 1.3)], ["q_brique_4", 0.88, 2.42, -315, 0.0, false, Vector3(1.5, 1.2, 1.3)],
+	["q_feu_bois", 0.3, 3.0, 0.0, 0.0, false, 0.85], ["q_marmite_camp", 1.45, 3.45, 20.0, 0.0, false],
+	["q_rondin", -1.25, 3.3, 75.0, 0.0, true], ["q_poutre_ronde", 2.2, 1.0, 0.0, 0.0, true, Vector3(1.5, 1, 1), 0.0, 90.0], ["q_poutre_ronde", 2.2, 2.6, 0.0, 0.0, true, Vector3(1.5, 1, 1), 0.0, 90.0],
+	["q_poutre_ronde", 2.2, 1.8, 90.0, 0.0, false, Vector3(1.6, 1, 1)],      # semelle couchée entre les pieds des deux poteaux : même niveau de sol (grappe), poteaux de même hauteur
+	["q_poutre_ronde", 2.2, 1.8, 90.0, 1.5, false, Vector3(1.75, 1, 1)], ["q_viande", 2.2, 1.5, 0.0, 1.15, false, 1.6, 90.0], ["q_viande", 2.2, 2.0, 0.0, 1.15, false, 1.6, 90.0],
+	["q_poisson", 2.2, 2.3, 90.0, 0.94, false, 1.4, 0.0, 90.0], ["q_piege_ours", -1.8, 1.4, 20.0, 0.0, false], ["q_piege_ours", -2.0, 0.6, -35.0, 0.0, false],
+	["pq_sac", 1.15, -0.6, 25.0, 0.0, false], ["pq_corde_3", -0.9, 2.2, 0.0, 0.0, false], ["pq_seau_bois", 1.75, 4.0, 0.0, 0.0, false],
 	["q_hache_camp", -0.7, 3.65, 0.0, 0.0, false, 1.0, 90.0]]
 ## Récolte rentrée au portail d'un champ : sacs debout, cageots de carottes et de pommes, seau, tonneau de pommes.
 const RECOLTE := [["pq_tonneau_pommes", 0.0, 0.0, 0.0, 0.0, true], ["pq_sac", 0.8, 0.1, 20.0, 0.0, false], ["pq_sac", 1.3, -0.15, -30.0, 0.0, false],
@@ -274,6 +282,7 @@ static func _essai(monde: Node3D, items: Array, o: Vector3, lac: float, posees: 
 		var r := _refus_ville(monde, items, o, lac)
 		if r != "":
 			return r
+	var petits: Array = []      # [mn, mx, hmin, hmax] des petits items : une grappe d'items qui se touchent partage un seul niveau (voir _poser)
 	for it: Array in items:
 		if float(it[4]) > 0.05:
 			continue
@@ -297,6 +306,8 @@ static func _essai(monde: Node3D, items: Array, o: Vector3, lac: float, posees: 
 			hmax = maxf(hmax, h)
 		if hmax - hmin > (PENTE_GRAND if _grand(it, r) else PENTE_MAX):
 			return "pente %s %.2f (r %.1f)" % [id, hmax - hmin, r]
+		if _structure(it):
+			petits.append([mn, mx, hmin, hmax])
 		if monde.arbres_autour(Vector3(centre.x, 0, centre.y), r + 0.8) > 0:
 			return "arbre " + id
 		if monde.chemins != null and monde.chemins.distance(centre.x, centre.y) < r + marge:
@@ -322,9 +333,31 @@ static func _essai(monde: Node3D, items: Array, o: Vector3, lac: float, posees: 
 			if hit.get("collider") is CharacterBody3D or hit.get("collider") is RigidBody3D:
 				continue
 			return "corps %s %s" % [id, str(hit.get("collider").name) if hit.get("collider") != null else "?"]
+	var gr: Array = []
+	for i in petits.size():
+		gr.append(i)
+	for i in petits.size():
+		for j in range(i + 1, petits.size()):
+			if petits[i][0].x - 0.3 < petits[j][1].x and petits[i][1].x + 0.3 > petits[j][0].x and petits[i][0].y - 0.3 < petits[j][1].y and petits[i][1].y + 0.3 > petits[j][0].y:
+				var gj: int = gr[j]
+				for k in petits.size():
+					if gr[k] == gj:
+						gr[k] = gr[i]
+	for g in petits.size():
+		var lo := INF
+		var hi := -INF
+		for k in petits.size():
+			if gr[k] == g:
+				lo = minf(lo, float(petits[k][2]))
+				hi = maxf(hi, float(petits[k][3]))
+		if hi - lo > PENTE_ENSEMBLE:
+			return "pente de la grappe %.2f" % (hi - lo)
 	return ""
 
 static var _postes_gardes: Array = []
+## Registre d'AUDIT (outils/audit_props_propres.gd) : une entrée par item posé [composition, id, Transform3D monde, hauteur demandée, solide,
+## sol min / sol max sous l'emprise]. Rempli par _poser, jamais lu en jeu.
+static var registre: Array = []
 ## v5 (tables et postes dans le village) : raison du refus, "" si libre. Chaque coin et le centre de chaque item au sol : hors des
 ## bâtiments, de l'eau et de la palissade (Village.point_libre, marge 0,3 m) ; centre au plus 1 m dans le pavé (bord de rue / de place) ;
 ## à 3 m au moins d'une porte d'intérieur et à 1,4 m d'un poste de garde.
@@ -374,23 +407,60 @@ static func _poser(monde: Node3D, racine: Node3D, nom: String, items: Array, o: 
 	var poses: Array = []
 	var pieds: Array = []      # [centre (x, z), y du dessus] des items au sol, pour les items posés dessus
 	var sol := func(x: float, z: float) -> float: return float(monde.hauteur(x, z))
+	# passe 1 : emprise et niveau de sol de chaque item au sol ; les petits items qui se touchent (à 0,3 m près) forment une GRAPPE
+	# (bûcher, foyer, séchoir…) qui partage UN SEUL niveau : sinon, sur une pente, chaque pièce se pose à son propre niveau et les
+	# rondins d'un même tas ne se touchent plus (jour entre les pièces).
+	var infos: Array = []      # par item : null (posé en hauteur) ou [mn, mx, centre, hmin, hmax, y]
 	for it: Array in items:
 		if float(it[4]) > 0.05:
+			infos.append(null)
+			continue
+		var id0 := String(it[0])
+		var cs0 := _coins(id0, _xf_item(it, o, lac))
+		var mn0 := Vector2(INF, INF)
+		var mx0 := -mn0
+		for c: Vector2 in cs0:
+			mn0 = mn0.min(c)
+			mx0 = mx0.max(c)
+		var ce0 := (mn0 + mx0) * 0.5
+		var h0 := INF
+		for c: Vector2 in [mn0, mx0, Vector2(mn0.x, mx0.y), Vector2(mx0.x, mn0.y), ce0]:
+			h0 = minf(h0, monde.hauteur(c.x, c.y))
+		var ht0: float = monde.hauteur(ce0.x, ce0.y)
+		infos.append([mn0, mx0, ce0, h0, hmax_sol(monde, mn0, mx0), lerpf(h0, ht0, 0.5) - 0.03])
+	var grappe: Array = []
+	for i in items.size():
+		grappe.append(i)
+	for i in items.size():
+		if infos[i] == null or not _structure(items[i]):
+			continue
+		for j in range(i + 1, items.size()):
+			if infos[j] == null or not _structure(items[j]):
+				continue
+			if infos[i][0].x - 0.3 < infos[j][1].x and infos[i][1].x + 0.3 > infos[j][0].x and infos[i][0].y - 0.3 < infos[j][1].y and infos[i][1].y + 0.3 > infos[j][0].y:
+				var gj: int = grappe[j]
+				var gi: int = grappe[i]
+				for k in items.size():
+					if grappe[k] == gj:
+						grappe[k] = gi
+	var niveau := {}      # grappe -> niveau commun (moyenne des niveaux de ses pièces)
+	var compte := {}
+	for i in items.size():
+		if infos[i] != null and _structure(items[i]):
+			niveau[grappe[i]] = float(niveau.get(grappe[i], 0.0)) + float(infos[i][5])
+			compte[grappe[i]] = int(compte.get(grappe[i], 0)) + 1
+	for g in niveau:
+		niveau[g] = float(niveau[g]) / float(compte[g])
+	for ii in items.size():
+		var it: Array = items[ii]
+		if infos[ii] == null:
 			continue
 		var id := String(it[0])
 		var xf := _xf_item(it, o, lac)
-		var cs := _coins(id, xf)
-		var mn := Vector2(INF, INF)
-		var mx := -mn
-		for c: Vector2 in cs:
-			mn = mn.min(c)
-			mx = mx.max(c)
-		var centre := (mn + mx) * 0.5
-		var h := INF
-		for c: Vector2 in [mn, mx, Vector2(mn.x, mx.y), Vector2(mx.x, mn.y), centre]:
-			h = minf(h, monde.hauteur(c.x, c.y))
-		var ht: float = monde.hauteur(centre.x, centre.y)
-		var y := lerpf(h, ht, 0.5) - 0.03     # à moitié de la pente : un coin s'enfonce, aucun ne flotte de plus de quelques cm
+		var mn: Vector2 = infos[ii][0]
+		var mx: Vector2 = infos[ii][1]
+		var centre: Vector2 = infos[ii][2]
+		var y: float = float(niveau[grappe[ii]]) if _structure(it) else float(infos[ii][5])
 		if _grand(it, maxf((mx - mn).length() * 0.5, 0.15)):
 			xf = _incline(monde, id, xf)      # grand item : suit le terrain, posé par le milieu de son dessous
 			var bb := PropsQuaternius.boite(id)
@@ -401,6 +471,7 @@ static func _poser(monde: Node3D, racine: Node3D, nom: String, items: Array, o: 
 			xf.origin.y = y - _bas(id, xf)
 		var bv := PropsQuaternius.buche_v5(id)      # v5 : bûche kitbash maison -> rondin Quaternius, même boîte
 		poses.append([PropsQuaternius.ext_v5(bv[0]), xf * (bv[1] as Transform3D), bool(it[5]), sol])      # sol : congère au pied (v5)
+		registre.append([nom, id, xf, 0.0, bool(it[5]), infos[ii][3], infos[ii][4]])
 		pieds.append([Vector2(xf.origin.x, xf.origin.z), y])
 		posees.append([centre, maxf((mx - mn).length() * 0.5, 0.15)])
 	for it: Array in items:
@@ -418,10 +489,25 @@ static func _poser(monde: Node3D, racine: Node3D, nom: String, items: Array, o: 
 		xf.origin.y = y0 + float(it[4]) - _bas(String(it[0]), xf)
 		var bw := PropsQuaternius.buche_v5(String(it[0]))
 		poses.append([PropsQuaternius.ext_v5(bw[0]), xf * (bw[1] as Transform3D), bool(it[5])])
+		registre.append([nom, String(it[0]), xf, float(it[4]), bool(it[5]), y0, y0])
 	var mi := PropsQuaternius.lot_pq(racine, nom, poses, "exterieur", monde.village)
 	if mi != null:
 		mi.visibility_range_end = PORTEE
 		mi.visibility_range_end_margin = 4.0
+
+static func hmax_sol(monde: Node3D, mn: Vector2, mx: Vector2) -> float:
+	var h := -INF
+	for c: Vector2 in [mn, mx, Vector2(mn.x, mx.y), Vector2(mx.x, mn.y), (mn + mx) * 0.5]:
+		h = maxf(h, float(monde.hauteur(c.x, c.y)))
+	return h
+
+## Pièces de structure (tas de rondins, charpente, pierres de foyer, billot) : elles se touchent et partagent le niveau de leur grappe.
+## Les objets posés librement (pièges, sacs, seaux, marmite, outils) suivent le sol à leur propre niveau.
+static func _structure(it: Array) -> bool:
+	if float(it[4]) > 0.05:
+		return false
+	var id := String(it[0])
+	return id in ["q_rondin", "q_poutre_ronde", "q_buche", "q_souche", "q_feu_bois", "q_bordure_1"] or id.begins_with("q_brique_")
 
 ## Grand item solide (charrette, tente, rondin-banc) : incliné comme le terrain au lieu d'être posé à plat à mi-pente.
 static func _grand(it: Array, r: float) -> bool:

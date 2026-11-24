@@ -196,7 +196,7 @@ static func substitut(mod: String) -> Array:
 				for c in 8 - (rg % 2):
 					var x := -0.88 + c * 0.25 + (rg % 2) * 0.125
 					var bv := PropsQuaternius.buche_v5("q_buche")      # v5 : rondin Quaternius (Survival) à la place de la bûche kitbash maison
-					r.append([bv[0], Transform3D(Basis(Vector3.UP, PI * 0.5 + 0.04 * ((c + rg) % 3)) * Basis.from_scale(Vector3(1.7, 1.15, 1.15)), Vector3(x, 0.12 + rg * 0.22, 0.0)) * (bv[1] as Transform3D), {}])
+					r.append([bv[0], Transform3D(Basis(Vector3.UP, PI * 0.5 + 0.04 * ((c + rg) % 3)) * Basis.from_scale(Vector3(1.7, 1.15, 1.15)), Vector3(x, rg * 0.22, 0.0)) * (bv[1] as Transform3D), {}])
 		"etal":      # deux étals Quaternius côte à côte (3,1 m de comptoir), clients côté -Z
 			for sx in [-0.78, 0.78]:
 				r.append(["q_etal", _fit("q_etal", Vector3(sx, 0, -0.45), 0.0, Vector3(1.55, 2.4, 1.1)), {"bois": "planches_l4", "lin": "lin_l4"} if PropsQuaternius.lot4 else {}])
@@ -261,9 +261,11 @@ static func substitut(mod: String) -> Array:
 					r.append(["q_feu_bois", _fit("q_feu_bois", Vector3.ZERO, 0.6, Vector3(0.95, 0.5, 0.95)), {}])
 				# marmite de camp posée contre la couronne, tas de rondins et hache plantée dans un rondin (sobre : 3 pièces + la tente un peu plus loin)
 				r.append(["q_marmite_camp", Transform3D(Basis(Vector3.UP, 2.2), Vector3(-1.35, 0, 0.55)), {}])
+				# tas de rondins propre : deux rondins côte à côte (diamètre 0,4 m, jointifs) et un troisième dans le creux ; la hache plantée dans celui du dessus
 				r.append(["q_rondin", Transform3D(Basis(Vector3.UP, 0.5), Vector3(1.35, 0, 1.15)), {}])
-				r.append(["q_rondin", Transform3D(Basis(Vector3.UP, 0.35), Vector3(1.4, 0.3, 1.15)), {}])
-				r.append(["q_hache_camp", Transform3D(Basis(Vector3.UP, 0.9) * Basis(Vector3.RIGHT, -PI * 0.5), Vector3(1.2, 0.68, 1.3)), {"laine": "cuir"}])
+				r.append(["q_rondin", Transform3D(Basis(Vector3.UP, 0.5), Vector3(1.546, 0, 1.51)), {}])
+				r.append(["q_rondin", Transform3D(Basis(Vector3.UP, 0.5), Vector3(1.448, 0.34, 1.33)), {}])
+				r.append(["q_hache_camp", Transform3D(Basis(Vector3.UP, 0.9) * Basis(Vector3.RIGHT, -PI * 0.5), Vector3(1.4, 0.72, 1.3)), {"laine": "cuir"}])
 				r.append(["q_tente", Transform3D(Basis(Vector3.UP, 0.0), Vector3(0.5, 0, -5.4)), {"jute": "lin"}])      # tente de toile, entrée vers le feu
 				if PropsQuaternius.pq:      # props/maximum : réserves du bivouac contre le flanc ouest de la tente (collision : monde._feu_de_camp)
 					for pr: Array in BIVOUAC_PQ:
