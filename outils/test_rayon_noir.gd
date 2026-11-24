@@ -103,7 +103,7 @@ func _donnees() -> void:
 	for id in ["jet_flammes", "souffle_givre", "arc_electrique", "drain_vie"]:
 		autres.append(magie.eq.sort_par_id(id).cout_par_seconde)
 	_verif(sd.cout_par_seconde <= (autres.min() as float) and sd.cout_par_seconde >= 6.0, "coût FAIBLE : %.1f mana/s (autres jets continus : %s)" % [sd.cout_par_seconde, str(autres)])
-	_verif(sd.statut == "corruption" and sd.traverse == 0 and sd.drain > 0.0 and sd.drain <= 0.2, "corruption, s'arrête au premier ennemi (traverse 0), petit drain (%.0f %%)" % (sd.drain * 100.0))
+	_verif(sd.statut == "corruption" and sd.traverse == 0 and is_zero_approx(sd.drain) and sd.portee >= 35.0, "v3 : corruption, premier ennemi (traverse 0), PAS de drain, portée longue (%.0f m)" % sd.portee)
 	_verif(InputMap.has_action(RayonNoir.ID), "raccourci de test « rayon_noir » (touche Y)")
 	magie.equiper("gauche", "vide")
 	magie.raccourci_sort_gauche(RayonNoir.ID)
@@ -136,7 +136,7 @@ func _cout_degats() -> void:
 	_verif(absf(q - sd.degats * LanceurSorts.TIC_CANAL) < 0.6 and bool(sur_m[0].continu) if not sur_m.is_empty() else false, "dégâts par tic : %.2f (%.0f /s × 0,2 s), coup continu" % [q, sd.degats])
 	_verif(s.mannequin.total > 10.0, "le mannequin encaisse (%.1f dégâts)" % s.mannequin.total)
 	_verif(Statuts.a(s.mannequin, "corruption"), "statut « corruption » posé sur la cible")
-	_verif(j.vie > 50.05, "petit drain : le lanceur reprend un peu de vie (50 → %.2f)" % j.vie)
+	_verif(is_zero_approx((load("res://data/sorts/rayon_noir.tres") as DonneesSort).drain), "v3 : pas de drain (vie %.2f)" % j.vie)
 	_verif(int(RayonNoir.stats.crees) > crees0 and RayonNoir.existe(magie._p("gauche")), "visuel : un RayonNoir tenu pour la main gauche")
 	var b: Dictionary = magie.lanceur.derniers_bouts.get("gauche", {})
 	_verif(b.get("cible") == s.mannequin, "le rayon s'arrête sur la cible visée (bout = mannequin)")

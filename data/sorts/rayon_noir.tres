@@ -10,7 +10,7 @@ ecole = "tenebres"
 type = 1
 portee_mode = 1
 icone = "rayon_noir"
-description = "Rayon d'ombre continu, peu coûteux ; s'arrête au premier obstacle, corrompt et ronge un peu de vie."
+description = "Rayon d'ombre continu qui part tout droit, très loin ; s'arrête au premier obstacle, corrompt et ronge un peu de vie."
 cout_par_seconde = 9.0
 degats = 15.0
 type_degats = "tenebres"
@@ -18,10 +18,10 @@ statut = "corruption"
 duree_statut = 3.0
 puissance_statut = 0.12
 stagger = 5.0
-portee = 13.0
+portee = 40.0
 largeur = 0.6
 forme = "rayon_noir"
-drain = 0.1
+drain = 0.0
 double = {
 "cout": 2.2,
 "degats": 2.0,
