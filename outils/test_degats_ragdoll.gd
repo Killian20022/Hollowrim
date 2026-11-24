@@ -312,6 +312,8 @@ func _ennemi_lance() -> void:
 		var perdue := _vie_perdue(d, vie0)
 		var chocs := es.journal.filter(func(x): return String(x[1]).begins_with("choc"))
 		print("   %s lancé : %.0f / %.0f PV perdus ; %s ; relevé %s" % [type, perdue, vie0, str(chocs.map(func(x): return x[1])), str(_releve(d).get("clip", "-"))])
+		for x in es.journal:
+			print("   ES %.2f %s" % [x[0], x[1]])
 		_verif(tenu and vu, "%s : lévité puis lancé, il part en ragdoll" % type)
 		_verif(d.vie > 0.0 and perdue <= 0.55 * float(d.vie_max) + 0.5, "%s : dégâts d'écrasement légers à moyens, jamais fatals (%.0f / %.0f PV)" % [type, perdue, float(d.vie_max)])
 		_verif(t_ia > 0.0 and t_ia < 5.0, "%s : relevé animé puis IA reprise (%.2f s après le lancer)" % [type, t_ia])

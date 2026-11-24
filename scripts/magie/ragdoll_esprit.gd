@@ -185,6 +185,7 @@ func prendre(e: CharacterBody3D, v: Vector3, s: DonneesSort, cosmetique := false
 	rd.declencher(Vector3.ZERO, Vector3.ZERO, "pelvis", Vector3.ZERO, true)   # l'ombre fusionnée reste (skinnée au même squelette)
 	tp = _prof("prendre_declencher", tp)
 	fi["au_sol"] = false
+	fi["v_air"] = Vector3.ZERO
 	for pb: PhysicalBone3D in rd.os.values():
 		pb.linear_damp = 0.15
 		pb.angular_damp = 3.0
@@ -344,10 +345,18 @@ func _vol(fi: Dictionary, dt: float) -> void:
 			_chocs_ennemis(fi, com, vc)
 			es._chocs_objets(fi, com, vc)
 	fi["v_prec"] = vc
+	# vitesse d'arrivée : la plus forte vitesse DESCENDANTE du vol (le sol freine peu à peu un corps qui arrive en travers : pas de « perte
+	# brutale » pour _choc_decor, donc l'arrivée au sol se chiffre ici, quand le bassin se pose)
+	if not bool(fi.get("au_sol", false)) and vc.y < 0.0 and vc.length() > (fi.get("v_air", Vector3.ZERO) as Vector3).length():
+		fi["v_air"] = vc
 	# au sol (bassin bas, plus de montée) : il glisse puis s'arrête (amorti relevé : il ne roule pas sans fin)
 	var pel: Vector3 = (rd.os["pelvis"] as PhysicalBone3D).global_position
 	if not bool(fi.get("au_sol", false)) and float(fi["t"]) > 0.35 and vc.y < 1.0 and tour % 3 == 0 and pel.y - _sol(e, pel, pel.y - 99.0) < 0.4:
 		fi["au_sol"] = true
+		var touches: Dictionary = fi["touches"]
+		if not touches.has("sol") and not bool(fi["cosmetique"]):
+			touches["sol"] = true
+			es._frapper(e, es.degats_sol(fi, e, fi.get("v_air", Vector3.ZERO), Vector3.UP), pel, Vector3.DOWN, 30.0, fi.get("sort"))
 		for pb: PhysicalBone3D in rd.os.values():
 			pb.linear_damp = 0.9
 			pb.angular_damp = 5.0
@@ -409,8 +418,7 @@ func _choc_decor(fi: Dictionary, com: Vector3, vp: Vector3) -> void:
 		var touches: Dictionary = fi["touches"]
 		if not touches.has("sol"):
 			touches["sol"] = true
-			if vn > SortsEsprit.VITESSE_CHUTE:
-				es._frapper(e, es.degats_vol(fi, e, (vn - SortsEsprit.VITESSE_CHUTE) * SortsEsprit.K_CHUTE, vn), point, Vector3.DOWN, 30.0, fi.get("sort"))
+			es._frapper(e, es.degats_sol(fi, e, vp, n), point, Vector3.DOWN, 30.0, fi.get("sort"))
 			es._effet_choc(point, n, clampf(vn / 10.0, 0.3, 1.2), true)
 		return
 	if vn > SortsEsprit.VITESSE_CHOC:
