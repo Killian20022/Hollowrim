@@ -718,10 +718,12 @@ func _intensite(i: Incantation, s: DonneesSort) -> float:
 	return k * (1.5 if i.double else 1.0)
 
 func _aura_vers(m: String, ecole: String, k: float, _dt: float) -> void:
+	var k_runes := k
+	var ecole_runes := ecole
 	if ecole == Telekinesie.ECOLE:
 		ecole = Telekinesie.ECOLE_VISUELLE   # l'école « esprit » prend l'aura bleu pâle de la protection
-		k *= 0.35                            # ... mais à peine un signe : la force se lit par la physique, pas par la lumière
-	_runes_vers(m, ecole, k)
+		k *= 0.0                             # ... plus de halo plat sur la paume : l'orbe d'esprit (OrbeEsprit) le remplace
+	_runes_vers(m, ecole_runes, k_runes)     # (l'orbe d'esprit en main, lui, est dessiné par RunesOrbite / OrbeEsprit)
 	if ecole != _ecole_aura[m] or absf(k - _aura[m]) > 0.02:
 		_aura[m] = k
 		_ecole_aura[m] = ecole
@@ -735,7 +737,10 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 	if r != null and not is_instance_valid(r):
 		r = null
 	var voulu := ecole != "" and k > 0.001 and _p(m) != null and RunesOrbite.ECOLES.has(ecole) and not EffetsMagie.muet
-	if r != null and (not voulu or r.ecole != ecole):
+	var sm_id := ""
+	if eq.sort(m) != null:
+		sm_id = eq.sort(m).id
+	if r != null and (not voulu or r.ecole != ecole or (ecole == "esprit" and r.sort != sm_id)):
 		r.queue_free()
 		r = null
 		_runes[m] = null
@@ -745,6 +750,7 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 		r = RunesOrbite.new()
 		r.name = "Runes_" + m
 		r.ecole = ecole
+		r.sort = sm_id
 		r.suivi = _p(m)
 		r.cote = 1.0 if m == "gauche" else -1.0
 		(mains if paumes_effets[m] == null else _p(m)).add_child(r)   # 3e personne : les mains FPS sont cachées
