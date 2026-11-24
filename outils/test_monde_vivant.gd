@@ -101,7 +101,7 @@ func _avatar_invite(id: int) -> void:
 
 func _boucle_hote() -> void:
 	var t := 0.0
-	while Reseau.joueurs().size() < 2 and t < 40.0:
+	while Reseau.joueurs().size() < 2 and t < 200.0:   # large : démarrage de l'invité lent sous charge (cause des échecs « invité connecté »)
 		await get_tree().create_timer(0.25).timeout
 		t += 0.25
 	_verifier("invité connecté", Reseau.joueurs().size() == 2)

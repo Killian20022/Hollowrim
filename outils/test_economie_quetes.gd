@@ -174,10 +174,10 @@ func _lancer() -> void:
 	if _role == "hote":
 		_verif(_res.heberger(_port) == OK, "heberger() OK")
 		print("HOTE_PRET")
-		await _attendre(func() -> bool: return _res.joueurs().size() > 1, 40.0)
+		await _attendre(func() -> bool: return _res.joueurs().size() > 1, 240.0)   # attente large : l'invité peut attendre un créneau godot_slot (machine chargée)
 	else:
 		_verif(_res.rejoindre("127.0.0.1", _port) == OK, "rejoindre() OK")
-		await _attendre(func() -> bool: return _res.joueurs().size() > 1 and _res.mon_id() > 1, 30.0)
+		await _attendre(func() -> bool: return _res.joueurs().size() > 1 and _res.mon_id() > 1, 90.0)
 	_verif(_res.joueurs().size() == 2, "2 joueurs en ligne")
 	_autre = 1 if _role != "hote" else int(_res.joueurs()[1])
 	ProtoAvatar.creer(_monde, _autre, Vector3(0, 0.1, 4) if _role != "hote" else Vector3(40, 0.1, 4))

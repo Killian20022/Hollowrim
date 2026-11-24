@@ -265,6 +265,7 @@ func _ready() -> void:
 		joueur.mains.magie.eq.precharger_modeles()   # opti saccades : modèles des armes équipables lus en fil (--sans-opti-armes : A/B)
 	_brancher_rejoindre()   # lot 2a : instantané pour un invité qui rejoint en cours de partie
 	ApportPersonnage.installer(self)   # lot 5b : l'invité apporte SON personnage à l'hôte (inerte hors ligne)
+	_installer_avatars_coop()   # coop : les autres joueurs (avatars distants) ; JAMAIS branché avant le 2026-11-24 -> personne ne se voyait en jeu réel
 	if not _arguments().has("capture"):
 		_accueil()   # prologue (nouvelle partie), premier objectif, bulles d'aide ; sinon hud.demarrer() seul (lot L7)
 	_aller_crypte()
@@ -1691,6 +1692,14 @@ func exporter_personnage() -> Dictionary:
 		"lieux_vus": hud.lieux_vus.keys(),   # lot L7 : lieux déjà annoncés (« Lieu découvert »)
 		"menu": inventaire_ui.exporter_menu() if inventaire_ui != null else {},   # favoris du Sac (menu du personnage)
 	}
+
+## Coop : pose le gestionnaire d'avatars (état des joueurs à 20 Hz, équipement, nom). Même parent et même nom sur toutes les machines (RPC par chemin).
+## Inerte en solo (hors ligne).
+func _installer_avatars_coop() -> void:
+	var r := get_node_or_null("/root/Reseau")   # résolu à l'exécution : monde.gd est préchargé par des tests en `-s`
+	if r == null or not bool(r.call("est_en_ligne")) or get_node_or_null("AvatarsCoop") != null or joueur == null:
+		return
+	AvatarsCoop.installer(self, joueur, String(r.get("nom_joueur")))
 
 ## Coop, invité : écrit SON personnage (user://personnages/<nom>.json). Renvoie vrai si le fichier est écrit.
 func sauvegarder_personnage() -> bool:
