@@ -1,8 +1,9 @@
 extends RefCounted
 ## ADAPTATEUR EOS : le SEUL fichier qui nomme directement l'API du plugin EOSG (HCredentials, HPlatform, HAuth, HLobbies, EOS).
 ## Chargé dynamiquement par ReseauTransportEOS uniquement quand le plugin est présent : sans plugin, ce script n'est jamais lu.
-## Pas de class_name volontairement. Écrit d'après la source du plugin (3ddelano/epic-online-services-godot 2.3.1) ;
-## NON EXÉCUTÉ (pas de plugin installé, pas de compte Epic) : à valider au premier essai réel.
+## Pas de class_name volontairement. Vérifié contre la source du plugin EOSG 2.3.1 (noms de classes, signatures, champs de
+## CreateLobbyOptions, recherche par attributs) et chargé en Godot 4.7.2 (outils/test_eos_plugin.gd : faux identifiants = échec propre).
+## Non exécuté de bout en bout : il faut un vrai compte Epic (voir docs/EOS_PAS_A_PAS.md).
 ## Chaque méthode renvoie "" si tout va bien, sinon un message d'erreur lisible.
 
 const BUCKET := "hollowrim"
@@ -21,12 +22,12 @@ func preparer(cfg: Dictionary) -> String:
 	creds.client_secret = str(cfg.get("client_secret", ""))
 	creds.encryption_key = str(cfg.get("encryption_key", ""))
 	if not await HPlatform.setup_eos_async(creds):
-		return "EOS : initialisation refusée (vérifier ProductId/SandboxId/DeploymentId/ClientId/ClientSecret dans user://eos.cfg)."
+		return "EOS : initialisation refusée (vérifier ProductId/SandboxId/DeploymentId/ClientId/ClientSecret dans eos.cfg)."
 	var nom := str(cfg.get("nom_joueur", "")).strip_edges()
 	if nom == "":
 		nom = "Joueur"
 	if not await HAuth.login_anonymous_async(nom):
-		return "EOS : connexion anonyme (Device ID) refusée (vérifier l'accès réseau et que « Device ID » est autorisé dans le portail développeur, étape 4)."
+		return "EOS : connexion anonyme (Device ID) refusée (vérifier l'accès réseau et que « Device ID » est autorisé dans le portail développeur, voir docs/EOS_PAS_A_PAS.md)."
 	return ""
 
 func creer_salon(code: String, max_joueurs: int) -> String:
@@ -48,7 +49,9 @@ func creer_salon(code: String, max_joueurs: int) -> String:
 
 ## Renvoie {erreur: String, hote: String (ProductUserId du propriétaire)}.
 func trouver_salon(code: String) -> Dictionary:
-	var trouves = await HLobbies.search_by_attribute_async({"key": CLE_CODE, "value": code})
+	var trouves = await HLobbies.search_by_attribute_async([
+		{"key": EOS.Lobby.SEARCH_BUCKET_ID, "value": BUCKET},
+		{"key": CLE_CODE, "value": code}])
 	if trouves == null:
 		return {"erreur": "EOS : recherche du salon impossible (réseau ?)."}
 	if (trouves as Array).is_empty():
@@ -56,9 +59,10 @@ func trouver_salon(code: String) -> Dictionary:
 	var s = trouves[0]
 	if s.available_slots <= 0:
 		return {"erreur": "Le salon %s est complet (4 joueurs maximum)." % code}
-	if await HLobbies.join_async(s) == null:
+	var rejoint = await HLobbies.join_async(s)
+	if rejoint == null:
 		return {"erreur": "EOS : impossible de rejoindre le salon %s." % code}
-	_salon = s
+	_salon = rejoint   # c'est CE salon-là qu'il faudra quitter (celui de la recherche n'est pas « rejoint »)
 	return {"erreur": "", "hote": s.owner_product_user_id}
 
 func quitter_salon() -> void:

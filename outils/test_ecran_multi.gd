@@ -89,6 +89,10 @@ func _scenario() -> void:
 	await _touche("ui_down")
 	_v(_focus() == "BoutonRejoindre", "Bas -> Rejoindre")
 	await _touche("ui_down")
+	_v(_focus() == "BoutonHebergerInternet", "Bas -> Héberger par Internet")
+	await _touche("ui_down")
+	_v(_focus() == "BoutonRejoindreCode", "Bas -> Rejoindre avec un code")
+	await _touche("ui_down")
 	_v(_focus() == "BoutonRetour", "Bas -> Retour")
 	await _touche("ui_down")
 	_v(_focus() == "BoutonHeberger", "Bas -> retour au début (boucle)")
@@ -96,6 +100,39 @@ func _scenario() -> void:
 	_v(_focus() == "BoutonRetour", "Haut -> Retour (boucle)")
 	await _touche("ui_cancel")
 	_v(_fermes == 1, "Échap : le panneau se referme (retour au menu principal)")
+
+	# --- jeu par Internet (EOS) : sans eos.cfg, message clair et on reste au choix
+	# (ignoré si un VRAI eos.cfg existe dans user:// ou à côté de l'exe : ce test ne l'écrase jamais)
+	if ReseauTransportEOS.chemin_cfg_defaut() == ReseauTransportEOS.CFG and not FileAccess.file_exists(ReseauTransportEOS.CFG):
+		_panneau.ouvrir()
+		await _images(3)
+		var vue_avant := _panneau.vue
+		(_panneau.find_child("BoutonHebergerInternet", true, false) as Button).pressed.emit()
+		await _images(2)
+		var avis := _panneau.find_child("Avis", true, false) as Label
+		_v(_panneau.vue == "choix" and avis.text != "", "Héberger par Internet sans configuration : reste au choix avec un message (%s)" % avis.text)
+		_v(not ReseauTransportEOS.plugin_present() or "eos.cfg" in avis.text, "le message nomme eos.cfg")
+		(_panneau.find_child("BoutonRejoindreCode", true, false) as Button).pressed.emit()
+		await _images(2)
+		_v(_panneau.vue == "choix" and avis.text != "", "Rejoindre avec un code sans configuration : message")
+		_v(_R.transport is ReseauTransportENet, "le transport reste ENet")
+		if ReseauTransportEOS.plugin_present():
+			# cfg fictif complet : le mode « code » s'ouvre (champ code, pas de port) sans rien envoyer à Epic
+			var c := ConfigFile.new()
+			for k in ReseauTransportEOS.CLES_OBLIGATOIRES:
+				c.set_value("eos", k, "x")
+			c.save("user://eos.cfg")
+			(_panneau.find_child("BoutonRejoindreCode", true, false) as Button).pressed.emit()
+			await _images(2)
+			_v(_panneau.vue == "rejoindre" and (_panneau.find_child("Adresse", true, false) as LineEdit).placeholder_text.contains("K7PQ4X"), "mode code : champ « code du salon »")
+			(_panneau.find_child("BoutonConnecter", true, false) as Button).pressed.emit()
+			await _images(2)
+			_v(_panneau.vue == "rejoindre" and "Code invalide" in avis.text, "code vide refusé avec un message (%s)" % avis.text)
+			_panneau.retour()
+			await _images(2)
+			_v(_panneau.vue == "choix" and _R.transport is ReseauTransportENet, "retour : ENet rétabli")
+			DirAccess.remove_absolute(ProjectSettings.globalize_path("user://eos.cfg"))
+		_panneau.vue = vue_avant
 
 	# --- manette
 	_panneau.ouvrir()
