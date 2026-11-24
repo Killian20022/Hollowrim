@@ -53,7 +53,7 @@ const MATIERES := {
 	"tissu_fin": {"seuil": 40.0, "gerbe": "poussiere", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "trancher", "n": 2, "frac": 0.5},
 	# nourriture : s'écrase / éclate en 2 (3 pour une citrouille)
 	"nourriture": {"seuil": 10.0, "gerbe": "nourriture", "sons": ["casse_pot_02", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "trancher", "n": 2, "frac": 0.5},
-	"citrouille": {"seuil": 40.0, "gerbe": "nourriture", "sons": ["casse_pot_02", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "trancher", "n": 3},
+	"citrouille": {"seuil": 70.0, "gerbe": "nourriture", "sons": ["casse_pot_02", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "trancher", "n": 3},
 	# papier, livres : incassables au lancer (ils rebondissent, bruit de livre)
 	"papier": {"seuil": INF, "sons_choc": ["cloth1", "cloth2"]},
 	"os": {"seuil": 20.0, "gerbe": "os", "sons": ["casse_rock_breaking_01", "casse_pot_01"], "decoupe": "tessons", "max": 4},
