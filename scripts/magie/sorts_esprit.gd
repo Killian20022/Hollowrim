@@ -51,6 +51,8 @@ const PART_RASANT := 0.35
 ## max, jamais un coup fatal à lui seul, sauf choc ÉNORME (vitesse d'impact >= VITESSE_ENORME : chute de falaise, mur à pleine vitesse).
 const PART_VOL_MAX := 0.6
 const VITESSE_ENORME := 22.0
+## Budget d'un vol de Lévitation lancée (ennemi fragile : les sensibilités au contondant s'ajoutent après le budget).
+const PART_VOL_LEVITATION := 0.45
 const FACTEUR_LEVITATION := 0.7
 ## Durée maximale d'un vol (s) : l'ennemi est rendu à son IA quoi qu'il arrive.
 const DUREE_VOL := 3.0
@@ -556,12 +558,14 @@ func _chocs_objets(f: Dictionary, centre: Vector3, v: Vector3) -> void:
 ## Lévitation lancée / lâchée : FACTEUR_LEVITATION (écrasement léger à moyen ; la Répulsion garde ses dégâts validés).
 func degats_vol(f: Dictionary, e: Node, dg: float, vn: float) -> float:
 	var so: Variant = f.get("sort")
+	var part := PART_VOL_MAX
 	if so is DonneesSort and (so as DonneesSort).portee_mode == DonneesSort.Portee.LEVITATION:
 		dg *= FACTEUR_LEVITATION
+		part = PART_VOL_LEVITATION
 	if vn >= VITESSE_ENORME or e.get("vie_max") == null:
 		return dg
 	var deja := float(f.get("subi", 0.0))
-	var reste := maxf(0.0, PART_VOL_MAX * float(e.get("vie_max")) - deja)
+	var reste := maxf(0.0, part * float(e.get("vie_max")) - deja)
 	dg = minf(dg, reste)
 	f["subi"] = deja + dg
 	return dg
