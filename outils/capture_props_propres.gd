@@ -44,6 +44,10 @@ func _go() -> void:
 		for p: Vector3 in lieux[n]:
 			c += p
 		centres[n] = c / float((lieux[n] as Array).size())
+	# lieux supplémentaires « nom:x:z » (village fondu, entrée de grotte) via --extra=
+	for e in _arg("extra", "").split(",", false):
+		var q := e.split(":")
+		centres[q[0]] = Vector3(float(q[1]), 0, float(q[2]))
 	var filtre := _arg("lieux", "")
 	var ft := FileAccess.open(dossier.path_join("lieux.txt"), FileAccess.WRITE)
 	var espace: PhysicsDirectSpaceState3D = s.get_world_3d().direct_space_state
