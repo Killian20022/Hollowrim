@@ -67,13 +67,13 @@ const MEUBLES_BASE := {
 	"pq_caisse": ["bois", 16.0, "boite", "caisse", true, false], "q_caisse_village": ["bois", 16.0, "boite", "caisse", true, false],
 	"pq_caisse_village": ["bois", 16.0, "boite", "caisse", true, false],
 	"q_caisse_fer": ["bois_ferre", 26.0, "boite", "caisse", true, false], "pq_caisse_fer": ["bois_ferre", 26.0, "boite", "caisse", true, false],
-	"q_cageot_vide": ["bois_leger", 2.5, "boite", "", false, false], "pq_cageot_vide": ["bois_leger", 2.5, "boite", "", false, false],
-	"q_cageot_pommes": ["bois_leger", 6.0, "boite", "", false, false], "pq_cageot_pommes": ["bois_leger", 6.0, "boite", "", false, false],
-	"q_cageot_carottes": ["bois_leger", 6.0, "boite", "", false, false], "pq_cageot_carottes": ["bois_leger", 6.0, "boite", "", false, false],
-	"q_tabouret": ["bois_leger", 4.0, "cyl", "", true, false], "pq_tabouret": ["bois_leger", 4.0, "cyl", "", true, false],
-	"q_chaise": ["bois_leger", 6.0, "boite", "", true, false], "q_chaise_2": ["bois_leger", 6.0, "boite", "", true, false],
-	"pq_chaise": ["bois_leger", 6.0, "boite", "", true, false],
-	"q_banc": ["bois", 22.0, "boite", "", true, false], "pq_banc": ["bois", 22.0, "boite", "", true, false],
+	"q_cageot_vide": ["cageot", 2.5, "boite", "", false, false], "pq_cageot_vide": ["cageot", 2.5, "boite", "", false, false],
+	"q_cageot_pommes": ["cageot", 6.0, "boite", "", false, false], "pq_cageot_pommes": ["cageot", 6.0, "boite", "", false, false],
+	"q_cageot_carottes": ["cageot", 6.0, "boite", "", false, false], "pq_cageot_carottes": ["cageot", 6.0, "boite", "", false, false],
+	"q_tabouret": ["meuble_leger", 4.0, "cyl", "", true, false], "pq_tabouret": ["meuble_leger", 4.0, "cyl", "", true, false],
+	"q_chaise": ["meuble_leger", 6.0, "boite", "", true, false], "q_chaise_2": ["meuble_leger", 6.0, "boite", "", true, false],
+	"pq_chaise": ["meuble_leger", 6.0, "boite", "", true, false],
+	"q_banc": ["meuble", 22.0, "boite", "", true, false], "pq_banc": ["meuble", 22.0, "boite", "", true, false],
 	"q_jarre": ["poterie", 4.0, "cyl", "", false, true], "pq_jarre": ["poterie", 4.0, "cyl", "", false, true],
 	"q_vase_5": ["poterie", 6.0, "cyl", "", false, false],
 	"q_sac": ["tissu", 25.0, "boite", "", false, false], "q_sac_debout": ["tissu", 25.0, "boite", "", false, false],
@@ -86,19 +86,19 @@ const MEUBLES_BASE := {
 ## chariots, bannières, portes, tapis, piliers, barrières, briques, poutres, rochers, souches, troncs, luminaires muraux et bougies (leur lumière
 ## ne suit pas).
 const DIVERS := {
-	"tronc": ["bois", 40.0, "boite", true], "rondin": ["bois", 12.0, "boite", false], "buche": ["bois_leger", 4.0, "boite", false], "bucher": ["bois", 18.0, "boite", false],
+	"tronc": ["tronc", 40.0, "boite", true], "rondin": ["rondin", 12.0, "boite", false], "buche": ["buche", 4.0, "boite", false], "bucher": ["bucher", 18.0, "boite", false],
 	"seau_bois": ["bois_leger", 3.0, "cyl", false], "seau_fer": ["fer", 3.0, "cyl", false], "seau_2": ["fer", 3.0, "cyl", false],
 	"chaudron": ["fer", 12.0, "cyl", false], "chaudron_anse": ["fer", 9.0, "cyl", false], "marmite": ["fer", 3.0, "cyl", false],
 	"marmite_couverte": ["fer", 3.5, "cyl", false], "marmite_camp": ["fer", 4.0, "cyl", false], "marmite_camp_petite": ["fer", 2.0, "cyl", false],
 	"marmite_soupe": ["fer", 4.0, "cyl", false], "marmite_soupe_2": ["fer", 4.0, "cyl", false], "marmite_vide": ["fer", 5.0, "cyl", false],
 	"poele": ["fer", 2.0, "boite", false], "poele_f": ["fer", 2.0, "boite", false],
 	"hache_outil": ["fer", 2.5, "boite", false], "hache_camp": ["fer", 2.5, "boite", false], "hachette": ["fer", 1.0, "boite", false],
-	"pioche": ["fer", 3.5, "boite", false], "pelle": ["bois_leger", 2.5, "boite", false], "epee_mur": ["fer", 1.5, "boite", false],
-	"bouclier_bois": ["bois_leger", 3.0, "boite", false], "couteau_camp": ["fer", 0.3, "boite", false],
+	"pioche": ["fer", 3.5, "boite", false], "pelle": ["bois_outil", 2.5, "boite", false], "epee_mur": ["fer", 1.5, "boite", false],
+	"bouclier_bois": ["bouclier", 3.0, "boite", false], "couteau_camp": ["fer", 0.3, "boite", false],
 	"piege_ours": ["fer", 6.0, "boite", false], "piege_ours_ferme": ["fer", 6.0, "boite", false],
 	"coffre_ferme": ["bois_ferre", 14.0, "boite", false], "etabli_tiroirs": ["bois_leger", 3.0, "boite", false],
-	"chaise_2": ["bois_leger", 6.0, "boite", true], "chaise_echelle": ["bois_leger", 6.0, "boite", true], "chaise_coussin": ["bois_leger", 6.5, "boite", true],
-	"chaise_fuseaux": ["bois_leger", 6.0, "boite", true], "banc_dossier": ["bois", 25.0, "boite", true], "banc_simple": ["bois", 14.0, "boite", true],
+	"chaise_2": ["meuble_leger", 6.0, "boite", true], "chaise_echelle": ["meuble_leger", 6.0, "boite", true], "chaise_coussin": ["meuble_leger", 6.5, "boite", true],
+	"chaise_fuseaux": ["meuble_leger", 6.0, "boite", true], "banc_dossier": ["meuble", 25.0, "boite", true], "banc_simple": ["meuble", 14.0, "boite", true],
 	"caisse_2": ["bois_ferre", 22.0, "boite", true], "caisse_planches": ["bois", 16.0, "boite", true],
 	"tonneau_cercle": ["tonneau", 35.0, "cyl", true], "tonneau_village": ["tonneau", 35.0, "cyl", true], "tonneau_2": ["tonneau", 32.0, "cyl", true],
 	"ballot": ["tissu", 20.0, "boite", false], "ballot_2": ["tissu", 22.0, "boite", false], "sac_couche": ["tissu_leger", 12.0, "boite", false],
@@ -124,7 +124,7 @@ const DIVERS := {
 	"livres_moyens_1": ["papier", 3.0, "boite", false], "livres_moyens_2": ["papier", 3.0, "boite", false], "livres_moyens_3": ["papier", 3.0, "boite", false],
 	"parchemin": ["papier", 0.3, "boite", false], "parchemin_2": ["papier", 0.3, "boite", false],
 	"carotte": ["nourriture", 0.2, "boite", false], "carotte_f": ["nourriture", 0.2, "boite", false], "navet": ["nourriture", 0.3, "sphere", false],
-	"chou": ["nourriture", 0.8, "sphere", false], "citrouille": ["nourriture", 3.0, "sphere", false], "pomme": ["nourriture", 0.2, "sphere", false],
+	"chou": ["nourriture", 0.8, "sphere", false], "citrouille": ["citrouille", 3.0, "sphere", false], "pomme": ["nourriture", 0.2, "sphere", false],
 	"pomme_verte": ["nourriture", 0.2, "sphere", false], "pain": ["nourriture", 0.5, "boite", false], "tranche_pain": ["nourriture", 0.1, "boite", false],
 	"cuisse": ["nourriture", 0.6, "boite", false], "oeuf": ["oeuf", 0.06, "sphere", false], "poisson": ["nourriture", 0.8, "boite", false],
 	"aretes": ["nourriture", 0.1, "boite", false], "champignon": ["nourriture", 0.1, "boite", false], "saucisse": ["nourriture", 0.2, "boite", false],
@@ -269,6 +269,15 @@ static func _fiche_auto(nom: String) -> Array:
 	for mot: String in ["bouteille", "fiole", "potion", "verre", "flacon"]:
 		if mot in b:
 			mat = "verre"
+	for mot: String in ["chaise", "tabouret", "banc", "fauteuil"]:
+		if mot in b:
+			mat = "meuble_leger" if mot != "banc" else "meuble"
+	for mot: String in ["cageot", "panier"]:
+		if mot in b:
+			mat = "cageot"
+	for mot: String in ["buche", "rondin", "tronc"]:
+		if mot in b:
+			mat = "tronc" if mot == "tronc" else ("rondin" if mot == "rondin" else "buche")
 	for mot: String in ["sac", "ballot", "fourrure", "peau", "couverture", "bourse", "gerbe", "foin"]:
 		if mot in b:
 			mat = "tissu_leger"
@@ -286,7 +295,7 @@ static func _fiche_auto(nom: String) -> Array:
 			mat = "nourriture"
 	var vol := t.x * t.y * t.z
 	var masse := clampf(vol * (900.0 if mat in ["fer", "poterie", "os"] else 260.0), 0.1, 40.0)
-	var forme := "cyl" if (absf(t.x - t.z) < 0.25 * maxf(t.x, t.z) and t.y > 0.3 * t.x and mat in ["poterie", "verre", "fer", "bois_leger"]) else "boite"
+	var forme := "cyl" if (absf(t.x - t.z) < 0.25 * maxf(t.x, t.z) and t.y > 0.3 * t.x and mat in ["poterie", "verre", "fer", "bois_leger", "meuble_leger"]) else "boite"
 	return [mat, masse, forme, "", t.length() > 0.9, false]
 
 ## Fiche physique du prop `nom` (tables d'abord, puis déduction) ; [] : non saisissable (reste du décor fixe).

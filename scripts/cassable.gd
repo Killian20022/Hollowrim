@@ -155,7 +155,7 @@ func incassable() -> bool:
 func matiere() -> String:
 	if matiere_objet != "":
 		return matiere_objet
-	return {"tonneau": "tonneau", "caisse": "bois", "tabouret": "bois_leger"}.get(genre, "poterie")
+	return {"tonneau": "tonneau", "caisse": "bois", "tabouret": "meuble_leger"}.get(genre, "poterie")
 
 # ------------------------------------------------------------------------------------------------ télékinésie (cassables partout)
 

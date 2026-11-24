@@ -25,7 +25,7 @@ const PORTEE_ECLATS := 30.0   ## au-delà de la caméra : gelé sur place
 
 ## matière -> seuil (J), profil de gerbe, sons, découpe (« douelles » / « tessons » / « planches »), morceaux max, poussière
 const MATIERES := {
-	"verre": {"seuil": 4.0, "gerbe": "verre", "sons": ["casse_glass_breaking_01", "casse_glass_breaking_02", "casse_glass_breaking_03"], "decoupe": "tessons", "max": 5},
+	"verre": {"seuil": 4.0, "gerbe": "verre", "sons": ["casse_glass_breaking_01", "casse_glass_breaking_02", "casse_glass_breaking_03"], "decoupe": "tessons", "max": 8},
 	"oeuf": {"seuil": 1.2, "gerbe": "oeuf", "sons": ["casse_pot_02"], "decoupe": "tessons", "max": 3},
 	"poterie": {"seuil": 14.0, "gerbe": "poterie", "sons": ["casse_pot_01", "casse_pot_02", "casse_rock_breaking_01"], "decoupe": "tessons", "max": 7, "poussiere": true},
 	"bois_leger": {"seuil": 80.0, "gerbe": "bois", "sons": ["casse_wood_breaking_02", "casse_wood_breaking_04"], "decoupe": "planches", "max": 7, "poussiere": true},
@@ -33,19 +33,37 @@ const MATIERES := {
 	"bois_ferre": {"seuil": 350.0, "gerbe": "bois", "sons": ["casse_wood_breaking_01", "casse_wood_breaking_03"], "decoupe": "planches", "max": 9, "poussiere": true},
 	"tonneau": {"seuil": 300.0, "gerbe": "bois", "sons": ["casse_wood_breaking_01", "casse_wood_breaking_03"], "decoupe": "douelles", "max": 11, "poussiere": true},
 	"fer": {"seuil": INF, "sons_choc": ["casse_metal_hit_01", "casse_metal_hit_02", "casse_metal_hit_03"]},
-	# cassables partout (2026-11-24) : tout ce qu'on peut soulever peut aussi se briser, sauf le métal solide. Seuils réglés pour qu'un choc
-	# naturel (chute d'une table, lancer à ~9 m/s contre un mur) casse le léger sans pulvériser le lourd.
-	"tissu": {"seuil": 350.0, "gerbe": "poussiere", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "tessons", "max": 4, "poussiere": true},
-	"tissu_leger": {"seuil": 100.0, "gerbe": "poussiere", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "tessons", "max": 3, "poussiere": true},
-	"tissu_fin": {"seuil": 8.0, "gerbe": "poussiere", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "tessons", "max": 3},
-	"nourriture": {"seuil": 10.0, "gerbe": "nourriture", "sons": ["casse_pot_02", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "tessons", "max": 4},
-	"bois_fin": {"seuil": 20.0, "gerbe": "bois", "sons": ["casse_wood_breaking_02", "casse_wood_breaking_04"], "decoupe": "planches", "max": 4},
-	"papier": {"seuil": 12.0, "gerbe": "papier", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "planches", "max": 3},
+	# casse RÉALISTE (2026-11-24) : chaque matière a sa MANIÈRE de casser (« decoupe ») : fendre (bûche : un plan dans le fil du bois, 2 moitiés),
+	# jointures (meuble assemblé : il se démonte par pièces, `min` / `max` morceaux), trancher (cassé net en `n` morceaux au travers :
+	# manche, fruit, tissu qui se déchire ; `frac` = où passe la cassure). Seuils réglés : une bûche lancée doucement rebondit, il faut
+	# un vrai choc (≥ ~8 m/s pour 4 kg) ou un coup puissant ; les bois fins cassent plus facilement.
+	"buche": {"seuil": 150.0, "gerbe": "bois", "gerbe_k": 0.55, "sons": ["casse_wood_breaking_01", "casse_wood_breaking_03"], "decoupe": "fendre", "max": 2},
+	"rondin": {"seuil": 260.0, "gerbe": "bois", "gerbe_k": 0.6, "sons": ["casse_wood_breaking_01", "casse_wood_breaking_03"], "decoupe": "fendre", "max": 2},
+	"tronc": {"seuil": 420.0, "gerbe": "bois", "gerbe_k": 0.7, "sons": ["casse_wood_breaking_01", "casse_wood_breaking_03"], "decoupe": "fendre", "max": 2},
+	"bucher": {"seuil": 200.0, "gerbe": "bois", "gerbe_k": 0.7, "sons": ["casse_wood_breaking_01", "casse_wood_breaking_03"], "decoupe": "jointures", "min": 2, "max": 5},
+	"meuble_leger": {"seuil": 80.0, "gerbe": "bois", "sons": ["casse_wood_breaking_02", "casse_wood_breaking_04"], "decoupe": "jointures", "min": 3, "max": 6},
+	"meuble": {"seuil": 200.0, "gerbe": "bois", "sons": ["casse_wood_breaking_01", "casse_wood_breaking_03"], "decoupe": "jointures", "min": 3, "max": 6},
+	"cageot": {"seuil": 80.0, "gerbe": "bois", "sons": ["casse_wood_breaking_02", "casse_wood_breaking_04"], "decoupe": "jointures", "min": 3, "max": 6},
+	"bouclier": {"seuil": 100.0, "gerbe": "bois", "sons": ["casse_wood_breaking_02", "casse_wood_breaking_04"], "decoupe": "jointures", "min": 2, "max": 3},
+	"bois_outil": {"seuil": 60.0, "gerbe": "bois", "gerbe_k": 0.6, "sons": ["casse_wood_breaking_02", "casse_wood_breaking_04"], "decoupe": "trancher", "n": 2, "frac": 0.45},
+	"bois_fin": {"seuil": 20.0, "gerbe": "bois", "gerbe_k": 0.6, "sons": ["casse_wood_breaking_02", "casse_wood_breaking_04"], "decoupe": "trancher", "n": 2, "frac": 0.5},
+	# tissu : il ne se brise pas, il se DÉCHIRE (2 morceaux) et répand son contenu (poussière / grain) ; seuils élevés
+	"tissu": {"seuil": 450.0, "gerbe": "poussiere", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "trancher", "n": 2, "frac": 0.5, "poussiere": true},
+	"tissu_leger": {"seuil": 220.0, "gerbe": "poussiere", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "trancher", "n": 2, "frac": 0.5, "poussiere": true},
+	"tissu_fin": {"seuil": 40.0, "gerbe": "poussiere", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "trancher", "n": 2, "frac": 0.5},
+	# nourriture : s'écrase / éclate en 2 (3 pour une citrouille)
+	"nourriture": {"seuil": 10.0, "gerbe": "nourriture", "sons": ["casse_pot_02", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "trancher", "n": 2, "frac": 0.5},
+	"citrouille": {"seuil": 40.0, "gerbe": "nourriture", "sons": ["casse_pot_02", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "trancher", "n": 3},
+	# papier, livres : incassables au lancer (ils rebondissent, bruit de livre)
+	"papier": {"seuil": INF, "sons_choc": ["cloth1", "cloth2"]},
 	"os": {"seuil": 20.0, "gerbe": "os", "sons": ["casse_rock_breaking_01", "casse_pot_01"], "decoupe": "tessons", "max": 4},
 }
 ## Sons de choc sans casse (bois qui cogne) par matière ; défaut : vaisselle.
 const SONS_CHOC := {"bois_leger": ["casse_wood_hit_01", "casse_wood_hit_02"], "bois": ["casse_wood_hit_01", "casse_wood_hit_03"],
-	"tonneau": ["casse_wood_hit_03", "impactWood_heavy_000"], "bois_ferre": ["casse_wood_hit_03", "impactWood_heavy_000"], "poterie": ["casse_dishes_01", "casse_dishes_02"], "verre": ["casse_dishes_02"]}
+	"tonneau": ["casse_wood_hit_03", "impactWood_heavy_000"], "buche": ["casse_wood_hit_03", "impactWood_heavy_000"],
+	"rondin": ["casse_wood_hit_03", "impactWood_heavy_000"], "tronc": ["casse_wood_hit_03", "impactWood_heavy_000"], "bucher": ["casse_wood_hit_01", "casse_wood_hit_03"],
+	"meuble_leger": ["casse_wood_hit_01", "casse_wood_hit_02"], "meuble": ["casse_wood_hit_01", "casse_wood_hit_03"], "cageot": ["casse_wood_hit_01", "casse_wood_hit_02"],
+	"bouclier": ["casse_wood_hit_01", "casse_wood_hit_02"], "bois_outil": ["casse_wood_hit_01", "casse_wood_hit_02"], "bois_fin": ["casse_wood_hit_01", "casse_wood_hit_02"], "bois_ferre": ["casse_wood_hit_03", "impactWood_heavy_000"], "poterie": ["casse_dishes_01", "casse_dishes_02"], "verre": ["casse_dishes_02"]}
 
 static func seuil(matiere: String) -> float:
 	return float((MATIERES.get(matiere, {}) as Dictionary).get("seuil", INF))
@@ -184,6 +202,8 @@ static func _decouper_donnees(src: Array, matiere: String) -> Array:
 		return []
 	var centre := bb.get_center()
 	var diag := maxf(bb.size.length(), 0.01)
+	if decoupe == "fendre" or decoupe == "trancher":      # plan de coupe (vraie coupe des triangles, face de coupe refermée)
+		return _decouper_plan(surfs, tris, prof, bb)
 	# 2. composantes connexes (sommets confondus à 1 mm près), toutes surfaces confondues ; centre et boîte de chaque triangle
 	var parent := PackedInt32Array()
 	var t_s := PackedInt32Array()      # surface du triangle
@@ -326,7 +346,299 @@ static func _decouper_donnees(src: Array, matiere: String) -> Array:
 					dc[k] = sc[q]
 			ent.append([dv, dn, du, dc, surfs[s][1]])
 		res.append({"s": ent, "c": cm, "t": mb.size, "part": float(l.size()) / maxf(total, 1.0)})
+	# jointures : pas assez de pièces séparées (meuble soudé d'un bloc) -> on tranche la plus grosse en 2, au plus 4 fois
+	var mn := int(prof.get("min", 1))
+	var essais := 0
+	while res.size() < mn and essais < 4:
+		essais += 1
+		var ig := 0
+		for i in res.size():
+			if float((res[i] as Dictionary)["part"]) > float((res[ig] as Dictionary)["part"]):
+				ig = i
+		var gros_m: Dictionary = res[ig]
+		var soupe := []
+		for e: Array in gros_m["s"]:
+			var dv: PackedVector3Array = (e[0] as PackedVector3Array).duplicate()
+			for k in dv.size():
+				dv[k] += gros_m["c"]
+			soupe.append([dv, e[1], e[2], e[3], e[4]])
+		var tg: Vector3 = gros_m["t"]
+		var ia := 0
+		for i in 3:
+			if tg[i] > tg[ia]:
+				ia = i
+		var axe := Vector3.ZERO
+		axe[ia] = 1.0
+		var cg: Vector3 = gros_m["c"]
+		var deux := _couper_soupe(soupe, axe, cg[ia], true)
+		var pa := _piece(deux[0], float(gros_m["part"]) * 0.5)
+		var pb := _piece(deux[1], float(gros_m["part"]) * 0.5)
+		if pa.is_empty() or pb.is_empty():
+			break
+		res.remove_at(ig)
+		res.append(pa)
+		res.append(pb)
 	return res
+
+# ------------------------------------------------------------------------------------------------ coupe par un plan (fendre, trancher)
+
+## « fendre » (bûche : plan par l'axe LONG, dans le fil du bois : 2 moitiés) et « trancher » (cassé net AU TRAVERS de l'axe long, ou de
+## l'axe vertical si le volume est ramassé, `n` morceaux ; `frac` = position de la cassure pour n = 2). Les triangles traversés sont
+## vraiment coupés, la face de coupe est refermée (enveloppe convexe des points de coupe) : chaque morceau est plein et crédible.
+static func _decouper_plan(surfs: Array, tris: Array, prof: Dictionary, bb: AABB) -> Array:
+	var soupe := _soupe_depuis(surfs, tris)
+	var t := bb.size
+	var ia := 0
+	for i in 3:
+		if t[i] > t[ia]:
+			ia = i
+	var axe_i := ia
+	if String(prof.get("decoupe", "")) == "fendre":
+		var autres := [0, 1, 2]
+		autres.erase(ia)
+		axe_i = int(autres[0]) if t[int(autres[0])] >= t[int(autres[1])] else int(autres[1])
+	elif t.y >= t[ia] * 0.85:
+		axe_i = 1
+	var axe := Vector3.ZERO
+	axe[axe_i] = 1.0
+	var n := maxi(int(prof.get("n", 2)), 2)
+	var fracs := []
+	if n == 2:
+		fracs = [clampf(float(prof.get("frac", 0.5)), 0.2, 0.8)]
+	else:
+		for k in range(1, n):
+			fracs.append(float(k) / n)
+	var res := []
+	var reste := soupe
+	var avant := 0.0
+	for f: float in fracs:
+		var d := _couper_soupe(reste, axe, bb.position[axe_i] + f * t[axe_i], true)
+		var p := _piece(d[0], f - avant)
+		if not p.is_empty():
+			res.append(p)
+		reste = d[1]
+		avant = f
+	var dernier := _piece(reste, 1.0 - avant)
+	if not dernier.is_empty():
+		res.append(dernier)
+	if res.size() < 2:      # la coupe a raté (volume vide d'un côté) : le modèle entier, comme avant
+		return [_piece(soupe, 1.0)]
+	return res
+
+## Triangles NON indexés de toutes les surfaces : [[V, N, UV, C, Material]].
+static func _soupe_depuis(surfs: Array, tris: Array) -> Array:
+	var res := []
+	for s in surfs.size():
+		var a: Array = (surfs[s] as Array)[0]
+		var sv: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var sn: PackedVector3Array = a[Mesh.ARRAY_NORMAL] if a[Mesh.ARRAY_NORMAL] != null else PackedVector3Array()
+		var su: PackedVector2Array = a[Mesh.ARRAY_TEX_UV] if a[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+		var sc: PackedColorArray = a[Mesh.ARRAY_COLOR] if a[Mesh.ARRAY_COLOR] != null else PackedColorArray()
+		var ii: PackedInt32Array = tris[s]
+		var n := ii.size() - ii.size() % 3
+		var dv := PackedVector3Array()
+		var dn := PackedVector3Array()
+		var du := PackedVector2Array()
+		var dc := PackedColorArray()
+		dv.resize(n)
+		if not sn.is_empty():
+			dn.resize(n)
+		if not su.is_empty():
+			du.resize(n)
+		if not sc.is_empty():
+			dc.resize(n)
+		for k in n:
+			var q := ii[k]
+			dv[k] = sv[q]
+			if not sn.is_empty():
+				dn[k] = sn[q]
+			if not su.is_empty():
+				du[k] = su[q]
+			if not sc.is_empty():
+				dc[k] = sc[q]
+		res.append([dv, dn, du, dc, (surfs[s] as Array)[1]])
+	return res
+
+## Morceau recentré depuis une soupe de triangles ; {} si elle est vide. `part` : part de la masse d'origine.
+static func _piece(soupe: Array, part: float) -> Dictionary:
+	var mb := AABB()
+	var pr := true
+	for e: Array in soupe:
+		for p: Vector3 in (e[0] as PackedVector3Array):
+			if pr:
+				mb = AABB(p, Vector3.ZERO)
+				pr = false
+			else:
+				mb = mb.expand(p)
+	if pr:
+		return {}
+	var cm := mb.get_center()
+	var ent := []
+	for e: Array in soupe:
+		var dv: PackedVector3Array = (e[0] as PackedVector3Array).duplicate()
+		if dv.is_empty():
+			continue
+		for k in dv.size():
+			dv[k] -= cm
+		ent.append([dv, e[1], e[2], e[3], e[4]])
+	return {"s": ent, "c": cm, "t": mb.size, "part": part}
+
+## Coupe la soupe par le plan axe·p = pos ; renvoie [côté négatif, côté positif] (soupes) ; `cap` : refermer la face de coupe.
+static func _couper_soupe(soupe: Array, axe: Vector3, pos: float, cap: bool) -> Array:
+	var neg := []
+	var plus := []
+	var pts := []      # points de coupe : [Vector3, UV, Color, indice d'entrée]
+	for ie in soupe.size():
+		var e: Array = soupe[ie]
+		var dv: PackedVector3Array = e[0]
+		var a_n := not (e[1] as PackedVector3Array).is_empty()
+		var a_u := not (e[2] as PackedVector2Array).is_empty()
+		var a_c := not (e[3] as PackedColorArray).is_empty()
+		var en := Sac.new()
+		var ep := Sac.new()
+		en.mat = e[4]
+		ep.mat = e[4]
+		for t in range(0, dv.size() - 2, 3):
+			var d0 := axe.dot(dv[t]) - pos
+			var d1 := axe.dot(dv[t + 1]) - pos
+			var d2 := axe.dot(dv[t + 2]) - pos
+			if d0 >= -1e-5 and d1 >= -1e-5 and d2 >= -1e-5:
+				_ajouter_tri(ep, e, t, t + 1, t + 2)
+				continue
+			if d0 <= 1e-5 and d1 <= 1e-5 and d2 <= 1e-5:
+				_ajouter_tri(en, e, t, t + 1, t + 2)
+				continue
+			var ds := [d0, d1, d2]
+			var poly_n := []
+			var poly_p := []
+			for k in 3:
+				var k2 := (k + 1) % 3
+				var dc_: float = ds[k]
+				var dn_: float = ds[k2]
+				var vk := _sommet(e, t + k)
+				if dc_ >= 0.0:
+					poly_p.append(vk)
+				if dc_ <= 0.0:
+					poly_n.append(vk)
+				if (dc_ > 0.0 and dn_ < 0.0) or (dc_ < 0.0 and dn_ > 0.0):
+					var u := dc_ / (dc_ - dn_)
+					var vn := _sommet(e, t + k2)
+					var vi := [(vk[0] as Vector3).lerp(vn[0], u), ((vk[1] as Vector3).lerp(vn[1], u)).normalized() if a_n else Vector3.ZERO,
+						(vk[2] as Vector2).lerp(vn[2], u), (vk[3] as Color).lerp(vn[3], u)]
+					poly_p.append(vi)
+					poly_n.append(vi)
+					pts.append([vi[0], vi[2], vi[3], ie])
+			_ajouter_poly(ep, poly_p, a_n, a_u, a_c)
+			_ajouter_poly(en, poly_n, a_n, a_u, a_c)
+		neg.append(en)
+		plus.append(ep)
+	if cap and pts.size() >= 3:
+		_refermer(neg, plus, pts, axe, soupe)
+	return [neg.map(func(x: Sac) -> Array: return x.vers_entree()), plus.map(func(x: Sac) -> Array: return x.vers_entree())]
+
+## Sac de triangles d'un côté de la coupe (objet : les tableaux sont modifiés en place).
+class Sac extends RefCounted:
+	var v := PackedVector3Array()
+	var n := PackedVector3Array()
+	var u := PackedVector2Array()
+	var c := PackedColorArray()
+	var mat: Material
+	func vers_entree() -> Array:
+		return [v, n, u, c, mat]
+
+static func _sommet(e: Array, i: int) -> Array:
+	var sn: PackedVector3Array = e[1]
+	var su: PackedVector2Array = e[2]
+	var sc: PackedColorArray = e[3]
+	return [(e[0] as PackedVector3Array)[i], sn[i] if not sn.is_empty() else Vector3.ZERO, su[i] if not su.is_empty() else Vector2.ZERO,
+		sc[i] if not sc.is_empty() else Color.WHITE]
+
+static func _ajouter_tri(dst: Sac, e: Array, a: int, b: int, c: int) -> void:
+	for i: int in [a, b, c]:
+		dst.v.append((e[0] as PackedVector3Array)[i])
+		if not (e[1] as PackedVector3Array).is_empty():
+			dst.n.append((e[1] as PackedVector3Array)[i])
+		if not (e[2] as PackedVector2Array).is_empty():
+			dst.u.append((e[2] as PackedVector2Array)[i])
+		if not (e[3] as PackedColorArray).is_empty():
+			dst.c.append((e[3] as PackedColorArray)[i])
+
+## Polygone (3 ou 4 sommets [P, N, UV, C], même sens que le triangle d'origine) en éventail.
+static func _ajouter_poly(dst: Sac, poly: Array, a_n: bool, a_u: bool, a_c: bool) -> void:
+	for k in range(1, poly.size() - 1):
+		for v: Array in [poly[0], poly[k], poly[k + 1]]:
+			dst.v.append(v[0])
+			if a_n:
+				dst.n.append(v[1])
+			if a_u:
+				dst.u.append(v[2])
+			if a_c:
+				dst.c.append(v[3])
+
+## Face de coupe : enveloppe convexe des points de coupe (dans le plan), en éventail ; une face par morceau, normale vers le vide.
+static func _refermer(neg: Array, plus: Array, pts: Array, axe: Vector3, soupe: Array) -> void:
+	var ia := 0
+	for i in 3:
+		if absf(axe[i]) > 0.5:
+			ia = i
+	var iu := (ia + 1) % 3
+	var iv := (ia + 2) % 3
+	var ordre := range(pts.size())
+	ordre.sort_custom(func(a: int, b: int) -> bool:
+		var pa: Vector3 = pts[a][0]
+		var pb: Vector3 = pts[b][0]
+		return pa[iu] < pb[iu] or (pa[iu] == pb[iu] and pa[iv] < pb[iv]))
+	var hull := []
+	for passe in 2:
+		var debut := hull.size()
+		for i in (ordre if passe == 0 else range(ordre.size() - 1, -1, -1)):
+			var p: Vector3 = pts[i][0]
+			while hull.size() >= debut + 2 and _croix(pts[hull[hull.size() - 2]][0], pts[hull[hull.size() - 1]][0], p, iu, iv) <= 1e-9:
+				hull.pop_back()
+			hull.append(i)
+		hull.pop_back()
+	if hull.size() < 3:
+		return
+	var c := Vector3.ZERO
+	var uv := Vector2.ZERO
+	var col := Color(0, 0, 0, 0)
+	var comptes := {}
+	for i: int in hull:
+		c += pts[i][0] as Vector3
+		uv += pts[i][1] as Vector2
+		col += pts[i][2] as Color
+		comptes[pts[i][3]] = int(comptes.get(pts[i][3], 0)) + 1
+	var nh := float(hull.size())
+	c /= nh
+	uv /= nh
+	col = Color(col.r / nh, col.g / nh, col.b / nh, col.a / nh)
+	var ie := 0
+	for k in comptes:
+		if int(comptes[k]) > int(comptes.get(ie, 0)):
+			ie = k
+	for cote in 2:
+		var dst: Sac = (neg if cote == 0 else plus)[ie]
+		var normale := axe if cote == 0 else -axe      # le morceau négatif regarde vers +axe
+		var a_n := not (soupe[ie][1] as PackedVector3Array).is_empty()
+		var a_u := not (soupe[ie][2] as PackedVector2Array).is_empty()
+		var a_c := not (soupe[ie][3] as PackedColorArray).is_empty()
+		for k in hull.size():
+			var p1: Vector3 = pts[hull[k]][0]
+			var p2: Vector3 = pts[hull[(k + 1) % hull.size()]][0]
+			var sommets := [c, p1, p2]
+			if (p1 - c).cross(p2 - c).dot(normale) > 0.0:      # face avant = sens horaire (Godot)
+				sommets = [c, p2, p1]
+			for p: Vector3 in sommets:
+				dst.v.append(p)
+				if a_n:
+					dst.n.append(normale)
+				if a_u:
+					dst.u.append(uv)
+				if a_c:
+					dst.c.append(col)
+
+static func _croix(o: Vector3, a: Vector3, b: Vector3, iu: int, iv: int) -> float:
+	return (a[iu] - o[iu]) * (b[iv] - o[iv]) - (a[iv] - o[iv]) * (b[iu] - o[iu])
 
 static func _boite_c(liste: Array, t_c: PackedVector3Array) -> AABB:
 	var b := AABB(t_c[liste[0]], Vector3.ZERO)
@@ -537,7 +849,7 @@ static func effets(n: Node3D, centre: Vector3, pied: Vector3, origine: Vector3, 
 	var dir := centre - origine
 	dir.y = 0.0
 	dir = (dir.normalized() if dir.length() > 0.01 else Vector3.UP) * 0.6 + Vector3.UP
-	var force := clampf(0.7 + taille * 1.1, 0.6, 1.8)
+	var force := clampf(0.7 + taille * 1.1, 0.6, 1.8) * float(prof.get("gerbe_k", 1.0))
 	GerbePixels.emettre(n, centre, dir.normalized(), String(prof.get("gerbe", "bois")), force)
 	if bool(prof.get("poussiere", false)):
 		GerbePixels.emettre(n, pied + Vector3(0, 0.08, 0), Vector3.UP, "poussiere", clampf(taille * 1.2, 0.5, 1.1))
