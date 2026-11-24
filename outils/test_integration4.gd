@@ -77,11 +77,12 @@ func _fin() -> void:
 	await _pause(0.5)
 	get_tree().quit(0 if _ok else 1)
 
-func _ennemi(ident: String, type: String, pos: Vector3, vie: float) -> CharacterBody3D:
+func _ennemi(ident: String, type: String, pos: Vector3, vie: float, debout := false) -> CharacterBody3D:
 	var d := CharacterBody3D.new()
 	d.set_script(DRAUGR)
 	d.set("type", type)
 	d.set("dort", true)
+	d.set("debout", debout)
 	d.set("joueur", _j)
 	d.set("ident", ident)
 	d.name = ident
@@ -130,7 +131,7 @@ func _lancer() -> void:
 	_j.vie_max = 1.0e6
 	# mêmes ennemis, mêmes ident, mêmes positions des deux côtés (autour de l'invité, loin de l'hôte)
 	var d_hit := _ennemi("i4_hit", "sbire", Vector3(3, 0, -2), 2000.0)
-	var d_fleche := _ennemi("i4_fleche", "sbire", Vector3(0, 0, -12), 2000.0)
+	var d_fleche := _ennemi("i4_fleche", "sbire", Vector3(0, 0, -12), 2000.0, true)   # debout : un draugr ALLONGÉ (dort) a son corps au sol, la flèche tirée à hauteur d'yeux le frôle et passe
 	var d_mort := _ennemi("i4_mort", "guerrier", Vector3(-3, 0, -2), 30.0)
 	for d in [d_hit, d_fleche, d_mort]:
 		d.set_physics_process(false)

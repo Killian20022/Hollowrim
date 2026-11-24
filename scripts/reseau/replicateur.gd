@@ -152,7 +152,7 @@ func _process(_dt: float) -> void:
 	var t := Time.get_ticks_msec() / 1000.0 - DELAI_INTERP
 	for id in _tampons.keys():
 		var e: Dictionary = _ent.get(id, {})
-		if e.is_empty() or not (e["appl"] as Callable).is_valid():
+		if e.is_empty() or not (e["appl"] as Callable).is_valid() or not is_instance_valid(e.get("noeud")):
 			continue
 		var etat: Variant = _lire(_tampons[id], t)
 		if etat is Dictionary:
