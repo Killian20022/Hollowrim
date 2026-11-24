@@ -100,8 +100,8 @@ void fragment() {
 	f = floor(f * 3.0 + 0.35) / 3.0;
 	float bouts = smoothstep(0.0, 0.06, u_c) * (1.0 - smoothstep(0.97, 1.0, u_c)) * smoothstep(0.0, 0.05, tete - u_c);
 	float axial = smoothstep(0.7, 0.97, abs(b));
-	float vis = mix(1.0, smoothstep(0.8, 3.5, length(VERTEX)), axial);   // v3f : presque rien sur le premier mètre vu dans l'axe
-	ALBEDO = bord * f * force_halo * eclat * k * bouts * vis * (1.0 + 0.3 * axial);
+	float vis = mix(1.0, smoothstep(0.08, 0.4, length(VERTEX)), axial);   // v3f : presque rien sur le premier mètre vu dans l'axe
+	ALBEDO = bord * f * force_halo * eclat * k * bouts * vis * (1.0 + 0.9 * axial);
 	ALPHA = 1.0;
 } while (false);
 }

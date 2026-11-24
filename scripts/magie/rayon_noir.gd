@@ -89,6 +89,7 @@ static var stats := {"crees": 0, "images": 0, "arrets": 0}
 
 var paume: Node3D
 var debut := Vector3.ZERO
+var paume_pos := Vector3.ZERO   # départ réel (paume) : le cercle y reste collé
 var fin := Vector3.ZERO
 var normale := Vector3.UP
 var touche_decor := false
@@ -140,6 +141,7 @@ static func maj(paume_: Node3D, depart: Vector3, fin_: Vector3, normale_: Vector
 		r.name = "RayonNoir"
 		r.paume = paume_
 		r.debut = _decale(depart, fin_)
+		r.paume_pos = depart
 		r.fin = fin_
 		r._fin_l = fin_   # v2 : le rayon jaillit d'un coup jusqu'à l'impact (la tête du shader file en 0,1 s)
 		r.largeur = largeur_
@@ -153,6 +155,7 @@ static func maj(paume_: Node3D, depart: Vector3, fin_: Vector3, normale_: Vector
 		if g != null and not EffetsMagie.muet:   # petit éclair de départ : bref, dans la main
 			g.lumiere("rayon_noir_eclair%d" % id, depart, Color(0.75, 0.45, 1.0), 3.0, 3.0, 0.9, 0.16)
 	r.debut = _decale(depart, fin_)
+	r.paume_pos = depart
 	r.fin = fin_
 	r.normale = normale_.normalized() if normale_.length() > 0.01 else Vector3.UP
 	r.touche_decor = touche_decor_
@@ -378,7 +381,7 @@ func _maj_cercle(g: GestionMagie) -> void:
 	var y := d.cross(x).normalized()
 	var dia := CERCLE_D * clampf(puissance, 1.0, 1.3)
 	# quad : X, Y dans le plan du cercle, Z = le rayon (face visible côté caméra grâce à cull_disabled)
-	_cercle.global_transform = Transform3D(Basis(x * dia, y * dia, d), debut + d * CERCLE_DEVANT)
+	_cercle.global_transform = Transform3D(Basis(x * dia, y * dia, d), paume_pos + d * CERCLE_DEVANT)
 	_cercle.visible = true
 	_mat_cercle.set_shader_parameter("ouv", ouv)
 	_mat_cercle.set_shader_parameter("t", _t)
