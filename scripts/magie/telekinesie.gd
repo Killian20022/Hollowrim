@@ -12,7 +12,7 @@ extends Node
 ## Impact d'un objet lancé : `ImpactsLances.objet_touche(objet, cible, point, normale, vitesse, lanceur)` (branche impacts) s'il
 ## existe ; sinon REPLI minimal : dégâts par LanceurSorts.frapper (masse × vitesse, ou dégâts lourds de l'arme), arme plantée
 ## (ou qui traverse si elle tue), choc transmis par `recevoir_choc` / `frapper` des cassables.
-## Mana : arrachement `cout + cout_par_kg × masse`, drain `cout_par_seconde + drain_par_kg × masse` par seconde ; plus de mana =
+## Mana : arrachement `cout + cout_par_kg × masse` (quasi gratuit), drain `cout_par_seconde + drain_par_kg × masse` par seconde, lancer `cout_lancer + cout_lancer_par_kg × masse` ; plus de mana =
 ## l'objet tombe. Refus lisibles : « Trop lourd. », « Pas assez de mana. ».
 ## `-- --sans-telekinesie` : le sort n'existe pas (ni raccourci, ni sort connu) — comportement d'avant.
 
@@ -477,6 +477,9 @@ func lancer(m: String, s: DonneesSort, oeil: Vector3, avant: Vector3) -> void:
 	var corps: RigidBody3D = e["corps"]
 	var masse := float(e["masse"])
 	var charge := charge_de(s, float(e["t"]))
+	# coût du lancer (modéré, jamais bloquant : sans assez de mana, on paie ce qui reste)
+	var c_lancer := (s.cout_lancer + s.cout_lancer_par_kg * masse) * Progression.facteur_cout_sort(ECOLE)
+	joueur.depenser_mana(minf(c_lancer, float(joueur.mana)))
 	var v := vitesse_lancer(s, charge, masse)
 	var depart := corps.global_position
 	var but := _but_lancer(oeil, avant, depart, corps)

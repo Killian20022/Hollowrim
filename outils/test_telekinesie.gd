@@ -90,6 +90,7 @@ func _tester() -> void:
 	magie.raccourci_telekinesie()
 	_verif(String(magie.eq.mains["gauche"].get("id")) == "telekinesie", "touche X : télékinésie à gauche")
 	await _saisie_maintien()
+	await _mana_masses()
 	await _refus()
 	await _lancer_draugr()
 	await _tps()
@@ -97,6 +98,39 @@ func _tester() -> void:
 	await _couverture()
 	print("ECHECS : %d" % (0 if _ok else 1), "  (", _n, " vérifications)")
 	quit(0 if _ok else 1)
+
+# ------------------------------------------------------------------ mana : saisie quasi gratuite, maintien progressif, lancer modéré
+
+func _mana_masses() -> void:
+	s.placer_joueur(Vector3(0, 0, 4.0), 0.0)
+	for cas in [["pq_tabouret", 0.5], ["pq_chaise", 7.0], ["pq_tonneau", 40.0]]:
+		await _reset()
+		var o := CorpsTelekinesie.creer(String(cas[0]), s, Transform3D(Basis(), Vector3(0.0, 0.0, 1.5)), float(cas[1]))
+		await _sim(0.6)
+		await _viser_point(Telekinesie.centre(o))
+		var m0: float = j.mana
+		magie.appuyer("gauche")
+		await _sim(0.25)
+		var saisie: float = m0 - float(j.mana)
+		_verif(tk.tient("gauche"), "%s %.1f kg : saisi" % [cas[0], cas[1]])
+		var m1: float = j.mana
+		await _sim(2.0)
+		var par_s: float = (m1 - float(j.mana)) / 2.0
+		var attendu := sd.cout_par_seconde + sd.drain_par_kg * float(cas[1])
+		var tenue_s: float = (float(j.mana)) / maxf(par_s, 0.01)
+		print("MESURE %s %.1f kg : saisie %.1f mana ; maintien %.1f /s ; tenable ~%.0f s ; " % [cas[0], cas[1], saisie, par_s, tenue_s])
+		_verif(saisie <= 4.0, "%s : saisie quasi gratuite (%.1f mana)" % [cas[0], saisie])
+		_verif(absf(par_s - attendu) < attendu * 0.25 + 0.3, "%s : maintien %.1f /s (attendu %.1f)" % [cas[0], par_s, attendu])
+		if float(cas[1]) >= 40.0:
+			_verif(tenue_s >= 8.0, "tonneau tenable %.0f s depuis une barre pleine" % tenue_s)
+		var m2: float = j.mana
+		magie.relacher("gauche")
+		await _sim(0.15)
+		var lance: float = m2 - float(j.mana)
+		var att_l := sd.cout_lancer + sd.cout_lancer_par_kg * float(cas[1])
+		print("MESURE %s : lancer %.1f mana" % [cas[0], lance])
+		_verif(lance >= att_l * 0.9 and lance <= att_l + 1.5, "%s : lancer modéré %.1f mana (attendu %.1f)" % [cas[0], lance, att_l])
+		o.queue_free()
 
 # ------------------------------------------------------------------ saisie, maintien, drain, chute
 
@@ -173,7 +207,7 @@ func _refus() -> void:
 	var leger := CorpsTelekinesie.creer("pq_tabouret", s, Transform3D(Basis(), Vector3(0.0, 0.0, 1.8)))
 	await _sim(0.6)
 	await _viser_point(Telekinesie.centre(leger))
-	j.mana = 5.0
+	j.mana = 1.0
 	magie.appuyer("gauche")
 	await _sim(0.4)
 	_verif(not tk.tient("gauche") and tk.dernier_refus == "Pas assez de mana.", "mana insuffisant pour l'arrachement : « %s »" % tk.dernier_refus)

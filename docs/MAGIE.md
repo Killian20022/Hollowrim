@@ -379,9 +379,10 @@ corps), `corps_telekinesie.gd` (prop physique de test / démo), `shaders/magie_t
   du réticule. Relâcher avant 0,12 s de tenue : l'objet tombe. Un coup reçu ≥ 14 coupe la tenue (l'objet tombe).
 - **Visée** : candidats = groupe `telekinesable` + (repli) petits objets vivants (`ObjetVivant`) ; aide douce de 7° élargie de la taille
   apparente de l'objet, portée 14 m, pas à travers un mur ; l'objet visé est en SURBRILLANCE (lueur faible) dès que le sort est en main.
-- **Mana** : arrachement `8 + 0,8 × masse` ; drain `3 + 0,35 × masse` par seconde. Chaise 7 kg : 13,6 puis 5,5 /s ; épée 1,6 kg : 9,3 puis
-  3,6 /s ; tonneau 28 kg : 30,4 puis 12,8 /s. Masse max 60 kg (« Trop lourd. ») ; « Pas assez de mana. » si l'arrachement ne se paie pas ;
-  mana à zéro pendant la tenue : l'objet tombe (« Mana épuisé. »).
+- **Mana** (retour exe 3 : la saisie coûtait `8 + 0,8 × masse`, tonneau 40 kg = 40 d'un coup) : arrachement quasi gratuit `2` ; drain
+  `1 + 0,2 × masse` par seconde ; lancer `3 + 0,15 × masse` (jamais bloquant). Mesuré : chope 0,5 kg 2,1 / 1,1 /s / 3,1 ; chaise 7 kg 2,2 /
+  2,4 /s / 4,1 ; tonneau 40 kg 2,6 / 9,0 /s / 9,2 (tenable ~11 s depuis une barre pleine). Masse max 60 kg (« Trop lourd. ») ; « Pas assez de mana. »
+  si l'arrachement ne se paie pas ; mana à zéro pendant la tenue : l'objet tombe (« Mana épuisé. »).
 - **Lancer** : vitesse `lerp(12, 24, charge) × clamp((4 / masse)^0,3, 0,5, 1,25)` m/s, charge = (tenue − 0,2 s) / 0,9 s : chaise 10-20 m/s,
   tonneau 6,5-13, épée 15-30. Une arme vole POINTE EN AVANT (+Y de la lame aligné sur la vitesse à chaque pas).
 - **Impacts** (intégration 2026-11-23) : au lâcher et au lancer, `ImpactsLances.suivre(objet, joueur)` (SuiviLancer : balayage, lame stabilisée nez en avant) fait TOUTE la détection ; la détection et le repli ci-dessous de Telekinesie ne servent plus que sans ImpactsLances. Une arme plantée se ressaisit (`saisi_telekinesie(true)` l'arrache, giclée). Avant l'intégration : à chaque contact rapide (> 6 m/s) d'un objet lancé — balayage de la trajectoire contre la

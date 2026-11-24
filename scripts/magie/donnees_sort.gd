@@ -105,6 +105,9 @@ enum Portee { PROJECTILE, JET, CHAINE, ZONE_VISEE, ZONE_SOI, SOI, DECHARGE, TELE
 ## Mana payé à l'arrachement : `cout` + cout_par_kg × masse. Drain pendant le maintien : `cout_par_seconde` + drain_par_kg × masse.
 @export var cout_par_kg := 0.8
 @export var drain_par_kg := 0.35
+## Lancer (relâchement après maintien) : mana payé `cout_lancer` + cout_lancer_par_kg × masse ; jamais bloquant (au pire, tout le mana restant).
+@export var cout_lancer := 0.0
+@export var cout_lancer_par_kg := 0.0
 ## Distance de tenue devant la main (m, depuis l'œil) et bornes (molette).
 @export var distance_tenue := 2.0
 @export var distance_min := 1.3
