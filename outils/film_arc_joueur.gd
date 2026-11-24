@@ -293,27 +293,33 @@ func _photos_g(nom: String) -> void:
 	_cadre()
 	await process_frame
 	await process_frame
-	var cg: Node3D = arc._vm.repere_poignee.get_child(0)
-	var main: Transform3D = arc.main_g_monde
-	print("PRISE_G %s ecart %.1f mm angle %.1f deg" % [nom, arc.prise_g.x * 1000.0, rad_to_deg(arc.prise_g.y)])
+	var mod: ArcModele = arc._modele()
+	var e: Vector2 = arc.prise_g_tps if j.troisieme else arc.prise_g   # mesuré dans skeleton_updated (après l'IK)
+	var ec := e.x
+	var an := e.y
+	print("PRISE_G v%s %s ecart %.1f mm angle %.1f deg" % [vue, nom, ec * 1000.0, rad_to_deg(an)])
 	await RenderingServer.frame_post_draw
-	root.get_viewport().get_texture().get_image().save_png(sortie.path_join("g_%s_joueur.png" % nom))
-	var c: Camera3D = j.camera
-	var g: Vector3 = arc._vm.repere_poignee.global_transform.origin
-	var bb: Basis = arc._vm.global_transform.basis.orthonormalized()
+	root.get_viewport().get_texture().get_image().save_png(sortie.path_join("g_%s_joueur_v%s.png" % [nom, vue]))
+	var g: Vector3 = mod.repere_poignee.global_transform.origin
+	var bb: Basis = mod.global_transform.basis.orthonormalized()
 	var obs := Camera3D.new()
 	obs.near = 0.01
 	s.add_child(obs)
-	# loupe de l'œil (même point de vue que le joueur, champ étroit) ; côté extérieur de l'arc, face (côté cible), dessous
-	for v in [["oeil", c.global_position, 22.0], ["cote", g - bb.x * 0.38 + bb.z * 0.06, 40.0], ["face", g - bb.z * 0.38 - bb.x * 0.08, 40.0], ["dessous", g - bb.y * 0.32 + bb.z * 0.1, 40.0]]:
+	var vues: Array = [["cote", g - bb.x * 0.38 + bb.z * 0.06, 40.0], ["face", g - bb.z * 0.38 - bb.x * 0.08, 40.0], ["dessous", g - bb.y * 0.32 + bb.z * 0.1, 40.0]]
+	if not j.troisieme:
+		vues.push_front(["oeil", j.camera.global_position, 22.0])
+	for v in vues:
 		obs.fov = v[2]
 		obs.global_position = v[1]
 		obs.look_at(g, bb.y if v[0] != "dessous" else -bb.z)
 		obs.current = true
 		await process_frame
 		await RenderingServer.frame_post_draw
-		root.get_viewport().get_texture().get_image().save_png(sortie.path_join("g_%s_%s.png" % [nom, v[0]]))
-	c.current = true
+		root.get_viewport().get_texture().get_image().save_png(sortie.path_join("g_%s_%s_v%s.png" % [nom, v[0], vue]))
+	if cam != null:
+		cam.current = true
+	else:
+		j.camera.current = true
 	obs.queue_free()
 
 ## --mode=ombre : 1re personne, le joueur marche, regard vers le sol devant lui (où tombe son ombre) : l'ombre du corps doit rester.
@@ -410,6 +416,14 @@ func _cadre() -> void:
 		var be: Basis = Basis(Vector3.UP, j.rotation.y)
 		cam.global_position = j.global_position + be * Vector3(1.4, 1.9, 2.6)
 		cam.look_at(j.global_position + be * Vector3(-0.5, 1.35, -5.0))
+	elif cam != null and _plan == "gros_plan":
+		# gros plan de la main gauche (côté de la cible, un peu au-dessus) : le poing serre la poignée à toutes les phases
+		var bb: Basis = arc._tp.global_transform.basis.orthonormalized()
+		var hg: Vector3 = arc._tp.repere_poignee.global_transform.origin
+		cam.fov = 36.0
+		cam.near = 0.02
+		cam.global_position = hg - bb.x * 0.5 + bb.z * 0.12 + bb.y * 0.05
+		cam.look_at(hg, bb.y)
 	elif cam != null and _plan in ["profil", "dos34", "face", "dessus"]:
 		var bp: Basis = Basis(Vector3.UP, j.rotation.y)
 		var pos: Vector3 = {"profil": Vector3(0.05, 1.55, 1.5), "dos34": Vector3(-1.1, 1.85, 1.2), "face": Vector3(1.5, 1.5, -0.25), "dessus": Vector3(0.15, 3.0, 0.05)}[_plan]
