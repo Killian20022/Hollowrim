@@ -1,0 +1,209 @@
+diff --git a/.gitignore b/.gitignore
+index 7aa13f0d..80bc7a22 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -11,3 +11,5 @@ addons/epic-online-services-godot/
+ addons_isoles/
+ eos.cfg
+ *.eos.cfg
++# Réglages EOS intégrés au pck à l'export (copiés par outils/exporter_windows.sh, jamais commités)
++reseau/eos_integre.cfg
+diff --git a/docs/EOS_PAS_A_PAS.md b/docs/EOS_PAS_A_PAS.md
+index 000935d2..951b3986 100644
+--- a/docs/EOS_PAS_A_PAS.md
++++ b/docs/EOS_PAS_A_PAS.md
+@@ -2,9 +2,9 @@
+ 
+ But : toi (Grenoble) et ton ami (Montpellier), sans IP, sans réglage de box. Tu héberges, un code de 6 caractères s'affiche
+ (ex. `K7PQ4X`), ton ami le tape dans « Rejoindre avec un code ». Le relais est celui d'Epic (gratuit, pas de carte bancaire).
+-Une seule personne crée le compte Epic : toi. Ton ami reçoit simplement le fichier `eos.cfg`.
++Une seule personne crée le compte Epic : toi. **Les joueurs n'ont rien à configurer** : les identifiants sont intégrés au jeu à l'export (le zip ne contient pas d'`eos.cfg`).
+ 
+-Le plugin (EOSG 2.3.1) est DÉJÀ dans le jeu. Il ne reste que le compte et le fichier `eos.cfg`.
++Le plugin (EOSG 2.3.1) est DÉJÀ dans le jeu. Il ne reste que le compte et le fichier `eos.cfg` (utilisé à l'export, pas à donner aux joueurs).
+ 
+ ## A. Créer le compte et le produit (une seule fois, ~15 min)
+ 
+@@ -52,12 +52,13 @@ client_id="COLLE_ICI"
+ client_secret="COLLE_ICI"
+ ```
+ 
+-Garde les guillemets. Place-le **à côté de `Hollowrim.exe`** (dans le même dossier). Variante : dans `%APPDATA%\Hollowrim\eos.cfg`.
+-Le fichier à côté de l'exe passe en premier.
++Garde les guillemets. Pose-le sur le Bureau (`Desktop\eos.cfg`) : `bash outils/exporter_windows.sh` l'intègre au jeu
++(`res://reseau/eos_integre.cfg`, gitignoré, supprimé du dossier après l'export ; variable `EOS_CFG` pour un autre chemin).
++**Rien à configurer pour les joueurs.** Ne commite jamais ce fichier. Le Client Secret est donc lisible par qui sait extraire un pck :
++la policy Peer2Peer limite l'usage ; s'il fuit : portail > Clients > régénère le secret et refais un export.
+ 
+-**Ton ami met exactement le même fichier à côté de son exe** (mêmes identifiants = même réseau). Envoie-le-lui en privé
+-(message direct, pas de salon public, pas de dépôt Git) : il contient le Client Secret. S'il fuit : portail > Clients > régénère le secret
+-et renvoie un nouveau fichier.
++Ordre de lecture côté jeu (le premier fichier existant gagne) : 1. `eos.cfg` à côté de `Hollowrim.exe` (pour remplacer les réglages),
++2. `%APPDATA%\Hollowrim\eos.cfg`, 3. réglages intégrés au jeu.
+ 
+ ## E. Jouer
+ 
+diff --git a/export_presets.cfg b/export_presets.cfg
+index 93834f50..108c7cbf 100644
+--- a/export_presets.cfg
++++ b/export_presets.cfg
+@@ -7,7 +7,7 @@ advanced_options=true
+ dedicated_server=false
+ custom_features=""
+ export_filter="all_resources"
+-include_filter="data/*.json, assets/ui/icones/*.json, assets/personnages/*.json, *.dat, *.cache"
++include_filter="data/*.json, assets/ui/icones/*.json, assets/personnages/*.json, *.dat, *.cache, reseau/eos_integre.cfg"
+ exclude_filter="outils/*, scenes/test_integration2.tscn, scenes/test_monde_vivant.tscn, captures/*, docs/*, sources_blender/*, dist/*, export/*, *.md, *.txt, *.blend, *.blend1, *.mjs, *.ts, *.py, *.sh, assets/modeles/lookdev/*, assets/modeles/villageois/*, ref_menu/*, scripts/menu_decor/outils/*, textures/menu_decor/fond_avec_logo.png, assets/modeles/armures/sol/armure_cuir_atlas_cuir.png, assets/modeles/armures/sol/armure_fourrure_armure_fourrure.png, assets/modeles/armures/sol/armure_fourrure_atlas_fourrure.png, assets/modeles/armures/sol/bottes_cuir_atlas_cuir.png, assets/modeles/armures/sol/bottes_fourrure_atlas_fourrure.png, assets/modeles/armures/sol/bottes_fourrure_bottes_fourrure.png, assets/modeles/armures/sol/bottes_or_bottes_or.png, assets/modeles/armures/sol/bottes_or_enchante_bottes_or_enchante.png, assets/modeles/armures/sol/bottes_os_atlas_os_hd.png, assets/modeles/armures/sol/bottes_rubis_bottes_rubis_cristal.png, assets/modeles/armures/sol/bottes_rubis_enchante_bottes_rubis_cristal_enchante.png, assets/modeles/armures/sol/bottes_saphir_bottes_saphir_cristal.png, assets/modeles/armures/sol/bottes_saphir_enchante_bottes_saphir_cristal_enchante.png, assets/modeles/armures/sol/bottes_saphir_enchante_gemme_saphir_enchante.png, assets/modeles/armures/sol/bottes_saphir_gemme_saphir.png, assets/modeles/armures/sol/bottes_verre_atlas_verre.png, assets/modeles/armures/sol/brigandine_braise_brigandine_braise.png, assets/modeles/armures/sol/capuche_cuir_atlas_cuir.png, assets/modeles/armures/sol/capuche_thaumaturge_capuche_thaumaturge_hd.png, assets/modeles/armures/sol/casque_fourrure_atlas_fourrure.png, assets/modeles/armures/sol/casque_fourrure_casque_fourrure.png, assets/modeles/armures/sol/casque_or_casque_or.png, assets/modeles/armures/sol/casque_or_enchante_casque_or_enchante.png, assets/modeles/armures/sol/casque_os_atlas_os_hd.png, assets/modeles/armures/sol/casque_rubis_casque_rubis_cristal.png, assets/modeles/armures/sol/casque_rubis_enchante_casque_rubis_cristal_enchante.png, assets/modeles/armures/sol/casque_rubis_enchante_gemme_rubis_enchante.png, assets/modeles/armures/sol/casque_rubis_gemme_rubis.png, assets/modeles/armures/sol/casque_saphir_casque_saphir_cristal.png, assets/modeles/armures/sol/casque_saphir_enchante_casque_saphir_cristal_enchante.png, assets/modeles/armures/sol/casque_saphir_enchante_gemme_saphir_enchante.png, assets/modeles/armures/sol/casque_saphir_gemme_saphir.png, assets/modeles/armures/sol/casque_verre_atlas_verre.png, assets/modeles/armures/sol/cuirasse_or_cuirasse_or.png, assets/modeles/armures/sol/cuirasse_or_enchante_cuirasse_or_enchante.png, assets/modeles/armures/sol/cuirasse_os_atlas_os_hd.png, assets/modeles/armures/sol/cuirasse_rubis_cuirasse_rubis_cristal.png, assets/modeles/armures/sol/cuirasse_rubis_enchante_cuirasse_rubis_cristal_enchante.png, assets/modeles/armures/sol/cuirasse_rubis_enchante_gemme_rubis_enchante.png, assets/modeles/armures/sol/cuirasse_rubis_gemme_rubis.png, assets/modeles/armures/sol/cuirasse_saphir_cuirasse_saphir_cristal.png, assets/modeles/armures/sol/cuirasse_saphir_enchante_cuirasse_saphir_cristal_enchante.png, assets/modeles/armures/sol/cuirasse_saphir_enchante_gemme_saphir_enchante.png, assets/modeles/armures/sol/cuirasse_saphir_gemme_saphir.png, assets/modeles/armures/sol/cuirasse_verre_atlas_verre.png, assets/modeles/armures/sol/gantelets_or_enchante_gantelets_or_enchante.png, assets/modeles/armures/sol/gantelets_or_gantelets_or.png, assets/modeles/armures/sol/gantelets_rubis_enchante_gantelets_rubis_cristal_enchante.png, assets/modeles/armures/sol/gantelets_rubis_enchante_gemme_rubis_enchante.png, assets/modeles/armures/sol/gantelets_rubis_gantelets_rubis_cristal.png, assets/modeles/armures/sol/gantelets_rubis_gemme_rubis.png, assets/modeles/armures/sol/gantelets_saphir_enchante_gantelets_saphir_cristal_enchante.png, assets/modeles/armures/sol/gantelets_saphir_enchante_gemme_saphir_enchante.png, assets/modeles/armures/sol/gantelets_saphir_gantelets_saphir_cristal.png, assets/modeles/armures/sol/gantelets_saphir_gemme_saphir.png, assets/modeles/armures/sol/gantelets_verre_atlas_verre.png, assets/modeles/armures/sol/gants_cuir_atlas_cuir.png, assets/modeles/armures/sol/gants_fourrure_atlas_fourrure.png, assets/modeles/armures/sol/gants_fourrure_gants_fourrure.png, assets/modeles/armures/sol/gants_os_atlas_os_hd.png, assets/modeles/armures/sol/jambieres_acier_nordique_chausses_acier.png, assets/modeles/armures/sol/jambieres_braise_chausses_braise.png, assets/modeles/armures/sol/jambieres_cuir_chausses_cuir.png, assets/modeles/armures/sol/jambieres_fer_chausses_fer.png, assets/modeles/armures/sol/jambieres_fourrure_chausses_fourrure.png, assets/modeles/armures/sol/jambieres_gardiens_chausses_gardiens.png, assets/modeles/armures/sol/jambieres_obsidienne_chausses_obsidienne.png, assets/modeles/armures/sol/jambieres_or_chausses_or.png, assets/modeles/armures/sol/jambieres_os_chausses_os.png, assets/modeles/armures/sol/jambieres_rubis_chausses_rubis.png, assets/modeles/armures/sol/jambieres_saphir_chausses_saphir.png, assets/modeles/armures/porte/armure_fourrure_armure_fourrure.png, assets/modeles/armures/porte/bottes_cuir_atlas_cuir.png, assets/modeles/armures/porte/bottes_fourrure_atlas_fourrure.png, assets/modeles/armures/porte/bottes_fourrure_bottes_fourrure.png, assets/modeles/armures/porte/bottes_or_enchante_bottes_or_enchante.png, assets/modeles/armures/porte/bottes_saphir_enchante_gemme_saphir_enchante.png, assets/modeles/armures/porte/bottes_saphir_gemme_saphir.png, assets/modeles/armures/porte/capuche_cuir_atlas_cuir.png, assets/modeles/armures/porte/casque_fourrure_atlas_fourrure.png, assets/modeles/armures/porte/casque_fourrure_casque_fourrure.png, assets/modeles/armures/porte/casque_or_enchante_casque_or_enchante.png, assets/modeles/armures/porte/casque_os_atlas_os_hd.png, assets/modeles/armures/porte/casque_verre_atlas_verre.png, assets/modeles/armures/porte/cuirasse_os_atlas_os_hd.png, assets/modeles/armures/porte/cuirasse_rubis_enchante_gemme_rubis_enchante.png, assets/modeles/armures/porte/cuirasse_rubis_gemme_rubis.png, assets/modeles/armures/porte/cuirasse_saphir_enchante_gemme_saphir_enchante.png, assets/modeles/armures/porte/cuirasse_saphir_gemme_saphir.png, assets/modeles/armures/porte/cuirasse_verre_atlas_verre.png, assets/modeles/armures/porte/gantelets_or_gantelets_or.png, assets/modeles/armures/porte/gantelets_rubis_enchante_gemme_rubis_enchante.png, assets/modeles/armures/porte/gantelets_rubis_gemme_rubis.png, assets/modeles/armures/porte/gantelets_saphir_enchante_gemme_saphir_enchante.png, assets/modeles/armures/porte/gantelets_saphir_gemme_saphir.png, assets/modeles/armures/porte/gantelets_verre_atlas_verre.png, assets/modeles/armures/porte/gants_cuir_atlas_cuir.png, assets/modeles/armures/porte/gants_fourrure_atlas_fourrure.png, assets/modeles/armures/porte/gants_fourrure_gants_fourrure.png, assets/modeles/armures/porte/gants_os_atlas_os_hd.png, assets/essai_tripo/mage_tripo_source*, assets/essai_tripo/armure.glb, assets/essai_tripo/armure_armure_tex.png, assets/pnj/tripo_archer.glb, assets/pnj/tripo_archer_tripo_*, assets/pnj/tripo_garde_epee.glb, assets/pnj/tripo_garde_epee_tripo_*, assets/pnj/tripo_garde_lance.glb, assets/pnj/tripo_garde_lance_tripo_*, assets/pnj/tripo_mage.glb, assets/pnj/tripo_mage_tripo_*, assets/pnj/tripo_mage_512.png, assets/pnj/tripo_jarl.glb, assets/pnj/tripo_jarl_jarl_*, assets/pnj/ennemis/tripo_archer.glb, assets/pnj/ennemis/tripo_archer_512.png, assets/pnj/ennemis/tripo_archer_tripo_*, assets/pnj/ennemis/tripo_draugr.glb, assets/pnj/ennemis/tripo_draugr_512.png, assets/pnj/ennemis/tripo_draugr_tripo_*, assets/pnj/ennemis/tripo_gobelin.glb, assets/pnj/ennemis/tripo_gobelin_512.png, assets/pnj/ennemis/tripo_gobelin_tripo_*, assets/pnj/ennemis/tripo_squelette.glb, assets/pnj/ennemis/tripo_squelette_512.png, assets/pnj/ennemis/tripo_squelette_tripo_*"
+ export_path="dist/Hollowrim.exe"
+ patches=PackedStringArray()
+diff --git a/outils/exporter_windows.sh b/outils/exporter_windows.sh
+index 3036038c..acaa1ea6 100644
+--- a/outils/exporter_windows.sh
++++ b/outils/exporter_windows.sh
+@@ -5,7 +5,7 @@
+ # LISEZMOI.txt, CREDITS.txt (licences des ressources, depuis assets/LICENCES.md). dist/ est ignoré par git.
+ # Nom et version : lus dans project.godot (application/config/name, application/config/version) et recopiés dans
+ # les métadonnées du preset (product_name, file_version, product_version) avant l'export.
+-# Variables : GODOT (exécutable), SLOT (limiteur de Godot simultanés, défaut /tmp/godot_slot.sh s'il existe).
++# Variables : EOS_CFG (réglages EOS à intégrer au pck, défaut Desktop/eos.cfg), GODOT (exécutable), SLOT (limiteur de Godot simultanés, défaut /tmp/godot_slot.sh s'il existe).
+ set -euo pipefail
+ ICI="$(cd "$(dirname "$0")/.." && pwd)"
+ P="$(wslpath -w "$ICI")"
+@@ -24,6 +24,19 @@ sed -i -e "s/^application\/product_name=.*/application\/product_name=\"$NOM\"/"
+ DIST="$ICI/dist"; BUILD="$DIST/build"
+ rm -rf "$BUILD"; mkdir -p "$BUILD"
+ lancer() { if [[ -f "$SLOT" ]]; then GODOT_TIMEOUT=900 bash "$SLOT" "$G" "$@"; else timeout 900 "$G" "$@"; fi; }
++# Réglages EOS intégrés au pck (gitignoré) : copiés depuis $EOS_CFG juste avant l'export, supprimés ensuite (trap).
++# Sans source : l'export marche quand même, sans jeu par Internet intégré. Les valeurs ne sont jamais affichées.
++EOS_CFG="${EOS_CFG:-/mnt/c/Users/lopezk19/Desktop/eos.cfg}"
++EOS_INTEGRE="$ICI/reseau/eos_integre.cfg"
++EOS_INTEGRE_OK=0
++nettoyer_eos() { rm -f "$EOS_INTEGRE"; rmdir "$ICI/reseau" 2>/dev/null || true; }
++trap nettoyer_eos EXIT
++if [[ -f "$EOS_CFG" ]]; then
++	mkdir -p "$ICI/reseau"; cp "$EOS_CFG" "$EOS_INTEGRE"; EOS_INTEGRE_OK=1
++	echo "EOS : réglages intégrés au jeu (copiés depuis $EOS_CFG, valeurs non affichées)"
++else
++	echo "AVERTISSEMENT : $EOS_CFG absent -> build SANS identifiants EOS intégrés (jeu par Internet à configurer à la main)." >&2
++fi
+ t0=$SECONDS
+ lancer --headless --path "$P" --import > "$DIST/import.log" 2>&1 || true
+ lancer --headless --path "$P" --export-release "Windows Desktop" "$(wslpath -w "$BUILD")\\$NOM.exe" > "$DIST/export.log" 2>&1 || true
+@@ -32,6 +45,7 @@ if [[ ! -s "$BUILD/$NOM.exe" ]]; then
+ fi
+ grep -E "ERROR|SCRIPT ERROR" "$DIST/export.log" | head -20 || true
+ echo "export : $((SECONDS - t0)) s"
++nettoyer_eos
+ 
+ # Plugin EOS (jeu par Internet) : le SDK Epic doit être À CÔTÉ de l'exe. Le plugin d'export les y copie normalement ;
+ # sinon on les copie depuis addons/. Sans le plugin (addons/ absent) : build ENet seul, avertissement.
+@@ -55,19 +69,6 @@ if [[ -d "$EOS_ADDON" ]]; then
+ else
+ 	echo "AVERTISSEMENT : addons/epic-online-services-godot absent -> pas de jeu par Internet dans ce build (ENet seul)." >&2
+ fi
+-cat > "$BUILD/eos.cfg.exemple" <<'EOC'
+-; Renommer ce fichier en « eos.cfg » (sans .exemple), le laisser à côté de Hollowrim.exe et remplacer les COLLE_ICI.
+-; Voir Hollowrim_EPIC_PAS_A_PAS.txt. Fichier à transmettre en privé : il contient le Client Secret.
+-[eos]
+-product_name="Hollowrim"
+-product_version="0.1"
+-product_id="COLLE_ICI"
+-sandbox_id="COLLE_ICI"
+-deployment_id="COLLE_ICI"
+-client_id="COLLE_ICI"
+-client_secret="COLLE_ICI"
+-EOC
+-sed -i 's/$/\r/' "$BUILD/eos.cfg.exemple"
+ [[ -f "$ICI/docs/EOS_PAS_A_PAS.md" ]] && cp "$ICI/docs/EOS_PAS_A_PAS.md" "$BUILD/EOS_PAS_A_PAS.txt" && sed -i 's/$/\r/' "$BUILD/EOS_PAS_A_PAS.txt"
+ 
+ # LISEZMOI.txt (CRLF : lisible dans le Bloc-notes)
+@@ -97,9 +98,9 @@ CONFIGURATION
+ - Pilote graphique compatible Vulkan ; à défaut le jeu bascule seul en OpenGL.
+ 
+ JOUER PAR INTERNET (facultatif)
+-- Menu Multijoueur > « Héberger par Internet (code) » / « Rejoindre avec un code ». Il faut le fichier eos.cfg
+-  (modèle : eos.cfg.exemple ; mode d'emploi : EOS_PAS_A_PAS.txt) à côté de $NOM.exe, ainsi que les DLL fournies.
+-  Sans eos.cfg : jeu en réseau local / IP directe seulement.
++- Menu Multijoueur > « Héberger par Internet (code) » / « Rejoindre avec un code » : rien à configurer, tout est intégré.
++  Gardez les DLL fournies (EOSSDK-Win64-Shipping.dll, xaudio2_9redist.dll, libeosg...) dans le même dossier que $NOM.exe.
++  (Avancé : un fichier eos.cfg posé à côté de $NOM.exe remplace les réglages intégrés ; voir EOS_PAS_A_PAS.txt.)
+ 
+ SAUVEGARDES
+ - Dossier : %APPDATA%\\$NOM\\  (taper %APPDATA%\\$NOM dans la barre de l'Explorateur)
+@@ -127,7 +128,7 @@ sed -i 's/$/\r/' "$BUILD/LISEZMOI.txt" "$BUILD/CREDITS.txt"
+ 
+ ZIP="$DIST/$NOM-$VERSION-windows.zip"
+ rm -f "$ZIP"
+-FICHIERS=("$NOM.exe" LISEZMOI.txt CREDITS.txt eos.cfg.exemple)
++FICHIERS=("$NOM.exe" LISEZMOI.txt CREDITS.txt)
+ [[ -f "$BUILD/EOS_PAS_A_PAS.txt" ]] && FICHIERS+=(EOS_PAS_A_PAS.txt)
+ FICHIERS+=("${DLL_EOS[@]}")
+ [[ -f "$BUILD/$NOM.pck" ]] && FICHIERS+=("$NOM.pck")
+diff --git a/outils/test_transport_choix.gd b/outils/test_transport_choix.gd
+index b3e35a06..c68daa70 100644
+--- a/outils/test_transport_choix.gd
++++ b/outils/test_transport_choix.gd
+@@ -78,6 +78,22 @@ func _lancer() -> void:
+ 	if not plugin:
+ 		_v(not t.disponible() and "EOSG" in t.message, "complet mais plugin absent : indisponible, message plugin")
+ 	DirAccess.remove_absolute(g)
++	# --- réglages intégrés au jeu : ordre exe > user:// > intégré
++	var absent := "user://_absent_eos_choix.cfg"
++	e.save(tmp)   # « intégré » factice (valeurs bidon), complet
++	var integre_seul := ReseauTransportEOS.choisir_chemin_cfg("", absent, tmp)
++	_v(integre_seul == tmp, "ni fichier à côté de l'exe ni user:// : le cfg intégré est choisi")
++	var t3 := ReseauTransportEOS.new()
++	t3.chemin_cfg = integre_seul
++	if plugin:
++		_v(t3.disponible(), "avec le cfg intégré seul, disponible() est vrai : " + t3.message)
++	var user_tmp := "user://_user_eos_choix.cfg"
++	e.save(user_tmp)
++	_v(ReseauTransportEOS.choisir_chemin_cfg("", user_tmp, tmp) == user_tmp, "user:// passe avant l'intégré")
++	_v(ReseauTransportEOS.choisir_chemin_cfg(user_tmp, absent, tmp) == user_tmp, "le fichier à côté de l'exe passe en premier")
++	_v(ReseauTransportEOS.choisir_chemin_cfg("", absent, "user://_absent2.cfg") == absent, "rien d'existant : repli sur user:// (message d'absence)")
++	DirAccess.remove_absolute(ProjectSettings.globalize_path(user_tmp))
++	DirAccess.remove_absolute(g)
+ 
+ 	# --- codes de salon
+ 	var rng := RandomNumberGenerator.new()
+diff --git a/scripts/reseau/reseau_transport_eos.gd b/scripts/reseau/reseau_transport_eos.gd
+index cbb1e8e2..15e582f9 100644
+--- a/scripts/reseau/reseau_transport_eos.gd
++++ b/scripts/reseau/reseau_transport_eos.gd
+@@ -11,6 +11,7 @@ const MAX_JOUEURS := 4
+ const CLASSE_PAIR := "EOSGMultiplayerPeer"
+ const ADAPTATEUR := "res://scripts/reseau/reseau_eos_adaptateur.gd"
+ const CFG := "user://eos.cfg"                  # JAMAIS commité (user:// est hors du dépôt)
++const CFG_INTEGRE := "res://reseau/eos_integre.cfg"   # embarqué dans le pck à l'export (gitignoré, copié par outils/exporter_windows.sh)
+ const CFG_EXE := "eos.cfg"                     # variante : fichier posé À CÔTÉ de l'exe (un seul fichier fourni avec le zip)
+ const CLES_OBLIGATOIRES := ["product_name", "product_version", "product_id", "sandbox_id", "deployment_id", "client_id", "client_secret"]
+ const SOCKET_DEFAUT := "hollowrim"
+@@ -27,13 +28,23 @@ var _pret := false
+ static func plugin_present() -> bool:
+ 	return ClassDB.class_exists(CLASSE_PAIR)
+ 
+-## Fichier de réglages à utiliser : `eos.cfg` à côté de l'exe s'il existe, sinon `user://eos.cfg` (%APPDATA%\\Hollowrim).
++## Fichier de réglages à utiliser, par ordre de priorité : (1) `eos.cfg` à côté de l'exe (pour pouvoir remplacer),
++## (2) `user://eos.cfg` (%APPDATA%\\Hollowrim), (3) réglages intégrés au jeu (`res://reseau/eos_integre.cfg`).
+ static func chemin_cfg_defaut() -> String:
++	var a_cote := ""
+ 	if not OS.has_feature("editor"):
+-		var a_cote := OS.get_executable_path().get_base_dir().path_join(CFG_EXE)
+-		if FileAccess.file_exists(a_cote):
+-			return a_cote
+-	return CFG
++		a_cote = OS.get_executable_path().get_base_dir().path_join(CFG_EXE)
++	return choisir_chemin_cfg(a_cote, CFG, CFG_INTEGRE)
++
++## Premier fichier existant parmi (à côté de l'exe, utilisateur, intégré) ; à défaut `utilisateur` (le message d'absence l'indique).
++static func choisir_chemin_cfg(a_cote: String, utilisateur: String, integre: String) -> String:
++	if a_cote != "" and FileAccess.file_exists(a_cote):
++		return a_cote
++	if FileAccess.file_exists(utilisateur):
++		return utilisateur
++	if FileAccess.file_exists(integre):
++		return integre
++	return utilisateur
+ 
+ ## Explication destinée au joueur quand EOS n'est pas utilisable (affichée dans le menu Multijoueur).
+ func aide_configuration() -> String:
