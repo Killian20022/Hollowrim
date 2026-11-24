@@ -28,9 +28,31 @@ func preparer(cfg: Dictionary) -> String:
 	var nom := str(cfg.get("nom_joueur", "")).strip_edges()
 	if nom == "":
 		nom = "Joueur"
-	if not await HAuth.login_anonymous_async(nom):
-		return "EOS : connexion anonyme (Device ID) refusée (vérifier l'accès réseau et que « Device ID » est autorisé dans le portail développeur, voir docs/EOS_PAS_A_PAS.md)."
-	return ""
+	if str(cfg.get("device_id_jetable", "")) == "true":
+		# Outil d'essai seulement (2e instance sur la MÊME machine : il faut une identité différente) : méthode du plugin,
+		# qui supprime puis recrée le Device ID. Jamais utilisé par le jeu.
+		if not await HAuth.login_anonymous_async(nom):
+			return "EOS : connexion anonyme (Device ID jetable) refusée."
+		return ""
+	# Device ID PERSISTANT : créé une seule fois par machine, jamais supprimé (le login_anonymous du plugin le supprime
+	# puis le recrée à chaque lancement : lent et source de blocages). DuplicateNotAllowed = il existe déjà : c'est normal.
+	var login := EOS.Connect.LoginOptions.new()
+	login.credentials = EOS.Connect.Credentials.new()
+	login.credentials.type = EOS.ExternalCredentialType.DeviceidAccessToken
+	login.credentials.token = null
+	login.user_login_info = EOS.Connect.UserLoginInfo.new()
+	login.user_login_info.display_name = nom
+	HAuth.display_name = nom
+	for essai in 2:   # 2e passage : le Device ID a pu disparaître entre sa création et la connexion (autre instance du jeu)
+		var opts_id := EOS.Connect.CreateDeviceIdOptions.new()
+		opts_id.device_model = " ".join(PackedStringArray([OS.get_name(), OS.get_model_name()]))
+		EOS.Connect.ConnectInterface.create_device_id(opts_id)
+		var rep_id = await IEOS.connect_interface_create_device_id_callback
+		if not EOS.is_success(rep_id) and rep_id.result_code != EOS.Result.DuplicateNotAllowed:
+			return "EOS : création du Device ID refusée (%s)." % EOS.result_str(rep_id)
+		if await HAuth.login_game_services_async(login):
+			return ""
+	return "EOS : connexion anonyme (Device ID) refusée (vérifier l'accès réseau et que « Device ID » est autorisé dans le portail développeur, voir docs/EOS_PAS_A_PAS.md)."
 
 func creer_salon(code: String, max_joueurs: int) -> String:
 	var o := EOS.Lobby.CreateLobbyOptions.new()
@@ -83,3 +105,9 @@ func quitter_salon() -> void:
 	else:
 		await _salon.leave_async()
 	_salon = null
+
+## Arrêt propre du SDK : salon quitté, déconnexion, libération de la plateforme. Sans cela le processus peut rester
+## bloqué à quit() (threads du SDK encore actifs). À appeler juste avant de quitter le jeu.
+func arreter() -> void:
+	await quitter_salon()
+	await HAuth.logout_async()

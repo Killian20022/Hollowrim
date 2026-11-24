@@ -11,6 +11,14 @@ var _msg_recu := ""
 func _init() -> void:
 	_run.call_deferred()
 
+## Journal optionnel (--journal=<fichier>) : la sortie standard est perdue si Godot est tué par le délai.
+func _j(m: String) -> void:
+	print(m)
+	var f := _arg("journal")
+	if f != "":
+		var h := FileAccess.open(f, FileAccess.READ_WRITE if FileAccess.file_exists(f) else FileAccess.WRITE)
+		h.seek_end(); h.store_line("%d %s" % [Time.get_ticks_msec(), m]); h.close()
+
 func _arg(nom: String, defaut := "") -> String:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--%s=" % nom):
@@ -25,20 +33,21 @@ func _run() -> void:
 	var t := ReseauTransportEOS.new()
 	t.chemin_cfg = _arg("cfg")
 	t.nom_joueur = "Essai" + role.capitalize()
+	t.device_id_jetable = (role == "invite")   # 2e instance sur la même machine : identité distincte de l'hôte
 	if not t.disponible():
-		print(tag, "indisponible : ", t.message); quit(1); return
+		_j(tag + str("indisponible : " + str(t.message))); quit(1); return
 	if not await t.preparer_async():
-		print(tag, "preparer KO : ", t.message); quit(2); return
-	print(tag, "connecté EOS")
+		_j(tag + str("preparer KO : " + str(t.message))); quit(2); return
+	_j(tag + "connecté EOS")
 	var pair: MultiplayerPeer
 	if role == "hote":
 		var code: String = await t.ouvrir_salon_async()
 		if code == "":
-			print(tag, "salon KO : ", t.message); quit(3); return
-		print(tag, "salon ouvert, code=", code)
+			_j(tag + str("salon KO : " + str(t.message))); quit(3); return
+		_j(tag + str("salon ouvert, code=" + str(code)))
 		pair = t.creer_hote(0)
 		if pair == null:
-			print(tag, "creer_hote KO : ", t.message); quit(4); return
+			_j(tag + str("creer_hote KO : " + str(t.message))); quit(4); return
 		var f := FileAccess.open(echange, FileAccess.WRITE)
 		f.store_string(code); f.close()
 	else:
@@ -48,19 +57,19 @@ func _run() -> void:
 				code = FileAccess.get_file_as_string(echange).strip_edges()
 				if code != "": break
 			await create_timer(1.0).timeout
-		print(tag, "code lu=", code)
+		_j(tag + str("code lu=" + str(code)))
 		if not await t.rejoindre_salon_async(code):
-			print(tag, "rejoindre KO : ", t.message); quit(5); return
-		print(tag, "salon rejoint")
+			_j(tag + str("rejoindre KO : " + str(t.message))); quit(5); return
+		_j(tag + str("salon rejoint"))
 		pair = t.creer_client("", 0)
 		if pair == null:
-			print(tag, "creer_client KO : ", t.message); quit(6); return
+			_j(tag + str("creer_client KO : " + str(t.message))); quit(6); return
 	var mp := SceneMultiplayer.new()
 	mp.multiplayer_peer = pair
 	set_multiplayer(mp)
-	mp.peer_connected.connect(func(id): _vus.append(id); print(tag, "peer_connected ", id))
-	mp.peer_disconnected.connect(func(id): print(tag, "peer_disconnected ", id))
-	mp.peer_packet.connect(func(id, p: PackedByteArray): _msg_recu = p.get_string_from_utf8(); print(tag, "message reçu de ", id, " : ", _msg_recu))
+	mp.peer_connected.connect(func(id): _vus.append(id); _j(tag + "peer_connected " + str(id)))
+	mp.peer_disconnected.connect(func(id): _j(tag + "peer_disconnected " + str(id)))
+	mp.peer_packet.connect(func(id, p: PackedByteArray): _msg_recu = p.get_string_from_utf8(); _j(tag + "message reçu de " + str(id) + " : " + _msg_recu))
 	var fin := Time.get_ticks_msec() + int(float(_arg("duree", "45")) * 1000.0)
 	var envoye := false
 	while Time.get_ticks_msec() < fin:
@@ -71,6 +80,8 @@ func _run() -> void:
 		if envoye and _msg_recu != "":
 			await create_timer(2.0).timeout
 			break
-	print(tag, "RESULTAT connexion=", not _vus.is_empty(), " message=", _msg_recu != "")
-	await t.fermer_salon_async()
+	_j(tag + "RESULTAT connexion=" + str(not _vus.is_empty()) + " message=" + str(_msg_recu != ""))
+	_j("arrêt...")
+	if ReseauTransportEOS.sortie_propre():   # comme Jeu.quitter() : salon quitté (1 s max) puis processus tué
+		return
 	quit(0 if not _vus.is_empty() else 7)
