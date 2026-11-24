@@ -81,6 +81,7 @@ func _tester() -> void:
 	for arme in ["epee_soldat", "hache_guerre", "hachette", "sabre_pillard", "dague_acier"]:
 		await _arme_telekinesie(arme)
 	_portee()
+	await _trainee()
 	await _fleche_corps(0.0, "centre")
 	await _fleche_corps(0.12, "bord du torse")
 	await _fleche_corps(0.45, "à côté (frôle ou rate)")
@@ -173,5 +174,20 @@ func _fleche_corps(decal: float, nom: String) -> void:
 		if f._dans_corps:
 			_verif(f.get_parent() is BoneAttachment3D, "flèche (%s) : si fichée, c'est bien dans un os" % nom)
 	b.queue_free()
+	if is_instance_valid(f):
+		f.queue_free()
+
+## Traînée : en vol la flèche laisse un ruban (surface de l'ImmediateMesh) de ~0,4 s, qui disparaît ensuite.
+func _trainee() -> void:
+	await _reset()
+	var o: Vector3 = j.camera.global_position
+	var f := Projectile.tirer_joueur(s, o + Vector3(0.3, -0.2, -0.6), Vector3(0, 0.05, -1), j, 36.0, 60.0, false)
+	await _sim(0.2)
+	var t := f.get_node_or_null("Trainee") as MeshInstance3D
+	_verif(t != null, "traînée : nœud Trainee présent sur la flèche")
+	if t != null:
+		var im := t.mesh as ImmediateMesh
+		await physics_frame
+		_verif(im.get_surface_count() == 1 and Projectile.TRAINEE_DUREE >= 0.35, "traînée : ruban tracé en vol (%d surface, durée %.2f s)" % [im.get_surface_count(), Projectile.TRAINEE_DUREE])
 	if is_instance_valid(f):
 		f.queue_free()
