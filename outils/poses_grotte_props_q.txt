@@ -1,0 +1,20 @@
+# retours 2026-11-24 grotte_props : avant / après. Crypte : x,z,lacet°,tangage°[,y] ; grotte : s,décalage,lacet°,tangage°.
+c_table_prep crypte -9.00,-20.8,0,-24 sans-mains
+c_table_antichambre crypte -3.10,-52.0,0,-24 ouvre=s1,s2,s3,secret,herse sans-mains
+c_table_reliquaires crypte -33.00,-33.6,0,-24 ouvre=s1,s2,s3,secret,herse sans-mains
+c_table_tresor crypte -38.20,-43.6,0,-24 ouvre=s1,s2,s3,secret,herse sans-mains
+c_table_lb2a crypte 6.00,-43.50,90,-30,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_table_lb2 crypte -7.20,-45.40,90,-30,-6 ouvre=s1,s2,s3,secret,herse sans-mains
+c_table_quartiers crypte 22.4,-3.0,-134,-25 sans-mains
+c_tapis_antichambre crypte 0.00,-56.20,0,-38 ouvre=s1,s2,s3,secret,herse sans-mains
+c_parchemins_prep crypte -3.13,-25.10,0,-38 sans-mains
+c_sac_rituelle crypte -4.63,-40.8,0,-30 ouvre=s1,s2,s3,secret,herse sans-mains
+c_or_tombeau crypte 20.92,-73.44,0,-35 ouvre=s1,s2,s3,secret,herse sans-mains
+c_etagere_prep crypte -8.50,-24.51,0,-15 sans-mains
+g_camp grotte 302,0,0,-8 sans-mains
+g_repaire1 grotte 306,2.5,48,-2 sans-mains
+g_camp_tente grotte 305,-0.5,-70,-10 sans-mains
+g_mine_galerie grotte 112,0,0,-6 sans-mains
+g_mine1 grotte 114,0,0,-4 sans-mains
+g_mine2 grotte 135,0.5,20,-4 sans-mains
+g_mine3 grotte 145,-0.5,-40,-4 sans-mains

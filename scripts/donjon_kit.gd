@@ -914,7 +914,12 @@ func _densite_sol(m: Dictionary) -> void:
 			d.j0("crane_os")
 			d.crane(p, r.randf() * TAU)
 			for k in 3:
-				d.boite("os", p + Vector3(r.randf_range(-0.25, 0.25), 0.02, r.randf_range(-0.25, 0.25)), Vector3(0.3, 0.04, 0.04), r.randf() * TAU)
+				var po := p + Vector3(r.randf_range(-0.25, 0.25), 0.02, r.randf_range(-0.25, 0.25))
+				var ao := r.randf() * TAU
+				if PropsQuaternius.pq and PropsQuaternius.existe("pq_os_tas_2"):      # retours 2026-11-24 : os épars = props Quaternius
+					d._q4("pq_os_tas_2", po - Vector3(0, 0.02, 0), ao, Vector3.ONE * 0.5)
+				else:
+					d.boite("os", po, Vector3(0.3, 0.04, 0.04), ao)
 			d.j1()
 		else:
 			d.givre_dessus(p, Vector2(0.9, 0.5), 0.015, r.randf() * TAU)
@@ -1470,7 +1475,12 @@ func or_tas(pos: Vector3, r := 0.6, h := 0.3) -> void:
 		d.rng.randf_range(0.3, 0.5)
 	for k in 6:
 		var a := d.rng.randf() * TAU
-		d.boite("or", pos + Vector3(cos(a), 0.012, sin(a)) * r * d.rng.randf_range(1.0, 1.6), Vector3(0.07, 0.02, 0.07), d.rng.randf() * TAU)
+		var qp := pos + Vector3(cos(a), 0.012, sin(a)) * r * d.rng.randf_range(1.0, 1.6)
+		var ap := d.rng.randf() * TAU
+		if PropsQuaternius.pq and PropsQuaternius.existe("pq_piece"):      # retours 2026-11-24 : pièces éparses = props Quaternius (mêmes tirages)
+			d._q4("pq_piece", qp - Vector3(0, 0.012, 0), ap, Vector3.ONE * 1.8)
+		else:
+			d.boite("or", qp, Vector3(0.07, 0.02, 0.07), ap)
 	d.j1()
 
 ## Panneau d'ossuaire (texture de niches) plaqué sur un mur, avec cadre ; axe "x" : mur le long de X (z fixe), "z" : le long de Z.
