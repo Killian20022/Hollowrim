@@ -26,6 +26,7 @@ const SH_FAISCEAU := preload("res://shaders/rayon_noir_faisceau.gdshader")
 const SH_HALO := preload("res://shaders/rayon_noir_halo.gdshader")
 const SH_TACHE := preload("res://shaders/rayon_noir_tache.gdshader")
 const SH_RUNE := preload("res://shaders/runes_orbite.gdshader")
+const SH_VITESSE := preload("res://shaders/rayon_vitesse.gdshader")
 const SH_CERCLE := preload("res://shaders/rayon_cercle.gdshader")
 const SH_IMPACT := preload("res://shaders/rayon_impact.gdshader")
 ## Cercle runique du départ : diamètre (m), distance devant la paume (m), durée d'ouverture / de fermeture (s).
@@ -98,6 +99,8 @@ var _t_fin := -1.0     # depuis le relâchement (-1 = tenu)
 var _vu := 0.0         # dernier appel de maj (horloge locale)
 var _fin_l := Vector3.ZERO
 var _faisceau: MeshInstance3D
+var _vitesse: MeshInstance3D
+var _mat_vitesse: ShaderMaterial
 var _cercle: MeshInstance3D
 var _mat_cercle: ShaderMaterial
 var _impact: MeshInstance3D
@@ -203,6 +206,14 @@ func _ready() -> void:
 	_halo.render_priority = 1
 	_mat.next_pass = _halo
 	_faisceau = _mi(RayonNeant._tube(), _mat, 50.0)
+	# v3d : lignes de vitesse autour du rayon (un second tube, coque plus large ; aucun traitement CPU par trait)
+	_mat_vitesse = ShaderMaterial.new()
+	_mat_vitesse.shader = SH_VITESSE
+	_mat_vitesse.set_shader_parameter("graine", _graine)
+	_mat_vitesse.set_shader_parameter("bord", Color(pl["bord"]))
+	_mat_vitesse.set_shader_parameter("filet", Color(pl["filet"]))
+	_mat_vitesse.set_shader_parameter("ouverture", OUVERTURE)
+	_vitesse = _mi(RayonNeant._tube(), _mat_vitesse, 50.0)
 	_mat_tache = _nouvelle_tache_mat()
 	_tache = _mi(_quad(), _mat_tache, 2.0)
 	_tache.visible = false
@@ -298,6 +309,7 @@ func _process(dt: float) -> void:
 		_t_fin += dt
 		vie = lerpf(0.6, 1.0, clampf(_t_fin / EXTINCTION, 0.0, 1.0))
 	_faisceau.visible = vie < 0.999
+	_vitesse.visible = _faisceau.visible
 	if _faisceau.visible:
 		_placer_faisceau(vie)
 		if g != null and g.couche != null:
@@ -326,6 +338,13 @@ func _placer_faisceau(vie: float) -> void:
 	x = x.normalized()
 	var y := d.cross(x).normalized()
 	_faisceau.global_transform = Transform3D(Basis(x, y, d * l), debut)
+	_vitesse.global_transform = _faisceau.global_transform
+	_vitesse.visible = true
+	var kv := clampf(puissance, 1.0, 1.6)
+	_mat_vitesse.set_shader_parameter("longueur", l)
+	_mat_vitesse.set_shader_parameter("rayon_max", RAYON_LOIN * largeur * kv)
+	_mat_vitesse.set_shader_parameter("rayon_min", RAYON_MAIN * kv)
+	_mat_vitesse.set_shader_parameter("vie", vie)
 	var k := clampf(puissance, 1.0, 1.6)
 	for m: ShaderMaterial in [_mat, _halo]:
 		m.set_shader_parameter("longueur", l)
