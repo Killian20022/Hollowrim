@@ -41,10 +41,18 @@ const VITESSE_CHOC := 4.5
 const K_CHOC := 1.0
 const VITESSE_CHUTE := 7.0
 const K_CHUTE := 1.5
+## Arrivée au sol d'un ennemi projeté EN TRAVERS (Attraction relâchée, Répulsion : trajectoire tendue, vitesse surtout horizontale) : la chute
+## verticale seule (VITESSE_CHUTE) ne comptait presque rien, il ne prenait que le coup du sort. Vitesse d'impact équivalente =
+## sqrt(vn² + PART_RASANT·vt²) ; dégâts = K_SOL par m/s au-delà de VITESSE_SOL (~19 PV à 11 m/s), divisés par la résistance (chefs).
+const VITESSE_SOL := 4.5
+const K_SOL := 6.0
+const PART_RASANT := 0.35
 ## Budget de dégâts PHYSIQUES d'un même vol (murs, sol, objets : somme des chocs subis par l'ennemi projeté) : au plus cette part de ses PV
 ## max, jamais un coup fatal à lui seul, sauf choc ÉNORME (vitesse d'impact >= VITESSE_ENORME : chute de falaise, mur à pleine vitesse).
 const PART_VOL_MAX := 0.6
 const VITESSE_ENORME := 22.0
+## Budget d'un vol de Lévitation lancée (ennemi fragile : les sensibilités au contondant s'ajoutent après le budget).
+const PART_VOL_LEVITATION := 0.45
 const FACTEUR_LEVITATION := 0.7
 ## Durée maximale d'un vol (s) : l'ennemi est rendu à son IA quoi qu'il arrive.
 const DUREE_VOL := 3.0
@@ -461,8 +469,7 @@ func _voler(f: Dictionary, dt: float) -> void:
 		var vn := -v.dot(n)
 		if n.y > 0.6:
 			# sol : dégâts de chute selon la vitesse verticale, poussière, il est rendu à son IA (renversé)
-			if vn > VITESSE_CHUTE:
-				_frapper(e, degats_vol(f, e, (vn - VITESSE_CHUTE) * K_CHUTE, vn), col.get_position(), Vector3.DOWN, 30.0, f.get("sort"))
+			_frapper(e, degats_sol(f, e, v, n), col.get_position(), Vector3.DOWN, 30.0, f.get("sort"))
 			_effet_choc(col.get_position(), n, clampf(vn / 10.0, 0.3, 1.2), true)
 			_chocs_objets(f, e.global_position + Vector3.UP * float(f["h"]) * 0.6, Vector3(v.x, -absf(v.y), v.z))
 			f["v"] = v
@@ -551,15 +558,31 @@ func _chocs_objets(f: Dictionary, centre: Vector3, v: Vector3) -> void:
 ## Lévitation lancée / lâchée : FACTEUR_LEVITATION (écrasement léger à moyen ; la Répulsion garde ses dégâts validés).
 func degats_vol(f: Dictionary, e: Node, dg: float, vn: float) -> float:
 	var so: Variant = f.get("sort")
+	var part := PART_VOL_MAX
 	if so is DonneesSort and (so as DonneesSort).portee_mode == DonneesSort.Portee.LEVITATION:
 		dg *= FACTEUR_LEVITATION
+		part = PART_VOL_LEVITATION
 	if vn >= VITESSE_ENORME or e.get("vie_max") == null:
 		return dg
 	var deja := float(f.get("subi", 0.0))
-	var reste := maxf(0.0, PART_VOL_MAX * float(e.get("vie_max")) - deja)
+	var reste := maxf(0.0, part * float(e.get("vie_max")) - deja)
 	dg = minf(dg, reste)
 	f["subi"] = deja + dg
 	return dg
+
+## Dégâts de l'arrivée au sol d'un ennemi qui vole à la vitesse `v` contre un sol de normale `n` : le plus fort de la chute verticale
+## (VITESSE_CHUTE) et de l'impact équivalent en travers (VITESSE_SOL). Budget du vol et facteur lévitation : degats_vol.
+func degats_sol(f: Dictionary, e: Node, v: Vector3, n: Vector3) -> float:
+	var vn := maxf(-v.dot(n), 0.0)
+	var vt2 := maxf(v.length_squared() - vn * vn, 0.0)
+	var veq := sqrt(vn * vn + PART_RASANT * vt2)
+	var chute := maxf(vn - VITESSE_CHUTE, 0.0) * K_CHUTE
+	var rasant := maxf(veq - VITESSE_SOL, 0.0) * K_SOL * DegatsObjets.resistance(e)
+	var dg := maxf(chute, rasant)
+	if dg <= 0.0:
+		return 0.0
+	_noter("sol %s v=%.1f vn=%.1f veq=%.1f dg=%.1f" % [e.name, v.length(), vn, veq, dg])
+	return degats_vol(f, e, dg, vn)
 
 ## Dégâts d'un choc (chemin des sorts : LanceurSorts.frapper, perks, résistances, réseau).
 func _frapper(cible: Node, dg: float, point: Vector3, dir: Vector3, st: float, s: DonneesSort) -> String:
