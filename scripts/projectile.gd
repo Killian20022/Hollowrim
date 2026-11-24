@@ -45,9 +45,14 @@ const TRAINEE := 0.0003          # décélération = TRAINEE · v² (m/s² ; ~3 
 ## Flèche fichée dans un corps (ennemi, cadavre, mannequin) : elle y reste ce temps (s), elle suit l'os touché (animation et ragdoll).
 const VIE_DANS_CORPS := 30.0
 ## TRAÎNÉE discrète : fine ligne qui s'estompe vite derrière une flèche en vol (style PS1) ; durée (s) et longueur maximale (m).
-const TRAINEE_DUREE := 0.22
-const TRAINEE_LONGUEUR := 5.0
-const TRAINEE_COULEUR := Color(0.92, 0.9, 0.8)
+const TRAINEE_DUREE := 0.7
+const TRAINEE_LONGUEUR := 200.0
+const TRAINEE_COULEUR := Color(1.0, 0.8, 0.4)   # doré : se lit sur le ciel clair comme dans le noir
+const TRAINEE_LARGEUR := 0.008     ## ruban tourné vers la caméra (une ligne de 1 px disparaissait en vue joueur)
+const TRAINEE_LARGEUR_ECRAN := 0.0095  ## largeur ~ distance caméra : ~4 px d'écran à toute distance (sinon invisible au loin)
+const TRAINEE_ECART := 1.0          ## m : écart du sillage au départ (vers la main)
+const TRAINEE_ECART_PORTEE := 70.0   ## m : distance de vol sur laquelle l'écart disparaît
+const TRAINEE_FONDU_CAM := 0.6     ## m : invisible à 20 cm de la caméra, pleine à 80 cm
 var vitesse_reference := 46.0
 var degats_min := 3.0
 ## Dégâts réellement infligés à l'impact (0 tant qu'elle vole) et vitesse à l'impact.
@@ -58,6 +63,7 @@ var point_impact := Vector3.ZERO
 var dir_impact := Vector3.ZERO
 var _modele_fleche: Node3D
 var _trainee: MeshInstance3D
+var _trainee_depart := Vector3.INF
 var _trainee_pts: Array = []   # [Vector3, âge]
 var _dans_corps := false
 ## Coop (lot 4c) : identifiant réseau (vide hors ligne) ; `distant` = copie d'un projectile tiré sur une autre machine (visuel seulement :
@@ -141,7 +147,11 @@ func _ready() -> void:
 	mt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mt.vertex_color_use_as_albedo = true
 	mt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mt.blend_mode = BaseMaterial3D.BLEND_MODE_MIX
+	mt.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mt.no_depth_test = false
 	_trainee.material_override = mt
+	_trainee.extra_cull_margin = 100.0
 	add_child(_trainee)
 	if tireur != null:
 		_ex.append(tireur.get_rid())
@@ -245,32 +255,47 @@ func _maj_trainee(dt: float) -> void:
 	for p: Array in _trainee_pts:
 		p[1] = float(p[1]) + dt
 	if not plantee:
-		_trainee_pts.append([global_position, 0.0])
+		# point FIXE dans le monde ; près du départ il est écarté vers la main (bas-droite de l'écran), l'écart fondant sur ~30 m :
+		# en 1re personne la flèche file dans l'axe du regard, sans cet écart le sillage se projetterait en un point
+		var pt := global_position
+		var cam_t := get_viewport().get_camera_3d()
+		if cam_t != null:
+			if _trainee_depart == Vector3.INF:
+				_trainee_depart = pt
+			var k := clampf(1.0 - pt.distance_to(_trainee_depart) / TRAINEE_ECART_PORTEE, 0.0, 1.0)
+			pt += (cam_t.global_transform.basis.x * 0.85 - cam_t.global_transform.basis.y * 0.3) * TRAINEE_ECART * k
+		_trainee_pts.append([pt, 0.0])
 	while not _trainee_pts.is_empty() and float((_trainee_pts[0] as Array)[1]) > TRAINEE_DUREE:
 		_trainee_pts.pop_front()
 	var im := _trainee.mesh as ImmediateMesh
 	im.clear_surfaces()
 	if _trainee_pts.size() < 2:
 		return
-	var reste := TRAINEE_LONGUEUR
-	im.surface_begin(Mesh.PRIMITIVE_LINES)
-	for i in range(_trainee_pts.size() - 1, 0, -1):
-		var a: Array = _trainee_pts[i]
-		var b: Array = _trainee_pts[i - 1]
-		var pa: Vector3 = a[0]
-		var pb: Vector3 = b[0]
-		reste -= pa.distance_to(pb)
-		if reste < 0.0:
-			break
-		var ca := TRAINEE_COULEUR
-		ca.a = 0.55 * clampf(1.0 - float(a[1]) / TRAINEE_DUREE, 0.0, 1.0) * clampf(reste / TRAINEE_LONGUEUR + 0.3, 0.0, 1.0)
-		var cb := TRAINEE_COULEUR
-		cb.a = 0.55 * clampf(1.0 - float(b[1]) / TRAINEE_DUREE, 0.0, 1.0) * clampf(reste / TRAINEE_LONGUEUR + 0.3, 0.0, 1.0)
-		im.surface_set_color(ca)
-		im.surface_add_vertex(pa)
-		im.surface_set_color(cb)
-		im.surface_add_vertex(pb)
-	im.surface_end()
+	var cam := get_viewport().get_camera_3d()
+	var pos_cam := cam.global_position if cam != null else global_position + Vector3.UP * 100.0
+	var n := _trainee_pts.size()
+	# sillage « traceur » : points FIXES dans le monde sur toute la trajectoire ; deux passes (lueur large et faible, cœur fin)
+	for passe in 2:
+		var larg := 2.6 if passe == 0 else 1.0
+		var force := 0.22 if passe == 0 else 0.9
+		im.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
+		for i in n:
+			var a: Array = _trainee_pts[i]
+			var pa: Vector3 = a[0]
+			var d_cam := pa.distance_to(pos_cam)
+			var vers: Vector3 = (_trainee_pts[mini(i + 1, n - 1)] as Array)[0] - (_trainee_pts[maxi(i - 1, 0)] as Array)[0]
+			var lat := vers.cross(pos_cam - pa)
+			lat = lat.normalized() * clampf(d_cam * TRAINEE_LARGEUR_ECRAN, TRAINEE_LARGEUR, 1.2) * 0.5 * larg if lat.length() > 0.0001 else Vector3.ZERO
+			# s'estompe de la queue (ancienne) vers la tête ; fondu seulement sur les ~80 premiers cm devant la caméra
+			var al := force * clampf(1.0 - float(a[1]) / TRAINEE_DUREE, 0.0, 1.0)
+			al *= clampf((d_cam - 0.2) / TRAINEE_FONDU_CAM, 0.0, 1.0)
+			var c := TRAINEE_COULEUR
+			c.a = al
+			im.surface_set_color(c)
+			im.surface_add_vertex(pa + lat)
+			im.surface_set_color(c)
+			im.surface_add_vertex(pa - lat)
+		im.surface_end()
 
 func _physics_process(dt: float) -> void:
 	_t += dt
