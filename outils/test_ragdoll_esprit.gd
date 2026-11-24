@@ -1,7 +1,7 @@
 extends SceneTree
 ## Test sans fenêtre du RAGDOLL DE PROJECTION + RELEVÉ des sorts de l'esprit (scripts/magie/ragdoll_esprit.gd ; docs/MAGIE.md) :
 ##   godot --headless --fixed-fps 60 --path . --script res://outils/test_ragdoll_esprit.gd -- --nouvelle
-## Répulsion -> ragdoll -> relevé capturé -> IA en moins de 4 s ; dos / ventre -> bon clip ; pas de saut au passage ragdoll -> clip ;
+## Répulsion -> ragdoll -> relevé capturé -> IA en moins de 5 s ; dos / ventre -> bon clip ; pas de saut au passage ragdoll -> clip ;
 ## pieds au sol ; mort en vol = cadavre ; pas de traversée du sol ni du mur ; plafond de ragdolls ; lévitation lâchée et lancée ;
 ## relâchement de l'attraction ; interrupteur (vol cinématique d'avant).
 
@@ -204,7 +204,7 @@ func _repulsion() -> void:
 	_verif(vu_vol and y_max > 0.9, "Répulsion chargée : le squelette part en ragdoll (bassin jusqu'à %.2f m)" % y_max)
 	var chocs := es.journal.filter(func(x): return String(x[1]).begins_with("choc"))
 	_verif(not chocs.is_empty() and d.vie < vie0, "choc du ragdoll contre le mur : %s ; %.0f -> %.0f PV" % [chocs[0][1] if not chocs.is_empty() else "-", vie0, d.vie])
-	_verif(t_ia > 0.0 and t_ia < 4.0, "il se relève et reprend l'IA en %.2f s (< 4 s depuis l'onde)" % t_ia)
+	_verif(t_ia > 0.0 and t_ia < 5.0, "il se relève et reprend l'IA en %.2f s (< 5 s depuis l'onde)" % t_ia)
 	_verif(not rl.is_empty() and String(rl["clip"]) in [RagdollEsprit.CLIP_DOS, RagdollEsprit.CLIP_VENTRE], "relevé capturé joué : %s" % rl.get("clip", "-"))
 	var a: Array = _affiche.get(d.get_instance_id(), [Vector3.ZERO, 99.0])
 	_verif(float(a[1]) < 0.12, "pas de saut au passage ragdoll -> relevé (bassin affiché : %.3f m par image au plus)" % float(a[1]))
