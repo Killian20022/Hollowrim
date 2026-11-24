@@ -525,9 +525,7 @@ func _but_lancer(oeil: Vector3, avant: Vector3, depart: Vector3, lance: RigidBod
 	if not r.is_empty():
 		but = r["position"]
 	var meilleur := AIDE_LANCER
-	for c in Elements.cibles_dans(oeil, PORTEE_LANCER):
-		if ReseauProjectiles.est_avatar(c):
-			continue
+	for c in PvpCoop.cibles(oeil, PORTEE_LANCER):
 		var ce := Elements._centre(c)
 		var a := rad_to_deg(avant.angle_to(ce - oeil))
 		if a < meilleur and oeil.distance_to(ce) <= oeil.distance_to(but) + 1.0 and _sans_mur(depart, ce, c, lance):
@@ -704,8 +702,8 @@ func _suivre_lances(dt: float) -> void:
 ## Ennemis traversés par le segment a -> b (capsule verticale de chaque cible) : un impact par cible.
 func _balayer(l: Dictionary, a: Vector3, b: Vector3, v: Vector3) -> void:
 	var r := float(l["rayon"])
-	for cible in Elements.cibles_dans(b, 2.5 + a.distance_to(b)):
-		if ReseauProjectiles.est_avatar(cible) or (l["touches"] as Dictionary).has(cible.get_instance_id()):
+	for cible in PvpCoop.cibles(b, 2.5 + a.distance_to(b)):
+		if (l["touches"] as Dictionary).has(cible.get_instance_id()):
 			continue
 		var n3 := cible as Node3D
 		var ech: float = float(cible.get("echelle")) if cible.get("echelle") != null else 1.0
@@ -731,7 +729,7 @@ func _contact(autre: Node, corps: RigidBody3D) -> void:
 		var v: Vector3 = l["v_prec"]
 		if v.length() < VITESSE_IMPACT or (l["touches"] as Dictionary).has(autre.get_instance_id()):
 			return
-		if Elements.cibles_dans(corps.global_position, 0.1).has(autre):
+		if PvpCoop.cibles(corps.global_position, 0.1).has(autre):
 			return   # les ennemis sont touchés par _balayer (une fois chacun)
 		(l["touches"] as Dictionary)[autre.get_instance_id()] = true
 		toucher(l, autre, corps.global_position, -v.normalized(), v)
@@ -741,6 +739,13 @@ func _contact(autre: Node, corps: RigidBody3D) -> void:
 func toucher(l: Dictionary, cible: Node, point: Vector3, normale: Vector3, v: Vector3) -> void:
 	var corps: RigidBody3D = l["corps"]
 	_noter("impact %s -> %s v=%.1f" % [corps.name, cible.name, v.length()])
+	if PvpCoop.pvp_cible(cible):
+		# PvP : objet / arme télékinésés qui percutent un autre joueur (l'hôte valide, la victime encaisse ; l'objet casse comme sur un mur)
+		if corps.has_method("recevoir_choc"):
+			corps.recevoir_choc(v, float(l["masse"]), point)
+		PvpCoop.coup_objet(cible, degats_repli(float(l["masse"]), v.length(), l["arme"]), point, v)
+		corps.linear_velocity = v.bounce(normale if normale.length() > 0.1 else -v.normalized()) * 0.25 + Vector3.UP * 1.0
+		return
 	var imp: Variant = _impacts()
 	if imp != null:
 		imp.objet_touche(corps, cible, point, normale, v, joueur)
@@ -782,7 +787,7 @@ func _repli_impact(l: Dictionary, cible: Node, point: Vector3, normale: Vector3,
 	# l'objet lancé lui-même encaisse le choc (contrat cassables)
 	if corps.has_method("recevoir_choc"):
 		corps.recevoir_choc(v, masse, point)
-	var est_cible := Elements.cibles_dans(point, 3.0).has(cible)
+	var est_cible := PvpCoop.cibles(point, 3.0).has(cible)
 	if not est_cible:
 		if cible.has_method("recevoir_choc"):
 			cible.recevoir_choc(v, masse, point)
