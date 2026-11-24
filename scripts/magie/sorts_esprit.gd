@@ -574,10 +574,6 @@ func degats_sol(f: Dictionary, e: Node, v: Vector3, n: Vector3) -> float:
 	var veq := sqrt(vn * vn + PART_RASANT * vt2)
 	var chute := maxf(vn - VITESSE_CHUTE, 0.0) * K_CHUTE
 	var rasant := maxf(veq - VITESSE_SOL, 0.0) * K_SOL * DegatsObjets.resistance(e)
-	for k in (f.get("touches", {}) as Dictionary):
-		if k is int and k != 0:
-			rasant = 0.0   # il a déjà heurté un mur / un corps / un objet : le glissement qui suit n'est pas un 2e impact (la chute seule compte)
-			break
 	var dg := maxf(chute, rasant)
 	if dg <= 0.0:
 		return 0.0

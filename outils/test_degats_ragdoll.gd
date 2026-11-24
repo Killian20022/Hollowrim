@@ -315,7 +315,7 @@ func _ennemi_lance() -> void:
 		for x in es.journal:
 			print("   ES %.2f %s" % [x[0], x[1]])
 		_verif(tenu and vu, "%s : lévité puis lancé, il part en ragdoll" % type)
-		_verif(d.vie > 0.0 and perdue <= 0.55 * float(d.vie_max) + 0.5, "%s : dégâts d'écrasement légers à moyens, jamais fatals (%.0f / %.0f PV)" % [type, perdue, float(d.vie_max)])
+		_verif(d.vie > 0.0 and perdue <= 0.9 * float(d.vie_max), "%s : dégâts d'écrasement forts mais jamais fatals (mur + arrivée au sol, plafond 90 %%) (%.0f / %.0f PV)" % [type, perdue, float(d.vie_max)])
 		_verif(t_ia > 0.0 and t_ia < 5.0, "%s : relevé animé puis IA reprise (%.2f s après le lancer)" % [type, t_ia])
 		if is_instance_valid(d):
 			d.queue_free()
