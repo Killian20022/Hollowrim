@@ -95,6 +95,11 @@ const MATIERES := {
 		"vitesse": [1.8, 4.6], "ecart": 70.0, "gravite": 9.0, "amorti": 3.4, "duree": 0.6, "eclair": [2.2, 1.5], "rendu": "trait"},
 	"oeuf": {"couleurs": ["#fff4d8", "#f6d070", "#e8a83a", "#f2ead8"], "n": 10, "taille": [0.02, 0.045],
 		"vitesse": [0.8, 2.2], "ecart": 70.0, "gravite": 10.0, "amorti": 2.0, "duree": 0.6, "eclair": [1.3, 1.1]},
+	# nourriture écrasée (fruit, pain, viande) et papier déchiré (livre, parchemin)
+	"nourriture": {"couleurs": ["#e8d8a8", "#c8862e", "#a8402a", "#7a4428", "#5e7a3a"], "n": 14, "taille": [0.03, 0.06],
+		"vitesse": [1.0, 3.0], "ecart": 65.0, "gravite": 10.0, "amorti": 2.4, "duree": 0.7, "eclair": [1.4, 1.15]},
+	"papier": {"couleurs": ["#f4ecd4", "#e9dcc0", "#cbb98e", "#8a6a3a", "#4b3b2b"], "n": 12, "taille": [0.03, 0.06],
+		"vitesse": [0.8, 2.4], "ecart": 75.0, "gravite": 4.0, "amorti": 3.0, "duree": 0.8, "eclair": [1.3, 1.1]},
 	"liquide": {"couleurs": ["#c8862e", "#a06a22", "#7a4c18", "#5a3410", "#e0b060"], "n": 20, "taille": [0.025, 0.06],
 		"vitesse": [1.2, 3.4], "ecart": 55.0, "gravite": 11.0, "amorti": 1.6, "duree": 0.8, "eclair": [1.3, 1.1]},
 }

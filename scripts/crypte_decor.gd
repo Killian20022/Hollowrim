@@ -2537,9 +2537,27 @@ func _modele_subst(nom: String, pos: Vector3, lacet: float, ech: Vector3, emp: b
 		PropsQuaternius.compter("souterrain_v5")
 	return modele(s[0], p2, lacet + (PI * 0.5 if s[1] == 1 else (-PI * 0.5 if s[1] == 3 else 0.0)), e2, m, emp)
 
+## Pose d'un module / prop. RÈGLE UNIQUE (ObjetsVivants.mobile) : un prop q_* / pq_* petit ou léger posé ici (crypte, grotte, donjon) devient un
+## Cassable « objet » (corps gelé, télékinésable, cassable) au lieu d'être fondu dans les maillages du décor ; les gros props restent fondus.
 func modele(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}, emp := true) -> Array:
+	var mobile := false
+	if lot == "" and not muet and cass_actif and ObjetsVivants.regle_unique and ObjetsVivants.tk_partout and CasseObjets.actif and (nom.begins_with("q_") or nom.begins_with("pq_")) \
+			and ObjetsVivants.mobile(nom) and PropsQuaternius.existe(nom):
+		var f := ObjetsVivants.fiche_meuble(nom)
+		var bb := PropsQuaternius.boite(nom, mats)
+		var b := Basis(Vector3.UP, lacet)
+		var t := (b * (bb.size * ech.abs())).abs()
+		mobile = cassable_debut("objet", pos, ech.x, t, [f[0], f[1], bool(f[4])])
+	var r := _modele_pose(nom, pos, lacet, ech, mats, emp)
+	if mobile:
+		cassable_fin()
+	return r
+
+func _modele_pose(nom: String, pos: Vector3, lacet := 0.0, ech := Vector3.ONE, mats := {}, emp := true) -> Array:
 	if muet:
 		return []
+	if lot == "" and (nom.begins_with("q_") or nom.begins_with("pq_") or nom.begins_with("pq:")):
+		PropsQuaternius.fondu(nom.trim_prefix("pq:"), cass_prefixe)      # inventaire télékinésie : pose fondue dans le décor (--audit-poses)
 	if _sans_maison and (nom.begins_with("oss_long_") or nom.begins_with("os_long_") or nom.begins_with("os_court_") or nom.begins_with("gravats_")):
 		return []      # lot 4 : os longs et gravats maison remplacés par les props Quaternius (emprise, collision et tirages inchangés)
 	if PropsQuaternius.remplace and (SUBST.has(nom) or (PropsQuaternius.v5 and SUBST_V5.has(nom) and not PropsRealisme.ancien_crypte(nom))):

@@ -317,7 +317,7 @@ func _fixe(id: String) -> bool:
 		return true
 	if base in LEGERS_EXACT:
 		return false
-	return base in FIXES_EXACT or base.get_slice("_", 0) in FIXES
+	return ObjetsVivants.est_fixe(base)      # règle unique (tk_partout) : cordes et troncs-bancs sont mobiles, le reste de la liste est fixe
 
 func _couverture() -> void:
 	await _reset()

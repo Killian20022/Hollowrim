@@ -508,16 +508,18 @@ static func crypte(d: CrypteDecor, nom: String, pos: Vector3, lacet := 0.0, e :=
 		pos = d._ecarter(pos, Vector2(bb0.size.x, bb0.size.z) * 0.5 * e, lacet)
 	var m := MATS_CRYPTE.duplicate()
 	m.merge(mats, true)
-	# télékinésie partout : tout petit objet (outil, vaisselle, crâne, livre, seau…) devient un Cassable « objet » (corps gelé réveillé à la saisie)
-	var obj := CasseObjets.actif and ObjetsVivants.tk_partout and not solide and not d.muet and ObjetsVivants.capte_meuble(nom) and d.lot == "" and pq_de(nom) != ""
+	# télékinésie partout : règle unique ObjetsVivants.mobile (CrypteDecor.modele la fait aussi pour les poses directes) ; un prop MOBILE
+	# solide (tonneau, caisse) garde son passage bloqué par son propre corps et n'a plus de boîte fixe
+	var obj := CasseObjets.actif and ObjetsVivants.tk_partout and not d.muet and ObjetsVivants.capte_meuble(nom) and d.lot == "" \
+		and (ObjetsVivants.regle_unique or (not solide and pq_de(nom) != ""))
 	if obj:
 		var md: Array = ObjetsVivants.fiche_meuble(nom)
-		obj = d.cassable_debut("objet", pos, e, boite(nom, mats).size * e, [md[0], md[1], false])
-	elif audit_pose:
-		fondu(nom, "crypte")
+		var tb := (Basis(Vector3.UP, lacet) * (boite(nom, mats).size * e)).abs()
+		obj = d.cassable_debut("objet", pos, e, tb, [md[0], md[1], bool(md[4]) or solide])
 	d.modele(nom, pos, lacet, Vector3.ONE * e, m, true)
 	if obj:
 		d.cassable_fin()
+		return
 	if solide:
 		var bb := boite(nom, mats)
 		var c := pos + Basis(Vector3.UP, lacet) * (bb.get_center() * e)
@@ -565,7 +567,7 @@ static func village(v, parent: Node3D, nom: String, xf: Transform3D, solide := f
 		mats = {}
 	if not actif or not existe(nom):
 		return
-	if mats.is_empty() and ObjetsVivants.meuble_differe(v, parent, nom, xf):      # cassables partout : meuble physique (corps = solide)
+	if ObjetsVivants.meuble_differe(v, parent, nom, xf, mats):      # cassables partout : meuble physique (corps = solide)
 		return
 	fondu(nom, "village")
 	var mv := mats_village(v)

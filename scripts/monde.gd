@@ -727,10 +727,14 @@ func _feu_de_camp() -> void:
 	var poses: Array = [["feu_camp", Transform3D(Basis(), sol)]]
 	var corps := StaticBody3D.new()
 	add_child(corps)
+	# règle unique ObjetsVivants.mobile : les troncs-bancs et les réserves du bivouac sont des objets physiques (télékinésie, casse), plus fondus
+	var bancs_mobiles := PropsQuaternius.remplace and ObjetsVivants.regle_unique and ObjetsVivants.capte_meuble("q_tronc")
 	for a in [0.4, 2.6]:
 		# couché (axe X), tangent au cercle autour du feu
 		var xf_banc := Transform3D(Basis(Vector3.UP, -a + PI * 0.5) * Basis(Vector3(0, 0, 1), PI * 0.5), sol + Vector3(cos(a) * 2.6, 0.18, sin(a) * 2.6))
 		poses.append(["tronc_banc", Transform3D(Basis(Vector3.UP, -a + PI * 0.5), sol + Vector3(cos(a) * 2.6, -0.03, sin(a) * 2.6))])
+		if bancs_mobiles:
+			continue
 		var forme := CollisionShape3D.new()
 		var cyl := CylinderShape3D.new()
 		cyl.radius = 0.23
@@ -738,7 +742,11 @@ func _feu_de_camp() -> void:
 		forme.shape = cyl
 		forme.transform = xf_banc
 		corps.add_child(forme)
-	add_child(MobilierVillage.noeud_modules(poses, "FeuDeCamp"))
+	var vivants_camp: Array = []
+	var racine_camp := MobilierVillage.noeud_modules(poses, "FeuDeCamp", vivants_camp if ObjetsVivants.regle_unique else null)
+	add_child(racine_camp)
+	if not vivants_camp.is_empty():
+		ObjetsVivants.peupler(racine_camp, vivants_camp, "camp")
 	if PropsQuaternius.lot4 and PropsQuaternius.existe("q_tente"):      # lot 4 : tente du camp (posée par MobilierVillage.substitut("feu_camp"), lacet 0 : entrée vers le feu)
 		var ft := CollisionShape3D.new()
 		var bt := BoxShape3D.new()
@@ -746,7 +754,7 @@ func _feu_de_camp() -> void:
 		ft.shape = bt
 		ft.transform = Transform3D(Basis(Vector3.UP, 0.0), sol + Vector3(0.5, 1.05, -5.4))
 		corps.add_child(ft)
-		if PropsQuaternius.pq:      # props/maximum : réserves du bivouac (MobilierVillage.BIVOUAC_PQ) : une boîte pour tonneaux et caisse
+		if PropsQuaternius.pq and vivants_camp.is_empty():      # réserves du bivouac fondues (--sans-tk-partout) : une boîte pour tonneaux et caisse
 			var fr := CollisionShape3D.new()
 			var br := BoxShape3D.new()
 			br.size = Vector3(0.8, 0.95, 2.6)

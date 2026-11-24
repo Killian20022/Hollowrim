@@ -86,7 +86,7 @@ const MEUBLES_BASE := {
 ## chariots, bannières, portes, tapis, piliers, barrières, briques, poutres, rochers, souches, troncs, luminaires muraux et bougies (leur lumière
 ## ne suit pas).
 const DIVERS := {
-	"rondin": ["bois", 12.0, "boite", false], "buche": ["bois_leger", 4.0, "boite", false], "bucher": ["bois", 18.0, "boite", false],
+	"tronc": ["bois", 40.0, "boite", true], "rondin": ["bois", 12.0, "boite", false], "buche": ["bois_leger", 4.0, "boite", false], "bucher": ["bois", 18.0, "boite", false],
 	"seau_bois": ["bois_leger", 3.0, "cyl", false], "seau_fer": ["fer", 3.0, "cyl", false], "seau_2": ["fer", 3.0, "cyl", false],
 	"chaudron": ["fer", 12.0, "cyl", false], "chaudron_anse": ["fer", 9.0, "cyl", false], "marmite": ["fer", 3.0, "cyl", false],
 	"marmite_couverte": ["fer", 3.5, "cyl", false], "marmite_camp": ["fer", 4.0, "cyl", false], "marmite_camp_petite": ["fer", 2.0, "cyl", false],
@@ -101,28 +101,28 @@ const DIVERS := {
 	"chaise_fuseaux": ["bois_leger", 6.0, "boite", true], "banc_dossier": ["bois", 25.0, "boite", true], "banc_simple": ["bois", 14.0, "boite", true],
 	"caisse_2": ["bois_ferre", 22.0, "boite", true], "caisse_planches": ["bois", 16.0, "boite", true],
 	"tonneau_cercle": ["tonneau", 35.0, "cyl", true], "tonneau_village": ["tonneau", 35.0, "cyl", true], "tonneau_2": ["tonneau", 32.0, "cyl", true],
-	"ballot": ["tissu", 20.0, "boite", false], "ballot_2": ["tissu", 22.0, "boite", false], "sac_couche": ["tissu", 12.0, "boite", false],
-	"sac_ouvert": ["tissu", 12.0, "boite", false], "sac_debout": ["tissu", 25.0, "boite", false], "gerbe": ["tissu", 5.0, "boite", false],
+	"ballot": ["tissu", 20.0, "boite", false], "ballot_2": ["tissu", 22.0, "boite", false], "sac_couche": ["tissu_leger", 12.0, "boite", false],
+	"sac_ouvert": ["tissu_leger", 12.0, "boite", false], "sac_debout": ["tissu", 25.0, "boite", false], "gerbe": ["tissu_leger", 5.0, "boite", false],
 	"chandelier_table": ["fer", 0.8, "cyl", false], "chandelier_pied": ["fer", 10.0, "cyl", false], "bougeoir_triple": ["fer", 1.0, "cyl", false],
-	"calice": ["fer", 0.4, "cyl", false], "chope": ["nourriture", 0.4, "cyl", false], "assiette": ["fer", 0.3, "cyl", false],
-	"ecuelle": ["nourriture", 0.3, "cyl", false], "ecuelle_2": ["nourriture", 0.3, "cyl", false], "ecuelle_creuse": ["nourriture", 0.3, "cyl", false],
-	"cuillere": ["fer", 0.1, "boite", false], "cuillere_bois": ["nourriture", 0.1, "boite", false], "fourchette": ["fer", 0.1, "boite", false],
+	"calice": ["fer", 0.4, "cyl", false], "chope": ["bois_fin", 0.4, "cyl", false], "assiette": ["fer", 0.3, "cyl", false],
+	"ecuelle": ["bois_fin", 0.3, "cyl", false], "ecuelle_2": ["bois_fin", 0.3, "cyl", false], "ecuelle_creuse": ["bois_fin", 0.3, "cyl", false],
+	"cuillere": ["fer", 0.1, "boite", false], "cuillere_bois": ["bois_fin", 0.1, "boite", false], "fourchette": ["fer", 0.1, "boite", false],
 	"couteau_table": ["fer", 0.1, "boite", false], "bouteille": ["verre", 0.6, "cyl", false], "bouteille_verte": ["verre", 0.6, "cyl", false],
 	"bouteille_vin": ["verre", 0.6, "cyl", false], "bouteille_1": ["verre", 0.6, "cyl", false], "bouteille_2": ["verre", 0.6, "cyl", false],
 	"vase_2": ["poterie", 4.0, "cyl", false], "vase_4": ["poterie", 4.0, "cyl", false], "vase_5": ["poterie", 6.0, "cyl", false],
 	"potion_1": ["verre", 0.4, "cyl", false], "potion_2": ["verre", 0.4, "cyl", false], "potion_4": ["verre", 0.4, "cyl", false],
 	"fiole_1": ["verre", 0.2, "cyl", false], "fiole_2": ["verre", 0.2, "cyl", false], "fiole_3": ["verre", 0.2, "cyl", false],
 	"fioles_1": ["verre", 0.5, "boite", false], "petite_fiole": ["verre", 0.1, "cyl", false],
-	"crane": ["nourriture", 0.6, "boite", false], "os_tas": ["nourriture", 1.0, "boite", false], "os_tas_2": ["nourriture", 1.0, "boite", false],
-	"os": ["nourriture", 0.3, "boite", false], "tas_pieces": ["fer", 0.5, "boite", false], "tas_pieces_2": ["fer", 0.5, "boite", false],
-	"sac_pieces": ["tissu", 1.5, "boite", false], "bourse": ["tissu", 0.4, "boite", false], "lingots": ["fer", 12.0, "boite", false],
+	"crane": ["os", 0.6, "boite", false], "os_tas": ["os", 1.0, "boite", false], "os_tas_2": ["os", 1.0, "boite", false],
+	"os": ["os", 0.3, "boite", false], "tas_pieces": ["fer", 0.5, "boite", false], "tas_pieces_2": ["fer", 0.5, "boite", false],
+	"sac_pieces": ["tissu_fin", 1.5, "boite", false], "bourse": ["tissu_fin", 0.4, "boite", false], "lingots": ["fer", 12.0, "boite", false],
 	"cle_or": ["fer", 0.1, "boite", false], "cle_fer": ["fer", 0.1, "boite", false],
-	"livre_5": ["nourriture", 0.6, "boite", false], "livre_7": ["nourriture", 0.6, "boite", false], "livre_simple": ["nourriture", 0.6, "boite", false],
-	"livre_d1": ["nourriture", 0.6, "boite", false], "livre_d2": ["nourriture", 0.6, "boite", false], "livre_ouvert": ["nourriture", 0.6, "boite", false],
-	"grimoire": ["nourriture", 1.0, "boite", false], "pile_livres": ["nourriture", 1.5, "boite", false], "pile_livres_2": ["nourriture", 1.2, "boite", false],
-	"livres_petits_1": ["nourriture", 1.5, "boite", false], "livres_petits_2": ["nourriture", 1.0, "boite", false], "livres_petits_3": ["nourriture", 1.0, "boite", false],
-	"livres_moyens_1": ["nourriture", 3.0, "boite", false], "livres_moyens_2": ["nourriture", 3.0, "boite", false], "livres_moyens_3": ["nourriture", 3.0, "boite", false],
-	"parchemin": ["nourriture", 0.1, "boite", false], "parchemin_2": ["nourriture", 0.1, "boite", false],
+	"livre_5": ["papier", 0.6, "boite", false], "livre_7": ["papier", 0.6, "boite", false], "livre_simple": ["papier", 0.6, "boite", false],
+	"livre_d1": ["papier", 0.6, "boite", false], "livre_d2": ["papier", 0.6, "boite", false], "livre_ouvert": ["papier", 0.6, "boite", false],
+	"grimoire": ["papier", 1.0, "boite", false], "pile_livres": ["papier", 1.5, "boite", false], "pile_livres_2": ["papier", 1.2, "boite", false],
+	"livres_petits_1": ["papier", 1.5, "boite", false], "livres_petits_2": ["papier", 1.0, "boite", false], "livres_petits_3": ["papier", 1.0, "boite", false],
+	"livres_moyens_1": ["papier", 3.0, "boite", false], "livres_moyens_2": ["papier", 3.0, "boite", false], "livres_moyens_3": ["papier", 3.0, "boite", false],
+	"parchemin": ["papier", 0.3, "boite", false], "parchemin_2": ["papier", 0.3, "boite", false],
 	"carotte": ["nourriture", 0.2, "boite", false], "carotte_f": ["nourriture", 0.2, "boite", false], "navet": ["nourriture", 0.3, "sphere", false],
 	"chou": ["nourriture", 0.8, "sphere", false], "citrouille": ["nourriture", 3.0, "sphere", false], "pomme": ["nourriture", 0.2, "sphere", false],
 	"pomme_verte": ["nourriture", 0.2, "sphere", false], "pain": ["nourriture", 0.5, "boite", false], "tranche_pain": ["nourriture", 0.1, "boite", false],
@@ -149,7 +149,37 @@ static var MEUBLES: Dictionary = _etendre()
 
 ## Petits objets FRAGILES (fiche du registre -> matière) : ils cassent sous un choc ; les autres (étain, bois, nourriture) rebondissent.
 const FRAGILES := {"cruche": "poterie", "pot_argile": "poterie", "hydromel": "verre", "potion_soin": "verre", "potion_mana": "verre",
-	"oeuf": "oeuf", "chandelier": "fer", "assiette_etain": "fer", "seau_fer": "fer"}
+	"oeuf": "oeuf", "chandelier": "fer", "assiette_etain": "fer", "seau_fer": "fer",
+	# cassables partout (2026-11-24) : tout objet du registre saisissable casse, sauf le métal solide
+	"chope": "bois_fin", "ecuelle": "bois_fin", "cuillere_bois": "bois_fin", "seau_bois": "bois_leger", "couteau_table": "fer", "fourchette": "fer",
+	"livre_relie": "papier", "parchemin": "papier", "pierre_aiguiser": "poterie",
+	"pomme": "nourriture", "chou": "nourriture", "navet": "nourriture", "carotte": "nourriture", "pain_seigle": "nourriture", "tranche_pain": "nourriture",
+	"cuisse_rotie": "nourriture", "viande_crue": "nourriture", "lard": "nourriture", "saucisse": "nourriture", "poisson": "nourriture",
+	"champignon": "nourriture", "fromage": "nourriture"}
+## Matière d'un objet du registre (fiche d'inventaire) : table FRAGILES, sinon déduite de son nom ; "fer" = métal solide (sonne, ne casse pas).
+static func matiere_registre(oid: String) -> String:
+	if FRAGILES.has(oid):
+		return String(FRAGILES[oid])
+	for mot: String in ["tome", "livre", "parchemin", "grimoire", "carte", "lettre"]:
+		if mot in oid:
+			return "papier"
+	for mot: String in ["pain", "viande", "champignon", "poussiere", "baie", "racine", "herbe", "fruit", "legume", "fromage", "poisson"]:
+		if mot in oid:
+			return "nourriture"
+	for mot: String in ["fourrure", "capuche", "gants", "cuir", "toile", "tissu", "laine"]:
+		if mot in oid:
+			return "tissu_leger"
+	for mot: String in ["arc_", "fleche", "baton", "manche"]:
+		if oid.begins_with(mot) or mot in oid:
+			return "bois_fin"
+	for mot: String in ["cristal", "verre", "fiole", "potion"]:
+		if mot in oid:
+			return "verre"
+	for mot: String in ["os_", "crane", "dent", "croc"]:
+		if oid.begins_with(mot) or mot in oid:
+			return "os"
+	return "fer"
+
 ## Portée d'affichage du mobilier (le MultiMesh remplace un lot du décor visible plus loin que les petits objets).
 const PORTEE_MEUBLES := 55.0
 const EV_CASSE := "objet_casse"     ## réseau : (ident, {"p": point, "v": vitesse}) ; l'évènement ne revient pas à l'émetteur
@@ -192,13 +222,106 @@ class Visee extends Node3D:
 static func capte(nom: String) -> bool:
 	return actif and OBJETS.has(nom) and Inventaire.connu(String(OBJETS[nom]))
 
-## Mobilier léger rendu physique et cassable (MEUBLES) ; rien avec `--sans-cassables-partout` ni `--sans-objets-vivants`.
-static func capte_meuble(nom: String) -> bool:
-	return actif and CasseObjets.actif and (MEUBLES.has(nom) or MEUBLES.has("tk_" + nom))
+## RÈGLE UNIQUE « MOBILE OU FIXE » (2026-11-24, monde/tk_partout) : tout chemin de pose de décor (village, abords, camps, intérieurs, crypte,
+## grotte) demande `capte_meuble(nom)` (ou `mobile`) avant de fondre un prop dans un maillage statique. Mobile = ObjetVivant télékinésable
+## ET cassable (corps gelé tant que personne n'y touche), sauf :
+##   1. les props des tables MEUBLES / DIVERS : mobiles, toujours (décision explicite de la table) ;
+##   2. sinon, FIXES / FIXES_EXACT : grosse ou structurelle (tables, étals, lits, armoires, établis, comptoirs, étagères, tentes, chariots,
+##      puits, piliers, portes, barrières, rochers, souches, troncs ancrés, poutres, luminaires dont la lumière ne suit pas…) : fixe ;
+##   3. sinon un prop inconnu des tables est mobile s'il tient dans SEUIL_TAILLE (plus grande dimension, m) : fiche déduite de son nom
+##      et de son volume (voir `_fiche_auto`).
+## `--sans-tk-partout` : seuls les meubles d'avant (MEUBLES_BASE) restent mobiles.
+const FIXES := ["table", "etal", "lit", "etabli", "etagere", "porte", "banniere", "bougie", "bougeoir", "torche", "lanterne", "chaine", "planches",
+	"poutre", "brique", "bordure", "roc", "souche", "tronc", "chariot", "charrette", "tente", "rack", "ratelier", "enclume", "billot", "mannequin", "lutrin", "chevalet",
+	"cloche", "buffet", "bibliotheque", "commode", "support", "puits", "abri", "cage", "pieux", "trappe", "barreaux", "tapis", "grille", "pilier",
+	"colonne", "piedestal", "bq", "cheminee", "cadre", "garde", "auvent", "aisselier", "poteau", "escalier", "barriere", "feu", "armoire", "comptoir",
+	"autel", "statue", "sarcophage", "stele", "mur", "toit", "fenetre", "volet", "echelle", "toile", "foyer", "four", "meule", "grande"]
+const FIXES_EXACT := ["coffre_or", "coffre_or_2", "coffre_d", "coffre_bombe", "coffre_lingots", "coffre", "coffre_2", "coffre_tiroirs", "tas_sacs", "urne_brisee"]
+## Mobiles malgré un préfixe de FIXES (le prop est petit et libre) : base du prop (sans q_ / pq_).
+const MOBILES_EXACT := ["etabli_tiroirs", "corde", "corde_1", "corde_2", "corde_3", "pierre_aiguiser", "tronc_banc", "tronc"]
+const SEUIL_TAILLE := 1.7
+## `-- --sans-regle-unique` : état d'AVANT (tables seules ; camp de départ et poses directes de la crypte / grotte restent fondus) : mesures A/B.
+static var regle_unique := not ("--sans-regle-unique" in OS.get_cmdline_user_args())
+static var _auto := {}                   ## nom -> fiche déduite (prop hors tables), ou [] (fixe) ; lu par plusieurs fils
+static var _verrou_auto := Mutex.new()
 
-## Fiche [matière, masse, forme, contenu, bloque, liquide] du prop `nom` en objet physique simple (ou [] : non saisissable).
-static func fiche_meuble(nom: String) -> Array:
-	return MEUBLES.get(nom, MEUBLES.get("tk_" + nom, []))
+static func base_de(nom: String) -> String:
+	return nom.trim_prefix("pq_").trim_prefix("q_")
+
+static func est_fixe(nom: String) -> bool:
+	var b := base_de(nom)
+	if b in MOBILES_EXACT:
+		return false
+	return b in FIXES_EXACT or b.get_slice("_", 0) in FIXES or b.begins_with("grande_") or b.begins_with("bq_")
+
+## Fiche [matière, masse, forme, contenu, bloque, liquide] d'un prop hors tables d'après son nom et son emprise (ou [] : reste fixe).
+static func _fiche_auto(nom: String) -> Array:
+	if est_fixe(nom) or not (nom.begins_with("q_") or nom.begins_with("pq_")) or not PropsQuaternius.existe(nom):
+		return []
+	var t := PropsQuaternius.boite(nom).size
+	if t.x > SEUIL_TAILLE or t.y > SEUIL_TAILLE or t.z > SEUIL_TAILLE or t.length() < 0.02:
+		return []
+	var b := base_de(nom)
+	var mat := "bois_leger"
+	for mot: String in ["pot", "vase", "jarre", "urne", "cruche", "amphore", "bol_terre"]:
+		if mot in b:
+			mat = "poterie"
+	for mot: String in ["bouteille", "fiole", "potion", "verre", "flacon"]:
+		if mot in b:
+			mat = "verre"
+	for mot: String in ["sac", "ballot", "fourrure", "peau", "couverture", "bourse", "gerbe", "foin"]:
+		if mot in b:
+			mat = "tissu_leger"
+	for mot: String in ["livre", "parchemin", "carte", "lettre", "rouleau", "papier"]:
+		if mot in b:
+			mat = "papier"
+	for mot: String in ["os", "crane", "squelette"]:
+		if b == mot or b.begins_with(mot + "_"):
+			mat = "os"
+	for mot: String in ["hache", "pioche", "pelle", "epee", "lame", "marmite", "chaudron", "seau_fer", "poele", "fer", "lingot", "piege", "cle", "cuillere", "fourchette", "couteau", "calice", "plat"]:
+		if mot in b:
+			mat = "fer"
+	for mot: String in ["pain", "pomme", "poire", "carotte", "chou", "navet", "viande", "poisson", "oeuf", "fromage", "champignon", "saucisse", "citrouille", "legume", "fruit"]:
+		if mot in b:
+			mat = "nourriture"
+	var vol := t.x * t.y * t.z
+	var masse := clampf(vol * (900.0 if mat in ["fer", "poterie", "os"] else 260.0), 0.1, 40.0)
+	var forme := "cyl" if (absf(t.x - t.z) < 0.25 * maxf(t.x, t.z) and t.y > 0.3 * t.x and mat in ["poterie", "verre", "fer", "bois_leger"]) else "boite"
+	return [mat, masse, forme, "", t.length() > 0.9, false]
+
+## Fiche physique du prop `nom` (tables d'abord, puis déduction) ; [] : non saisissable (reste du décor fixe).
+static func fiche_meuble(nom: String, force := false) -> Array:
+	if MEUBLES.has(nom):
+		return MEUBLES[nom]
+	if MEUBLES.has("tk_" + nom):
+		return MEUBLES["tk_" + nom]
+	if not tk_partout or not actif or not (regle_unique or force):
+		return []
+	_verrou_auto.lock()
+	var f: Variant = _auto.get(nom)
+	_verrou_auto.unlock()
+	if f == null:
+		f = _fiche_auto(nom)
+		_verrou_auto.lock()
+		_auto[nom] = f
+		_verrou_auto.unlock()
+	return f
+
+## Fiche d'un genre TEL QUEL (spec déjà faite) : « tk_q_chope » est un meuble, « q_chope » un objet du registre (prenable, pas un meuble).
+static func fiche_genre(genre: String) -> Array:
+	if MEUBLES.has(genre):
+		return MEUBLES[genre]
+	if OBJETS.has(genre) or MEUBLES.has("tk_" + genre):
+		return []
+	return fiche_meuble(genre)
+
+## Le prop `nom` est-il MOBILE (ObjetVivant télékinésable et cassable) ? Fonction de classement unique de tous les chemins de pose.
+static func mobile(nom: String, force := false) -> bool:
+	return actif and CasseObjets.actif and not fiche_meuble(nom, force).is_empty()
+
+## Mobilier rendu physique et cassable ; rien avec `--sans-cassables-partout` ni `--sans-objets-vivants`.
+static func capte_meuble(nom: String) -> bool:
+	return mobile(nom)
 
 ## Spec d'un meuble : comme spec(), avec la portée d'affichage et l'ombre portée du lot qu'il remplace.
 static func spec_meuble(genre: String, xf: Transform3D, morceaux: Array, portee := PORTEE_MEUBLES, ombre := true) -> Dictionary:
@@ -210,8 +333,8 @@ static func spec_meuble(genre: String, xf: Transform3D, morceaux: Array, portee 
 ## position : tous les tonneaux d'un même modèle partagent un maillage) ; q_* sans pq_* : `choisir` (matière -> Material).
 static var _morceaux_ctx := {}
 static var _verrou_ctx := Mutex.new()
-static func morceaux_contexte(nom: String, contexte: String, ech: Vector3, choisir: Callable) -> Array:
-	var cle := nom + "|" + contexte      # un maillage par modèle et contexte (le MultiMesh ne garde que le premier) : calculé une fois
+static func morceaux_contexte(nom: String, contexte: String, ech: Vector3, choisir: Callable, cle_sup := "") -> Array:
+	var cle := nom + "|" + contexte + cle_sup      # un maillage par modèle, contexte (et teinte `cle_sup`) (le MultiMesh ne garde que le premier) : calculé une fois
 	_verrou_ctx.lock()
 	var r: Array = _morceaux_ctx.get(cle, [])
 	_verrou_ctx.unlock()
@@ -225,12 +348,14 @@ static func morceaux_contexte(nom: String, contexte: String, ech: Vector3, chois
 
 ## Meuble posé UN PAR UN par le village (PropsQuaternius.village : enclos, ferme, atelier, bancs) : spec faite tout de suite (fil de
 ## fond possible), corps et MultiMesh créés sur le fil principal (appel différé). Identifiant : position arrondie (stable). Vrai si capté.
-static func meuble_differe(v: Object, parent: Node3D, nom: String, xf: Transform3D) -> bool:
+static func meuble_differe(v: Object, parent: Node3D, nom: String, xf: Transform3D, mats := {}) -> bool:
 	if not capte_meuble(nom) or parent == null:
 		return false
 	var mv: Dictionary = PropsQuaternius.mats_village(v) if v != null else {}
-	var mo := morceaux_contexte(nom, "exterieur", xf.basis.get_scale(),
-		func(m: String) -> Material: return mv[m] if mv.has(m) else (mv["bois"] if mv.has("bois") else PropsQuat.materiau("pq_bois", "exterieur")))
+	var choisir := func(m: String) -> Material:
+		var mm: String = mats.get(m, m)
+		return mv[mm] if mv.has(mm) else (mv["bois"] if mv.has("bois") else PropsQuat.materiau("pq_bois", "exterieur"))
+	var mo := morceaux_contexte(nom, "exterieur", xf.basis.get_scale(), choisir, "|" + str(mats) if not mats.is_empty() else "")
 	if mo.is_empty():
 		return false
 	var lieu := "pv_%s_%d_%d_%d" % [nom, roundi(xf.origin.x * 10.0), roundi(xf.origin.y * 10.0), roundi(xf.origin.z * 10.0)]
@@ -398,7 +523,7 @@ static func peupler_par_lots(parent: Node3D, specs: Array, lieu: String, par_lot
 		if quat:
 			meme = ObjetsQuat.pq_de_ancien(g)       # prop texturé du même modèle que le décor posé (q_vase_4 -> pq_vase_4), sinon celui de la fiche
 			cle = "%s|quat:%s:%s" % [cle, meme if meme != "" else ObjetsQuat.id_de(oid), ctx]
-		if MEUBLES.has(g):
+		if not fiche_genre(g).is_empty():
 			quat = false
 			cle = _cle(g, s["morceaux"]) + "|meuble"
 		if not groupes.has(cle):
@@ -412,7 +537,8 @@ static func peupler_par_lots(parent: Node3D, specs: Array, lieu: String, par_lot
 			mm.transform_format = MultiMesh.TRANSFORM_3D
 			mm.mesh = maillage(cle, vis)
 			var g0 := String(((gr[1] as Array)[0][0] as Dictionary)["genre"])      # découpe de casse préparée dans un fil de fond
-			var mat_c := String((MEUBLES[g0] as Array)[0]) if MEUBLES.has(g0) else String(FRAGILES.get(gr[2], ""))
+			var fm0 := fiche_genre(g0)
+			var mat_c := String(fm0[0]) if not fm0.is_empty() else String(FRAGILES.get(gr[2], ""))
 			if CasseObjets.actif and mat_c != "":
 				CasseObjets.preparer(mm.mesh, vis, mat_c)
 			mm.instance_count = (gr[1] as Array).size()
@@ -468,6 +594,9 @@ static func piece_d_etal(v: Node3D, marchand: String) -> ObjetVivant:
 	o.ident = "etal_%s:%s" % [marchand, oid]
 	o.set_meta("marchand", marchand)
 	o.mass = clampf(float(Inventaire.objet(oid).get("poids", 1.0)), 0.1, 6.0)
+	if CasseObjets.actif:      # cassables partout : pièce de l'étal brisable (gerbe, son ; pas d'éclats : son visuel n'est pas un MultiMesh)
+		o.matiere = matiere_registre(oid)
+		o.seuil_casse = CasseObjets.seuil(o.matiere)
 	o.transform = Transform3D(Basis(), bb.get_center())
 	o.depart = o.transform
 	o.monter_forme("boite", bb.size * 0.94)
@@ -489,8 +618,8 @@ static func _corps(s: Dictionary, morceaux: Array) -> ObjetVivant:
 	o.oid = String(OBJETS.get(g, g))
 	o.mass = clampf(float(Inventaire.objet(o.oid).get("poids", 0.3)), 0.05, 4.0)
 	var forme := String(FORMES.get(g, "boite"))
-	if MEUBLES.has(g):
-		var d: Array = MEUBLES[g]
+	var d: Array = fiche_genre(g)
+	if not d.is_empty():
 		o.meuble = true
 		o.oid = ""
 		o.matiere = String(d[0])
@@ -503,8 +632,8 @@ static func _corps(s: Dictionary, morceaux: Array) -> ObjetVivant:
 		o.linear_damp = 0.4
 		if o.bloque:
 			o.collision_layer = Cassable.CALQUE | 1
-	elif CasseObjets.actif and FRAGILES.has(o.oid):
-		o.matiere = String(FRAGILES[o.oid])
+	elif CasseObjets.actif:
+		o.matiere = matiere_registre(o.oid)
 	if CasseObjets.actif:
 		o.seuil_casse = CasseObjets.seuil(o.matiere)
 	o.visuel_local = Transform3D(Basis.from_scale(sc), -c)

@@ -482,7 +482,9 @@ static func _sol_local(v, vers_l: Transform3D, x: float) -> float:
 	return (vers_l * Vector3(w.x, v.h_sol(w.x, w.z), w.z)).y
 
 ## Nœud autonome (hors du village : feu de camp du cercle) : poses [module, Transform3D] fusionnées par matière, matières C7a.
-static func noeud_modules(poses: Array, nom_noeud: String) -> Node3D:
+## `vivants` (facultatif, sortie) : specs ObjetsVivants des props MOBILES (règle unique ObjetsVivants.mobile : tonneau, caisse, sac, seau, marmite,
+## rondin, tronc-banc…) au lieu de les fondre ; l'appelant les peuple (ObjetsVivants.peupler) sous le nœud rendu. Sans `vivants` : tout est fondu.
+static func noeud_modules(poses: Array, nom_noeud: String, vivants = null) -> Node3D:
 	var racine := Node3D.new()
 	racine.name = nom_noeud
 	var st_par := {}
@@ -495,6 +497,15 @@ static func noeud_modules(poses: Array, nom_noeud: String) -> Node3D:
 			if e[0] == "" or not PropsQuaternius.existe(e[0]):
 				continue
 			var nq := PropsQuaternius.ext_v5(e[0], e[2])      # v5 : pq_* texturé du même modèle (dehors)
+			if vivants != null and e.size() <= 3 and ObjetsVivants.capte_meuble(nq):
+				var xf_m: Transform3D = (p[1] as Transform3D) * (e[1] as Transform3D)
+				var mats_e: Dictionary = e[2]
+				var choisir := func(m: String) -> Material: return _materiau(mats_e.get(m, MATS_Q.get(m, "planches_h")))
+				var mo := ObjetsVivants.morceaux_contexte(nq, "exterieur", xf_m.basis.get_scale(), choisir, "|" + str(mats_e) if not mats_e.is_empty() else "")
+				if not mo.is_empty():
+					(vivants as Array).append(ObjetsVivants.spec_meuble(nq, xf_m, mo, 70.0, true))
+					continue
+			PropsQuaternius.fondu(nq, "camp_depart")
 			for t: Array in PropsQuaternius.triangles(nq, e[2]):
 				var mq: String = (e[2] as Dictionary).get(t[0], MATS_Q.get(t[0], "planches_h"))
 				if not st_par.has(mq):
@@ -719,7 +730,7 @@ func _capter_meubles(sub: Array, xf: Transform3D) -> bool:
 		var nom := PropsQuaternius.ext_v5(String(e[0]), e[2])
 		var x := xf * (e[1] as Transform3D)
 		var mats: Dictionary = e[2]
-		_meubles.append(ObjetsVivants.spec_meuble(nom if ObjetsVivants.MEUBLES.has(nom) else String(e[0]), x, ObjetsVivants.morceaux_contexte(nom, "exterieur", x.basis.get_scale(),
+		_meubles.append(ObjetsVivants.spec_meuble(nom if not ObjetsVivants.fiche_genre(nom).is_empty() else String(e[0]), x, ObjetsVivants.morceaux_contexte(nom, "exterieur", x.basis.get_scale(),
 			func(m: String) -> Material: return _mat_cache(String(mats.get(m, MATS_Q.get(m, "planches_h")))))))
 	return true
 
@@ -790,7 +801,7 @@ func _props_q(fusion: Dictionary) -> Vector2i:
 			xf.basis = xf.basis.scaled(Vector3.ONE * 1.3)      # lot 4 : nourriture des étals un peu plus grosse (lisible en vue de jeu)
 		if e.size() <= 5 and ObjetsVivants.capte_meuble(nom) and not (e[1] >= 0 and not e[4] and ObjetsVivants.capte(nom)):      # (denrée d'étal du registre : objet vivant, plus bas)      # cassables partout : tonneau, caisse, cageot, jarre, sac physiques
 			var nme := PropsQuaternius.ext_v5(nom)
-			var sp := ObjetsVivants.spec_meuble(nme if ObjetsVivants.MEUBLES.has(nme) else nom, xf, ObjetsVivants.morceaux_contexte(nme, "exterieur", xf.basis.get_scale(),
+			var sp := ObjetsVivants.spec_meuble(nme if not ObjetsVivants.fiche_genre(nme).is_empty() else nom, xf, ObjetsVivants.morceaux_contexte(nme, "exterieur", xf.basis.get_scale(),
 				func(m: String) -> Material: return _mat_cache(_mat_q(nom, m, est_l4, e))))
 			if e[1] >= 0:      # réserve d'un étal : bien du marchand
 				if not _vivants.has(e[1]):

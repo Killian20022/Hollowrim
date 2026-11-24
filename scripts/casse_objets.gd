@@ -33,8 +33,15 @@ const MATIERES := {
 	"bois_ferre": {"seuil": 350.0, "gerbe": "bois", "sons": ["casse_wood_breaking_01", "casse_wood_breaking_03"], "decoupe": "planches", "max": 9, "poussiere": true},
 	"tonneau": {"seuil": 300.0, "gerbe": "bois", "sons": ["casse_wood_breaking_01", "casse_wood_breaking_03"], "decoupe": "douelles", "max": 11, "poussiere": true},
 	"fer": {"seuil": INF, "sons_choc": ["casse_metal_hit_01", "casse_metal_hit_02", "casse_metal_hit_03"]},
-	"tissu": {"seuil": INF, "sons_choc": ["cloth1", "cloth2"]},
-	"nourriture": {"seuil": INF},
+	# cassables partout (2026-11-24) : tout ce qu'on peut soulever peut aussi se briser, sauf le métal solide. Seuils réglés pour qu'un choc
+	# naturel (chute d'une table, lancer à ~9 m/s contre un mur) casse le léger sans pulvériser le lourd.
+	"tissu": {"seuil": 350.0, "gerbe": "poussiere", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "tessons", "max": 4, "poussiere": true},
+	"tissu_leger": {"seuil": 100.0, "gerbe": "poussiere", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "tessons", "max": 3, "poussiere": true},
+	"tissu_fin": {"seuil": 8.0, "gerbe": "poussiere", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "tessons", "max": 3},
+	"nourriture": {"seuil": 10.0, "gerbe": "nourriture", "sons": ["casse_pot_02", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "tessons", "max": 4},
+	"bois_fin": {"seuil": 20.0, "gerbe": "bois", "sons": ["casse_wood_breaking_02", "casse_wood_breaking_04"], "decoupe": "planches", "max": 4},
+	"papier": {"seuil": 12.0, "gerbe": "papier", "sons": ["cloth1", "cloth2"], "sons_choc": ["cloth1", "cloth2"], "decoupe": "planches", "max": 3},
+	"os": {"seuil": 20.0, "gerbe": "os", "sons": ["casse_rock_breaking_01", "casse_pot_01"], "decoupe": "tessons", "max": 4},
 }
 ## Sons de choc sans casse (bois qui cogne) par matière ; défaut : vaisselle.
 const SONS_CHOC := {"bois_leger": ["casse_wood_hit_01", "casse_wood_hit_02"], "bois": ["casse_wood_hit_01", "casse_wood_hit_03"],
