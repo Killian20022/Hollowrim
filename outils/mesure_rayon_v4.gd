@@ -100,6 +100,13 @@ static func mesurer(f, etiq: String) -> void:
 		var sans: Image = f.root.get_viewport().get_texture().get_image()
 		await f.process_frame
 		var sans2: Image = f.root.get_viewport().get_texture().get_image()
+		# v5 : le faisceau SEUL (sans cercle, stries, runes, fumée…) : sert de masque pour la largeur et le profil du corps
+		for id in RayonNoir.par_paume:
+			var rn: RayonNoir = RayonNoir.par_paume[id]
+			rn._faisceau.layers |= CoucheMagie.CALQUE
+		for i in 3:
+			await f.process_frame
+		var seul: Image = f.root.get_viewport().get_texture().get_image()
 		masquer(true)
 		Engine.time_scale = 1.0
 		var r := comparer(sans, avec, sans2)
@@ -112,6 +119,7 @@ static func mesurer(f, etiq: String) -> void:
 		if f._dossier != "":
 			avec.save_png(f._dossier.path_join("%s_%03d_avec.png" % [etiq, int(inst * 1000)]))
 			sans.save_png(f._dossier.path_join("%s_%03d_sans.png" % [etiq, int(inst * 1000)]))
+			seul.save_png(f._dossier.path_join("%s_%03d_seul.png" % [etiq, int(inst * 1000)]))
 	print("MESURE_BILAN %s pire=%.2f%% (t=%.3f) soutenu=%.2f%%" % [etiq, pire, pire_t, soutenu])
 	f.magie.relacher("gauche")
 	await f._attendre(0.4)
