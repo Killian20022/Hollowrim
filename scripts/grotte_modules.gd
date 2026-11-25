@@ -1073,6 +1073,23 @@ static func rideau(g: Grotte, id: String, s: float) -> void:
 	var top := haut + 1.0
 	var ep := 0.3
 	var P := func(lat: float, y: float, z := 0.0) -> Vector3: return bas + dd * lat + T * z + Vector3(0, y, 0)
+	# Encastrement crédible (retours exe 4) : AVANT les planches (le décor refuse de poser un rocher dans un objet déjà placé), des blocs
+	# de roche de la paroi s'empilent des deux côtés contre les extrémités de la cloison et en pied d'huisserie ; les planches
+	# disparaissent derrière, comme une palissade calée dans la roche plutôt qu'un aplat plaqué sur la glace.
+	var rr := RandomNumberGenerator.new()
+	rr.seed = 77031
+	var sty := _style(g, id, s)
+	for ext: float in [lo + 0.12, dl.y - 0.45]:      # côté droit : la roche y est irrégulière, le sol s'arrête à la paroi
+		var sg := -1.0 if ext < cm else 1.0
+		for k in 3:
+			var z := (-0.55 if k % 2 == 0 else 0.55) * (1.0 if k < 2 else 0.4)
+			var lat_k := ext + sg * -rr.randf_range(0.0, 0.45) + (0.5 * sg if k == 2 else 0.0)
+			var rb := rr.randf_range(0.55, 0.95)
+			g.decor.rocher(_roche(sty), P.call(lat_k, -0.15, z), rb, rb * rr.randf_range(1.3, 2.0), rr.randi(), _masque(sty), false, 6)
+	for lat: float in [lat_g - 0.5, lat_d + 0.5]:       # éboulis de pierres au pied de la cloison, de part et d'autre de la porte
+		for z: float in [-0.6, 0.6]:
+			var rb := rr.randf_range(0.3, 0.5)
+			g.decor.rocher(_roche(sty), P.call(lat + rr.randf_range(-0.25, 0.25), -0.1, z), rb, rb * rr.randf_range(0.6, 0.9), rr.randi(), _masque(sty), false, 5)
 	var mur := []
 	for seg: Array in [[lo, lat_g - 0.22], [lat_d + 0.22, hi]]:      # flancs de la cloison, du pied (0,4 m sous le sol) à la voûte
 		var w: float = seg[1] - seg[0]

@@ -1033,6 +1033,9 @@ func _coque() -> void:
 ## il ne se voit que par ces fentes, en bleu-gris de roche mate au lieu du noir. Sans collision, sans ombre. --sans-dos-coque : désactivé.
 const DOS_DECALAGE := 2.0
 const DOS_BRANCHES := ["A", "B"]      # galeries longues et isolées : mine et lac
+## Rebouchage LOCAL des autres salles : dos de coque FIN (décalage en m) ; assez loin pour cacher les fissures d'1 px des joints
+## d'anneaux, assez près pour ne jamais déborder dans une salle voisine.
+const DOS_FIN := {"T1": 0.12, "T2": 0.12, "C": 0.12, "H": 0.12}
 ## Une branche PARENTE d'une jonction (celle où d'autres s'accrochent) est aussi concernée : on cherche si une autre branche s'y pince.
 func _porte_jonction(id: String, debut: bool) -> bool:
 	for o: String in ordre:
@@ -1052,7 +1055,10 @@ func _dos_coque() -> void:
 	var v := PackedVector3Array()
 	var n := PackedVector3Array()
 	for id: String in ordre:
-		if not DOS_BRANCHES.has(id):      # ailleurs (camp, cristaux, cachette) le tube déborde dans la salle voisine : dalles bleues vues en capture
+		var dec := DOS_DECALAGE
+		if DOS_FIN.has(id):      # camp, cristaux, cachette : le dos épais déborderait dans la salle voisine (dalles bleues vues en capture) -> dos fin
+			dec = float(DOS_FIN[id])
+		elif not DOS_BRANCHES.has(id):
 			continue
 		var rings: Array = (br[id] as Dictionary)["anneaux"]
 		var dos: Array = []
@@ -1062,7 +1068,7 @@ func _dos_coque() -> void:
 			var c: Vector3 = (r["P"] as Vector3) + Vector3(0, 0.45 * float(r["h"]), 0)
 			var q: Array = []
 			for p: Vector3 in r["pts"]:
-				q.append(p + (p - c).normalized() * DOS_DECALAGE)
+				q.append(p + (p - c).normalized() * dec)
 			dos.append(q)
 		for i in dos.size() - 1:
 			# zones de jonction : les anneaux se pincent contre le pilier voisin, la bande déborderait dans l'autre galerie (dalles bleues vues en capture)
