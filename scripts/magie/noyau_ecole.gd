@@ -157,6 +157,8 @@ func _maj_tenebres(ch: float, vit: float, vif: float, haut_k: float, larg_k: flo
 		_clair_pose = clair
 		var mt := _mix.mi.material_override as ShaderMaterial
 		var pal: Array = PAL_FUMEE_CLAIRE if clair else PAL_FUMEE
+		mt.set_shader_parameter("mode", 1 if clair else 0)   # rayon noir : fumée additive (ne peut jamais assombrir, même en plein jour)
+		mt.set_shader_parameter("eclat", 0.7 if clair else 1.0)
 		for q in 4:
 			mt.set_shader_parameter(["c_a", "c_b", "c_c", "c_d"][q], Color(pal[q]))
 	if _naiss < 0.05:

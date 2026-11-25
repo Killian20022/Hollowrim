@@ -6,6 +6,9 @@ extends "res://outils/film_rayon_v3.gd"
 const Mes := preload("res://outils/mesure_rayon_v4.gd")
 
 func _film() -> void:
+	if _arg("heure") != "" and s.get("cycle") != null:
+		s.cycle.heure = float(_arg("heure"))   # ex. --heure=11 : plein jour
+		await _attendre(1.0)
 	await _site_ouvert()
 	if _arg("diag") != "":
 		await Mes.diagnostic(self)
