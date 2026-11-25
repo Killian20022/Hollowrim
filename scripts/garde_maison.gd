@@ -153,6 +153,7 @@ static func creer(g: Dictionary) -> Node3D:
 	n.name = "GardeMaison"
 	var sq := n.find_child("Skeleton3D", true, false) as Skeleton3D
 	GardesVillage.varier(n, g)
+	RealismePnj.appliquer_visage_garde(n, g)     # pnj/realisme_v1 : traits du visage peints (armures inchangées)
 	if arme != "lance":
 		# clips d'épée / d'arc d'Humain (le Gardien a les clips à la lance : bras relevé sur une hampe)
 		var ap := n.get_node("Animations") as AnimationPlayer

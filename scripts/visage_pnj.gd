@@ -12,6 +12,8 @@ const REPERES := {
 	"f": {"cx": 0.1825, "ey": 0.176, "e": 0.0535, "ny": 0.224, "my": 0.261},
 }
 
+## Intensité globale des traits : la face fait ~20 px à 3 m, il faut des creux francs pour qu'elle se lise (1 = réglage de base).
+const FORCE := 1.7
 static var _img: Image
 static var _W := 256
 static var _r := {}
@@ -96,7 +98,7 @@ static func _tache(dx: float, dy: float, rx: float, ry: float, force: float) -> 
 			var d := pow((x + 0.5 - c.x) / ax, 2) + pow((y + 0.5 - c.y) / ay, 2)
 			if d < 1.0:
 				var w := (1.0 - d) * (1.0 - d)
-				_mul(x, y, 1.0 + force * w)
+				_mul(x, y, 1.0 + force * FORCE * w)
 
 static func _ligne(x0: float, y0: float, x1: float, y1: float, larg: float, force: float) -> void:
 	var n := 12
@@ -196,8 +198,8 @@ static func _barbe_naissante(g: int, densite: float) -> void:
 			var d := densite * clampf(k * 1.6, 0.0, 1.0)
 			var p := _img.get_pixel(x, y)
 			var l := p.get_luminance()
-			var poil := Color(l * 0.62, l * 0.60, l * 0.62, p.a)
-			var w := d * (0.32 + 0.25 * nappe)
+			var poil := Color(l * 0.60, l * 0.55, l * 0.52, p.a)
+			var w := d * (0.16 + 0.16 * nappe)
 			if tache > 1.0 - d * 0.45:
-				w += 0.30 * d
+				w += 0.22 * d
 			_img.set_pixel(x, y, p.lerp(poil, clampf(w, 0.0, 0.75)))

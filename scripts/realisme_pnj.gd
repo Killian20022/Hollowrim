@@ -13,6 +13,11 @@ class_name RealismePnj
 ## Ne s'applique PAS à « eirik » ni « garde » (corps de la crypte, chantier compagnon_mort) ni aux corps Tripo.
 
 static var _ancien := -1
+## Images précalculées (outils/generer_realisme_pnj.gd, VERSION++ après toute modif des peintures) : rien n'est repeint au lancement.
+const DOSSIER := "res://assets/pnj/realisme"
+const VERSION := 1
+static var enregistrer := false
+static var chrono := false
 
 ## Profils par id de PnjNordique : sexe (h|f), age (0 jeune, 1 mûr, 2 vieux), barbe (barbe naissante 0-1), rougeur (0-1),
 ## sale (salissure des étoffes 0-1), desat (désaturation des étoffes 0-1), taille (échelle du corps, variation entre individus).
@@ -75,43 +80,142 @@ static func appliquer(n: Node3D, id: String) -> void:
 		elif nom in CHEVEUX:
 			genre = "barbe" if nom == "Hair_Beard" else "cheveux"
 		if genre == "":
+			if nom == "accessoires" or nom.begins_with("@") or nom in ["arc_porte", "jupe_bl", "cape_bl"]:
+				for s in mi.mesh.get_surface_count():
+					var tb := (mi.get_active_material(s) as ShaderMaterial).get_shader_parameter("tex_base") as Texture2D if mi.get_active_material(s) is ShaderMaterial else null
+					if nom == "accessoires" and s == 0 and tb != null and tb.get_width() >= 256:
+						_repeindre(mi, s, "yeux", p, graine, "%s_%s_%d" % [id, nom, s])     # atlas des accessoires : yeux en amande (cartes R_OEIL)
+					else:
+						_regler(mi, s, {"saturation": SAT_ACCESSOIRES})     # pièces modelées (tresses, ceintures, plastron) : un peu ternies
 			continue
 		for s in mi.mesh.get_surface_count():
-			var m := mi.get_active_material(s) as ShaderMaterial
-			if m == null:
-				continue
-			var t := m.get_shader_parameter("tex_base") as Texture2D
-			if t == null:
-				continue
-			var img := t.get_image()
-			if img == null:
-				continue
-			img = img.duplicate() as Image
-			if img.is_compressed():
-				img.decompress()
-			img.clear_mipmaps()
-			img.convert(Image.FORMAT_RGBA8)
+			var t0 := Time.get_ticks_usec()
+			_repeindre(mi, s, genre, p, graine + s * 17 + nom.length() * 31, "%s_%s_%d" % [id, nom, s])
+			if chrono:
+				print("RealismePnj %s %s s%d : %.0f ms" % [id, nom, s, (Time.get_ticks_usec() - t0) / 1000.0])
+	n.set_meta("realisme_pnj", id)
+
+## Saturation (uniforme `saturation` du shader ps1_perso, multipliée) par genre de pièce : peau moins orangée « poupée », cheveux
+## moins vifs (roux orange vif, blond paille), étoffes et cuirs passés.
+const SAT := {"peau": 0.78, "cheveux": 0.62, "barbe": 0.66, "etoffe": 0.80, "yeux": 0.82}
+const SAT_ACCESSOIRES := 0.82
+## Cheveux légèrement assombris (les aplats clairs font « casque » au soleil).
+const VAL_CHEVEUX := 0.86
+
+## Duplique le matériau de la surface et en multiplie les paramètres numériques / couleur (clés de `reglages`).
+static func _regler(mi: MeshInstance3D, s: int, reglages: Dictionary) -> void:
+	var m := mi.get_active_material(s) as ShaderMaterial
+	if m == null:
+		return
+	var m2 := m.duplicate() as ShaderMaterial
+	_appliquer_reglages(m, m2, reglages)
+	if m.next_pass != null:
+		m2.next_pass = m.next_pass
+	Palette.suivre(m2)
+	if mi.material_override == m:
+		mi.material_override = m2
+	else:
+		mi.set_surface_override_material(s, m2)
+
+static func _appliquer_reglages(m: ShaderMaterial, m2: ShaderMaterial, reglages: Dictionary) -> void:
+	for k: String in reglages:
+		var v = m.get_shader_parameter(k)
+		if k == "saturation":
+			m2.set_shader_parameter(k, (float(v) if v != null else 1.0) * float(reglages[k]))
+		elif k == "teinte":
+			var c: Color = v if v is Color else Color.WHITE
+			var f: Color = reglages[k]
+			m2.set_shader_parameter(k, Color(c.r * f.r, c.g * f.g, c.b * f.b, c.a))
+
+static var _cache_tex := {}
+static var _mx := Mutex.new()
+
+## Visage seul (gardes maison : corps du Gardien sous l'armure validée, seul le visage se voit). Profil tiré des données du garde
+## (poil gris = âgé, rasé = barbe naissante plus marquée) ; images en cache par profil (14 gardes, 5 ou 6 visages différents).
+static func appliquer_visage_garde(n: Node3D, g: Dictionary) -> void:
+	if ancien():
+		return
+	var ip := int(g.get("poil", 0))
+	var p := {"sexe": "h", "age": 2 if ip == 4 else (1 if ip in [0, 3, 5] else 0), "barbe": 0.8 if g.get("rase", false) else 0.45,
+			"rougeur": 0.55 + 0.1 * (ip % 3)}
+	var mi := n.find_child("peau", true, false) as MeshInstance3D
+	if mi == null or mi.mesh == null:
+		return
+	for s in mi.mesh.get_surface_count():
+		_repeindre(mi, s, "peau", p, 7000 + ip * 13 + int(g.get("peau", 0)), "garde_%d_%d_%d_%d" % [ip, int(g.get("peau", 0)), 1 if g.get("rase", false) else 0, s], true)
+	n.set_meta("realisme_pnj", "garde_maison")
+
+## Repeint la surface `s` de `mi` (copie du matériau). `cle` : nom de l'image précalculée (assets/pnj/realisme/<cle>.res, relue si
+## sa version et l'empreinte de l'image source correspondent ; sinon recalculée, et écrite si `enregistrer`) ; `partage` : texture
+## partagée en mémoire entre PNJ de même clé (gardes).
+static func _repeindre(mi: MeshInstance3D, s: int, genre: String, p: Dictionary, graine: int, cle: String, partage := false) -> void:
+	var m := mi.get_active_material(s) as ShaderMaterial
+	if m == null:
+		return
+	var t := m.get_shader_parameter("tex_base") as Texture2D
+	if t == null:
+		return
+	var tex: Texture2D = null
+	var cle_m := "%s|%s" % [cle, t.get_rid()]
+	if partage:
+		_mx.lock()
+		tex = _cache_tex.get(cle_m)
+		_mx.unlock()
+	if tex == null:
+		var img := t.get_image()
+		if img == null:
+			return
+		img = img.duplicate() as Image
+		if img.is_compressed():
+			img.decompress()
+		img.clear_mipmaps()
+		img.convert(Image.FORMAT_RGBA8)
+		var empreinte := hash(img.get_data())
+		var chemin := "%s/%s.res" % [DOSSIER, cle]
+		var pret: Image = null
+		if ResourceLoader.exists(chemin):
+			var lu := ResourceLoader.load(chemin) as Image
+			if lu != null and lu.get_meta("version", -1) == VERSION and lu.get_meta("source", 0) == empreinte:
+				pret = lu
+		if pret == null:
 			match genre:
 				"peau":
 					VisagePnj.peindre(img, p, graine)
+				"yeux":
+					_yeux(img, graine)
 				"cheveux", "barbe":
-					_meches(img, graine + s, genre == "barbe")
+					if img.get_width() * img.get_height() <= 128 * 128:     # atlas de coupe Quaternius (64 px) ; pas les grandes textures
+						_meches(img, graine, genre == "barbe")
 				_:
-					_usure(img, genre, p, graine + s * 17 + nom.length() * 31)
-			var nouvelle := GuerrierTextures.mips_pixel(img) if genre != "peau" else _mips(img)
-			var tex := ImageTexture.create_from_image(nouvelle)
-			var m2 := m.duplicate() as ShaderMaterial
-			m2.set_shader_parameter("tex_base", tex)
-			if m2.get_shader_parameter("tex_neige") is Texture2D:
-				m2.set_shader_parameter("tex_neige", tex)
-			if m.next_pass != null:
-				m2.next_pass = m.next_pass
-			Palette.suivre(m2)
-			if mi.material_override == m:
-				mi.material_override = m2
-			else:
-				mi.set_surface_override_material(s, m2)
-	n.set_meta("realisme_pnj", id)
+					_usure(img, genre, p, graine)
+			pret = GuerrierTextures.mips_pixel(img) if genre != "peau" else _mips(img)
+			if enregistrer:
+				pret.set_meta("version", VERSION)
+				pret.set_meta("source", empreinte)
+				DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DOSSIER))
+				ResourceSaver.save(pret, chemin, ResourceSaver.FLAG_COMPRESS)
+		tex = ImageTexture.create_from_image(pret)
+		if partage:
+			_mx.lock()
+			_cache_tex[cle_m] = tex
+			_mx.unlock()
+	var m2 := m.duplicate() as ShaderMaterial
+	var reg := {"saturation": float(SAT.get(genre, SAT["etoffe"]))}
+	if genre == "cheveux" or genre == "barbe":
+		reg["teinte"] = Color(VAL_CHEVEUX, VAL_CHEVEUX * 0.97, VAL_CHEVEUX * 0.97)
+	elif genre == "peau":
+		reg["teinte"] = Color(0.96, 0.94, 0.95)
+	_appliquer_reglages(m, m2, reg)
+	m2.set_shader_parameter("tex_base", tex)
+	if m2.get_shader_parameter("tex_neige") is Texture2D:
+		m2.set_shader_parameter("tex_neige", tex)
+	if m.next_pass != null:
+		m2.next_pass = m.next_pass
+	Palette.suivre(m2)
+	if mi.material_override == m:
+		mi.material_override = m2
+	else:
+		mi.set_surface_override_material(s, m2)
 
 static func _mips(img: Image) -> Image:
 	var c := img.duplicate() as Image
@@ -154,15 +258,13 @@ static func _usure(img: Image, genre: String, p: Dictionary, g: int) -> void:
 	var sale := float(p.get("sale", 0.6))
 	var desat := float(p.get("desat", 0.2))
 	var boue := Color(0.20, 0.16, 0.12)
-	# plis : lignes verticales ondulées (étoffes souples), plus nombreux sur jupe, cape, mante
-	var nplis := {"haut": 9, "bas": 7, "mante": 6, "cape": 10, "capuche": 5, "jupe": 12, "cuir": 3, "bottes": 4}.get(genre, 5) as int
-	var plis: Array = []
-	for k in nplis:
-		var x0 := int(_h(k, 1, g) * W)
-		var y0 := int((_h(k, 2, g) * 0.55 + (0.1 if genre in ["haut", "bas", "cuir"] else 0.0)) * H)
-		plis.append([x0, y0, 1.5 + _h(k, 3, g) * 3.0, 0.5 + _h(k, 4, g)])
-	# ourlet crotté : fraction basse de l'image
+	# champs de bruit lisses : petites grilles aléatoires agrandies en bilinéaire (natif, rapide)
+	var nb := _champ(W, H, 6, 3, g + 11)
+	var nt := _champ(W, H, 14, 7, g + 13)
+	var nr := _champ(W, H, 9, 5, g + 17)
+	var nbo := _champ(W, H, 24, 6, g + 19)
 	var bas0 := {"bas": 0.70, "bottes": 0.45, "jupe": 0.72, "cape": 0.78, "mante": 0.85, "haut": 0.86, "capuche": 0.9}.get(genre, 0.9) as float
+	var seuil_t := 0.80 - 0.06 * sale
 	for y in H:
 		var v := float(y) / H
 		for x in W:
@@ -170,48 +272,88 @@ static func _usure(img: Image, genre: String, p: Dictionary, g: int) -> void:
 			if c.a < 0.05:
 				continue
 			c = _vers_nordique(c, desat)
-			var f := 1.0
-			# grain du tissu / cuir : variation fine, jamais de damier
-			f += (_h(x, y, g + 5) - 0.5) * 0.07
-			# salissure diffuse en grandes plages
-			var nb := bruit(x, y, W, H, 6, 3, g + 11)
-			f -= (nb - 0.5) * 0.16 * sale
-			# taches
-			var nt := bruit(x, y, W, H, 14, 7, g + 13)
-			if nt > 0.80 - 0.06 * sale:
-				f -= 0.13 * smoothstep(0.78 - 0.06 * sale, 0.9, nt)
-			# zones râpées, plus claires et ternes (étoffes et cuirs portés)
-			var nr := bruit(x, y, W, H, 9, 5, g + 17)
-			if nr > 0.76 and genre != "bottes":
-				var k := smoothstep(0.76, 0.9, nr)
+			var f := 1.0 + (_h(x, y, g + 5) - 0.5) * 0.07           # grain du tissu / cuir (jamais de damier)
+			f -= (nb.get_pixel(x, y).r - 0.5) * 0.16 * sale           # salissure en grandes plages
+			var vt := nt.get_pixel(x, y).r
+			if vt > seuil_t:
+				f -= 0.13 * smoothstep(seuil_t, seuil_t + 0.12, vt)  # taches
+			var vr := nr.get_pixel(x, y).r
+			if vr > 0.70 and genre != "bottes":                        # zones râpées : plus claires et ternes
+				var k := smoothstep(0.70, 0.85, vr)
 				f += 0.10 * k
 				c = _vers_nordique(c, 0.25 * k)
-			# plis
-			for pl: Array in plis:
-				if y < int(pl[1]):
-					continue
-				var amp: float = pl[2]
-				var xp := float(pl[0]) + sin(float(y) * 0.11 * float(pl[3]) + float(pl[0])) * amp
-				var dx := float(x) - xp
-				var dw := dx if dx > -W * 0.5 else dx + W
-				if dw > W * 0.5:
-					dw -= W
-				var fondu := clampf(float(y - int(pl[1])) / 12.0, 0.0, 1.0)
-				if absf(dw) < 0.8:
-					f -= 0.20 * fondu
-				elif dw >= 0.8 and dw < 1.8:
-					f += 0.07 * fondu
-			# ourlet : assombri, boue et éclaboussures
-			if v > bas0:
+			if v > bas0:                                              # ourlet : assombri, boue
 				var t := (v - bas0) / (1.0 - bas0)
-				var nboue := bruit(x, y, W, H, 24, 6, g + 19)
-				var kb := clampf(t * t * (0.5 + nboue) * sale * 1.25, 0.0, 0.85)
+				var kb := clampf(t * t * (0.5 + nbo.get_pixel(x, y).r) * sale * 1.25, 0.0, 0.85)
 				c = c.lerp(Color(boue.r, boue.g, boue.b, c.a), kb * 0.75)
 				f -= 0.18 * t * sale
 			elif v > bas0 - 0.18 and _h(x, y, g + 23) > 0.985 - 0.01 * sale:
 				c = c.lerp(Color(boue.r, boue.g, boue.b, c.a), 0.6)      # éclaboussures au-dessus de l'ourlet
 			f = clampf(f, 0.45, 1.3)
 			img.set_pixel(x, y, Color(clampf(c.r * f, 0, 1), clampf(c.g * f, 0, 1), clampf(c.b * f, 0, 1), c.a))
+	# plis : lignes verticales ondulées (ombre d'un texel, rehaut à côté), tracées le long de chaque pli
+	var nplis := {"haut": 9, "bas": 7, "mante": 6, "cape": 10, "capuche": 5, "jupe": 12, "cuir": 3, "bottes": 4}.get(genre, 5) as int
+	for k in nplis:
+		var x0 := _h(k, 1, g) * W
+		var y0 := int((_h(k, 2, g) * 0.55 + (0.1 if genre in ["haut", "bas", "cuir"] else 0.0)) * H)
+		var amp := 1.5 + _h(k, 3, g) * 3.0
+		var fr := 0.5 + _h(k, 4, g)
+		for y in range(y0, H):
+			var fondu := clampf(float(y - y0) / 12.0, 0.0, 1.0)
+			var xp := posmod(int(roundf(x0 + sin(float(y) * 0.11 * fr + x0) * amp)), W)
+			_mul_px(img, xp, y, 1.0 - 0.20 * fondu)
+			_mul_px(img, (xp + 1) % W, y, 1.0 + 0.07 * fondu)
+
+static func _mul_px(img: Image, x: int, y: int, f: float) -> void:
+	var c := img.get_pixel(x, y)
+	if c.a < 0.05:
+		return
+	img.set_pixel(x, y, Color(clampf(c.r * f, 0, 1), clampf(c.g * f, 0, 1), clampf(c.b * f, 0, 1), c.a))
+
+## Bruit lisse W x H : grille cx x cy de valeurs aléatoires, périodique, agrandie en bilinéaire.
+static func _champ(W: int, H: int, cx: int, cy: int, g: int) -> Image:
+	var petit := Image.create(cx + 1, cy + 1, false, Image.FORMAT_L8)
+	for y in cy + 1:
+		for x in cx + 1:
+			var v := _h(x % cx, y % cy, g)
+			petit.set_pixel(x, y, Color(v, v, v))
+	petit.resize(W + W / cx, H + H / cy, Image.INTERPOLATE_BILINEAR)
+	return petit.get_region(Rect2i(W / cx / 2, H / cy / 2, W, H))
+
+# ------------------------------------------------------------------------------------------------ yeux
+## Teintes d'iris (ternes) : gris-bleu, gris, brun, vert-gris, bleu sombre.
+const IRIS := [Color("#4c5f72"), Color("#5a5d5e"), Color("#4a3a2c"), Color("#50583f"), Color("#3c4c66")]
+
+## Œil des cartes R_OEIL (16 x 8 de l'atlas des accessoires) : fente en amande (paupière haute lourde qui couvre le haut de l'iris,
+## paupière basse), blanc terne et rosé aux coins, iris plus petit et sombre, pupille, reflet d'un texel. Remplace l'œil rond grand
+## ouvert « poupée » (et l'iris teinté avec la bande des habitants, qui virait au rouge).
+static func _yeux(img: Image, g: int) -> void:
+	var r := GuerrierTextures.R_OEIL
+	if r.end.x > img.get_width() or r.end.y > img.get_height():
+		return
+	var iris: Color = IRIS[g % IRIS.size()]
+	var peau := Color("#3a2a24")
+	for y in r.size.y:
+		for x in r.size.x:
+			var dx := (x + 0.5 - 8.0) / 8.0
+			# amande : demi-hauteur 3,4 texels au centre, nulle aux coins ; le haut plus bas (paupière)
+			var demi := 3.4 * (1.0 - dx * dx)
+			var haut := 4.0 - demi * 0.80
+			var bas := 4.0 + demi * 0.95
+			var yc := y + 0.5
+			var c := peau
+			if yc > haut and yc < bas:
+				c = Color("#8d857a") if absf(dx) < 0.55 else Color("#76665c")
+				var di := Vector2(x + 0.5 - 8.0, (yc - 4.3) * 1.15).length()
+				if di < 2.5:
+					c = iris if di > 1.0 else Color("#0e0c0b")
+					if di > 1.0 and x == 7 and y == 3:
+						c = iris.lightened(0.35)              # reflet
+				if yc < haut + 1.0:
+					c = c.darkened(0.40)                      # ombre portée de la paupière
+			elif yc <= haut and yc > haut - 1.2:
+				c = Color("#1e1512")                          # ligne de cils / pli de paupière
+			img.set_pixel(r.position.x + x, r.position.y + y, c)
 
 # ------------------------------------------------------------------------------------------------ cheveux
 ## Mèches : sillons sombres et reflets le long des brins (axe v de l'atlas Quaternius des coupes), variations de teinte par mèche.
