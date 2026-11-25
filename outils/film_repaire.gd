@@ -78,18 +78,18 @@ func _go() -> void:
 	var lev: Vector3 = g.to_global(meta["levier"])
 	for i in 120:
 		var u := float(i) / 120.0
-		_pose(lerpf(400.3, 402.2, u), lerpf(cm, cm + 0.3, u))
+		_pose(lerpf(399.2, 400.7, u), lerpf(cm, cm + 0.2, u))
 		_vers(lev + Vector3(0, -0.1, 0))
 		await _image()
 	for i in 36:
 		await _image()
 	(jeu.interactifs["levier_goulot"] as Node3D).parler()
 	for i in 120:         # le manche bascule, la porte s'ouvre (2,45 s)
-		_pose(402.2, cm + 0.3)
+		_pose(400.7, cm + 0.2)
 		_vers(lev if i < 20 else g.to_global(meta["bas"]) + Vector3(0, 1.3, 0))
 		await _image()
 	# 4. on passe la porte et on découvre la salle aux cristaux
-	await _marche(402.2, 412.0, cm, 4.0, 4.0, -2.0)
+	await _marche(400.7, 412.0, cm, 6.0, 4.0, -2.0)
 	await _marche(412.0, 424.0, 0.0, 6.0, 25.0, -4.0)
 	for i in 60:
 		_pose(424.0, 0.0, 40.0 * sin(float(i) / 60.0 * PI), -3.0)
