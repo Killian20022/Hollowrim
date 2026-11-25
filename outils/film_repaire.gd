@@ -130,9 +130,23 @@ func _go() -> void:
 			await _image()
 		print("FILM ", n, " images")
 		quit(0)
+	if _arg("seul") == "fps":      # IPS au calme (sans --fixed-fps) : camp puis salle aux cristaux, regard fixe, 5 s chacun après 3 s de chauffe
+		for v: Array in [["camp", 306.0, 0.0, 10.0], ["cristaux", 414.0, 0.0, 0.0]]:
+			_pose(float(v[1]), float(v[2]), float(v[3]), -4.0)
+			var t0 := Time.get_ticks_usec()
+			while Time.get_ticks_usec() - t0 < 3000000:
+				await process_frame
+			var nf := 0
+			t0 = Time.get_ticks_usec()
+			while Time.get_ticks_usec() - t0 < 5000000:
+				await process_frame
+				nf += 1
+			print("IPS %s : %.1f" % [v[0], float(nf) / (float(Time.get_ticks_usec() - t0) / 1e6)])
+		quit(0)
 	if _arg("seul") == "barres":      # diagnostic : quelle famille de maillages dessine les barres noires du goulet (vue 404.5, +30°)
 		(jeu.interactifs["levier_goulot"] as Node3D).parler()
-		_pose(404.5, cm, 30.0, 0.0)
+		var vv := _arg("vue", "404.5,%f,30" % cm).split(",")
+		_pose(float(vv[0]), float(vv[1]), float(vv[2]), 0.0)
 		for i in 90:
 			await process_frame
 		await _image()
@@ -198,7 +212,7 @@ func _go() -> void:
 			if nd is VisualInstance3D and (nd as Node3D).is_visible_in_tree():
 				var aabb := (nd as VisualInstance3D).get_aabb()
 				var gt := (nd as Node3D).global_transform
-				if not (gt * aabb).grow(0.6).has_point(cam3):
+				if not (gt * aabb).grow(1.5).has_point(cam3) or String(nd.name).begins_with("CoqueFine") or nd is Light3D:
 					continue
 				var nd_ := nd as VisualInstance3D
 				var l0 := nd_.layers
