@@ -68,7 +68,9 @@ const COUDE_G := Vector3(-0.6, -1.2, -0.3)
 ## l'avant-bras montait à 60-65° et devenait presque parallèle à la poignée : le poignet borné ne pouvait plus serrer l'arc.
 ## v3 : coude très à gauche et bas : l'avant-bras entre par le COIN BAS-GAUCHE de l'écran, à plat sous la ligne d'horizon (avant : coude
 ## (-0.8, -0.75), avant-bras en diagonale jusqu'au centre).
-static var COUDE_G_VISEE := Vector3(-1.6, -1.3, -0.1)
+## v3b : coude très bas ET EN ARRIÈRE du plan de la caméra (z +1.0) : l'avant-bras fuit vers l'œil et sort du champ presque aussitôt (reste le poing
+## sur la poignée), au lieu de traverser le bas gauche de l'écran (~40 % -> ~5 %).
+static var COUDE_G_VISEE := Vector3(-0.3, -1.5, 1.0)
 ## Levée : détour du coude gauche (haut et en dehors, au milieu du redressement de l'arc) : l'avant-bras reste en travers de l'arc.
 var detour_coude_g := Vector3(-0.6, 0.4, 0.0)
 ## Levée et descente : l'arc tourne de la pose de repos à celle de visée (direction de la flèche et inclinaison interpolées, jamais
@@ -87,6 +89,10 @@ const COUDE_D_VISEE := Vector3(0.7, 0.05, 0.6)
 ## Détour du coude droit pendant la levée (au milieu de la levée, repère de la caméra) : il reste BAS (coude sous l'épaule, comme
 ## un archer qui lève l'arc avant de bander) et le manchon de fourrure du brassard droit ne passe pas sous l'œil.
 const DETOUR_COUDE_D := Vector3(0.0, -0.6, 0.2)
+## Suite du geste (lâcher) : point de contrôle de la trajectoire de la main de corde, relatif à l'encoche (repère de la caméra), et durée de
+## cette phase (part de la phase de récupération).
+static var SUITE_GESTE := Vector3(0.3, 0.4, -0.9)
+const PH_LACHER := 0.2
 ## Rechargement : la main de corde fait un détour vers le bas (repère de la caméra) entre le carquois et l'encoche.
 const DETOUR_MAIN_RECHARGE := Vector3(0.04, -0.16, -0.02)
 ## Rechargement : détour du coude droit (bas, en dehors, en arrière) : le bras de corde ne barre pas le bas droit de l'image.
@@ -903,13 +909,19 @@ func _placer_vm() -> void:
 		var repere: Basis = (_vm.transform.basis * _vm.repere_encoche.basis).orthonormalized()
 		var main: Vector3
 		var w_bas := sin(PI * clampf((ph - 0.08) / 0.92, 0.0, 1.0))
-		if ph < 0.12:
-			var k0 := ph / 0.12
-			main = ENCOCHE_VISEE.lerp(lacher, 1.0 - (1.0 - k0) * (1.0 - k0)) + DETOUR_MAIN_RECHARGE * w_bas
-			_poing_vm.ferme_d = 1.0 - 0.45 * k0
+		if ph < PH_LACHER:
+			# suite du geste (v3b) : la main de corde s'ouvre et part en arc de cercle (Bézier) : elle balaie d'abord le bas droit du champ
+			# (devant, à droite, doigts qui s'écartent) puis file vers l'oreille et sort du champ
+			var k0 := ph / PH_LACHER
+			var ctrl := ENCOCHE_VISEE + SUITE_GESTE
+			var a1 := ENCOCHE_VISEE.lerp(ctrl, k0)
+			var a2 := ctrl.lerp(lacher, k0)
+			main = a1.lerp(a2, k0) + DETOUR_MAIN_RECHARGE * w_bas
+			_poing_vm.ferme_d = 1.0 - 0.75 * smoothstep(0.0, 1.0, k0)
 		elif ph < 0.5:
-			main = lacher.lerp(CARQUOIS, smoothstep(0.0, 1.0, (ph - 0.12) / 0.38)) + DETOUR_MAIN_RECHARGE * w_bas
-			_poing_vm.ferme_d = (ph - 0.12) / 0.38
+			var k1 := smoothstep(0.0, 1.0, (ph - PH_LACHER) / (0.5 - PH_LACHER))
+			main = lacher.lerp(CARQUOIS, k1) + DETOUR_MAIN_RECHARGE * w_bas
+			_poing_vm.ferme_d = 0.25 + 0.75 * k1
 		else:
 			var k := smoothstep(0.0, 1.0, (ph - 0.5) / 0.5)
 			main = CARQUOIS.lerp(nock_cam, k) + DETOUR_MAIN_RECHARGE * w_bas

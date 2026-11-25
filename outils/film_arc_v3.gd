@@ -29,10 +29,11 @@ func _go() -> void:
 	s.mur.position = Vector3(30, 1.3, 30)
 	s.hud.visible = false
 	j = s.joueur
-	for nd in root.find_children("*", "", true, false):
-		var sc: Variant = nd.get_script()
-		if sc != null and String((sc as Script).resource_path).ends_with("compteur_ips.gd"):
-			nd.set("visible", false)
+	var ips := root.get_node_or_null("CompteurIps")   # le compteur d'IPS (option du joueur) n'a rien à faire dans le film : coupé pour de bon
+	if ips != null:
+		ips.set_process(false)
+		ips.process_mode = Node.PROCESS_MODE_DISABLED
+		ips.set("visible", false)
 	var cible := Vector3(0.4, 1.25, -12.0)
 	if decor == "crypte":
 		s.placer_joueur(Vector3(0, 0, 3.5), 0.0)
@@ -125,9 +126,6 @@ func _img(k: int) -> void:
 		if _imp:
 			continue
 		await RenderingServer.frame_post_draw
-		for l: Label in root.find_children("*", "Label", true, false):
-			if l.text.ends_with(" IPS"):
-				l.get_parent().set("visible", false) if l.get_parent() is CanvasLayer else l.set("visible", false)
 		var im := root.get_viewport().get_texture().get_image()
 		im.save_jpg(sortie.path_join("f_%05d.jpg" % n), 0.93)
 		n += 1

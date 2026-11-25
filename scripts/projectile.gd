@@ -54,7 +54,8 @@ const TRAINEE_LARGEUR := 0.008     ## ruban tourné vers la caméra (une ligne d
 const TRAINEE_LARGEUR_ECRAN := 0.0075  ## largeur ~ distance caméra : ~4 px d'écran à toute distance (sinon invisible au loin)
 const TRAINEE_ECART := 1.0          ## m : écart du sillage au départ (vers la main)
 const TRAINEE_ECART_PORTEE := 70.0   ## m : distance de vol sur laquelle l'écart disparaît
-const TRAINEE_FONDU_CAM := 0.6     ## m : invisible à 20 cm de la caméra, pleine à 80 cm
+const TRAINEE_FONDU_CAM := 1.6     ## m : invisible à 60 cm de la caméra, pleine à 2,2 m (v3b : plus de long rayon près de l'œil)
+const TRAINEE_FONDU_DEPART := 1.5  ## m : le sillage naît en fondu sur les 1,5 premiers mètres du vol (on le voit surtout s'éloigner)
 var vitesse_reference := 46.0
 var degats_min := 3.0
 ## Dégâts réellement infligés à l'impact (0 tant qu'elle vole) et vitesse à l'impact.
@@ -306,7 +307,9 @@ func _maj_trainee(dt: float) -> void:
 			var forme := lerpf(0.45, 1.0, smoothstep(0.0, 0.16, t)) * (1.0 - 0.4 * smoothstep(0.16, 1.0, t))
 			lat = lat.normalized() * clampf(d_cam * TRAINEE_LARGEUR_ECRAN, TRAINEE_LARGEUR, 1.2) * 0.5 * larg * forme if lat.length() > 0.0001 else Vector3.ZERO
 			var al := force * pow(1.0 - t, 0.8) * clampf(0.35 + t * 8.0, 0.0, 1.0)   # naît franchement derrière la pointe, fondu doux
-			al *= clampf((d_cam - 0.2) / TRAINEE_FONDU_CAM, 0.0, 1.0)
+			al *= clampf((d_cam - 0.6) / TRAINEE_FONDU_CAM, 0.0, 1.0)
+			if _trainee_depart != Vector3.INF:
+				al *= smoothstep(0.0, TRAINEE_FONDU_DEPART, pa.distance_to(_trainee_depart))
 			var c := TRAINEE_COULEUR_CHAUD.lerp(TRAINEE_COULEUR, smoothstep(0.0, 0.35, t)) if passe == 2 \
 				else (TRAINEE_COULEUR_QUEUE if passe == 0 else TRAINEE_COULEUR.lerp(TRAINEE_COULEUR_QUEUE, smoothstep(0.1, 0.9, t)))
 			c.a = al
