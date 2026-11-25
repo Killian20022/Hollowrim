@@ -1050,8 +1050,10 @@ static func _camp_lot4(g: Grotte, id: String, feu_s: float, feu: Vector3, r: Ran
 	# piège à ours aux abords du camp (décor)
 	d.q4("q_piege_ours", _p(g, id, feu_s - 4.5, 2.6), 0.5, 1.2)
 
-## Goulet du camp : portique de bois et rideau de peaux fendu (on passe par la fente, sans collision) : il ferme la vue sur la salle
-## des cristaux, dont le bleu se découpait comme un portail depuis le camp.
+## Goulet du camp : portique de bois et VRAIE porte à deux battants (retours exe 4, 2026-11-25 : le rideau de peaux se traversait). Le
+## portique (poteaux + linteau) est du décor fusionné ; les battants et le levier sont des pièces MOBILES bâties en jeu par
+## GrotteJeu._porte (collision, ouverture au levier, état sauvegardé) d'après la méta `porte_goulot` posée ici (repère local de la grotte).
+## Sans GrotteJeu (tests de géométrie, captures de décor) la porte n'existe pas : le goulet reste libre.
 static func rideau(g: Grotte, id: String, s: float) -> void:
 	var T := g.tang(id, s)
 	var lacet := atan2(T.x, T.z)
@@ -1064,13 +1066,13 @@ static func rideau(g: Grotte, id: String, s: float) -> void:
 		var w: float = dl.y if sg > 0.0 else dl.x
 		var pied: Vector3 = bas + dd * sg * (w - 0.12)
 		d.boite("bois", pied + Vector3(0, (haut - 0.3) * 0.5, 0), Vector3(0.24, haut - 0.3, 0.24), lacet)
-		var larg := w - 0.12 + 0.25
-		var centre: Vector3 = bas + dd * sg * ((w - 0.12 - 0.25) * 0.5) + T * sg * 0.1
-		d.boite("peau", centre + Vector3(0, 1.65, 0), Vector3(larg, 3.3, 0.07), lacet)
-		d.boite("peau", centre + T * sg * 0.07 + Vector3(0, 1.4, 0), Vector3(larg * 0.9, 2.8, 0.05), lacet + sg * 0.04)
+		d.boite("bois", pied + Vector3(0, 0.06, 0), Vector3(0.34, 0.12, 0.34), lacet)          # pied du poteau (semelle)
 	var centre_h: Vector3 = bas + dd * (dl.y - dl.x) * 0.5
 	d.boite("bois", centre_h + Vector3(0, haut - 0.5, 0), Vector3(dl.x + dl.y, 0.22, 0.24), lacet)
-	d.boite("peau", centre_h + Vector3(0, haut - 1.05, 0), Vector3(dl.x + dl.y - 0.3, 0.9, 0.07), lacet)
+	g.set_meta("porte_goulot", {
+		"bas": bas, "droite": dd, "tang": T, "lacet": lacet, "lat_g": -dl.x + 0.24, "lat_d": dl.y - 0.24,
+		"haut": haut - 0.62, "levier": bas - dd * (dl.x - 0.12) - T * 0.16 + Vector3(0, 1.25, 0),
+	})
 
 # ------------------------------------------------------------------ fond aux cristaux
 static func _cristaux(g: Grotte, z: Dictionary, r: RandomNumberGenerator) -> void:

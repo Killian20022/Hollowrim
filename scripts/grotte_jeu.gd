@@ -87,6 +87,7 @@ func installer(acces_: Node3D, g_: Grotte) -> void:
 			"ennemi":
 				_file.append(a)
 	_uniques()
+	_porte()
 	_etat()
 	_lancer_prechauffe()
 	salles = SalleActive.depuis_grotte(g, g, acces.joueur, acces.get_tree())
@@ -176,6 +177,7 @@ func _etat() -> void:
 			it.actif = it.get_meta("genre", "") == "coffre" and ButinTables.a_reste(cle)      # L3 : coffre ouvert, objets laissés
 			if it.actif:
 				it.verbe = "Fouiller le coffre"
+	_porte_etat(vus.has(CLE_PORTE % prefixe))
 	for o: String in uniques:          # L9 : objets uniques déjà pris
 		(uniques[o] as ObjetUnique).actualiser()
 	for id: String in couvercles:      # L1 : coffre déjà vidé (partie chargée) = ouvert ; refermé sinon (mort avant la bourse)
@@ -404,6 +406,114 @@ func _lire(d: Dictionary, cle: String) -> Array:
 	if lignes.is_empty():
 		lignes = d.get("texte", [])
 	return lignes
+
+# ------------------------------------------------------------------ porte du goulet (levier)
+const CLE_PORTE := "%s:levier_goulot"
+const OUVERTURE := deg_to_rad(86.0)
+var _battants: Array = []               # [{pivot, signe}] ; signe = sens de pivotement (vers l'intérieur du goulet)
+var _corps_porte: StaticBody3D
+var _manche: Node3D
+var _porte_ouverte := false
+
+## Porte à deux battants du goulet du camp (méta `porte_goulot` posée par GrotteModules.rideau) : planches jointives, traverses de fer,
+## collision tant qu'elle est fermée ; un levier cloué sur le poteau côté camp l'ouvre (état = quetes.vus, donc sauvegardé et partagé en coop).
+func _porte() -> void:
+	if not g.has_meta("porte_goulot"):
+		return
+	var m: Dictionary = g.get_meta("porte_goulot")
+	var T: Vector3 = m["tang"]
+	var dd: Vector3 = m["droite"]
+	var bas: Vector3 = m["bas"]
+	var lacet: float = m["lacet"]
+	var haut: float = m["haut"]
+	var base := Basis(Vector3.UP, lacet)
+	var sx := signf(dd.dot(base.x))
+	_corps_porte = StaticBody3D.new()
+	_corps_porte.name = "PorteGoulot"
+	g.add_child(_corps_porte)
+	for sg: float in [-1.0, 1.0]:
+		var lat_h: float = float(m["lat_d"] if sg > 0.0 else m["lat_g"])       # charnière sur le poteau ; le goulet est décentré (jonction)
+		var lat_m := (float(m["lat_d"]) + float(m["lat_g"])) * 0.5
+		var w := absf(lat_m - lat_h)
+		var pivot := Node3D.new()
+		pivot.position = bas + dd * lat_h
+		pivot.rotation.y = lacet
+		g.add_child(pivot)
+		var long_ := w + 0.03                                  # léger recouvrement au milieu
+		var n := 6
+		var lp := long_ / float(n)
+		for k in n:                                              # planches verticales jointives, hauteurs et épaisseurs un peu inégales
+			var hh := haut - 0.03 * float((k * 7) % 3)
+			var ep := 0.09 + 0.012 * float((k * 5) % 3)
+			var x := -sg * sx * (lp * (float(k) + 0.5))
+			g.decor.instance_boite(pivot, "bois", Vector3(lp - 0.012, hh, ep), Vector3(x, hh * 0.5 + 0.04, 0.0))
+		for y: float in [0.42, haut - 0.42]:                     # traverses de fer rivetées, côté camp
+			g.decor.instance_boite(pivot, "fer", Vector3(long_ - 0.1, 0.13, 0.03), Vector3(-sg * sx * long_ * 0.5, y, -0.065))
+			for k in 4:
+				g.decor.instance_boite(pivot, "fer", Vector3(0.05, 0.05, 0.03), Vector3(-sg * sx * (0.25 + long_ * 0.22 * float(k)), y, -0.085))
+		g.decor.instance_boite(pivot, "fer", Vector3(0.14, 0.14, 0.04), Vector3(-sg * sx * (long_ - 0.22), haut * 0.5, -0.07))   # anneau de tirage (plaque)
+		var cs := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = Vector3(long_, haut + 0.1, 0.18)
+		cs.shape = bs
+		cs.position = bas + dd * lat_h + dd * (-sg) * long_ * 0.5 + Vector3(0, haut * 0.5, 0)
+		cs.rotation.y = lacet
+		_corps_porte.add_child(cs)
+		_battants.append({"pivot": pivot, "signe": sg * sx, "cs": cs})
+	# levier : plaque de fer clouée sur le poteau gauche, côté camp ; manche de bois dont la boule de fer fait le geste
+	var lp_pos: Vector3 = m["levier"]
+	var socle := Node3D.new()
+	socle.position = lp_pos
+	socle.rotation.y = lacet
+	g.add_child(socle)
+	g.decor.instance_boite(socle, "fer", Vector3(0.2, 0.42, 0.05), Vector3.ZERO)
+	_manche = Node3D.new()
+	_manche.position = Vector3(0, 0, -0.04)
+	_manche.rotation.x = deg_to_rad(-35.0)
+	socle.add_child(_manche)
+	g.decor.instance_boite(_manche, "bois", Vector3(0.06, 0.5, 0.06), Vector3(0, 0.22, 0))
+	g.decor.instance_boite(_manche, "fer", Vector3(0.12, 0.12, 0.12), Vector3(0, 0.5, 0))
+	var lum := OmniLight3D.new()                              # lueur chaude : le levier et la porte se lisent depuis le camp
+	lum.position = lp_pos - T * 0.9 + Vector3(0, 0.5, 0)
+	lum.light_color = Color(1.0, 0.62, 0.3)
+	lum.light_energy = 1.3
+	lum.omni_range = 6.5
+	lum.omni_attenuation = 1.6
+	lum.shadow_enabled = false
+	g.add_child(lum)
+	var it := _interactif(lp_pos - T * 0.2, "Levier de la porte", "Tirer le levier",
+		func() -> Array: return _tirer_levier(), func() -> bool: return not _porte_ouverte, true, 2.6)
+	it.set_meta("cle_etat", CLE_PORTE % prefixe)
+	interactifs["levier_goulot"] = it
+
+func _tirer_levier() -> Array:
+	acces.quetes.signaler(CLE_PORTE % prefixe)
+	_porte_etat(true, true)
+	return []
+
+## Ouvre / ferme la porte (instantané sauf `anime`) ; n'agit que si l'état change.
+func _porte_etat(ouverte: bool, anime := false) -> void:
+	if _battants.is_empty() or ouverte == _porte_ouverte:
+		return
+	_porte_ouverte = ouverte
+	var a := OUVERTURE if ouverte else 0.0
+	var lacet: float = (g.get_meta("porte_goulot") as Dictionary)["lacet"]
+	var t := acces.create_tween().set_parallel(true) if anime else null
+	for b: Dictionary in _battants:
+		var cible := lacet + float(b["signe"]) * a
+		if anime:
+			t.tween_property(b["pivot"], "rotation:y", cible, 2.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT).set_delay(0.45)
+		else:
+			(b["pivot"] as Node3D).rotation.y = cible
+		(b["cs"] as CollisionShape3D).set_deferred("disabled", ouverte)
+	var mt := -35.0 if not ouverte else 35.0
+	if anime:
+		t.tween_property(_manche, "rotation:x", deg_to_rad(mt), 0.35)
+		Sons.jouer_a(acces, ["impactMetal_heavy_000", "doorOpen_1"], g.to_global(g.get_meta("porte_goulot")["levier"]), 2.0)
+		Sons.jouer_a(acces, ["doorOpen_1", "impactPlate_medium_000"], g.to_global((g.get_meta("porte_goulot") as Dictionary)["bas"]), 1.0)
+		acces.joueur.secousse = 0.2
+	else:
+		_manche.rotation.x = deg_to_rad(mt)
 
 # ------------------------------------------------------------------ mécanismes
 func _meca(a: Dictionary) -> void:
