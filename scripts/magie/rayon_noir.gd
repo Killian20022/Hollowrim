@@ -439,10 +439,20 @@ func _maj_eclair(g: GestionMagie, cb: Basis, cam: Camera3D) -> void:
 	if g != null and g.couche != null:
 		g.couche.demander()
 
+## Vrai quand la caméra est celle du JOUEUR LOCAL en 1re personne et que ce rayon sort de SA main (pas d'un autre joueur du réseau
+## ni d'un ennemi qui passe à côté) : seuls les effets d'écran (stries plein écran, poussée de champ) en dépendent.
+func _vue_joueur(cam: Camera3D) -> bool:
+	if cam == null or paume == null or not is_instance_valid(paume) or cam.global_position.distance_to(paume_pos) > 1.4:
+		return false
+	var n: Node = cam.get_parent()
+	while n != null and not (n is CharacterBody3D):
+		n = n.get_parent()
+	return n != null and n.is_ancestor_of(paume)
+
 ## v4 : STRIES DE VITESSE LUMIÈRE plein écran (vue joueur) : traits radiaux depuis le point de fuite du tir ; foule au déclenchement
 ## (`elan`), continus ensuite tant que le rayon est tenu, fondus au relâchement.
 func _maj_warp(g: GestionMagie, cb: Basis, cam: Camera3D) -> void:
-	var proche := cam != null and cam.global_position.distance_to(paume_pos) < 1.4
+	var proche := _vue_joueur(cam)
 	var force := 0.0
 	if allume:
 		force = smoothstep(0.0, 0.04, _t) * 0.5
@@ -474,7 +484,7 @@ func _maj_warp(g: GestionMagie, cb: Basis, cam: Camera3D) -> void:
 ## v4 : poussée de champ de vision au départ (vue joueur seulement : la caméra est tout près de la paume), puis léger maintien.
 ## Chaque rayon calcule SA poussée ; la plus forte des rayons vivants est posée sur la caméra, une fois par image (voir _poser_fov).
 func _maj_fov(dt: float, cam: Camera3D) -> void:
-	var proche := cam != null and cam.global_position.distance_to(paume_pos) < 1.4
+	var proche := _vue_joueur(cam)
 	var cible := 0.0
 	if proche and allume:
 		cible = FOV_TENU + FOV_POUSSEE * (smoothstep(0.0, FOV_MONTEE, _t) * exp(-maxf(_t - FOV_MONTEE, 0.0) * FOV_RETOUR))

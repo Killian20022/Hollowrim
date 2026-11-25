@@ -3,7 +3,7 @@
 // hexagramme intérieur, graduations. `ouv` (0..1) : le cercle s'ouvre en tournant (du centre vers l'extérieur) et se ferme de même.
 // Mélange alpha en HDR (le glow fait la lueur). Aucune texture, aucun tramage.
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 
 uniform vec3 noir : source_color = vec3(0.01, 0.0, 0.03);
 uniform vec3 bord : source_color = vec3(0.78, 0.13, 0.66);
@@ -98,6 +98,6 @@ void fragment() {
 	c = mix(c, filet * 3.0, front); aa = max(aa, front);
 	aa *= fen * smoothstep(0.0, 0.15, ouv);
 	aa *= mix(1.0, 0.5, smoothstep(0.55, 0.95, face));   // v3f : cercle discret quand on le regarde de face (1re personne)
-	ALBEDO = c;
-	ALPHA = clamp(aa, 0.0, 1.0);
+	ALBEDO = c * clamp(aa, 0.0, 1.0);   // v4 : additif prémultiplié (couche fine : aucune opacité, donc aucun aplat sombre)
+	ALPHA = 0.0;
 }

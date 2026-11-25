@@ -7,4 +7,7 @@ const Mes := preload("res://outils/mesure_rayon_v4.gd")
 
 func _film() -> void:
 	await _site_ouvert()
-	await Mes.mesurer(self, "ouvert")
+	if _arg("diag") != "":
+		await Mes.diagnostic(self)
+	else:
+		await Mes.mesurer(self, "ouvert")

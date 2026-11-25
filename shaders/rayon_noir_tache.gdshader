@@ -5,7 +5,7 @@
 // qui pulse au rythme de l'onde du rayon, veines violettes qui rampent du centre vers le bord ; laissée derrière (balayage), elle
 // s'éteint (`fondu` 1 → 0) : liseré d'abord, puis le noir. Paliers francs, aucun tramage.
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 #include "res://shaders/magie_occ.gdshaderinc"
 #include "res://shaders/magie_bruit.gdshaderinc"
 
@@ -57,7 +57,7 @@ void fragment() {
 		a = max(a, liseret);
 	}
 	a *= 0.82 + 0.18 * mbruit(p * 9.0 + graine);
-	ALBEDO = c;
-	ALPHA = clamp(a * smoothstep(0.0, 0.35, fondu), 0.0, 1.0);
+	ALBEDO = c * clamp(a * smoothstep(0.0, 0.35, fondu), 0.0, 1.0);   // additif prémultiplié (couche fine : pas d'opacité)
+	ALPHA = 0.0;
 } while (false);
 }

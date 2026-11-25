@@ -3,7 +3,7 @@
 // qui garde le rayon lisible dans une crypte sombre ; elle ne touche jamais le cœur (x < 0,62) : le noir reste noir.
 // Paliers francs (3) plutôt qu'un dégradé lisse, comme la fumée du faisceau ; aucun tramage.
 shader_type spatial;
-render_mode unshaded, blend_add, cull_back, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_back, depth_draw_never, fog_disabled, shadows_disabled;
 #include "res://shaders/magie_occ.gdshaderinc"
 #include "res://shaders/magie_bruit.gdshaderinc"
 
@@ -56,7 +56,7 @@ void fragment() {
 	do {
 	if (magie_cachee(SCREEN_UV, FRAGCOORD.z, INV_PROJECTION_MATRIX, INV_VIEW_MATRIX, PROJECTION_MATRIX)) {
 		ALBEDO = vec3(0.0);
-		ALPHA = 1.0;
+		ALPHA = 0.0;
 		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	float k = rk();
@@ -80,14 +80,14 @@ void fragment() {
 	float u_c = clamp(tc / longueur, 0.0, 1.0);
 	if (k < 0.03 || u_c > tete || v_u < 0.003) {
 		ALBEDO = vec3(0.0);
-		ALPHA = 1.0;
+		ALPHA = 0.0;
 		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	float rr = max(rayon_en(clamp(tc, 0.0, longueur)), 0.001);
 	float x = rho / rr;
 	if (x > GROS || x < 0.62) {
 		ALBEDO = vec3(0.0);
-		ALPHA = 1.0;
+		ALPHA = 0.0;
 		break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 	}
 	float ph = fract((tc - TIME * flux_vit) / flux_pas + graine);
@@ -102,6 +102,6 @@ void fragment() {
 	float axial = smoothstep(0.7, 0.97, abs(b));
 	float vis = mix(1.0, smoothstep(0.08, 0.4, length(VERTEX)), axial);   // v3f : presque rien sur le premier mètre vu dans l'axe
 	ALBEDO = bord * f * force_halo * eclat * k * bouts * vis * (1.0 + 0.9 * axial);
-	ALPHA = 1.0;
+	ALPHA = 0.0;
 } while (false);
 }

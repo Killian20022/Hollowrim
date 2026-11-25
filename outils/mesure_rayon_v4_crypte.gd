@@ -6,4 +6,7 @@ const Mes := preload("res://outils/mesure_rayon_v4.gd")
 func _film() -> void:
 	var mur := _mur()
 	await _regarder(mur[0], 0.4)
-	await Mes.mesurer(self, "crypte")
+	if _arg("diag") != "":
+		await Mes.diagnostic(self)
+	else:
+		await Mes.mesurer(self, "crypte")

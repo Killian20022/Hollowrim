@@ -204,3 +204,54 @@ static func perf(f) -> void:
 	print("PERF déclenchement (60 premières images) : ", _moy(decl))
 	print("PERF tenu : ", _moy(tenu))
 	f.magie.relacher("gauche")
+
+# ------------------------------------------------------------------ diagnostic : quel composant du rayon assombrit ?
+
+## Rayon tenu 1 s, temps gelé ; tous les composants du RayonNoir sont masqués, puis chacun est remis SEUL : part de l'écran plus sombre
+## que « tout masqué ». (Utile en détail « élevé » : couche fine de la magie.)
+static func diagnostic(f) -> void:
+	f.magie.raccourci_sort_gauche(RayonNoir.ID)
+	await f._attendre(0.4)
+	f.magie.appuyer("gauche")
+	var garde := 0
+	while RayonNoir.par_paume.is_empty() and garde < 120:
+		await f.process_frame
+		garde += 1
+	await f._attendre(1.0)
+	var r: RayonNoir = null
+	for id in RayonNoir.par_paume:
+		r = RayonNoir.par_paume[id]
+	if r == null:
+		print("DIAG pas de rayon")
+		return
+	Engine.time_scale = 0.0
+	var comp: Array = []
+	for c in r.get_children():
+		if c is VisualInstance3D:
+			comp.append(c)
+	var etat: Array = []
+	for c in comp:
+		etat.append((c as VisualInstance3D).layers)
+		(c as VisualInstance3D).layers = 0   # (visible est réécrit à chaque image par le rayon : on joue sur les calques)
+	for i in 4:
+		await f.process_frame
+	var base: Image = f.root.get_viewport().get_texture().get_image()
+	for i in comp.size():
+		if (int(etat[i]) & CoucheMagie.CALQUE) == 0 or not (comp[i] as Node3D).visible:
+			continue
+		(comp[i] as VisualInstance3D).layers = etat[i]
+		for k in 3:
+			await f.process_frame
+		var im: Image = f.root.get_viewport().get_texture().get_image()
+		var res := comparer(base, im)
+		var nom := "%s %s" % [comp[i].get_class(), (comp[i].mesh.get_class() if comp[i] is MeshInstance3D else "")]
+		if comp[i] is MeshInstance3D and (comp[i] as MeshInstance3D).material_override is ShaderMaterial:
+			nom += " " + ((comp[i] as MeshInstance3D).material_override as ShaderMaterial).shader.resource_path.get_file()
+		elif comp[i] is MultiMeshInstance3D:
+			nom += " " + ((comp[i] as MultiMeshInstance3D).material_override as ShaderMaterial).shader.resource_path.get_file()
+		print("DIAG %2d %s : sombre=%.2f%% tres_sombre=%.2f%% clair=%.2f%%" % [i, nom, res.sombre, res.tres_sombre, res.clair])
+		(comp[i] as VisualInstance3D).layers = 0
+	Engine.time_scale = 1.0
+	for i in comp.size():
+		(comp[i] as VisualInstance3D).layers = etat[i]
+	f.magie.relacher("gauche")

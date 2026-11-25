@@ -3,7 +3,7 @@
 // pointe le rayon) vers les bords de l'écran, comme un saut hyperespace : très nombreux au déclenchement (`elan` 1 → 0), puis continus
 // et plus discrets tant que le rayon est tenu. ADDITIF (ne peut pas assombrir), centre dégagé (le tir et la main restent lisibles).
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_test_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_disabled, depth_test_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 
 uniform vec3 bord : source_color = vec3(0.78, 0.13, 0.66);
 uniform vec3 filet : source_color = vec3(1.0, 0.77, 0.95);
@@ -41,6 +41,6 @@ void fragment() {
 		float b = tr * ligne * on * cache;
 		vec3 c = mix(bord * 1.5, filet * 3.0, smoothstep(0.55, 1.0, u));
 		ALBEDO = c * b * force * (0.7 + 1.1 * elan);
-		ALPHA = 1.0;
+		ALPHA = 0.0;
 	} while (false);
 }

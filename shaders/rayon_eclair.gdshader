@@ -3,7 +3,7 @@
 // paume (jusqu'aux bords de l'écran en vue joueur) et des rayons de lumière (style hyperespace) qui giclent du centre. ADDITIF : ne
 // peut jamais assombrir. `k` : 0 → 1 pendant la durée de l'éclair ; `force` : intensité générale.
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 #include "res://shaders/magie_occ.gdshaderinc"
 
 uniform vec3 bord : source_color = vec3(0.78, 0.13, 0.66);
@@ -53,6 +53,6 @@ void fragment() {
 		c += mix(bord, filet, 0.6) * 2.0 * ray;
 		float fondu = 1.0 - smoothstep(0.78, 1.0, r);
 		ALBEDO = c * fondu * force;
-		ALPHA = 1.0;
+		ALPHA = 0.0;
 	} while (false);
 }

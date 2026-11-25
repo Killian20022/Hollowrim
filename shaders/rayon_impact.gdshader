@@ -2,7 +2,7 @@
 // Noyau clair qui pulse, trois anneaux qui s'élargissent en boucle (onde de choc), étincelles rayonnantes qui tournent,
 // anneau de runes pointillé. Mélange alpha HDR ; pas de texture.
 shader_type spatial;
-render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 
 uniform vec3 bord : source_color = vec3(0.78, 0.13, 0.66);
 uniform vec3 accent : source_color = vec3(0.89, 0.24, 0.77);
@@ -47,7 +47,7 @@ void fragment() {
 		// noyau clair
 		float noy = (1.0 - smoothstep(0.04, 0.2, r)) * (0.8 + 0.2 * sin(t * 18.0));
 		c = mix(c, filet * 3.0, noy); a = max(a, noy);
-		ALBEDO = c;
-		ALPHA = clamp(a * ouv * (1.0 - smoothstep(0.85, 1.0, r)), 0.0, 1.0);
+		ALBEDO = c * clamp(a * ouv * (1.0 - smoothstep(0.85, 1.0, r)), 0.0, 1.0);   // v4 : additif prémultiplié (couche fine)
+		ALPHA = 0.0;
 	}
 }

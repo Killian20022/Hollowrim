@@ -1,5 +1,5 @@
 // RAYON NOIR (sort CONTINU des ténèbres, scripts/magie/rayon_noir.gd) : dérivé du faisceau du RAYON DU NÉANT
-// v4 : PLUS AUCUN NOIR. Le faisceau est ADDITIF (il ne peut jamais assombrir le fond) : cœur violet-noir translucide très fin, lumière
+// v4 : PLUS AUCUN NOIR. Le faisceau est ADDITIF (blend_premul_alpha, ALPHA = 0 : seule façon d'être additif dans la couche fine de la magie) (il ne peut jamais assombrir le fond) : cœur violet-noir translucide très fin, lumière
 //   magenta/violette dominante, fumée violette lumineuse. (Historique : v3 = cœur noir opaque, fumée sombre.)
 // (shaders/rayon_neant_faisceau.gdshader, même tube englobant de RayonNeant._tube(), même forme calculée par pixel avec la
 // distance entre le rayon de vue et l'axe). Différences pour le continu :
@@ -8,7 +8,7 @@
 //   - `vie` piloté par le script : 0 → 0,1 la tête file de la main à la cible (allumage ~0,2 s), 0,1..0,6 plateau (tenu),
 //     0,6 → 1 le rayon se resserre et s'éteint (relâchement), en même temps que la fumée qui s'en échappe (script).
 shader_type spatial;
-render_mode unshaded, blend_add, cull_back, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_back, depth_draw_never, fog_disabled, shadows_disabled;
 #include "res://shaders/magie_occ.gdshaderinc"
 #include "res://shaders/magie_bruit.gdshaderinc"
 
@@ -189,7 +189,9 @@ void fragment() {
 	float tete_fade = smoothstep(0.0, 0.05, tete - u_c);
 	float fin_fade = 1.0 - smoothstep(0.96, 1.0, u_c);
 	c *= 1.0 + 0.4 * axial * step(s0 - 0.02, x);                     // liseré et lignes plus vifs dans l'axe
-	ALBEDO = c;
-	ALPHA = clamp(a * tete_fade * fin_fade * mix(0.5, 1.0, k) * vis, 0.0, 1.0);
+	// ADDITIF « magie » (comme magie_part_add) : prémultiplié, SANS opacité. blend_add / blend_mix écrivaient une opacité dans la couche
+	// fine (SubViewport) : tout fragment du volume non dessiné ou sombre devenait un aplat NOIR opaque autour du sort (le « pâté » en jeu).
+	ALBEDO = c * clamp(a * tete_fade * fin_fade * mix(0.5, 1.0, k) * vis, 0.0, 1.0);
+	ALPHA = 0.0;
 } while (false);
 }
