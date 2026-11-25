@@ -2669,7 +2669,7 @@ func _jet_placer(j: Dictionary) -> void:
 					# FEU v2 : les langues qui lèchent la surface sont dessinées par FeuV2.lechage (_jet_eclabousse) ; ici quelques braises fines
 					emettre("feu_fin_eclats_braise", null, Transform3D(bn, fin), false, 0.25)
 					if j.cible == null:
-						_roussir(fin, j.normale)
+						_roussir(fin, j.normale, vers)
 				else:
 					emettre("feu_lechage", null, Transform3D(bn, fin), false)
 			"glace":
@@ -2696,7 +2696,13 @@ func _jet_placer(j: Dictionary) -> void:
 		sc = 0.9 + 0.15 * sin(horloge * 21.0) * sin(horloge * 6.0)
 	var id := origine.get_instance_id()
 	lumiere("aura%d" % id, o + vers * 0.5, c, 5.0 * kd * sc, 7.5 + 1.5 * kd, 9.0)
-	lumiere("jet%d" % id, fin - vers * minf(0.7, l * 0.3) + Vector3.UP * 0.3, c, 7.0 * kd * sc, 7.0 + 2.0 * kd, 8.0)
+	if j.ecole == "feu" and not feu_v1 and fin_actif and j.touche and j.cible == null:
+		# feu v2 : lueur d'arrivée DIFFUSE : source relevée de ~1 m devant la surface, plus faible, portée large -> plus de tache ronde
+		# nette au sol/mur (un omni collé à 0,3 m dessinait « le rond d'une lampe torche »)
+		var nv: Vector3 = j.normale
+		lumiere("jet%d" % id, fin + nv * 2.0 - vers * 0.4, c, 1.1 * kd * sc, 14.0 + 2.0 * kd, 8.0)
+	else:
+		lumiere("jet%d" % id, fin - vers * minf(0.7, l * 0.3) + Vector3.UP * 0.3, c, 7.0 * kd * sc, 7.0 + 2.0 * kd, 8.0)
 	_teinte_demande(j.ecole, 1.0 if not j.dbl else (1.15 if fusionne else 1.4))
 
 ## Couche fine : flammes (ou givre) procédurales qui lèchent la surface touchée par le jet (mur, sol), hors cible.
@@ -2731,7 +2737,7 @@ func _jet_lechage_v2(j: Dictionary, fin: Vector3) -> void:
 	if e == null or not is_instance_valid(e):
 		e = FeuV2.lechage(self)
 		j.lechage = e
-	FeuV2.placer_lechage(e, fin, j.normale, clampf((horloge - float(j.debut)) / 0.25, 0.0, 1.0), (1.25 if j.dbl else 1.0))
+	FeuV2.placer_lechage(e, fin, j.normale, clampf((horloge - float(j.debut)) / 0.25, 0.0, 1.0), (1.25 if j.dbl else 1.0), j.dir_vis if j.dir_vis != Vector3.ZERO else j.dir)
 
 ## FEU v2 : filets de flamme qui accompagnent le jet (rubans fins qui s'enroulent et filent de la paume à la cible).
 func _jet_filets_v2(j: Dictionary, o: Vector3, vers: Vector3, l: float) -> void:
@@ -2746,7 +2752,7 @@ func _jet_filets_v2(j: Dictionary, o: Vector3, vers: Vector3, l: float) -> void:
 var _roussis: Array = []
 var _roussi_t := -10.0
 var _roussi_pos := Vector3.INF
-func _roussir(pos: Vector3, normale: Vector3) -> void:
+func _roussir(pos: Vector3, normale: Vector3, sens := Vector3.ZERO) -> void:
 	if horloge - _roussi_t < 0.35 or _roussi_pos.distance_to(pos) < 0.3:
 		return
 	_roussi_t = horloge
@@ -2756,7 +2762,7 @@ func _roussir(pos: Vector3, normale: Vector3) -> void:
 		var vieux = _roussis.pop_front()
 		if is_instance_valid(vieux):
 			vieux.queue_free()
-	_roussis.append(FeuV2.roussi(self, pos, normale))
+	_roussis.append(FeuV2.roussi(self, pos, normale, sens))
 
 func _jet_arreter(j: Dictionary) -> void:
 	if j.get("lechage") != null and is_instance_valid(j.lechage):

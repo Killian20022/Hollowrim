@@ -200,23 +200,28 @@ static func lechage(parent: Node) -> Node3D:
 	parent.add_child(racine)
 	var lg := _mi(racine, rubans(9, 10, 5), _mat_langue(1, Vector3.UP, 3.0, 1.5))
 	racine.set_meta("langues", lg)
-	var lueur := _mi(racine, _maillage_sphere(), _mat_corps(1, Vector3.UP))
-	lueur.scale = Vector3(0.28, 0.12, 0.28)
-	lueur.position = Vector3.UP * 0.06
-	lueur.set_instance_shader_parameter("graine", randf() * 10.0)
-	racine.set_meta("lueur", lueur)
 	return racine
 
-static func placer_lechage(n: Node3D, pos: Vector3, normale: Vector3, force: float, echelle := 1.0) -> void:
+## Base de la surface dont +Y = normale et +X = sens du jet projeté sur la surface (sur un mur, le haut du mur : les flammes montent).
+static func base_surface(normale: Vector3, sens: Vector3) -> Basis:
+	var up := normale.normalized() if normale.length() > 0.1 else Vector3.UP
+	var x := sens - up * sens.dot(up)
+	if x.length() < 0.35:
+		x = Vector3.UP - up * Vector3.UP.dot(up)
+	if x.length() < 0.05:
+		x = Vector3.FORWARD
+	x = x.normalized()
+	return Basis(x, up, x.cross(up).normalized())
+
+## `sens` : direction du jet (monde). Les langues s'étalent dans ce sens (éventail ~±70°), jamais en étoile autour du point touché.
+static func placer_lechage(n: Node3D, pos: Vector3, normale: Vector3, force: float, echelle := 1.0, sens := Vector3.ZERO) -> void:
 	if n == null or not is_instance_valid(n):
 		return
 	var up := normale.normalized() if normale.length() > 0.1 else Vector3.UP
 	# décalé de 10 cm de la surface : plus près, l'occlusion de la couche fine coupe les langues contre le mur
-	n.global_transform = Transform3D(_base_y(up).scaled(Vector3.ONE * echelle), pos + up * 0.1)
+	n.global_transform = Transform3D(base_surface(up, sens).scaled(Vector3.ONE * echelle), pos + up * 0.1)
 	var lg: MeshInstance3D = n.get_meta("langues")
 	lg.set_instance_shader_parameter("eclat", clampf(force, 0.0, 1.2))
-	var lu: MeshInstance3D = n.get_meta("lueur")
-	lu.set_instance_shader_parameter("eclat", clampf(force, 0.0, 1.0))
 
 # ====================================================================== filets d'accompagnement d'un jet
 
@@ -249,7 +254,7 @@ static func placer_jet(n: Node3D, origine: Vector3, direction: Vector3, longueur
 static var _plan: PlaneMesh
 static var _mat_roussi: ShaderMaterial
 ## Tache de roussi posée sur une surface (monde, calque normal) ; s'efface en 7 s puis se libère.
-static func roussi(parent: Node, pos: Vector3, normale: Vector3) -> Node3D:
+static func roussi(parent: Node, pos: Vector3, normale: Vector3, sens := Vector3.ZERO) -> Node3D:
 	if _plan == null:
 		_plan = PlaneMesh.new()
 		_plan.size = Vector2(1.0, 1.0)
@@ -263,10 +268,12 @@ static func roussi(parent: Node, pos: Vector3, normale: Vector3) -> Node3D:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(mi)
 	var up := normale.normalized() if normale.length() > 0.1 else Vector3.UP
-	var taille := randf_range(0.42, 0.7)
-	mi.global_transform = Transform3D(_base_y(up).rotated(up, randf() * TAU).scaled(Vector3.ONE * taille), pos + up * 0.015)
+	# allongé dans le sens du jet (traînée), jamais un rond : 1,7 x 0,8 de la taille
+	var taille := randf_range(0.34, 0.55)
+	var b := base_surface(up, sens).rotated(up, randf_range(-0.35, 0.35)).scaled(Vector3(taille * 1.7, taille, taille * 0.8))
+	mi.global_transform = Transform3D(b, pos + up * 0.015)
 	mi.set_instance_shader_parameter("graine", randf() * 20.0)
 	var tw := mi.create_tween()
-	tw.tween_method(func(a: float) -> void: mi.set_instance_shader_parameter("age", a), 0.0, 1.0, 7.0)
+	tw.tween_method(func(a: float) -> void: mi.set_instance_shader_parameter("age", a), 0.0, 1.0, 8.0)
 	tw.tween_callback(mi.queue_free)
 	return mi
