@@ -1035,7 +1035,7 @@ const DOS_DECALAGE := 2.0
 const DOS_BRANCHES := ["A", "B"]      # galeries longues et isolées : mine et lac
 ## Rebouchage LOCAL des autres salles : dos de coque FIN (décalage en m) ; assez loin pour cacher les fissures d'1 px des joints
 ## d'anneaux, assez près pour ne jamais déborder dans une salle voisine.
-const DOS_FIN := {"T1": 0.12, "T2": 0.12, "C": 0.12, "H": 0.12}
+const DOS_FIN := {}      # ESSAYÉ (T1/T2/C/H à 12 cm) : le relief des facettes dépasse le dos, qui perce la roche en grandes taches bleu marine ; à 2 m il déborde. Vide : pas de dos hors A/B
 ## Une branche PARENTE d'une jonction (celle où d'autres s'accrochent) est aussi concernée : on cherche si une autre branche s'y pince.
 func _porte_jonction(id: String, debut: bool) -> bool:
 	for o: String in ordre:
