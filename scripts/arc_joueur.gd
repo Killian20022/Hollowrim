@@ -35,7 +35,9 @@ const ORIENTATION := preload("res://scripts/orientation_main.gd")
 ## v3 (2026-11-25) : encoche plus basse et plus à droite (la flèche, toujours pointée au centre, arrive du coin bas-droit) : le poing
 ## tombe sous le réticule, en bas de l'écran, et le bras d'arc ne couvre plus la visée (avant : encoche (0.07, -0.09), poing sur le
 ## réticule et avant-bras en diagonale sur le quart de l'image).
-static var ENCOCHE_VISEE := Vector3(0.2, -0.3, -0.01)
+## Distance (m) du point du regard visé par la flèche affichée (grande = flèche presque parallèle à l'axe de la caméra, comme son vol).
+static var DIST_VISEE := 15.0
+static var ENCOCHE_VISEE := Vector3(0.09, -0.13, -0.01)
 static var POSE_REPOS := [Vector3(-0.17, -0.34, -0.6), Vector3(0.35, -0.15, -1.0), -1.25]
 ## Repose-flèche en visée (repère local de l'arc) : le fût touche le flanc DROIT de la poignée (demi-largeur 3,1 cm + rayon du
 ## fût), à la hauteur de l'appui du modèle (au repos : ArcModele.APPUI).
@@ -91,7 +93,7 @@ const COUDE_D_VISEE := Vector3(0.7, 0.05, 0.6)
 const DETOUR_COUDE_D := Vector3(0.0, -0.6, 0.2)
 ## Suite du geste (lâcher) : point de contrôle de la trajectoire de la main de corde, relatif à l'encoche (repère de la caméra), et durée de
 ## cette phase (part de la phase de récupération).
-static var SUITE_GESTE := Vector3(0.3, 0.4, -0.9)
+static var SUITE_GESTE := Vector3(0.6, 0.0, -1.0)
 const PH_LACHER := 0.2
 ## Rechargement : la main de corde fait un détour vers le bas (repère de la caméra) entre le carquois et l'encoche.
 const DETOUR_MAIN_RECHARGE := Vector3(0.04, -0.16, -0.02)
@@ -727,7 +729,9 @@ static func allonge_visee() -> float:
 static func pointe_visee() -> Vector3:
 	var lp := ArcModele.longueur_pointe() * ECHELLE_ARC_VM
 	var e := ENCOCHE_VISEE
-	return Vector3(0.0, 0.0, e.z - sqrt(maxf(0.0, lp * lp - e.x * e.x - e.y * e.y)))
+	# v3c : la flèche affichée vise le point du regard à DIST_VISEE (et non plus le centre de l'écran à la longueur de la flèche, ce qui la
+	# faisait monter à ~39° vers le ciel) : elle pointe vers la cible, comme son vol réel
+	return e + (Vector3(0.0, 0.0, -DIST_VISEE) - e).normalized() * lp
 
 ## Repose-flèche en visée : sur la ligne encoche -> pointe, à l'allonge de visée.
 static func appui_visee() -> Vector3:
