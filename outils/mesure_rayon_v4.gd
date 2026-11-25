@@ -69,7 +69,7 @@ static func masquer(vu: bool, racine: Node = null) -> void:
 			(n as VisualInstance3D).layers &= ~CoucheMagie.CALQUE
 		pile.append_array(n.get_children())
 
-const INSTANTS := [0.017, 0.05, 0.083, 0.117, 0.15, 0.2, 0.3, 0.5, 1.0, 2.0]
+const INSTANTS := [0.017, 0.05, 0.083, 0.117, 0.15, 0.2, 0.3, 0.5, 1.0, 1.1, 2.0]   # v5 : 1,0 et 1,1 s (mouvement de la texture)
 
 ## Déclenche le rayon (main gauche) et mesure à chaque instant ; `f` : le script de film (SceneTree avec magie, _dossier, _attendre).
 static func mesurer(f, etiq: String) -> void:
@@ -93,6 +93,7 @@ static func mesurer(f, etiq: String) -> void:
 		for i in 3:
 			await f.process_frame
 		var avec: Image = f.root.get_viewport().get_texture().get_image()
+		axe(f, inst, avec.get_size())
 		masquer(false, f.root)
 		for i in 3:
 			await f.process_frame
@@ -114,6 +115,18 @@ static func mesurer(f, etiq: String) -> void:
 	print("MESURE_BILAN %s pire=%.2f%% (t=%.3f) soutenu=%.2f%%" % [etiq, pire, pire_t, soutenu])
 	f.magie.relacher("gauche")
 	await f._attendre(0.4)
+
+## v5 : position à l'écran (pixels de l'image capturée) du départ et du bout du rayon, et de la paume : « AXE t x0 y0 x1 y1 px py ».
+static func axe(f, inst: float, taille: Vector2i) -> void:
+	var cam: Camera3D = f.j.camera
+	var vs: Vector2 = cam.get_viewport().get_visible_rect().size
+	var k := Vector2(taille) / vs
+	for id in RayonNoir.par_paume:
+		var r: RayonNoir = RayonNoir.par_paume[id]
+		var a := cam.unproject_position(r.debut) * k
+		var b := cam.unproject_position(r._fin_l) * k
+		var p := cam.unproject_position(r.paume_pos) * k
+		print("AXE %.3f %.1f %.1f %.1f %.1f %.1f %.1f dist=%.2f" % [inst, a.x, a.y, b.x, b.y, p.x, p.y, r.debut.distance_to(r._fin_l)])
 
 # ------------------------------------------------------------------ film (60 images/s : le déclenchement se ralentit au montage)
 
