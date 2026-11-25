@@ -234,6 +234,7 @@ func raccourci(i: int) -> void:
 	if conso != "":   # potion / nourriture : utilisée sans toucher aux mains ni couper l'incantation
 		utiliser_conso(conso)
 		return
+	_ranger_arc()
 	for m in MAINS:
 		_couper(m, false)
 	var refuses := eq.raccourci(i)
@@ -241,6 +242,12 @@ func raccourci(i: int) -> void:
 		_refuser(r[0], r[1])
 	if i < eq.raccourcis.size():
 		_noter("raccourci %s : %s" % [eq.raccourcis[i].get("touche", ""), eq.raccourcis[i].get("nom", "")])
+
+## Un choix d'arme / de sort / de main nue range l'arc du joueur s'il est en main (sinon il bloquait tous les changements).
+func _ranger_arc() -> void:
+	var a: Variant = joueur.get("arc") if joueur != null else null
+	if a != null:
+		a.ranger_pour_changement()
 
 ## Raccourci de test (touche X) : la télékinésie dans la main gauche ; un second appui rend la main d'avant.
 func raccourci_telekinesie() -> void:
@@ -288,6 +295,7 @@ func utiliser_conso(id: String) -> String:
 	return r
 
 func equiper(main: String, quoi: Variant) -> String:
+	_ranger_arc()
 	_couper(main, false)
 	var r := eq.equiper(main, quoi)
 	if r != "":

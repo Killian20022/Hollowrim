@@ -735,7 +735,22 @@ func _pose(nom: String, _sens := 1.0) -> Transform3D:
 func _peut_agir() -> bool:
 	return joueur != null and not joueur.mort and not joueur.en_dialogue and not (joueur.get("arc") != null and joueur.arc.actif)   # arc équipé : plus d'épée
 
+## Arc en main : l'épée ne frappe pas, mais les raccourcis (1-0, sorts de test), la torche et la molette restent actifs : choisir
+## une autre arme ou un sort range l'arc (ArcJoueur.ranger_pour_changement). Le clic gauche / droit reste à l'arc.
+func _entree_avec_arc(e: InputEvent) -> void:
+	if e is InputEventMouseButton or e.is_action("main_droite") or e.is_action("main_gauche"):
+		return
+	if magie != null and magie.intercepter(e):
+		return
+	if e.is_action_pressed("torche", false):
+		joueur.arc.ranger_pour_changement()
+		equipement.basculer_gauche()
+
 func _unhandled_input(e: InputEvent) -> void:
+	if joueur != null and joueur.est_local and not joueur.mort and not joueur.en_dialogue and joueur.get("arc") != null and joueur.arc.actif \
+			and (Input.mouse_mode == Input.MOUSE_MODE_CAPTURED or Manette.est_manette(e)):
+		_entree_avec_arc(e)
+		return
 	if not joueur.est_local or not _peut_agir() or (Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not Manette.est_manette(e)):   # manette : sans curseur capturé aussi
 		return
 	if magie != null and magie.intercepter(e):
