@@ -84,6 +84,8 @@ func equiper(main: String, id: String) -> String:
 		return _dire("Arc de chasseur en main : %s pour bander, relâcher pour tirer (%d flèches)." % [Manette.ou("clic gauche maintenu", Manette.libelle("main_droite") + " maintenu"), arc.fleches()], false)
 	if id.begins_with("conso:"):
 		return utiliser(id.substr(6))
+	if tenable(id.trim_prefix("sac:")) and joueur.arc.ranger_pour_changement():   # arme / sort / bouclier choisi : l'arc ne reste pas dans les mains
+		_rafraichir()
 	if id.begins_with("sac:"):
 		id = id.substr(4)
 		if not tenable(id) and Inventaire.emplacement_de(id) == "":
@@ -116,6 +118,9 @@ func equiper(main: String, id: String) -> String:
 
 ## Vide une main (main nue). "" ou la raison.
 func retirer_main(main: String) -> String:
+	if joueur.arc.ranger_pour_changement():   # mains nues : l'arc est rangé
+		_rafraichir()
+		return _dire("Arc rangé.", false)
 	if tenu(main) == "vide":
 		return _dire("La main %s est déjà vide." % main, true)
 	var nom := String(_eq().fiche(tenu(main))["nom"])

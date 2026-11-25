@@ -111,6 +111,7 @@ static var _r := {}
 
 var joueur: CharacterBody3D
 var actif := false
+var _sig_mains := ""   # mains au moment où l'arc a été équipé
 var etat := REPOS
 var tension := 0.0
 var tenu_force := false
@@ -485,11 +486,27 @@ func equiper() -> String:
 	if actif:
 		return ""
 	actif = true
+	_sig_mains = _signature_mains()
 	_encochee = fleches() > 0
 	_levee = 0.0
 	_actualiser_vue()
 	change.emit(true)
 	return ""
+
+## Ce que tiennent les mains (ids) : un changement pendant que l'arc est en main (menu, raccourci, torche, sort…) le range.
+func _signature_mains() -> String:
+	var mg: Variant = joueur.mains.get("magie") if joueur != null and joueur.get("mains") != null else null
+	if mg == null or mg.get("eq") == null:
+		return ""
+	return "%s|%s" % [mg.eq.mains["gauche"].get("id", "vide"), mg.eq.mains["droite"].get("id", "vide")]
+
+## Arme, sort, bouclier ou main nue choisis alors que l'arc est en main : l'arc est rangé (jamais « bloqué » dans les mains).
+## Rend vrai si l'arc a été rangé.
+func ranger_pour_changement() -> bool:
+	if not actif:
+		return false
+	ranger()
+	return true
 
 func ranger() -> void:
 	if not actif:
@@ -588,6 +605,9 @@ func _physics_process(dt: float) -> void:
 		return
 	if not joueur.inventaire.a(String(reglages().get("id_arc", "arc_chasseur"))):
 		ranger()   # arc vendu ou lâché
+		return
+	if _signature_mains() != _sig_mains:   # une autre arme / un sort / la main nue a été choisi : l'arc cède la place
+		ranger()
 		return
 	_t += dt
 	_clip_tir = maxf(0.0, _clip_tir - dt)

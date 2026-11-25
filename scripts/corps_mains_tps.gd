@@ -56,8 +56,10 @@ var _accroche := {"gauche": null, "droite": null}
 var _arme_d: Node3D          # copie du modèle de l'arme de la main droite (mains._modele_arme_d)
 var _effet_d: EffetElementLame   # effet passif de l'élément sur l'arme du corps (null sans élément)
 var _source_d: Node3D
+var _id_source_d := 0   # identité (instance id) de la source : un modèle LIBÉRÉ se compare égal à null en GDScript, d'où des copies fantômes
 var _objet_g: Node3D         # copie du bouclier tenu (mains._modele_gauche)
 var _source_g: Node3D
+var _id_source_g := 0
 ## Arme à deux mains : la main gauche sur la poignée, sous la main droite (IK à deux os + orientation du poignet, comme à la 1re personne).
 var _ik_g: TwoBoneIK3D
 var _cible_maj: SkeletonModifier3D   # recale _cible_g sur la pose de l'image (pas celle de l'image d'avant)
@@ -74,6 +76,8 @@ func installer(squelette: Skeleton3D) -> void:
 	sq = squelette
 	_source_d = null
 	_source_g = null
+	_id_source_d = 0
+	_id_source_g = 0
 	_arme_d = null
 	_objet_g = null
 	_vue_effets = -1
@@ -163,6 +167,11 @@ func torche_tenue() -> bool:
 func clip_repos() -> String:
 	return "Sword_Idle" if categorie("droite").begins_with("arme") else "Idle"
 
+## L'arc du joueur est en main (ArcJoueur) : ni épée ni bouclier sur le corps, même si les mains les « tiennent » encore en données.
+func _arc_en_main() -> bool:
+	var a: Variant = joueur.get("arc") if joueur != null else null
+	return a != null and a.actif
+
 ## Arme du corps (copie du modèle tenu à la 1re personne) ou null.
 func arme_tenue() -> Node3D:
 	return _arme_d
@@ -211,14 +220,16 @@ static func _copie(source: Node3D) -> Node3D:
 
 func _maj_arme_d() -> void:
 	var cat := categorie("droite")
-	var src: Node3D = mains.get("_modele_arme_d") if cat.begins_with("arme") else null
+	var src: Node3D = mains.get("_modele_arme_d") if cat.begins_with("arme") and not _arc_en_main() else null   # arc : les deux mains tiennent l'arc
 	if src != null and not is_instance_valid(src):
 		src = null
 	var ancienne = corps.get("arme_corps")   # épée fixe d'avant (epee_nordique.glb) : remplacée par le vrai modèle
 	if ancienne is Node3D and is_instance_valid(ancienne):
 		(ancienne as Node3D).visible = false
-	if src == _source_d:
+	var id_d := src.get_instance_id() if src != null else 0
+	if id_d == _id_source_d:
 		return
+	_id_source_d = id_d
 	_source_d = src
 	_retirer(_arme_d)
 	_arme_d = null
@@ -295,11 +306,13 @@ func _coup_en_cours() -> bool:
 	return ct != null and is_instance_valid(ct) and ct.pilote()
 
 func _maj_objet_g() -> void:
-	var src: Node3D = mains.get("_modele_gauche") if categorie("gauche") == "bouclier" else null
+	var src: Node3D = mains.get("_modele_gauche") if categorie("gauche") == "bouclier" and not _arc_en_main() else null   # arc : la main gauche tient l'arc
 	if src != null and not is_instance_valid(src):
 		src = null
-	if src == _source_g:
+	var id_g := src.get_instance_id() if src != null else 0
+	if id_g == _id_source_g:
 		return
+	_id_source_g = id_g
 	_source_g = src
 	_retirer(_objet_g)
 	_objet_g = null
