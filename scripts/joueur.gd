@@ -152,6 +152,9 @@ var _t := 0.0
 ## Multijoueur (lot 1) : vrai pour le joueur de CETTE machine (seul à lire Input, à avoir la caméra courante et à simuler).
 ## Faux pour l'avatar d'un joueur distant (scripts/reseau/proto_avatar.gd pilote sa position) ; à poser AVANT add_child.
 var est_local := true
+## Corps du joueur (JoueurBase : « homme » | « femme ») : choisi au début d'une nouvelle partie, sauvegardé avec le personnage,
+## répliqué aux autres joueurs (AvatarDistant, évènement « avatar_equip »).
+var apparence := "homme"
 
 func _ready() -> void:
 	_actions()
@@ -186,6 +189,9 @@ func _ready() -> void:
 	corps = Node3D.new()
 	corps.set_script(CORPS)
 	corps.joueur = self
+	if est_local:
+		apparence = JoueurBase.valide(Jeu.apparence_arg() if Jeu.apparence_arg() != "" else Jeu.apparence_choisie)
+	corps.apparence = apparence
 	corps.mains = mains
 	add_child(corps)
 	camera_tp = Node3D.new()
@@ -646,3 +652,9 @@ func _physics_process(dt: float) -> void:
 	cam_tp.h_offset = camera.h_offset
 	cam_tp.v_offset = camera.v_offset
 	cam_tp.rotation.z = camera.rotation.z
+
+## Change le corps visible (JoueurBase : « homme » | « femme ») ; reconstruit le modèle s'il diffère (chargement, réseau).
+func definir_apparence(a: String) -> void:
+	apparence = JoueurBase.valide(a)
+	if corps != null and corps.has_method("definir_apparence"):
+		corps.definir_apparence(apparence)

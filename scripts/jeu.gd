@@ -53,6 +53,13 @@ static func test_butin() -> bool:
 static func test_butin_argument() -> bool:
 	return "--test-butin" in OS.get_cmdline_user_args()
 
+## Argument --apparence=homme|femme (tests, captures : corps du joueur forcé, même sur une partie chargée) ; "" sinon.
+static func apparence_arg() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--apparence="):
+			return a.substr(12)
+	return ""
+
 ## Argument --test-titre=<étape> (test automatique des menus, outils/test_menus.sh) ; "" sinon.
 static func test_titre() -> String:
 	for a in OS.get_cmdline_user_args():
@@ -77,6 +84,9 @@ const OPTIONS_DEFAUT := {
 static var options := {}
 ## Choisi à l'écran titre : vrai = « Nouvelle partie » (le monde ne lit pas la sauvegarde, comme --nouvelle).
 static var nouvelle_partie := false
+## Corps choisi à l'écran de choix d'une NOUVELLE partie (« homme » | « femme », JoueurBase) ; une partie chargée relit le sien
+## (sauvegarde : joueur.apparence ; absent des anciennes parties = homme). --apparence=femme : forcé (tests, captures).
+static var apparence_choisie := "homme"
 ## Lus à chaque mouvement de souris (joueur.gd) : multiplicateur de SENSIBILITE et signe de l'axe vertical.
 static var sensibilite := 1.0
 static var inverser_y := false

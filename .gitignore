@@ -11,3 +11,4 @@ addons/epic-online-services-godot/
 addons_isoles/
 eos.cfg
 *.eos.cfg
+sources_blender/joueur/*.blend
