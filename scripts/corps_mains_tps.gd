@@ -348,7 +348,11 @@ func _anim(nom: String) -> Animation:
 	if SORTS.has_animation(nom):
 		return SORTS.get_animation(nom)
 	var b := Humain.bibliotheque()
-	return b.get_animation(nom) if b.has_animation(nom) else null
+	if b.has_animation(nom):
+		return b.get_animation(nom)
+	# captures Mixamo / Quaternius retargetées (CorpsCoupsTps) : « ss_idle », « ss_block_idle » (bouclier sanglé à l'avant-bras)
+	var c := CorpsCoupsTps.BIBLIOTHEQUE
+	return c.get_animation(nom) if c.has_animation(nom) else null
 
 ## Pose voulue du bras `m` : clip, instant, poids, vivacité du fondu, visée.
 func _geste(m: String, _dt: float) -> void:
@@ -374,8 +378,10 @@ func _geste(m: String, _dt: float) -> void:
 			# face à l'avant dans cette pose ; les tenues Mixamo « sword and shield » le mettaient de chant (bouclier sanglé à l'avant-bras).
 			# En garde : pose de garde du corps entier (Sword_Attack figé, corps_joueur).
 			var garde: bool = mains.get("bloque")
-			var b2 := _anim("Idle_Torch")
-			couche.regler(m, b2, fposmod(_t, b2.length), 0.0 if garde else 1.0, 12.0, false)
+			# v2 (2026-11-25) : bouclier SANGLÉ à l'avant-bras, comme les captures Mixamo « sword and shield » (idle / block idle) :
+			# avant-bras replié devant le torse, bouclier parallèle à lui, face vers l'avant (au lieu du bras tendu sur le côté).
+			var b2 := _anim("ss_block_idle" if garde else "ss_idle")
+			couche.regler(m, b2, fposmod(_t, b2.length), 1.0, 12.0, false)
 		_:
 			couche.regler(m, null, 0.0, 0.0, 10.0, false)
 

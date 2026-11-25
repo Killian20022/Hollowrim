@@ -141,7 +141,7 @@ func _cas() -> void:
 				await _attendre(0.05)
 				mains.entrees.relacher()
 		await _attendre(c[4])
-		await _capturer(String(c[0]), String(c[3]) == "")
+		await _capturer(String(c[0]), String(c[3]) in ["", "garde"])
 		mains.entrees.forcer_garde(0.0)
 		m.relacher("gauche")
 		m.relacher("droite")

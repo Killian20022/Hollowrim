@@ -1546,7 +1546,7 @@ func _vers_attaquant(point: Vector3, origine: Vector3) -> Vector3:
 	return (v.normalized() + Vector3.UP * 0.6).normalized() if v.length() > 0.01 else Vector3.UP
 
 ## Rayon du bouclier vu de face (m) : les étincelles naissent juste au-dessus de son bord.
-const RAYON_BOUCLIER := 0.3
+const RAYON_BOUCLIER := 0.38
 
 ## Point des étincelles d'un coup reçu au bouclier : le bouclier levé couvre le bas de l'écran et cache tout ce qui naît
 ## derrière lui (passe « intensité », 2026-10-28 : les étincelles de l'umbo étaient invisibles) → point projeté juste
@@ -1562,7 +1562,7 @@ func _fx_rebord(point: Vector3) -> Vector3:
 ## du joueur ; parade parfaite = coup de bouclier (l'attaquant perd DonneesArme.posture_parade de sa posture) ; garde
 ## brisée = bouclier rabattu, même titubement et même garde impossible qu'à l'épée.
 func _defendre_bouclier(r: Dictionary, g: DonneesArme, origine: Vector3) -> void:
-	var point := pivot_torche.global_transform * Vector3(0.09, 0.0, 0.0)   # face du bouclier, près de l'umbo
+	var point := pivot_torche.global_transform * Vector3(0.12, 0.0, 0.0)   # face du bouclier, près de l'umbo
 	# éclats un peu en avant de la face (là où l'arme adverse frappe) : collés au bouclier, ils boucheraient la vue
 	var fx := point - (get_parent() as Node3D).global_transform.basis.z * 0.35
 	var fx_metal := _fx_rebord(point)   # étincelles du cerclage et de l'umbo : au-dessus du bord, là où on les voit

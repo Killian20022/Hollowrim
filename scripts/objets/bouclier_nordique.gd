@@ -140,20 +140,28 @@ static func face() -> Image:
 			img.set_pixel(x, y, c)
 	return img
 
-## Dos 64 x 64 : planches brutes (sans peinture), pointes des clous rabattues.
+## Dos 128 x 128 : planches brutes claires (fibre visible, nœuds, joints sombres fins), traces de clous du cerclage.
+## v2 (2026-11-25) : 64 px sombres -> « bloc de béton » à l'écran (le dos est ce qu'on voit à la 1re personne).
 static func dos() -> Image:
-	var S := 64
+	var S := 128
 	var img := Image.create(S, S, false, Image.FORMAT_RGBA8)
 	for y in S:
 		for x in S:
-			var p: Array = _planche(x * 2, y * 2, 128)
-			var l: float = p[0] - 0.08
+			var p: Array = _planche(x, y, S)
+			var l: float = p[0] + 0.16
+			# nœuds : petites ellipses sombres
+			for n in [[0.2, 0.3], [0.62, 0.72], [0.82, 0.25], [0.4, 0.85]]:
+				var dn := Vector2((x + 0.5) / S - n[0], ((y + 0.5) / S - n[1]) * 0.5)
+				if dn.length() < 0.022:
+					l -= 0.22
+				elif dn.length() < 0.034:
+					l -= 0.08
 			var c := _c(BOIS, l, x, y)
 			if p[1]:
-				c = _c(BOIS, 0.08, x, y)
+				c = _c(BOIS, 0.12, x, y)
 			var d := Vector2((x + 0.5) / S - 0.5, (y + 0.5) / S - 0.5)
-			var ang := fposmod(atan2(d.y, d.x) / TAU * 20.0, 1.0)
-			if absf(d.length() * 2.0 - 0.9) < 0.03 and (ang < 0.1 or ang > 0.9):
+			var ang := fposmod(atan2(d.y, d.x) / TAU * 16.0, 1.0)
+			if absf(d.length() * 2.0 - 0.93) < 0.02 and (ang < 0.12 or ang > 0.88):
 				c = Color(CLOU[1])
 			img.set_pixel(x, y, c)
 	return img
