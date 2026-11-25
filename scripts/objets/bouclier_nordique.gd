@@ -42,7 +42,7 @@ static func materiaux() -> Dictionary:
 		return _mats
 	_mats = {
 		"bouclier_face": Palette.materiau(ImageTexture.create_from_image(face()), Vector2.ONE, Color(1.08, 1.04, 1.0)),
-		"bouclier_dos": Palette.materiau(ImageTexture.create_from_image(dos()), Vector2.ONE, Color(0.95, 0.92, 0.9)),
+		"bouclier_dos": Palette.materiau(ImageTexture.create_from_image(dos()), Vector2.ONE, Color(1.35, 1.3, 1.25)),
 		"fer": Palette.materiau(ImageTexture.create_from_image(fer()), Vector2.ONE, Color(1.0, 0.98, 0.95)),
 		"cuir": Palette.materiau(ObjetsTextures.tex("tresse"), Vector2.ONE),
 	}
