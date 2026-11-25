@@ -83,6 +83,7 @@ func _tester() -> void:
 	await _cout_degats()
 	await _mur()
 	await _premier_ennemi()
+	await _sans_assistance()
 	await _relachement()
 	await _mana_zero()
 	await _double()
@@ -182,6 +183,45 @@ func _premier_ennemi() -> void:
 	await _sim(0.3)
 	a.queue_free()
 	b.queue_free()
+
+# ------------------------------------------------------------------ aucune assistance à la visée (v4)
+
+## Regard vers +X ; un ennemi à `ang` degrés de l'axe (à 8 m) n'est ni touché ni accroché, un ennemi pile dans l'axe l'est.
+func _sans_assistance() -> void:
+	for ang: float in [5.0, -5.0, 8.0]:
+		await _reset(Vector3(0, 0, 3.0), -90.0)
+		var o: Vector3 = j.camera.global_position
+		var axe := Vector3(1, 0, 0)
+		var p := o + axe.rotated(Vector3.UP, deg_to_rad(ang)) * 6.0
+		var e := _draugr(Vector3(p.x, 0.0, p.z), "squelette")
+		await _sim(0.1)
+		var v0: float = e.vie
+		magie.appuyer("gauche")
+		await _sim(1.0)
+		var b: Dictionary = magie.lanceur.derniers_bouts.get("gauche", {})
+		var q: Vector3 = b.get("point", Vector3.INF)
+		var dir_fin := (q - o).normalized()
+		_verif(b.get("cible") == null and absf(e.vie - v0) < 0.01, "ennemi à %.0f° hors axe (6 m) : NON touché, non accroché (PV %.0f → %.0f)" % [ang, v0, e.vie])
+		_verif(rad_to_deg(dir_fin.angle_to(-j.camera.global_basis.z)) < 1.0, "ennemi à %.0f° : le rayon part dans l'axe du réticule (écart %.2f°)" % [ang, rad_to_deg(dir_fin.angle_to(-j.camera.global_basis.z))])
+		magie.relacher("gauche")
+		await _sim(0.3)
+		e.queue_free()
+	# pile dans l'axe : touché (le tir arrête sur le corps)
+	await _reset(Vector3(0, 0, 3.0), -90.0)
+	var o2: Vector3 = j.camera.global_position
+	var e2 := _draugr(Vector3(o2.x + 8.0, 0.0, o2.z), "squelette")
+	await _sim(0.1)
+	var w0: float = e2.vie
+	var av: Vector3 = -j.camera.global_basis.z
+	# l'ennemi est placé sur la ligne de visée réelle (hauteur du réticule)
+	e2.global_position = Vector3(o2.x + 8.0 * av.x, e2.global_position.y, o2.z + 8.0 * av.z)
+	magie.appuyer("gauche")
+	await _sim(1.0)
+	var b2: Dictionary = magie.lanceur.derniers_bouts.get("gauche", {})
+	_verif(b2.get("cible") == e2 and e2.vie < w0 - 3.0, "ennemi pile dans l'axe : touché (PV %.0f → %.0f)" % [w0, e2.vie])
+	magie.relacher("gauche")
+	await _sim(0.3)
+	e2.queue_free()
 
 # ------------------------------------------------------------------ fin au relâchement
 

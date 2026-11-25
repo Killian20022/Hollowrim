@@ -1,9 +1,11 @@
+// v4 : plus de flaque NOIRE (pâté) : la tache est ADDITIVE, une braise violette translucide (jamais plus sombre que le mur) avec ses veines
+//   et son liseré ; elle ronge toujours la surface (bord qui bouillonne) mais en lumière.
 // TACHE D'OMBRE du RAYON NOIR (scripts/magie/rayon_noir.gd) : dérivée de la tache du rayon du néant (rayon_neant_tache.gdshader),
 // pour un rayon TENU : la flaque noire RONGE la surface (bord déchiré qui bouillonne et s'étend : `etendue` 0..1), liseré pourpre
 // qui pulse au rythme de l'onde du rayon, veines violettes qui rampent du centre vers le bord ; laissée derrière (balayage), elle
 // s'éteint (`fondu` 1 → 0) : liseré d'abord, puis le noir. Paliers francs, aucun tramage.
 shader_type spatial;
-render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 #include "res://shaders/magie_occ.gdshaderinc"
 #include "res://shaders/magie_bruit.gdshaderinc"
 
@@ -36,13 +38,13 @@ void fragment() {
 	}
 	float vif = smoothstep(0.0, 0.5, fondu);   // le liseré s'éteint d'abord
 	float liseret = (1.0 - smoothstep(0.0, 0.06, abs(d + 0.022))) * vif * (0.8 + 0.2 * sin(TIME * 5.0 + ang * 3.0));
-	vec3 c = noir;
-	float a = d < 0.0 ? 0.92 : 0.0;
+	vec3 c = bord * 0.28;
+	float a = d < 0.0 ? 0.5 : 0.0;
 	// lueur pourpre autour (paliers) : la surface rongée luit faiblement autour de la flaque
 	if (d >= 0.0) {
 		float g = 1.0 - smoothstep(0.0, 0.16, d);
 		c = bord * 0.9;
-		a = floor(g * 3.0) / 3.0 * 0.32 * vif;
+		a = floor(g * 3.0) / 3.0 * 0.4 * vif;
 	}
 	// veines : filets violets qui rampent vers le bord (bruit radial qui défile vers l'extérieur)
 	float v = mbruit(vec2(ang * 5.0 + graine, r * 6.0 - TIME * 1.6));

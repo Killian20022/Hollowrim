@@ -765,6 +765,7 @@ func _runes_vers(m: String, ecole: String, k: float) -> void:
 	r.lumi_k = 1.3 if i.double else 1.0
 	var sm := eq.sort(m)
 	r.taille_k = RayonNoir.TAILLE_ORBE if sm != null and sm.id == RayonNoir.ID else 1.0   # rayon noir : orbe réduit (il cachait la gauche de l'écran)
+	r.clair = sm != null and sm.id == RayonNoir.ID
 	r.double = i.double
 	# tenue « runes » : les flammes de l'aura serrées autour de la boule tenue (cœur de l'aura de feu). La boule et
 	# `echelles_aura` vivent dans gestion_magie.gd (branche fps/avant_bras_runes, pas encore portés) : sans elles, rien.

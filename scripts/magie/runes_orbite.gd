@@ -63,6 +63,7 @@ var etat := 0
 var nombre := NB_RUNES
 var vitesse_k := 1.0
 var taille_k := 1.0
+var clair := false   # v4 : noyau des ténèbres sans masse noire (rayon noir)
 var lumi_k := 1.0
 ## Réutilisation hors main (projectile lancé, pont de la double magie) : échelle des orbites et des runes, hauteur du centre
 ## (-1 = celle de l'école), sans les lueurs d'avant-bras, apparition progressive (orbites qui s'ouvrent en `germe` s).
@@ -191,6 +192,7 @@ func _ready() -> void:
 		noyau.ecole = ecole
 		noyau.runes = self
 		noyau.taille_k = taille_k
+		noyau.clair = clair
 		noyau.lumi_k = lumi_k
 		noyau.vitesse_k = vitesse_k
 		add_child(noyau)
