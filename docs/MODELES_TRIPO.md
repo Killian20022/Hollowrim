@@ -1,5 +1,12 @@
 # Modèles Tripo par défaut, anciens modèles pour les factions
 
+**2026-11-26 (branche `joueur/modeles_homme_femme`) : LE JOUEUR** est l'homme ou la femme « de base » fournis par l'utilisateur
+(`Jeux/references/joueur_base/<sexe>_base.glb`, planche Tripo de 3 vues), choisi au début d'une nouvelle partie (écran titre,
+`scripts/menu/choix_personnage.gd`) : `JoueurBase.creer("homme"|"femme")` (`scripts/joueur_base.gd`), `assets/modeles/joueur/joueur_<sexe>.glb`
+(chaîne `sources_blender/scripts/joueur_base.py` + `joueur_base_rig.py` : copie de face, 11 k tris, atlas 256 px cuit, squelette des humains
+ajusté, pose A -> T ; pièces `peau`, `cheveux`, `tunique`, `pantalon`, `bottes` pour le masquage d'ArmureVisible). Sauvegardé (`joueur.apparence`),
+répliqué en réseau (`avatar_equip`). Ancien héros (garde amélioré `HerosSkarnholt`) : `--heros-ancien`. Forcer un corps : `--apparence=femme`.
+
 **2026-11-11 (branche `pnj/gardes_armures_maison`) : ARMURES TRIPO DES GARDES ABANDONNÉES** (trous impossibles à boucher). Par défaut, les 14 gardes et
 Haldor sont le corps Quaternius du Gardien (`GardienNordique`) habillé par `ArmureVisible` avec nos armures maison : `GardeMaison`
 (`scripts/garde_maison.gd`), tout dans `data/gardes.json` (`ensembles` = ids d'armures par emplacement, `roles` = ensemble + arme, et par garde
