@@ -1798,7 +1798,7 @@ func _accroches_zone(z: Dictionary) -> void:
 		accroches.append({"type": "interaction", "id": i["id"], "zone": z["id"], "pos": p + Vector3(0, 0.6, 0), "d": i})
 	for m: Dictionary in z.get("meca", []):
 		var p := sol_en(id, float(m["s"]), float(m["lat"]))
-		accroches.append({"type": "meca", "id": m["id"], "zone": z["id"], "pos": p, "lacet": lacet_en(id, float(m["s"])), "d": m})
+		accroches.append({"type": "meca", "id": m["id"], "zone": z["id"], "pos": p, "lacet": lacet_en(id, float(m["s"])), "d": m, "branche": id, "s": float(m["s"])})
 	if z.has("lieu"):
 		var l: Dictionary = z["lieu"]
 		var s_l: float = float(l.get("s", (float(z["s"][0]) + float(z["s"][1])) * 0.5))

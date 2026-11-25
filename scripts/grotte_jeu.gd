@@ -535,6 +535,33 @@ func _meca(a: Dictionary) -> void:
 		"mur_fragile":
 			var taille: Vector3 = d["taille"]
 			var centre: Vector3 = (a["pos"] as Vector3) + Vector3(0, taille.y * 0.5, 0)
+			if a.has("branche"):
+				# v3 : le mur est recalé sur la galerie RÉELLE (rayons à 3 hauteurs) et ne s'enfonce que de 25 cm dans la roche, jamais plus
+				# que la moitié de son épaisseur : posé à lat 0 et 4,6 m de large, il traversait le pilier et barrait la paroi du goulet voisin
+				# (grand pan de glace et fissures noires dans la salle aux cristaux).
+				var id_b: String = a["branche"]
+				var sb: float = a["s"]
+				var R := g.droite(id_b, sb)
+				var c0 := g.sol_en(id_b, sb, 0.0)
+				var bords := [0.0, 0.0]
+				for k in 2:
+					var sg := -1.0 if k == 0 else 1.0
+					var loin := 0.0
+					var marge := 0.25
+					for y: float in [0.4, 1.5, minf(2.8, taille.y - 0.3)]:
+						var h1 := g.rayon(c0 + Vector3(0, y, 0), R * sg, 12.0)
+						if h1.is_empty():
+							continue
+						var p1: Vector3 = h1["p"]
+						loin = maxf(loin, p1.distance_to(c0 + Vector3(0, y, 0)))
+						var h2 := g.rayon(p1 + R * sg * 0.02, R * sg, 4.0)
+						if not h2.is_empty():
+							marge = minf(marge, 0.5 * (h2["p"] as Vector3).distance_to(p1))
+					bords[k] = sg * (loin + marge)
+				var lat_c: float = (float(bords[0]) + float(bords[1])) * 0.5
+				taille = Vector3(minf(taille.x, float(bords[1]) - float(bords[0])), taille.y, taille.z)
+				var p0 := g.sol_en(id_b, sb, lat_c)
+				centre = p0 + Vector3(0, taille.y * 0.5, 0)
 			var ident := "%s_%s" % [prefixe, a["id"]]
 			var evt: String = d.get("evt", "")
 			var ctx := {"materiau": g.decor.mat("c_roche_mur"), "fissures": true}      # le mur se fond dans la roche voisine (assombri : pas d'occlusion peinte)

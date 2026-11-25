@@ -332,7 +332,7 @@ static func zones_hrafn() -> Array:
 		{"id": "cache", "branche": "H", "s": [3.0, 19.89], "theme": "cache", "role": "tresor", "graine": 601, "densite": 1.0, "n_lum": 2,
 			"teinte": [Color(1.0, 0.6, 0.3), Color(1.0, 0.66, 0.36)],
 			"meca": [
-				{"genre": "mur_fragile", "id": "mur_cache", "s": 5.4, "lat": 0.0, "taille": Vector3(4.6, 3.4, 0.7), "evt": "grotte:mur_cache"},
+				{"genre": "mur_fragile", "id": "mur_cache", "s": 7.5, "lat": 0.0, "taille": Vector3(4.6, 3.4, 0.7), "evt": "grotte:mur_cache"},
 			],
 			"interactions": [
 				{"id": "registre_hrafn", "nom": "Registre de Hrafn", "verbe": "Prendre le registre de Hrafn", "s": 14.0, "lat": 0.4, "prop": "registre", "evt": "ramasse:registre_hrafn", "objet": "registre_hrafn",

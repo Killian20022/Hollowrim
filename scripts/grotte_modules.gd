@@ -1062,8 +1062,11 @@ static func rideau(g: Grotte, id: String, s: float) -> void:
 	var bas := _p(g, id, s, 0.0)
 	var dd := g.droite(id, s)
 	var d := g.decor
-	# Cloison de planches ENCASTRÉE dans la roche (elle déborde de 0,6 m de chaque côté et dépasse la voûte : aucun jour) percée d'une
-	# porte de 1,3 x 2,25 m centrée sur le passage, avec encadrement (poteaux, linteau, seuil) en gros bois, nervures et ferrures.
+	# v3 (retours exe 4) : une vraie CONSTRUCTION de repaire au lieu d'un mur de planches plaqué. Trois couches, du côté des cristaux au camp :
+	#  1. un fond de planches (les deux pans encastrés de la passe précédente, 0,3 m, qui portent la collision) : aucun jour, jamais ;
+	#  2. des planches VERTICALES inégales côté camp, chacune coupée au profil de la galerie (sol et voûte sondés par rayon) ;
+	#  3. une ossature d'étai de mine (la même que dans la mine : poteaux carrés frettés, chapeau sous la voûte, contrefiches et chaîne)
+	#     plantée contre les parois, et l'huisserie de la porte (jambages, linteau, seuil) ; pierres calées au pied, contre la roche.
 	var cm := (dl.y - dl.x) * 0.5
 	var lat_g := cm - 0.65
 	var lat_d := cm + 0.65
@@ -1073,25 +1076,26 @@ static func rideau(g: Grotte, id: String, s: float) -> void:
 	var top := haut + 1.0
 	var ep := 0.3
 	var P := func(lat: float, y: float, z := 0.0) -> Vector3: return bas + dd * lat + T * z + Vector3(0, y, 0)
-	# Encastrement crédible (retours exe 4) : AVANT les planches (le décor refuse de poser un rocher dans un objet déjà placé), des blocs
-	# de roche de la paroi s'empilent des deux côtés contre les extrémités de la cloison et en pied d'huisserie ; les planches
-	# disparaissent derrière, comme une palissade calée dans la roche plutôt qu'un aplat plaqué sur la glace.
+	# sondes AVANT de poser quoi que ce soit (le rayon voit aussi le décor déjà posé)
+	var mur_y := func(y: float, sg: float) -> float:
+		var h := g.rayon(bas + Vector3(0, y, 0), dd * sg, 12.0)
+		return (h["p"] as Vector3).distance_to(bas + Vector3(0, y, 0)) if not h.is_empty() else (dl.y if sg > 0.0 else dl.x)
+	var pg := PackedFloat32Array([float(mur_y.call(0.3, -1.0)), float(mur_y.call(1.3, -1.0)), float(mur_y.call(2.4, -1.0))])
+	var pd := PackedFloat32Array([float(mur_y.call(0.3, 1.0)), float(mur_y.call(1.3, 1.0)), float(mur_y.call(2.4, 1.0))])
+	var voute := func(lat: float) -> float:      # hauteur libre au-dessus du sol (rayon vertical depuis 0,6 m) ; -1 : dans la roche
+		if lat < -pg[0] or lat > pd[0]:
+			return -1.0
+		var o: Vector3 = P.call(lat, 0.6, -0.25)
+		var h := g.rayon(o, Vector3.UP, 12.0)
+		if h.is_empty():
+			return -1.0
+		return (h["p"] as Vector3).y - bas.y
 	var rr := RandomNumberGenerator.new()
 	rr.seed = 77031
 	var sty := _style(g, id, s)
-	for ext: float in [lo + 0.12, dl.y - 0.45]:      # côté droit : la roche y est irrégulière, le sol s'arrête à la paroi
-		var sg := -1.0 if ext < cm else 1.0
-		for k in 3:
-			var z := (-0.55 if k % 2 == 0 else 0.55) * (1.0 if k < 2 else 0.4)
-			var lat_k := ext + sg * -rr.randf_range(0.0, 0.45) + (0.5 * sg if k == 2 else 0.0)
-			var rb := rr.randf_range(0.55, 0.95)
-			g.decor.rocher(_roche(sty), P.call(lat_k, -0.15, z), rb, rb * rr.randf_range(1.3, 2.0), rr.randi(), _masque(sty), false, 6)
-	for lat: float in [lat_g - 0.5, lat_d + 0.5]:       # éboulis de pierres au pied de la cloison, de part et d'autre de la porte
-		for z: float in [-0.6, 0.6]:
-			var rb := rr.randf_range(0.3, 0.5)
-			g.decor.rocher(_roche(sty), P.call(lat + rr.randf_range(-0.25, 0.25), -0.1, z), rb, rb * rr.randf_range(0.6, 0.9), rr.randi(), _masque(sty), false, 5)
+	# 1. fond plein (collision : GrotteJeu._porte lit `mur`)
 	var mur := []
-	for seg: Array in [[lo, lat_g - 0.22], [lat_d + 0.22, hi]]:      # flancs de la cloison, du pied (0,4 m sous le sol) à la voûte
+	for seg: Array in [[lo, lat_g - 0.22], [lat_d + 0.22, hi]]:
 		var w: float = seg[1] - seg[0]
 		var h: float = top + 0.6
 		d.boite("planches", P.call((seg[0] + seg[1]) * 0.5, h * 0.5 - 0.6), Vector3(w, h, ep), lacet)
@@ -1100,21 +1104,71 @@ static func rideau(g: Grotte, id: String, s: float) -> void:
 	var hl := top - dh - 0.28
 	d.boite("planches", P.call((lat_g + lat_d) * 0.5, dh + 0.28 + hl * 0.5), Vector3(wl, hl, ep), lacet)                       # dessus de la porte
 	mur.append([(lat_g + lat_d) * 0.5, dh + 0.28 + hl * 0.5, wl, hl])
-	for lat: float in [lat_g - 0.11, lat_d + 0.11]:                                                                            # poteaux d'huisserie
-		d.boite("bois", P.call(lat, (dh + 0.28) * 0.5), Vector3(0.24, dh + 0.28, ep + 0.14), lacet)
-		d.boite("fer", P.call(lat, 0.45, -(ep + 0.14) * 0.5 - 0.005), Vector3(0.26, 0.16, 0.02), lacet)                         # frettes de fer
-		d.boite("fer", P.call(lat, dh - 0.3, -(ep + 0.14) * 0.5 - 0.005), Vector3(0.26, 0.16, 0.02), lacet)
-	d.boite("bois", P.call((lat_g + lat_d) * 0.5, dh + 0.14), Vector3(wl + 0.24, 0.3, ep + 0.2), lacet)                         # linteau
+	# 2. planches verticales côté camp, au profil de la galerie
+	var zf := -(ep * 0.5 + 0.035)
+	var lat := -maxf(pg[0], maxf(pg[1], pg[2])) - 0.15
+	var lat_fin := maxf(pd[0], maxf(pd[1], pd[2])) + 0.15
+	var nb_pl := 0
+	while lat < lat_fin:
+		var w := rr.randf_range(0.2, 0.31)
+		var c := lat + w * 0.5
+		lat += w + rr.randf_range(0.0, 0.012)
+		if c > lat_g - 0.1 and c < lat_d + 0.1:
+			w = minf(w, 0.22)
+		var hv := maxf(float(voute.call(c - w * 0.45)), maxf(float(voute.call(c)), float(voute.call(c + w * 0.45))))
+		if hv < 0.0:
+			hv = maxf(float(voute.call(clampf(c, -pg[0] + 0.05, pd[0] - 0.05))), 2.0)      # planche du bord, à moitié dans la roche
+		var y0 := -0.35
+		var y1 := hv + 0.3 + rr.randf_range(0.0, 0.15)
+		if c > lat_g - 0.1 and c < lat_d + 0.1:
+			y0 = dh + 0.28          # au-dessus de la porte seulement
+		var e := rr.randf_range(0.055, 0.08)
+		d.boite("planches" if nb_pl % 3 != 1 else "bois", P.call(c, (y0 + y1) * 0.5, zf - e * 0.5 + rr.randf_range(-0.01, 0.01)), Vector3(w - 0.01, y1 - y0, e), lacet + rr.randf_range(-0.012, 0.012))
+		nb_pl += 1
+	for y: float in [0.75, 1.85]:          # deux lisses clouées en travers, d'une paroi à l'autre (hors porte)
+		var gl := -pg[1 if y > 1.0 else 0] + 0.05
+		var dr := pd[1 if y > 1.0 else 0] - 0.05
+		if lat_g - 0.25 - gl > 0.3:
+			d.boite("bois", P.call((gl + lat_g - 0.25) * 0.5, y, zf - 0.1), Vector3(lat_g - 0.25 - gl, 0.13, 0.07), lacet)
+		if dr - lat_d - 0.25 > 0.3:
+			d.boite("bois", P.call((dr + lat_d + 0.25) * 0.5, y, zf - 0.1), Vector3(dr - lat_d - 0.25, 0.13, 0.07), lacet)
+	# 3. ossature : les jambages de la porte SONT les poteaux d'un étai de mine (même facture que dans la mine : poteaux carrés frettés,
+	#    chapeau sous la voûte, contrefiches et chaîne ajoutées par GrotteDecor._bois_etai) ; le chapeau se prolonge jusque dans la roche.
+	var zo := zf - 0.12
+	var hv_c := float(voute.call(cm))
+	var y_ch := minf(minf(float(voute.call(lat_g - 0.13)), float(voute.call(lat_d + 0.13))), hv_c) - 0.22
+	y_ch = clampf(y_ch, dh + 0.6, dh + 1.4)
+	var pa: Vector3 = P.call(lat_g - 0.13, 0.0, zo)
+	var pb: Vector3 = P.call(lat_d + 0.13, 0.0, zo)
+	var ta := pa + Vector3(0, y_ch, 0)
+	var tb := pb + Vector3(0, y_ch, 0)
+	d.prisme("bois", pa + Vector3(0, -0.15, 0), ta, 0.15, 8)
+	d.prisme("bois", pb + Vector3(0, -0.15, 0), tb, 0.15, 8)
+	d.prisme("bois", ta - dd * 0.3, tb + dd * 0.3, 0.17, 8)
+	for sg: float in [-1.0, 1.0]:                 # bouts du chapeau jusque dans la roche (sablière carrée)
+		var bout: float = (lat_g - 0.43) if sg < 0.0 else (lat_d + 0.43)
+		var paroi: float = (-pg[2] - 0.35) if sg < 0.0 else (pd[2] + 0.35)
+		var lg := absf(paroi - bout)
+		if lg > 0.1:
+			d.boite("bois", P.call((bout + paroi) * 0.5, y_ch, zo), Vector3(lg + 0.05, 0.36, 0.36), lacet)
+	d.boite("bois", P.call((lat_g + lat_d) * 0.5, dh + 0.14, zo + 0.02), Vector3(lat_d - lat_g + 0.06, 0.28, 0.3), lacet)        # linteau entre les poteaux
 	d.boite("bois", P.call((lat_g + lat_d) * 0.5, 0.05, 0.0), Vector3(lat_d - lat_g, 0.1, ep + 0.1), lacet)                    # seuil
-	for lat: float in [lo + 0.5, lat_g - 0.9, lat_d + 0.9, hi - 0.5]:                                                         # nervures verticales
-		if lat > lo + 0.3 and lat < hi - 0.3 and (lat < lat_g - 0.4 or lat > lat_d + 0.4):
-			d.boite("bois", P.call(lat, top * 0.5, -(ep * 0.5 + 0.05)), Vector3(0.16, top, 0.1), lacet)
-	for y: float in [0.9, 1.9]:                                                                                                 # traverses de renfort
-		d.boite("bois", P.call((lo + lat_g - 0.22) * 0.5, y, -(ep * 0.5 + 0.04)), Vector3(lat_g - 0.22 - lo, 0.12, 0.08), lacet)
-		d.boite("bois", P.call((hi + lat_d + 0.22) * 0.5, y, -(ep * 0.5 + 0.04)), Vector3(hi - lat_d - 0.22, 0.12, 0.08), lacet)
+	for lp: float in [lat_g - 0.01, lat_d + 0.01]:                                                                            # chambranles (bord net de l'ouverture)
+		d.boite("bois", P.call(lp, dh * 0.5, 0.0), Vector3(0.06, dh, ep + 0.04), lacet)
+	print("cloison du goulet : poteaux %.2f / %.2f, chapeau à %.2f m (voûte %.2f), parois %.2f / %.2f, %d planches" % [lat_g - 0.13, lat_d + 0.13, y_ch, hv_c, -pg[1], pd[1], nb_pl])
+	# 3c. pierres calées au pied, contre la roche des deux côtés (dans la galerie : sol sous elles)
+	for sg: float in [-1.0, 1.0]:
+		var pied: float = (pd if sg > 0.0 else pg)[0]
+		for k in 3:
+			var rb := rr.randf_range(0.3, 0.48)
+			var lk := sg * (pied - rb * 0.35 - (0.25 if k == 2 else 0.0))
+			var zk := (-0.45 if k != 1 else 0.4) + rr.randf_range(-0.08, 0.08) + (-0.25 if k == 2 else 0.0)
+			var q: Vector3 = P.call(lk, 0.0, zk)
+			q.y = g.sol_en(id, s, lk).y - 0.12
+			g.decor.rocher(_roche(sty), q, rb, rb * rr.randf_range(0.8, 1.3), rr.randi(), _masque(sty), false, 6)
 	g.set_meta("porte_goulot", {
 		"bas": bas, "droite": dd, "tang": T, "lacet": lacet, "lat_g": lat_g, "lat_d": lat_d, "haut": dh, "mur": mur, "epaisseur": ep,
-		"levier": bas + dd * (lat_d + 0.22 + 0.3) - T * (ep * 0.5 + 0.1) + Vector3(0, 1.25, 0),
+		"levier": bas + dd * (lat_g - 0.6) - T * (ep * 0.5 + 0.15) + Vector3(0, 1.25, 0),      # v3 : côté gauche (à droite, la paroi est à 25 cm du poteau)
 	})
 
 # ------------------------------------------------------------------ fond aux cristaux

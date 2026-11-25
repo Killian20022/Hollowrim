@@ -130,6 +130,120 @@ func _go() -> void:
 			await _image()
 		print("FILM ", n, " images")
 		quit(0)
+	if _arg("seul") == "barres":      # diagnostic : quelle famille de maillages dessine les barres noires du goulet (vue 404.5, +30°)
+		(jeu.interactifs["levier_goulot"] as Node3D).parler()
+		_pose(404.5, cm, 30.0, 0.0)
+		for i in 90:
+			await process_frame
+		await _image()
+		g.visible = false
+		await _image()
+		print("BARRES image %d : sans grotte" % (n - 1))
+		g.visible = true
+		var cls: Array = []
+		var pc: Array = [root]
+		while not pc.is_empty():
+			var nd0: Node = pc.pop_back()
+			pc.append_array(nd0.get_children())
+			if (nd0 is CanvasLayer and (nd0 as CanvasLayer).visible) or (nd0 is CanvasItem and nd0.get_parent() == root and (nd0 as CanvasItem).visible):
+				cls.append(nd0)
+				print("BARRES calque ", nd0.get_path(), " ", nd0.get_class())
+		for c0 in cls:
+			c0.set("visible", false)
+		await _image()
+		print("BARRES image %d : sans calques 2D" % (n - 1))
+		for c0 in cls:
+			c0.set("visible", true)
+		var lums: Array = []
+		var pl: Array = [root]
+		while not pl.is_empty():
+			var nd1: Node = pl.pop_back()
+			pl.append_array(nd1.get_children())
+			if nd1 is Light3D and (nd1 as Light3D).visible and (nd1 as Light3D).shadow_enabled:
+				lums.append(nd1)
+				print("BARRES ombre ", nd1.get_path(), " d=%.1f" % (nd1 as Node3D).global_position.distance_to(root.get_viewport().get_camera_3d().global_position))
+		for l0 in lums:
+			(l0 as Light3D).shadow_enabled = false
+		await _image()
+		print("BARRES image %d : sans ombres" % (n - 1))
+		for l0 in lums:
+			(l0 as Light3D).shadow_enabled = true
+		var mats := {}
+		var pm: Array = [g]
+		while not pm.is_empty():
+			var nd2: Node = pm.pop_back()
+			pm.append_array(nd2.get_children())
+			if nd2 is GeometryInstance3D:
+				var lm: Array = [(nd2 as GeometryInstance3D).material_override]
+				if nd2 is MeshInstance3D and (nd2 as MeshInstance3D).mesh != null:
+					for k in (nd2 as MeshInstance3D).mesh.get_surface_count():
+						lm.append((nd2 as MeshInstance3D).get_active_material(k))
+				for m0 in lm:
+					if m0 is ShaderMaterial and (m0 as ShaderMaterial).get_shader_parameter("grille") != null:
+						mats[m0] = (m0 as ShaderMaterial).get_shader_parameter("grille")
+		for m0: ShaderMaterial in mats:
+			m0.set_shader_parameter("grille", 0.0)
+		await _image()
+		print("BARRES image %d : sans accroche des sommets (%d matières)" % [n - 1, mats.size()])
+		for m0: ShaderMaterial in mats:
+			m0.set_shader_parameter("grille", mats[m0])
+		var cam0 := root.get_viewport().get_camera_3d()
+		print("BARRES camera near=%.3f fov=%.1f pos=%s" % [cam0.near, cam0.fov, cam0.global_position])
+		var familles := {}
+		var pile2: Array = [g]
+		var cam3 := root.get_viewport().get_camera_3d().global_position
+		while not pile2.is_empty():
+			var nd: Node = pile2.pop_back()
+			pile2.append_array(nd.get_children())
+			if nd is VisualInstance3D and (nd as Node3D).is_visible_in_tree():
+				var aabb := (nd as VisualInstance3D).get_aabb()
+				var gt := (nd as Node3D).global_transform
+				if not (gt * aabb).grow(0.6).has_point(cam3):
+					continue
+				var nd_ := nd as VisualInstance3D
+				var l0 := nd_.layers
+				nd_.layers = 0
+				await _image()
+				nd_.layers = l0
+				print("BARRES image %d : sans %s" % [n - 1, nd.get_path()])
+				continue
+				var fam := String(nd.name).get_slice("_", 0).rstrip("0123456789@")
+				if nd.get_parent() != g:
+					fam = String(nd.get_parent().name).get_slice("_", 0).rstrip("0123456789@") + "/" + fam
+				if not familles.has(fam):
+					familles[fam] = []
+				(familles[fam] as Array).append(nd)
+		for fam: String in familles:
+			for nd: Node3D in familles[fam]:
+				nd.visible = false
+			await _image()
+			print("BARRES image %d : sans %s (%d) %s" % [n - 1, fam, (familles[fam] as Array).size(), (familles[fam][0] as Node).get_path()])
+			for nd: Node3D in familles[fam]:
+				nd.visible = true
+		quit(0)
+	if _arg("seul") == "porte":      # mise au point rapide : porte ouverte d'office, seulement le passage du goulet et les cristaux (1 image sur 3)
+		print("PORTE lat_g=%.2f lat_d=%.2f cm=%.2f" % [float(meta["lat_g"]), float(meta["lat_d"]), cm])
+		_pose(400.2, cm, 0.0, 6.0)
+		for i in 90:
+			await process_frame
+		for v: Array in [[400.2, cm, 0.0, 6.0], [401.0, cm - 0.2, -18.0, 2.0], [401.6, cm, 25.0, 14.0], [401.2, cm, -35.0, -8.0]]:
+			_pose(float(v[0]), float(v[1]), float(v[2]), float(v[3]))
+			await _image()
+		(jeu.interactifs["levier_goulot"] as Node3D).parler()
+		_pose(399.2, cm)
+		for i in 120:
+			await process_frame
+		var sg := 399.2
+		while sg < 414.0:
+			_pose(sg, cm if sg < 412.0 else 0.0, 0.0, -2.0)
+			await _image()
+			sg += 0.6
+		for a: float in [-60.0, -30.0, 30.0, 60.0]:
+			for sv: float in [403.0, 404.5, 406.0]:
+				_pose(sv, cm, a, 0.0)
+				await _image()
+		print("FILM ", n, " images")
+		quit(0)
 	# 1. l'entrée
 	await _marche(2.0, 30.0, 0.0, 8.0, 12.0)
 	# 2. la mine (raccourci), puis le camp
