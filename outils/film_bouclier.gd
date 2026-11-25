@@ -63,6 +63,9 @@ func _go() -> void:
 	await _attendre(1.4)
 	mains.entrees.forcer_garde(0.0)
 	await _attendre(0.8)
+	if OS.get_cmdline_user_args().has("--1p-court"):
+		quit(0)
+		return
 	_texte("Parade parfaite : coup de bouclier (ralenti)")
 	mains.entrees.forcer_garde(3.0)
 	await _attendre(0.05)
