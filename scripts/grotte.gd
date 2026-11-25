@@ -669,6 +669,7 @@ func _idx_n(q: Vector3) -> int:
 		_nacc[q] = i
 	return i
 var _coll_fine := PackedVector3Array()
+var _ori_bande := 0.0                   # sens commun des triangles de la bande d'anneaux en cours (0 = test par triangle contre `ref`)
 var nb_facettes_coque := 0
 
 func _buf_coque(nom: String, c: Vector3) -> Dictionary:
@@ -686,7 +687,7 @@ func _tri_lisse(buf: Dictionary, ref: Vector3, pos: PackedVector3Array, col: Pac
 	var g := (b - a).cross(c - a)
 	if g.length_squared() < 1e-10:
 		return
-	if g.dot(ref - (a + b + c) / 3.0) < 0.0:          # face visible vers l'intérieur de la galerie
+	if (g.dot(ref - (a + b + c) / 3.0) < 0.0) if _ori_bande == 0.0 else (_ori_bande < 0.0):          # face visible vers l'intérieur de la galerie
 		var t := i1
 		i1 = i2
 		i2 = t
@@ -1005,6 +1006,16 @@ func _coque() -> void:
 				ref = _centroide(rb)
 			elif rb["forcee"]:
 				ref = _centroide(ra)
+			# Sens de la bande : celui de la majorité des quads (face vers l'intérieur). Appliqué à TOUS les triangles de la bande : l'ancien test
+			# par triangle contre un point central retournait les facettes des parois concaves (nez de jonction, alcôves) vers l'extérieur ;
+			# le moteur les supprimait (cull_back) et l'on voyait à travers la roche, dans les salles voisines (« trous dans les murs »).
+			var vote := 0
+			for k in NB:
+				var j0 := (k + 1) % NB
+				var qn := ((pa[j0] as Vector3) - (pa[k] as Vector3)).cross((pb[k] as Vector3) - (pa[k] as Vector3))
+				var cq := ((pa[k] as Vector3) + (pa[j0] as Vector3) + (pb[k] as Vector3) + (pb[j0] as Vector3)) * 0.25
+				vote += 1 if qn.dot(ref - cq) > 0.0 else -1
+			_ori_bande = 1.0 if vote >= 0 else -1.0
 			for k in NB:
 				var j := (k + 1) % NB
 				var ua := float(ra["s"]) + float(b["decalage"])

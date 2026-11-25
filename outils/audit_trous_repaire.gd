@@ -6,7 +6,8 @@ extends SceneTree
 ##   godot --path . --script res://outils/audit_trous_repaire.gd -- --sortie=C:/chemin [--pas=3] [--lat=0]
 ## --jeu : garde les matériaux du jeu (cull_back réel) : le magenta mesure alors les VRAIS trous vus par le joueur.
 ## Écrit <sortie>/audit_trous.csv (branche, s, yaw, pixels vide, pixels face arrière), <sortie>/pires_*.png et imprime le bilan.
-const N_YAW := 8
+const N_YAW := 6
+const TANGAGES := [-25.0, 0.0, 35.0]      # regarder le sol, la paroi, la voûte
 const L := 256
 const H := 144
 const SHADER := "shader_type spatial; render_mode unshaded, cull_disabled;
@@ -74,7 +75,7 @@ func _go() -> void:
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	var cam := Camera3D.new()
 	cam.environment = env
-	cam.fov = 90.0
+	cam.fov = 100.0
 	cam.near = 0.05
 	cam.far = 200.0
 	sv.add_child(cam)
@@ -94,9 +95,10 @@ func _go() -> void:
 			var dl := g.demi_l(id, s)
 			var la := clampf(lat, -dl.x + 0.8, dl.y - 0.8)
 			var p := g.to_global(g.sol_en(id, s, la)) + Vector3(0, 1.6, 0)
-			for k in N_YAW:
+			for kk in N_YAW * TANGAGES.size():
+				var k: int = kk % N_YAW
 				cam.global_position = p
-				cam.global_rotation = Vector3(0, TAU * float(k) / float(N_YAW), 0)
+				cam.global_rotation = Vector3(deg_to_rad(float(TANGAGES[kk / N_YAW])), TAU * float(k) / float(N_YAW), 0)
 				await RenderingServer.frame_post_draw
 				await RenderingServer.frame_post_draw
 				var img := sv.get_texture().get_image()
@@ -121,9 +123,9 @@ func _go() -> void:
 				pb[1] += arr
 				pb[2] += 1
 				par_br[id] = pb
-				csv += "%s;%.1f;%d;%d;%d\n" % [id, s, k, vide, arr]
+				csv += "%s;%.1f;%d;%d;%d\n" % [id, s, kk, vide, arr]
 				if vide + arr > 0:
-					pires.append([vide + arr, img, "%s_s%.0f_y%d" % [id, s, k]])
+					pires.append([vide + arr, img, "%s_s%.0f_v%d" % [id, s, kk]])
 			s += pas
 	var f := FileAccess.open(sortie + "/audit_trous.csv", FileAccess.WRITE)
 	f.store_string(csv)

@@ -1068,17 +1068,17 @@ static func rideau(g: Grotte, id: String, s: float) -> void:
 	var lat_g := cm - 0.65
 	var lat_d := cm + 0.65
 	var lo := -dl.x - 0.6
-	var hi := dl.y + 0.6
+	var hi := dl.y + 1.4        # côté droit : la roche y est irrégulière, la cloison s'enfonce plus loin pour ne laisser aucun jour
 	var dh := 2.25
-	var top := haut + 0.7
+	var top := haut + 1.0
 	var ep := 0.3
 	var P := func(lat: float, y: float, z := 0.0) -> Vector3: return bas + dd * lat + T * z + Vector3(0, y, 0)
 	var mur := []
 	for seg: Array in [[lo, lat_g - 0.22], [lat_d + 0.22, hi]]:      # flancs de la cloison, du pied (0,4 m sous le sol) à la voûte
 		var w: float = seg[1] - seg[0]
-		var h: float = top + 0.4
-		d.boite("planches", P.call((seg[0] + seg[1]) * 0.5, h * 0.5 - 0.4), Vector3(w, h, ep), lacet)
-		mur.append([(seg[0] + seg[1]) * 0.5, h * 0.5 - 0.4, w, h])
+		var h: float = top + 0.6
+		d.boite("planches", P.call((seg[0] + seg[1]) * 0.5, h * 0.5 - 0.6), Vector3(w, h, ep), lacet)
+		mur.append([(seg[0] + seg[1]) * 0.5, h * 0.5 - 0.6, w, h])
 	var wl := lat_d - lat_g + 0.44
 	var hl := top - dh - 0.28
 	d.boite("planches", P.call((lat_g + lat_d) * 0.5, dh + 0.28 + hl * 0.5), Vector3(wl, hl, ep), lacet)                       # dessus de la porte
