@@ -45,14 +45,17 @@ const TRAINEE := 0.0003          # décélération = TRAINEE · v² (m/s² ; ~3 
 ## Flèche fichée dans un corps (ennemi, cadavre, mannequin) : elle y reste ce temps (s), elle suit l'os touché (animation et ragdoll).
 const VIE_DANS_CORPS := 30.0
 ## TRAÎNÉE discrète : fine ligne qui s'estompe vite derrière une flèche en vol (style PS1) ; durée (s) et longueur maximale (m).
-const TRAINEE_DUREE := 0.7
+const TRAINEE_DUREE := 0.9
 const TRAINEE_LONGUEUR := 200.0
 const TRAINEE_COULEUR := Color(1.0, 0.8, 0.4)   # doré : se lit sur le ciel clair comme dans le noir
+const TRAINEE_COULEUR_CHAUD := Color(1.0, 0.97, 0.85)   # filet blanc-chaud près de la flèche
+const TRAINEE_COULEUR_QUEUE := Color(1.0, 0.5, 0.15)   # queue ambrée
 const TRAINEE_LARGEUR := 0.008     ## ruban tourné vers la caméra (une ligne de 1 px disparaissait en vue joueur)
-const TRAINEE_LARGEUR_ECRAN := 0.0095  ## largeur ~ distance caméra : ~4 px d'écran à toute distance (sinon invisible au loin)
+const TRAINEE_LARGEUR_ECRAN := 0.0075  ## largeur ~ distance caméra : ~4 px d'écran à toute distance (sinon invisible au loin)
 const TRAINEE_ECART := 1.0          ## m : écart du sillage au départ (vers la main)
 const TRAINEE_ECART_PORTEE := 70.0   ## m : distance de vol sur laquelle l'écart disparaît
-const TRAINEE_FONDU_CAM := 0.6     ## m : invisible à 20 cm de la caméra, pleine à 80 cm
+const TRAINEE_FONDU_CAM := 1.6     ## m : invisible à 60 cm de la caméra, pleine à 2,2 m (v3b : plus de long rayon près de l'œil)
+const TRAINEE_FONDU_DEPART := 1.5  ## m : le sillage naît en fondu sur les 1,5 premiers mètres du vol (on le voit surtout s'éloigner)
 var vitesse_reference := 46.0
 var degats_min := 3.0
 ## Dégâts réellement infligés à l'impact (0 tant qu'elle vole) et vitesse à l'impact.
@@ -210,6 +213,19 @@ static func _materiau(couleur: Color, lueur: float) -> StandardMaterial3D:
 	m.albedo_color = couleur.lerp(Color.WHITE, lueur * 0.35)
 	return m
 
+## Départ sans « pop » (arc 1re personne) : la flèche quitte la corde dans l'orientation de la flèche encochée (celle du modèle de la main),
+## puis le visuel se redresse sur la trajectoire en ~0,16 s (le centre de rotation reste la pointe). Sans cela, l'empennage apparaissait
+## d'un coup devant l'œil (flèche alignée sur le tir alors que l'encoche est sous l'œil).
+var _depart_vis := Quaternion.IDENTITY
+var _depart_t := -1.0
+func orienter_depart(dir_encoche: Vector3) -> void:
+	if _modele_fleche == null or dir_encoche.length_squared() < 0.0001:
+		return
+	var loc := global_transform.basis.inverse() * dir_encoche.normalized()
+	_depart_vis = Quaternion(Vector3(0.0, 0.0, -1.0), loc)
+	_depart_t = 0.0
+	_modele_fleche.basis = Basis(_depart_vis)
+
 func _orienter() -> void:
 	if vitesse.length() > 0.01:
 		var haut := Vector3.UP if absf(vitesse.normalized().y) < 0.98 else Vector3.RIGHT
@@ -264,7 +280,7 @@ func _maj_trainee(dt: float) -> void:
 				_trainee_depart = pt
 			var k := clampf(1.0 - pt.distance_to(_trainee_depart) / TRAINEE_ECART_PORTEE, 0.0, 1.0)
 			pt += (cam_t.global_transform.basis.x * 0.85 - cam_t.global_transform.basis.y * 0.3) * TRAINEE_ECART * k
-		_trainee_pts.append([pt, 0.0])
+		_trainee_pts.append([pt, 0.0, randf()])
 	while not _trainee_pts.is_empty() and float((_trainee_pts[0] as Array)[1]) > TRAINEE_DUREE:
 		_trainee_pts.pop_front()
 	var im := _trainee.mesh as ImmediateMesh
@@ -274,31 +290,70 @@ func _maj_trainee(dt: float) -> void:
 	var cam := get_viewport().get_camera_3d()
 	var pos_cam := cam.global_position if cam != null else global_position + Vector3.UP * 100.0
 	var n := _trainee_pts.size()
-	# sillage « traceur » : points FIXES dans le monde sur toute la trajectoire ; deux passes (lueur large et faible, cœur fin)
-	for passe in 2:
-		var larg := 2.6 if passe == 0 else 1.0
-		var force := 0.22 if passe == 0 else 0.9
+	# sillage « traceur » v3 : points FIXES dans le monde sur toute la trajectoire. Forme de comète : FIN près de la flèche (un filet
+	# blanc-chaud net), il s'évase un peu derrière puis s'effile et s'estompe jusqu'à rien ; trois passes (lueur large et faible,
+	# cœur doré, filet central blanc) et de petites étincelles qui se détachent et s'éteignent vite.
+	for passe in 3:
+		var larg: float = [3.4, 1.4, 0.55][passe]
+		var force: float = [0.3, 0.9, 1.0][passe]
 		im.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
 		for i in n:
 			var a: Array = _trainee_pts[i]
 			var pa: Vector3 = a[0]
 			var d_cam := pa.distance_to(pos_cam)
+			var t := clampf(float(a[1]) / TRAINEE_DUREE, 0.0, 1.0)   # 0 = à la flèche, 1 = bout de la queue
 			var vers: Vector3 = (_trainee_pts[mini(i + 1, n - 1)] as Array)[0] - (_trainee_pts[maxi(i - 1, 0)] as Array)[0]
 			var lat := vers.cross(pos_cam - pa)
-			lat = lat.normalized() * clampf(d_cam * TRAINEE_LARGEUR_ECRAN, TRAINEE_LARGEUR, 1.2) * 0.5 * larg if lat.length() > 0.0001 else Vector3.ZERO
-			# s'estompe de la queue (ancienne) vers la tête ; fondu seulement sur les ~80 premiers cm devant la caméra
-			var al := force * clampf(1.0 - float(a[1]) / TRAINEE_DUREE, 0.0, 1.0)
-			al *= clampf((d_cam - 0.2) / TRAINEE_FONDU_CAM, 0.0, 1.0)
-			var c := TRAINEE_COULEUR
+			var forme := lerpf(0.45, 1.0, smoothstep(0.0, 0.16, t)) * (1.0 - 0.4 * smoothstep(0.16, 1.0, t))
+			lat = lat.normalized() * clampf(d_cam * TRAINEE_LARGEUR_ECRAN, TRAINEE_LARGEUR, 1.2) * 0.5 * larg * forme if lat.length() > 0.0001 else Vector3.ZERO
+			var al := force * pow(1.0 - t, 0.8) * clampf(0.35 + t * 8.0, 0.0, 1.0)   # naît franchement derrière la pointe, fondu doux
+			al *= clampf((d_cam - 0.6) / TRAINEE_FONDU_CAM, 0.0, 1.0)
+			if _trainee_depart != Vector3.INF:
+				al *= smoothstep(0.0, TRAINEE_FONDU_DEPART, pa.distance_to(_trainee_depart))
+			var c := TRAINEE_COULEUR_CHAUD.lerp(TRAINEE_COULEUR, smoothstep(0.0, 0.35, t)) if passe == 2 \
+				else (TRAINEE_COULEUR_QUEUE if passe == 0 else TRAINEE_COULEUR.lerp(TRAINEE_COULEUR_QUEUE, smoothstep(0.1, 0.9, t)))
 			c.a = al
 			im.surface_set_color(c)
 			im.surface_add_vertex(pa + lat)
 			im.surface_set_color(c)
 			im.surface_add_vertex(pa - lat)
 		im.surface_end()
+	# étincelles : petits losanges tournés vers la caméra, posés au gré des points (graine fixe par point : pas de scintillement)
+	im.surface_begin(Mesh.PRIMITIVE_TRIANGLES)
+	var vu := false
+	for i in n:
+		var a: Array = _trainee_pts[i]
+		var t := clampf(float(a[1]) / TRAINEE_DUREE, 0.0, 1.0)
+		var graine: float = a[2]
+		if graine > 0.28 or t > 0.55 or t < 0.03:
+			continue
+		var pa: Vector3 = a[0]
+		var d_cam := pa.distance_to(pos_cam)
+		if d_cam < 0.8:
+			continue
+		var base := cam.global_transform.basis if cam != null else Basis()
+		var dec := (base.x * (graine * 7.0 - 1.0) + base.y * (fmod(graine * 53.0, 1.0) - 0.5) * 2.0) * d_cam * 0.006
+		var r := d_cam * 0.0032 * (1.0 - t)
+		var q := pa + dec - base.y * t * d_cam * 0.01   # elles retombent un peu
+		var c := Color(1.0, 0.92, 0.7, 0.85 * (1.0 - t / 0.55))
+		for v: Vector3 in [q + base.y * r, q + base.x * r * 0.6, q - base.x * r * 0.6, q - base.y * r, q - base.x * r * 0.6, q + base.x * r * 0.6]:
+			im.surface_set_color(c)
+			im.surface_add_vertex(v)
+		vu = true
+	if not vu:   # une surface vide est refusée : un triangle dégénéré
+		im.surface_set_color(Color(0, 0, 0, 0))
+		for k in 3:
+			im.surface_add_vertex(global_position)
+	im.surface_end()
 
 func _physics_process(dt: float) -> void:
 	_t += dt
+	if _depart_t >= 0.0 and _modele_fleche != null:
+		_depart_t += dt
+		var k := smoothstep(0.0, 1.0, _depart_t / 0.16)
+		_modele_fleche.basis = Basis(_depart_vis.slerp(Quaternion.IDENTITY, k))
+		if k >= 1.0:
+			_depart_t = -1.0
 	if _vibre >= 0.0 and _modele_fleche != null:
 		_vibre += dt
 		# vibration amortie de la hampe autour de la pointe fichée

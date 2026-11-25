@@ -140,11 +140,11 @@ def peindre_cordelette():
 
 def peindre_corne():
     def f(u, v, x, y):
-        base = mix(hexc("#a89c86"), hexc("#ece6d6"), min(1.0, v * 1.4))
+        base = mix(hexc("#615848"), hexc("#897f70"), min(1.0, v * 1.4))   # v3b : corne assombrie (pointe vue de près, trop claire la nuit)
         stries = 0.08 * math.sin(y * 1.3 + x * 0.4)
         c = mix(base, hexc("#5e4a34"), max(0.0, stries + bruit(0.05)))
         if v > 0.85:
-            c = mix(c, hexc("#f6f2e8"), 0.4)
+            c = mix(c, hexc("#8f8678"), 0.4)
         return c
     peindre(R_CORNE, f)
 
