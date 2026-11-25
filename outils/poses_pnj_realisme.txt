@@ -1,0 +1,48 @@
+forgeron_a_jour3m pnj 3.0,0,1.0 id=forgeron heure=12 sans-mains
+forgeron_b_jour34 pnj 3.0,35,1.1 id=forgeron heure=12 sans-mains
+forgeron_c_pres pnj 1.3,20,1.5 id=forgeron heure=12 sans-mains bas=0.25
+forgeron_d_nuit3m pnj 3.0,0,1.0 id=forgeron heure=21.5 sans-mains
+chasseuse_a_jour3m pnj 3.0,0,1.0 id=chasseuse heure=12 sans-mains
+chasseuse_b_jour34 pnj 3.0,35,1.1 id=chasseuse heure=12 sans-mains
+chasseuse_c_pres pnj 1.3,20,1.5 id=chasseuse heure=12 sans-mains bas=0.25
+chasseuse_d_nuit3m pnj 3.0,0,1.0 id=chasseuse heure=21.5 sans-mains
+volva_a_jour3m pnj 3.0,0,1.0 id=volva heure=12 sans-mains
+volva_b_jour34 pnj 3.0,35,1.1 id=volva heure=12 sans-mains
+volva_c_pres pnj 1.3,20,1.5 id=volva heure=12 sans-mains bas=0.25
+volva_d_nuit3m pnj 3.0,0,1.0 id=volva heure=21.5 sans-mains
+ancienne_a_jour3m pnj 3.0,0,1.0 id=ancienne heure=12 sans-mains
+ancienne_b_jour34 pnj 3.0,35,1.1 id=ancienne heure=12 sans-mains
+ancienne_c_pres pnj 1.3,20,1.5 id=ancienne heure=12 sans-mains bas=0.25
+ancienne_d_nuit3m pnj 3.0,0,1.0 id=ancienne heure=21.5 sans-mains
+receleur_a_jour3m pnj 3.0,0,1.0 id=receleur heure=12 sans-mains
+receleur_b_jour34 pnj 3.0,35,1.1 id=receleur heure=12 sans-mains
+receleur_c_pres pnj 1.3,20,1.5 id=receleur heure=12 sans-mains bas=0.25
+receleur_d_nuit3m pnj 3.0,0,1.0 id=receleur heure=21.5 sans-mains
+hab_paysan_1_a_jour3m pnj 3.0,0,1.0 id=hab_paysan_1 heure=12 sans-mains
+hab_paysan_1_b_jour34 pnj 3.0,35,1.1 id=hab_paysan_1 heure=12 sans-mains
+hab_paysan_1_c_pres pnj 1.3,20,1.5 id=hab_paysan_1 heure=12 sans-mains bas=0.25
+hab_paysan_1_d_nuit3m pnj 3.0,0,1.0 id=hab_paysan_1 heure=21.5 sans-mains
+hab_paysanne_1_a_jour3m pnj 3.0,0,1.0 id=hab_paysanne_1 heure=12 sans-mains
+hab_paysanne_1_b_jour34 pnj 3.0,35,1.1 id=hab_paysanne_1 heure=12 sans-mains
+hab_paysanne_1_c_pres pnj 1.3,20,1.5 id=hab_paysanne_1 heure=12 sans-mains bas=0.25
+hab_paysanne_1_d_nuit3m pnj 3.0,0,1.0 id=hab_paysanne_1 heure=21.5 sans-mains
+hab_paysan_2_a_jour3m pnj 3.0,0,1.0 id=hab_paysan_2 heure=12 sans-mains
+hab_paysan_2_b_jour34 pnj 3.0,35,1.1 id=hab_paysan_2 heure=12 sans-mains
+hab_paysan_2_c_pres pnj 1.3,20,1.5 id=hab_paysan_2 heure=12 sans-mains bas=0.25
+hab_paysan_2_d_nuit3m pnj 3.0,0,1.0 id=hab_paysan_2 heure=21.5 sans-mains
+hab_paysanne_3_a_jour3m pnj 3.0,0,1.0 id=hab_paysanne_3 heure=12 sans-mains
+hab_paysanne_3_b_jour34 pnj 3.0,35,1.1 id=hab_paysanne_3 heure=12 sans-mains
+hab_paysanne_3_c_pres pnj 1.3,20,1.5 id=hab_paysanne_3 heure=12 sans-mains bas=0.25
+hab_paysanne_3_d_nuit3m pnj 3.0,0,1.0 id=hab_paysanne_3 heure=21.5 sans-mains
+hab_paysan_3_a_jour3m pnj 3.0,0,1.0 id=hab_paysan_3 heure=12 sans-mains
+hab_paysan_3_b_jour34 pnj 3.0,35,1.1 id=hab_paysan_3 heure=12 sans-mains
+hab_paysan_3_c_pres pnj 1.3,20,1.5 id=hab_paysan_3 heure=12 sans-mains bas=0.25
+hab_paysan_3_d_nuit3m pnj 3.0,0,1.0 id=hab_paysan_3 heure=21.5 sans-mains
+hab_chasseur_1_a_jour3m pnj 3.0,0,1.0 id=hab_chasseur_1 heure=12 sans-mains
+hab_chasseur_1_b_jour34 pnj 3.0,35,1.1 id=hab_chasseur_1 heure=12 sans-mains
+hab_chasseur_1_c_pres pnj 1.3,20,1.5 id=hab_chasseur_1 heure=12 sans-mains bas=0.25
+hab_chasseur_1_d_nuit3m pnj 3.0,0,1.0 id=hab_chasseur_1 heure=21.5 sans-mains
+hab_chasseresse_1_a_jour3m pnj 3.0,0,1.0 id=hab_chasseresse_1 heure=12 sans-mains
+hab_chasseresse_1_b_jour34 pnj 3.0,35,1.1 id=hab_chasseresse_1 heure=12 sans-mains
+hab_chasseresse_1_c_pres pnj 1.3,20,1.5 id=hab_chasseresse_1 heure=12 sans-mains bas=0.25
+hab_chasseresse_1_d_nuit3m pnj 3.0,0,1.0 id=hab_chasseresse_1 heure=21.5 sans-mains

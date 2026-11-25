@@ -293,11 +293,18 @@ static func _def_corps(ch: Dictionary) -> Array:
 			return ["boss_" + b, func() -> Node3D: return DraugrNordique.creer({"bouclier": "bras" if b == "jarl" else "", "epee": true, "corps": "femme" if b == "svanhild" else "homme"})]
 		"barcher":
 			var h: bool = ch["homme"]
-			return ["archere_%s" % h, func() -> Node3D: return ChasseresseNordique.creer({"corps": "homme"} if h else {})]
+			var id_a := "bandit_archer_h" if h else "bandit_archere"     # pnj/realisme_v1 : visage, étoffes usées (RealismePnj)
+			return ["archere_%s%s" % [h, "_r1" if RealismePnj.concerne(id_a) else ""], func() -> Node3D:
+				var n := ChasseresseNordique.creer({"corps": "homme"} if h else {})
+				RealismePnj.appliquer(n, id_a)
+				return n]
 		"bandit":
 			var c: bool = ch["casque"]
 			var bo: String = ch["bouclier"]
-			return ["bandit_%s_%s" % [c, bo], func() -> Node3D: return GuerrierNordique.creer({"casque": c, "bouclier": bo, "epee": false})]
+			return ["bandit_%s_%s%s" % [c, bo, "_r1" if RealismePnj.concerne("bandit") else ""], func() -> Node3D:
+				var n := GuerrierNordique.creer({"casque": c, "bouclier": bo, "epee": false})
+				RealismePnj.appliquer(n, "bandit")     # pnj/realisme_v1 : visage, étoffes usées et crottées (RealismePnj)
+				return n]
 	# Modèles Tripo par défaut (ModelesTripo) : corps générés (arme du jeu incluse) à la place du corps DraugrNordique ; le zombie (mains nues,
 	# clips Zombie_*) et les draugrs « modele_ancien » gardent l'ancien corps ; tous : --modeles-anciens[=ennemis].
 	if EnnemiTripo.actif() and not bool(ch.get("ancien", false)) and String(ch["arme"]) != "mains":
