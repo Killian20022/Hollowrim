@@ -1,7 +1,9 @@
 extends SceneTree
 ## Test sans fenêtre du BOUCLIER (main gauche) et des transitions de la main gauche, dans scenes/test_combat.tscn
 ## (mannequin à 1,5 m) :
-##   godot --headless --path . --script res://outils/test_bouclier.gd -- --nouvelle
+##   godot --headless --fixed-fps 60 --path . --script res://outils/test_bouclier.gd -- --nouvelle
+## --fixed-fps 60 est OBLIGATOIRE : les attentes sont comptées en images (fenêtre de parade 0,18 s, enchaînement du combo,
+## saut de main par image) ; sans lui, le headless tourne sans limite et ces durées ne veulent plus rien dire (refusé).
 ## Données (bouclier.tres → modèle, cône, recul, posture), affichage (repos bas à gauche, centre libre, garde levée devant),
 ## garde au bouclier (bloc, cône large, coût, recul, geste d'impact), parade parfaite (coup de bouclier, posture de
 ## l'attaquant), garde brisée réutilisée, épée : attaque garde baissée, combo, latence identique ; transitions sans saut
@@ -12,6 +14,7 @@ const SCENE := preload("res://scenes/test_combat.tscn")
 
 var _ok := true
 var _n := 0
+var _echecs := 0
 var s: Node3D
 var j: CharacterBody3D
 var mains: Node3D
@@ -26,6 +29,7 @@ func _verif(cond: bool, msg: String) -> void:
 	print(("OK     " if cond else "ECHEC  ") + msg)
 	if not cond:
 		_ok = false
+		_echecs += 1
 
 func _images(n: int) -> void:
 	for i in n:
@@ -105,6 +109,12 @@ func _tester() -> void:
 	cam = j.camera
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	await _images(20)
+	var dt_image := root.get_process_delta_time()
+	if absf(dt_image - 1.0 / 60.0) > 0.002:
+		print("ECHEC  lancer avec --fixed-fps 60 (pas d'image mesuré %.4f s au lieu de 0,0167 s : attentes en images faussées)" % dt_image)
+		print("RESULTAT : ECHEC")
+		quit(1)
+		return
 	var eq: EquipementMains = magie.eq
 
 	print("-- données")
@@ -293,6 +303,6 @@ func _tester() -> void:
 	await _images(20)
 	_verif(eq.categorie("gauche") == "bouclier" and is_instance_valid(mains._modele_gauche) and mains._modele_gauche.visible, "sauvegarde : le bouclier revient au bras gauche (%s)" % d.get("gauche"))
 
-	print("ECHECS : %d  (%d vérifications)" % [0 if _ok else 1, _n])
+	print("ECHECS : %d  (%d vérifications)" % [_echecs, _n])
 	print("RESULTAT : ", "OK" if _ok else "ECHEC")
 	quit(0 if _ok else 1)
