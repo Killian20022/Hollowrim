@@ -132,7 +132,7 @@ static func capturer(j: CharacterBody3D) -> Array:
 
 ## Équipement du joueur LOCAL (évènement « avatar_equip ») : ids des deux mains (EquipementMains) et pièces d'armure portées.
 static func capturer_equipement(j: CharacterBody3D, nom_joueur: String) -> Dictionary:
-	var d := {"nom": nom_joueur, "droite": "vide", "gauche": "vide", "corps": {}}
+	var d := {"nom": nom_joueur, "droite": "vide", "gauche": "vide", "corps": {}, "apparence": String(j.get("apparence"))}   # joueur_base : homme / femme
 	var m: Node3D = j.mains
 	if m != null and m.get("magie") != null and m.magie.get("eq") != null:
 		var eq: EquipementMains = m.magie.eq
@@ -160,6 +160,8 @@ func appliquer_equipement(d: Dictionary) -> void:
 		return
 	equipement = d.duplicate(true)
 	definir_nom(String(d.get("nom", nom)))
+	if d.has("apparence") and String(d["apparence"]) != String(noeud.get("apparence")):
+		noeud.definir_apparence(String(d["apparence"]))   # joueur_base : corps de l'autre joueur (homme / femme), avant l'armure
 	var m: Node3D = noeud.mains
 	if m != null and m.get("magie") != null and m.magie.get("eq") != null:
 		var eq: EquipementMains = m.magie.eq

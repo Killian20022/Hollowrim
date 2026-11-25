@@ -63,6 +63,7 @@ var _panneaux: Control
 var _options: PanelContainer
 var _credits: PanelContainer
 var _confirmation: PanelContainer
+var _choix: ChoixPersonnage   # joueur_base : homme / femme avant une nouvelle partie
 var _charger: PanelContainer
 var _multi: EcranMulti   # panneau Multijoueur (lot 5b : scripts/reseau/ecran_multi.gd)
 var _liste_copies: VBoxContainer
@@ -282,6 +283,14 @@ func _construire() -> void:
 	_panneaux.add_child(_multi)
 	_confirmation = _panneau_confirmation()
 	_panneaux.add_child(_confirmation)
+	_choix = ChoixPersonnage.new()
+	_choix.visible = false
+	_choix.valide.connect(_choix_valide)
+	_choix.retour.connect(func() -> void:
+		_audio.jouer("retour")
+		_menu_principal())
+	_choix.son.connect(func(nom: String) -> void: _audio.jouer(nom))
+	_panneaux.add_child(_choix)
 
 	_noir = ColorRect.new()
 	_noir.color = Color.BLACK
@@ -532,7 +541,7 @@ func _process(dt: float) -> void:
 # --- menu -----------------------------------------------------------------------------------
 
 func _menu_principal() -> void:
-	for p in [_options, _credits, _confirmation, _charger, _multi]:
+	for p in [_options, _credits, _confirmation, _charger, _multi, _choix]:
 		p.visible = false
 	_menu_ouvert = true
 	_b_continuer.activer(Jeu.sauvegarde_valide())
@@ -561,7 +570,7 @@ func _ouvrir_panneau(p: Control) -> void:
 		create_tween().tween_property(b, "self_modulate", Color(0.5, 0.52, 0.58), 0.2)
 	_b_credits.focus_mode = Control.FOCUS_NONE
 	_b_credits.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	for autre in [_options, _credits, _confirmation, _charger, _multi]:
+	for autre in [_options, _credits, _confirmation, _charger, _multi, _choix]:
 		autre.visible = autre == p
 	p.modulate.a = 0.0
 	create_tween().tween_property(p, "modulate:a", 1.0, 0.18)
@@ -582,7 +591,16 @@ func _nouvelle() -> void:
 		_ouvrir_panneau(_confirmation)
 		_confirmation.get_meta("non").grab_focus.call_deferred()
 	else:
-		_lancer(true)
+		_ouvrir_choix()
+
+## Nouvelle partie : choix du personnage (homme / femme) avant de lancer le monde.
+func _ouvrir_choix() -> void:
+	_ouvrir_panneau(_choix)
+	_choix.ouvrir()
+
+func _choix_valide(sexe: String) -> void:
+	Jeu.apparence_choisie = JoueurBase.valide(sexe)
+	_lancer(true)
 
 func _ouvrir_options() -> void:
 	_ouvrir_panneau(_options)
@@ -644,7 +662,7 @@ func _lancer(nouvelle: bool, direct := false) -> void:
 func _unhandled_input(e: InputEvent) -> void:
 	if _demarre or not e.is_action_pressed("ui_cancel"):
 		return
-	if _credits.visible or _confirmation.visible or _charger.visible:
+	if _credits.visible or _confirmation.visible or _charger.visible or _choix.visible:
 		get_viewport().set_input_as_handled()
 		_audio.jouer("retour")
 		_menu_principal()
@@ -693,7 +711,7 @@ func _panneau_confirmation() -> PanelContainer:
 	h.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.add_theme_constant_override("separation", 30)
 	v.add_child(h)
-	var oui := _bouton_panneau("Oui, recommencer", func() -> void: _lancer(true))
+	var oui := _bouton_panneau("Oui, recommencer", func() -> void: _ouvrir_choix())
 	var non := _bouton_panneau("Non", _menu_principal)
 	h.add_child(oui)
 	h.add_child(non)

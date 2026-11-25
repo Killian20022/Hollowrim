@@ -52,6 +52,31 @@ func _tester() -> void:
 		var haut_logo: float = rect.position.y + 90.0 * s   # haut des lettres du logo (la pointe au-dessus peut être rognée en 21:9)
 		ok(g >= 0.0 and bas <= v.y and haut_logo >= 0.0 and titre.BOUTON_TAILLE.y * s >= 40.0,
 			"écran %dx%d : colonne et logo visibles (gauche %.0f px, bas %.0f/%d, bouton %.0f px de haut)" % [v.x, v.y, g, bas, v.y, titre.BOUTON_TAILLE.y * s])
+	# joueur_base : Nouvelle partie -> choix du personnage (homme / femme, aperçu 3D) -> Commencer lance la partie avec ce corps
+	titre._menu_principal()
+	await process_frame
+	titre._nouvelle()
+	await process_frame
+	ok(titre._choix.visible or titre._confirmation.visible, "Nouvelle partie : choix du personnage (ou confirmation s'il existe des parties)")
+	titre._ouvrir_choix()
+	for i in 3:
+		await process_frame
+	var ch: ChoixPersonnage = titre._choix
+	ok(ch.visible and ch.sexe == "homme" and ch._modele != null and ch._modele.get_meta("apparence") == "homme", "choix ouvert : homme par défaut, aperçu 3D")
+	ok(root.gui_get_focus_owner() == ch._b_go, "choix : focus sur Commencer")
+	ch._b_femme.pressed.emit()
+	for i in 2:
+		await process_frame
+	ok(ch.sexe == "femme" and ch._modele.get_meta("apparence") == "femme" and ch._b_femme.button_pressed and not ch._b_homme.button_pressed, "choix : Femme sélectionnée, aperçu changé")
+	var r0: float = ch._pivot.rotation.y
+	for i in 10:
+		await process_frame
+	ok(ch._pivot.rotation.y != r0, "choix : l'aperçu tourne")
+	ch._b_go.pressed.emit()
+	await process_frame
+	ok(Jeu.apparence_choisie == "femme" and Jeu.nouvelle_partie, "Commencer : nouvelle partie avec le corps « femme »")
+	Jeu.apparence_choisie = "homme"
+	Jeu.nouvelle_partie = false
 	titre.queue_free()
 	await process_frame
 	if garde.size() > 0:
