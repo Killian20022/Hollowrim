@@ -431,6 +431,14 @@ func _porte() -> void:
 	_corps_porte = StaticBody3D.new()
 	_corps_porte.name = "PorteGoulot"
 	g.add_child(_corps_porte)
+	for pn: Array in m["mur"]:         # flancs et dessus de la cloison : pleins (jamais de passage à côté de la porte)
+		var cm_ := CollisionShape3D.new()
+		var bm := BoxShape3D.new()
+		bm.size = Vector3(float(pn[2]), float(pn[3]), float(m["epaisseur"]))
+		cm_.shape = bm
+		cm_.position = bas + dd * float(pn[0]) + Vector3(0, float(pn[1]), 0)
+		cm_.rotation.y = lacet
+		_corps_porte.add_child(cm_)
 	for sg: float in [-1.0, 1.0]:
 		var lat_h: float = float(m["lat_d"] if sg > 0.0 else m["lat_g"])       # charnière sur le poteau ; le goulet est décentré (jonction)
 		var lat_m := (float(m["lat_d"]) + float(m["lat_g"])) * 0.5
@@ -440,7 +448,7 @@ func _porte() -> void:
 		pivot.rotation.y = lacet
 		g.add_child(pivot)
 		var long_ := w + 0.03                                  # léger recouvrement au milieu
-		var n := 6
+		var n := 4
 		var lp := long_ / float(n)
 		for k in n:                                              # planches verticales jointives, hauteurs et épaisseurs un peu inégales
 			var hh := haut - 0.03 * float((k * 7) % 3)
@@ -466,9 +474,12 @@ func _porte() -> void:
 	socle.position = lp_pos
 	socle.rotation.y = lacet
 	g.add_child(socle)
-	g.decor.instance_boite(socle, "fer", Vector3(0.2, 0.42, 0.05), Vector3.ZERO)
+	g.decor.instance_boite(socle, "bois", Vector3(0.36, 0.66, 0.07), Vector3(0, 0, 0.0))      # support mural : planche clouée sur la cloison
+	g.decor.instance_boite(socle, "fer", Vector3(0.22, 0.4, 0.05), Vector3(0, 0, -0.05))
+	g.decor.instance_boite(socle, "fer", Vector3(0.3, 0.05, 0.03), Vector3(0, 0.27, -0.05))
+	g.decor.instance_boite(socle, "fer", Vector3(0.3, 0.05, 0.03), Vector3(0, -0.27, -0.05))
 	_manche = Node3D.new()
-	_manche.position = Vector3(0, 0, -0.04)
+	_manche.position = Vector3(0, 0, -0.09)
 	_manche.rotation.x = deg_to_rad(-35.0)
 	socle.add_child(_manche)
 	g.decor.instance_boite(_manche, "bois", Vector3(0.06, 0.5, 0.06), Vector3(0, 0.22, 0))

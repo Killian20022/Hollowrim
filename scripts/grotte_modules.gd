@@ -1062,16 +1062,42 @@ static func rideau(g: Grotte, id: String, s: float) -> void:
 	var bas := _p(g, id, s, 0.0)
 	var dd := g.droite(id, s)
 	var d := g.decor
-	for sg: float in [-1.0, 1.0]:
-		var w: float = dl.y if sg > 0.0 else dl.x
-		var pied: Vector3 = bas + dd * sg * (w - 0.12)
-		d.boite("bois", pied + Vector3(0, (haut - 0.3) * 0.5, 0), Vector3(0.24, haut - 0.3, 0.24), lacet)
-		d.boite("bois", pied + Vector3(0, 0.06, 0), Vector3(0.34, 0.12, 0.34), lacet)          # pied du poteau (semelle)
-	var centre_h: Vector3 = bas + dd * (dl.y - dl.x) * 0.5
-	d.boite("bois", centre_h + Vector3(0, haut - 0.5, 0), Vector3(dl.x + dl.y, 0.22, 0.24), lacet)
+	# Cloison de planches ENCASTRÉE dans la roche (elle déborde de 0,6 m de chaque côté et dépasse la voûte : aucun jour) percée d'une
+	# porte de 1,3 x 2,25 m centrée sur le passage, avec encadrement (poteaux, linteau, seuil) en gros bois, nervures et ferrures.
+	var cm := (dl.y - dl.x) * 0.5
+	var lat_g := cm - 0.65
+	var lat_d := cm + 0.65
+	var lo := -dl.x - 0.6
+	var hi := dl.y + 0.6
+	var dh := 2.25
+	var top := haut + 0.7
+	var ep := 0.3
+	var P := func(lat: float, y: float, z := 0.0) -> Vector3: return bas + dd * lat + T * z + Vector3(0, y, 0)
+	var mur := []
+	for seg: Array in [[lo, lat_g - 0.22], [lat_d + 0.22, hi]]:      # flancs de la cloison, du pied (0,4 m sous le sol) à la voûte
+		var w: float = seg[1] - seg[0]
+		var h: float = top + 0.4
+		d.boite("planches", P.call((seg[0] + seg[1]) * 0.5, h * 0.5 - 0.4), Vector3(w, h, ep), lacet)
+		mur.append([(seg[0] + seg[1]) * 0.5, h * 0.5 - 0.4, w, h])
+	var wl := lat_d - lat_g + 0.44
+	var hl := top - dh - 0.28
+	d.boite("planches", P.call((lat_g + lat_d) * 0.5, dh + 0.28 + hl * 0.5), Vector3(wl, hl, ep), lacet)                       # dessus de la porte
+	mur.append([(lat_g + lat_d) * 0.5, dh + 0.28 + hl * 0.5, wl, hl])
+	for lat: float in [lat_g - 0.11, lat_d + 0.11]:                                                                            # poteaux d'huisserie
+		d.boite("bois", P.call(lat, (dh + 0.28) * 0.5), Vector3(0.24, dh + 0.28, ep + 0.14), lacet)
+		d.boite("fer", P.call(lat, 0.45, -(ep + 0.14) * 0.5 - 0.005), Vector3(0.26, 0.16, 0.02), lacet)                         # frettes de fer
+		d.boite("fer", P.call(lat, dh - 0.3, -(ep + 0.14) * 0.5 - 0.005), Vector3(0.26, 0.16, 0.02), lacet)
+	d.boite("bois", P.call((lat_g + lat_d) * 0.5, dh + 0.14), Vector3(wl + 0.24, 0.3, ep + 0.2), lacet)                         # linteau
+	d.boite("bois", P.call((lat_g + lat_d) * 0.5, 0.05, 0.0), Vector3(lat_d - lat_g, 0.1, ep + 0.1), lacet)                    # seuil
+	for lat: float in [lo + 0.5, lat_g - 0.9, lat_d + 0.9, hi - 0.5]:                                                         # nervures verticales
+		if lat > lo + 0.3 and lat < hi - 0.3 and (lat < lat_g - 0.4 or lat > lat_d + 0.4):
+			d.boite("bois", P.call(lat, top * 0.5, -(ep * 0.5 + 0.05)), Vector3(0.16, top, 0.1), lacet)
+	for y: float in [0.9, 1.9]:                                                                                                 # traverses de renfort
+		d.boite("bois", P.call((lo + lat_g - 0.22) * 0.5, y, -(ep * 0.5 + 0.04)), Vector3(lat_g - 0.22 - lo, 0.12, 0.08), lacet)
+		d.boite("bois", P.call((hi + lat_d + 0.22) * 0.5, y, -(ep * 0.5 + 0.04)), Vector3(hi - lat_d - 0.22, 0.12, 0.08), lacet)
 	g.set_meta("porte_goulot", {
-		"bas": bas, "droite": dd, "tang": T, "lacet": lacet, "lat_g": -dl.x + 0.24, "lat_d": dl.y - 0.24,
-		"haut": haut - 0.62, "levier": bas - dd * (dl.x - 0.12) - T * 0.16 + Vector3(0, 1.25, 0),
+		"bas": bas, "droite": dd, "tang": T, "lacet": lacet, "lat_g": lat_g, "lat_d": lat_d, "haut": dh, "mur": mur, "epaisseur": ep,
+		"levier": bas + dd * (lat_d + 0.22 + 0.3) - T * (ep * 0.5 + 0.1) + Vector3(0, 1.25, 0),
 	})
 
 # ------------------------------------------------------------------ fond aux cristaux

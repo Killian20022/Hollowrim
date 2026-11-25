@@ -1018,17 +1018,35 @@ func _coque() -> void:
 
 ## Dos de la coque (retours exe 4 : « les murs ont des trous ») : la coque fine est faite de facettes déplacées une à une par le relief ;
 ## entre deux facettes voisines il reste des fentes de moins d'un pixel qui laissent voir le fond noir. Ce tube grossier (une bande par paire
-## d'anneaux) est tendu DERRIÈRE la roche (0,9 m plus loin que la ligne de base, plus que l'amplitude du relief) :
+## d'anneaux) est tendu DERRIÈRE la roche (2 m plus loin que la ligne de base, plus que l'amplitude du relief) :
 ## il ne se voit que par ces fentes, en bleu-gris de roche mate au lieu du noir. Sans collision, sans ombre. --sans-dos-coque : désactivé.
-const DOS_DECALAGE := 0.9
+const DOS_DECALAGE := 2.0
+const DOS_BRANCHES := ["A", "B"]      # galeries longues et isolées : mine et lac
+## Une branche PARENTE d'une jonction (celle où d'autres s'accrochent) est aussi concernée : on cherche si une autre branche s'y pince.
+func _porte_jonction(id: String, debut: bool) -> bool:
+	for o: String in ordre:
+		var od: Dictionary = (br[o] as Dictionary)["d"]
+		for cle: String in ["pince_deb", "pince_fin"]:
+			if od.has(cle):
+				var pj: Dictionary = od[cle]
+				if String(pj.get("de", pj.get("vers", ""))) == id:
+					if cle == "pince_fin" and debut:
+						return true
+					if cle == "pince_deb" and not debut:
+						return true
+	return false
 func _dos_coque() -> void:
 	if OS.get_cmdline_user_args().has("--sans-dos-coque"):
 		return
 	var v := PackedVector3Array()
 	var n := PackedVector3Array()
 	for id: String in ordre:
+		if not DOS_BRANCHES.has(id):      # ailleurs (camp, cristaux, cachette) le tube déborde dans la salle voisine : dalles bleues vues en capture
+			continue
 		var rings: Array = (br[id] as Dictionary)["anneaux"]
 		var dos: Array = []
+		var dd: Dictionary = (br[id] as Dictionary)["d"]
+		var Lb: float = float((br[id] as Dictionary)["L"])
 		for r: Dictionary in rings:
 			var c: Vector3 = (r["P"] as Vector3) + Vector3(0, 0.45 * float(r["h"]), 0)
 			var q: Array = []
@@ -1036,6 +1054,13 @@ func _dos_coque() -> void:
 				q.append(p + (p - c).normalized() * DOS_DECALAGE)
 			dos.append(q)
 		for i in dos.size() - 1:
+			# zones de jonction : les anneaux se pincent contre le pilier voisin, la bande déborderait dans l'autre galerie (dalles bleues vues en capture)
+			var sa: float = float((rings[i] as Dictionary)["s"])
+			var sb: float = float((rings[i + 1] as Dictionary)["s"])
+			var j_deb: bool = dd.has("pince_deb") or _porte_jonction(id, true)
+			var j_fin: bool = dd.has("pince_fin") or _porte_jonction(id, false)
+			if (j_deb and sb < ZONE_PINCE + 1.0) or (j_fin and sa > Lb - ZONE_PINCE - 1.0):
+				continue
 			var qa: Array = dos[i]
 			var qb: Array = dos[i + 1]
 			for k in NB:
@@ -1046,7 +1071,7 @@ func _dos_coque() -> void:
 						v.append(pt)
 						n.append(nn)
 	for id: String in ordre:      # fonds en dôme : couvercle en éventail derrière le dôme de glace
-		if String(((br[id] as Dictionary)["d"] as Dictionary).get("cap_fin", "")) != "dome":
+		if not DOS_BRANCHES.has(id) or String(((br[id] as Dictionary)["d"] as Dictionary).get("cap_fin", "")) != "dome":
 			continue
 		var rn: Dictionary = ((br[id] as Dictionary)["anneaux"] as Array).back()
 		var cp: Vector3 = (rn["P"] as Vector3) + Vector3(0, 0.45 * float(rn["h"]), 0)
