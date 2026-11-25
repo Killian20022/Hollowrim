@@ -59,6 +59,9 @@ const NB_PLASMA := 16
 var ecole := "glace"
 var runes: RunesOrbite
 var taille_k := 1.0
+## v4 (rayon noir) : fumée du noyau des ténèbres VIOLETTE et légère, plus de masse noire dans la main.
+var clair := false
+var _clair_pose := false
 var lumi_k := 1.0
 var vitesse_k := 1.0
 var _t := 0.0
@@ -132,6 +135,7 @@ func _tirer_part(n: int, dispersion: float, graine: int) -> void:
 
 const PAL_FUMEE := ["#07030c", "#4a1a78", "#b070f0", "#f0d8ff"]
 const PAL_BRAISE := ["#07030c", "#9a3ae0", "#d08aff", "#f6e4ff"]
+const PAL_FUMEE_CLAIRE := ["#5a2a98", "#7a3ac0", "#b070f0", "#f0d8ff"]
 
 func _construire_tenebres() -> void:
 	_mix = _nouveau_nuage(NB_FUMEE + NB_FIL, _mat_bouffee(0, PAL_FUMEE, 0.85))
@@ -149,6 +153,14 @@ func _spirale(k: int, p: float, R: float, t: float, sens: float) -> Vector3:
 
 func _maj_tenebres(ch: float, vit: float, vif: float, haut_k: float, larg_k: float, conv: float) -> void:
 	var b := runes.global_basis
+	if clair != _clair_pose:
+		_clair_pose = clair
+		var mt := _mix.mi.material_override as ShaderMaterial
+		var pal: Array = PAL_FUMEE_CLAIRE if clair else PAL_FUMEE
+		mt.set_shader_parameter("mode", 1 if clair else 0)   # rayon noir : fumée additive (ne peut jamais assombrir, même en plein jour)
+		mt.set_shader_parameter("eclat", 0.7 if clair else 1.0)
+		for q in 4:
+			mt.set_shader_parameter(["c_a", "c_b", "c_c", "c_d"][q], Color(pal[q]))
 	if _naiss < 0.05:
 		_axe = b * Basis(Vector3.RIGHT, -0.5) * Basis(Vector3.UP, 0.4)   # l'axe regarde vers l'œil, un peu de biais
 	var R := 0.15 * (1.0 + 0.12 * ch) * larg_k
@@ -159,7 +171,7 @@ func _maj_tenebres(ch: float, vit: float, vif: float, haut_k: float, larg_k: flo
 		var pos := _spirale(k, p, R, _t, 1.0) + Vector3(0.0, 0.012 * haut_k, 0.0)
 		var e: Dictionary = _part[k]
 		var s := lerpf(0.078, 0.03, p) * (0.8 + 0.5 * float(e.h2)) * (1.0 + 0.08 * ch) * minf(haut_k, 1.3)
-		var al := smoothstep(0.0, 0.18, p) * (1.0 - smoothstep(0.82, 1.0, p)) * 0.8
+		var al := smoothstep(0.0, 0.18, p) * (1.0 - smoothstep(0.82, 1.0, p)) * (0.45 if clair else 0.8)
 		lot.append([pos, _bb(b, float(e.h3) * TAU + _t * 0.3 * (1.0 if k % 2 == 0 else -1.0), s, s), Color(1, 1, 1, al), Color(float(e.h1), p, 0.0, 0.0)])
 	# filaments : plus longs, effilochés dans le sens du mouvement (tangente de la spirale projetée à l'écran)
 	for f in NB_FIL:
@@ -314,6 +326,7 @@ func _process(dt: float) -> void:
 	# réglages de la main (double magie : runes plus vives et plus rapides) relus à chaque image : MainSort les change après la naissance
 	taille_k = runes.taille_k
 	lumi_k = runes.lumi_k
+	clair = runes.clair
 	vitesse_k = runes.vitesse_k
 	global_transform = Transform3D(Basis.IDENTITY, runes.global_position)
 	var ch: float = runes.charge if runes.etat == 2 else 0.0

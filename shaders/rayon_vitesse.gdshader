@@ -3,7 +3,7 @@
 // la coque est découpée en cellules angulaires, chaque cellule a son trait (vitesse, longueur, période, épaisseur tirés d'un hasard stable).
 // Tête blanc-rose, traîne magenta qui s'éteint ; plus dense près de la main, la coque s'écarte légèrement vers le bout.
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 #include "res://shaders/magie_occ.gdshaderinc"
 
 uniform vec3 bord : source_color = vec3(0.78, 0.13, 0.66);
@@ -15,8 +15,9 @@ uniform float rayon_min = 0.2;
 uniform float ouverture = 7.0;
 uniform float graine = 0.0;
 uniform float coque = 4.0;       // rayon de la coque / rayon de la gaine
-uniform float force = 1.7;
-uniform float cellules = 40.0;
+uniform float force = 2.6;       // v4 : plus lumineux en continu
+uniform float cellules = 64.0;   // v4 : beaucoup plus de traits (40 avant)
+uniform float elan = 0.0;        // v4 : 1 au déclenchement → 0 en ~0,5 s : traits plus nombreux, plus rapides, plus larges, plus vifs (effet warp)
 
 varying float v_s;
 varying float v_u;
@@ -36,7 +37,7 @@ void vertex() {
 	v_s = UV.x * longueur;
 	v_th = UV.y;
 	float u = UV.x;
-	VERTEX.xy *= rayon_en(v_s) * coque * (1.0 + 0.3 * u);
+	VERTEX.xy *= rayon_en(v_s) * coque * (1.0 + 0.3 * u) * (1.0 + 0.9 * elan * (1.0 - u));
 	VERTEX.z = UV.x;
 }
 
@@ -49,15 +50,15 @@ void fragment() {
 			ALPHA = 0.0;
 			break;
 		}
-		float th = v_th * cellules;
+		float th = v_th * (cellules + 40.0 * elan);
 		float cell = floor(th);
 		float loc = fract(th);
 		float h1 = h11(cell), h2 = h11(cell + 17.0), h3 = h11(cell + 41.0), h4 = h11(cell + 73.0), h5 = h11(cell + 97.0);
-		float dens = mix(0.85, 0.42, smoothstep(0.0, 0.85, v_u));
-		float rare = step(0.93, h5);                  // quelques traits très longs et très rapides (hyperespace)
-		float vit = mix(45.0 + 70.0 * h2, 170.0 + 60.0 * h2, rare);
+		float dens = mix(0.95, 0.55, smoothstep(0.0, 0.85, v_u)) + 0.3 * elan;
+		float rare = step(0.88, h5);                  // quelques traits très longs et très rapides (hyperespace)
+		float vit = mix(70.0 + 90.0 * h2, 220.0 + 80.0 * h2, rare) * (1.0 + 0.8 * elan);
 		float per = mix(22.0 + 25.0 * h3, 70.0 + 30.0 * h3, rare);
-		float lon = mix(8.0 + 14.0 * h4, 30.0 + 20.0 * h4, rare);
+		float lon = mix(10.0 + 16.0 * h4, 36.0 + 24.0 * h4, rare) * (1.0 + 0.6 * elan);
 		float q = fract((v_s - TIME * vit) / per + h5);
 		float lf = lon / per;
 		float tail = (q - (1.0 - lf)) / lf;                     // 0 : bout de traîne, 1 : tête
@@ -67,8 +68,9 @@ void fragment() {
 		float b = pow(clamp(tail, 0.0, 1.0), 1.8) * (1.0 - smoothstep(0.985, 1.0, q)) * on * lig;
 		vec3 c = mix(bord * 1.7, vec3(1.0, 0.95, 1.0) * 3.4, tete_l);
 		float bout = smoothstep(0.0, 0.5 / max(longueur, 0.5), v_u) * (1.0 - smoothstep(0.96, 1.0, v_u / max(tete, 0.01)));
-		ALBEDO = c * force;
 		float pc = smoothstep(0.08, 0.4, length(VERTEX));              // v3f : pas de traits collés à l'œil
-		ALPHA = clamp(b * bout * k * 0.95 * pc, 0.0, 1.0);
+		float al_v = clamp(b * bout * k * 0.95 * pc * (1.0 + 0.6 * elan), 0.0, 1.0);
+		ALBEDO = c * force * (1.0 + 1.4 * elan) * al_v;   // additif prémultiplié (couche fine : aucune opacité)
+		ALPHA = 0.0;
 	} while (false);
 }

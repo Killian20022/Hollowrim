@@ -29,6 +29,8 @@ const SH_RUNE := preload("res://shaders/runes_orbite.gdshader")
 const SH_VITESSE := preload("res://shaders/rayon_vitesse.gdshader")
 const SH_CERCLE := preload("res://shaders/rayon_cercle.gdshader")
 const SH_IMPACT := preload("res://shaders/rayon_impact.gdshader")
+const SH_ECLAIR := preload("res://shaders/rayon_eclair.gdshader")
+const SH_WARP := preload("res://shaders/rayon_warp.gdshader")
 ## Cercle runique du départ : diamètre (m), distance devant la paume (m), durée d'ouverture / de fermeture (s).
 const CERCLE_D := 0.3
 const CERCLE_DEVANT := 0.2
@@ -41,11 +43,11 @@ const DECALAGE_DEPART := 0.5
 ## Palettes : cœur sombre + liseré lumineux. noir, fume, bord, filet (faisceau), accent (cercle/impact), lumiere, rune, coeur_rune, fumee[4], braise[4].
 const PALETTES := [
 	{"nom": "magenta_nocturne", "noir": "#05010c", "fume": "#3a0b5c", "bord": "#c622a8", "filet": "#ffc4f2", "accent": "#e23cc4", "lumiere": "#a02cd8",
-		"rune": "#e89cff", "coeur_rune": "#fff0ff", "fumee": ["#04010a", "#1c0836", "#5a1a86", "#b45ae0"], "braise": ["#07030c", "#a02ab8", "#ff8ae8", "#fff0fb"]},
+		"rune": "#e89cff", "coeur_rune": "#fff0ff", "fumee": ["#3a0a5a", "#5a1a86", "#9a44cc", "#d98cf0"], "braise": ["#07030c", "#a02ab8", "#ff8ae8", "#fff0fb"]},
 	{"nom": "indigo_aurore", "noir": "#030615", "fume": "#16124a", "bord": "#5a46ff", "filet": "#b8f4ff", "accent": "#54d8ff", "lumiere": "#4a52ff",
-		"rune": "#9fd8ff", "coeur_rune": "#f0fcff", "fumee": ["#02030c", "#0c0e38", "#2c2a98", "#6a90f0"], "braise": ["#03050f", "#3a3ad0", "#78e4ff", "#f0fdff"]},
+		"rune": "#9fd8ff", "coeur_rune": "#f0fcff", "fumee": ["#101060", "#2c2a98", "#4a60d8", "#9ac0ff"], "braise": ["#03050f", "#3a3ad0", "#78e4ff", "#f0fdff"]},
 	{"nom": "pourpre_braise", "noir": "#0a0108", "fume": "#4a0a38", "bord": "#d02468", "filet": "#ffd6b8", "accent": "#ff7a4a", "lumiere": "#c42a6a",
-		"rune": "#ffa0c0", "coeur_rune": "#fff2e6", "fumee": ["#07010a", "#2a0824", "#7a1850", "#d8607a"], "braise": ["#0a0206", "#c02060", "#ff9a5a", "#fff4e0"]},
+		"rune": "#ffa0c0", "coeur_rune": "#fff2e6", "fumee": ["#4a0a30", "#7a1850", "#b8406a", "#ff9aa0"], "braise": ["#0a0206", "#c02060", "#ff9a5a", "#fff4e0"]},
 ]
 static var palette_n := clampi(int(_arg_palette()), 0, PALETTES.size() - 1)
 static func _arg_palette() -> int:
@@ -57,6 +59,14 @@ static func pal() -> Dictionary:
 	return PALETTES[palette_n]
 ## Allumage (s) : la tête du rayon file de la main à la cible ; extinction (s) : le rayon se resserre et se dissipe.
 const ALLUMAGE := 0.1
+## v4 : DÉCLENCHEMENT spectaculaire (< 0,15 s) : éclair + ondes de choc depuis la paume (durée, s), élan des stries de vitesse (durée de
+## retombée, s), poussée de champ de vision en 1re personne (degrés ; montée, s ; retombée, 1/s ; maintien pendant le tir, degrés).
+const ECLAIR_DUREE := 0.22
+const ELAN_DUREE := 0.6
+const FOV_POUSSEE := 11.0
+const FOV_MONTEE := 0.05
+const FOV_RETOUR := 6.0
+const FOV_TENU := 2.5
 const EXTINCTION := 0.07
 const VIE_TENUE := 0.3
 ## Le nœud s'éteint seul s'il n'est plus nourri (main coupée sans arrêt explicite).
@@ -107,6 +117,11 @@ var _mat_vitesse: ShaderMaterial
 var _cercle: MeshInstance3D
 var _mat_cercle: ShaderMaterial
 var _impact: MeshInstance3D
+var _eclair: MeshInstance3D
+var _mat_eclair: ShaderMaterial
+var _warp: MeshInstance3D
+var _mat_warp: ShaderMaterial
+var _fov_poussee := 0.0     # degrés de champ de vision demandés par ce rayon (lissés)
 var _mat_impact: ShaderMaterial
 var _mat: ShaderMaterial
 var _halo: ShaderMaterial
@@ -153,7 +168,7 @@ static func maj(paume_: Node3D, depart: Vector3, fin_: Vector3, normale_: Vector
 		SonsMagie.rayon_noir_allume(depart)
 		var g := GestionMagie.obtenir()
 		if g != null and not EffetsMagie.muet:   # petit éclair de départ : bref, dans la main
-			g.lumiere("rayon_noir_eclair%d" % id, depart, Color(0.75, 0.45, 1.0), 3.0, 3.0, 0.9, 0.16)
+			g.lumiere("rayon_noir_eclair%d" % id, depart, Color(0.85, 0.5, 1.0), 6.0, 5.0, 0.9, 0.22)
 	r.debut = _decale(depart, fin_)
 	r.paume_pos = depart
 	r.fin = fin_
@@ -235,7 +250,7 @@ func _ready() -> void:
 		var t := _mi(_quad(), m, 2.0)
 		t.visible = false
 		_laissees.append({"mi": t, "mat": m, "t": -1.0})
-	_fumee = NoyauEcole.Bouffees.new(NB_FUMEE, RayonNeant._mat_bouffee(0, pl["fumee"], 0.9, 0.95))
+	_fumee = NoyauEcole.Bouffees.new(NB_FUMEE, RayonNeant._mat_bouffee(1, pl["fumee"], 0.9, 0.55))   # v4 : volutes ADDITIVES (violet lumineux), jamais sombres
 	_braises = NoyauEcole.Bouffees.new(NB_BRAISES, RayonNeant._mat_bouffee(1, pl["braise"], 0.7, 1.25))
 	for b: NoyauEcole.Bouffees in [_fumee, _braises]:
 		b.mi.custom_aabb = AABB(Vector3(-200, -50, -200), Vector3(400, 100, 400))
@@ -263,6 +278,20 @@ func _ready() -> void:
 	_mat_impact.set_shader_parameter("filet", Color(pl["filet"]))
 	_impact = _mi(_quad(), _mat_impact, 2.0)
 	_impact.visible = false
+	_mat_eclair = ShaderMaterial.new()
+	_mat_eclair.shader = SH_ECLAIR
+	_mat_eclair.set_shader_parameter("bord", Color(pl["bord"]))
+	_mat_eclair.set_shader_parameter("filet", Color(pl["filet"]))
+	_mat_eclair.set_shader_parameter("graine", _graine)
+	_eclair = _mi(_quad(), _mat_eclair, 4.0)
+	_eclair.visible = false
+	_mat_warp = ShaderMaterial.new()
+	_mat_warp.shader = SH_WARP
+	_mat_warp.set_shader_parameter("bord", Color(pl["bord"]))
+	_mat_warp.set_shader_parameter("filet", Color(pl["filet"]))
+	_mat_warp.set_shader_parameter("graine", _graine)
+	_warp = _mi(_quad(), _mat_warp, 4.0)
+	_warp.visible = false
 	_t_rune = PERIODE_RUNE * 0.6   # première rune peu après l'allumage
 
 func _mi(mesh: Mesh, mat: Material, marge: float) -> MeshInstance3D:
@@ -328,6 +357,9 @@ func _process(dt: float) -> void:
 		if g != null and g.couche != null:
 			g.couche.demander()
 	_maj_cercle(g)
+	_maj_eclair(g, cb, cam)
+	_maj_warp(g, cb, cam)
+	_maj_fov(dt, cam)
 	_maj_impact(g)
 	_maj_tache(dt, cb, g)
 	_maj_runes(dt, cb)
@@ -358,6 +390,7 @@ func _placer_faisceau(vie: float) -> void:
 	_mat_vitesse.set_shader_parameter("rayon_max", RAYON_LOIN * largeur * kv)
 	_mat_vitesse.set_shader_parameter("rayon_min", RAYON_MAIN * kv)
 	_mat_vitesse.set_shader_parameter("vie", vie)
+	_mat_vitesse.set_shader_parameter("elan", (1.0 - smoothstep(0.0, ELAN_DUREE, _t)) if allume else 0.0)
 	var k := clampf(puissance, 1.0, 1.6)
 	for m: ShaderMaterial in [_mat, _halo]:
 		m.set_shader_parameter("longueur", l)
@@ -387,6 +420,111 @@ func _maj_cercle(g: GestionMagie) -> void:
 	_mat_cercle.set_shader_parameter("t", _t)
 	if g != null and g.couche != null:
 		g.couche.demander()
+
+## v4 : éclair d'allumage + ondes de choc depuis la paume (quad face caméra, additif, ~0,2 s).
+func _maj_eclair(g: GestionMagie, cb: Basis, cam: Camera3D) -> void:
+	var k := _t / ECLAIR_DUREE
+	if not allume or k >= 1.0 or cam == null:
+		_eclair.visible = false
+		return
+	var axe := _fin_l - debut
+	var d := axe / maxf(axe.length(), 0.1)
+	var pos := paume_pos + d * 0.25
+	var dist := cam.global_position.distance_to(pos)
+	var taille := clampf(dist * 3.4, 1.4, 4.0)   # ~ les bords de l'écran en vue joueur ; un éclair de taille humaine en vue de côté
+	_eclair.global_transform = Transform3D(cb.scaled(Vector3.ONE * taille), pos)
+	_mat_eclair.set_shader_parameter("k", k)
+	_mat_eclair.set_shader_parameter("force", clampf(puissance, 1.0, 1.3))
+	_eclair.visible = true
+	if g != null and g.couche != null:
+		g.couche.demander()
+
+## Vrai quand la caméra est celle du JOUEUR LOCAL en 1re personne et que ce rayon sort de SA main (pas d'un autre joueur du réseau
+## ni d'un ennemi qui passe à côté) : seuls les effets d'écran (stries plein écran, poussée de champ) en dépendent.
+func _vue_joueur(cam: Camera3D) -> bool:
+	if cam == null or paume == null or not is_instance_valid(paume) or cam.global_position.distance_to(paume_pos) > 1.4:
+		return false
+	var n: Node = cam.get_parent()
+	while n != null and not (n is CharacterBody3D):
+		n = n.get_parent()
+	return n != null and n.is_ancestor_of(paume)
+
+## v4 : STRIES DE VITESSE LUMIÈRE plein écran (vue joueur) : traits radiaux depuis le point de fuite du tir ; foule au déclenchement
+## (`elan`), continus ensuite tant que le rayon est tenu, fondus au relâchement.
+func _maj_warp(g: GestionMagie, cb: Basis, cam: Camera3D) -> void:
+	var proche := _vue_joueur(cam)
+	var force := 0.0
+	if allume:
+		force = smoothstep(0.0, 0.04, _t) * 0.5
+	elif _t_fin >= 0.0:
+		force = 0.5 * (1.0 - smoothstep(0.0, 0.2, _t_fin))
+	if not proche or force <= 0.01:
+		_warp.visible = false
+		return
+	var dist := 0.45
+	var sy := 2.0 * dist * tan(deg_to_rad(cam.fov) * 0.5) * 1.2
+	var vp := get_viewport().get_visible_rect().size
+	var sx := sy * vp.x / maxf(vp.y, 1.0)
+	var axe := (_fin_l - debut).normalized()
+	var dc := cb.inverse() * axe
+	var fuite := Vector2(0.5, 0.5)
+	if dc.z < -0.05:
+		fuite = Vector2(0.5 + dc.x / -dc.z * dist / sx, 0.5 - dc.y / -dc.z * dist / sy)
+	fuite = fuite.clamp(Vector2(-0.5, -0.5), Vector2(1.5, 1.5))
+	var pos := cam.global_position - cb.z * dist
+	_warp.global_transform = Transform3D(cb * Basis.from_scale(Vector3(sx, sy, 1.0)), pos)
+	_mat_warp.set_shader_parameter("fuite", fuite)
+	_mat_warp.set_shader_parameter("taille", Vector2(sx / sy, 1.0))
+	_mat_warp.set_shader_parameter("elan", (1.0 - smoothstep(0.0, ELAN_DUREE, _t)) if allume else 0.0)
+	_mat_warp.set_shader_parameter("force", force)
+	_warp.visible = true
+	if g != null and g.couche != null:
+		g.couche.demander()
+
+## v4 : poussée de champ de vision au départ (vue joueur seulement : la caméra est tout près de la paume), puis léger maintien.
+## Chaque rayon calcule SA poussée ; la plus forte des rayons vivants est posée sur la caméra, une fois par image (voir _poser_fov).
+func _maj_fov(dt: float, cam: Camera3D) -> void:
+	var proche := _vue_joueur(cam)
+	var cible := 0.0
+	if proche and allume:
+		cible = FOV_TENU + FOV_POUSSEE * (smoothstep(0.0, FOV_MONTEE, _t) * exp(-maxf(_t - FOV_MONTEE, 0.0) * FOV_RETOUR))
+	_fov_poussee = lerpf(_fov_poussee, cible, 1.0 - exp(-dt * (40.0 if cible > _fov_poussee else 9.0)))
+	_poser_fov(cam)
+
+static var _fov_base := -1.0       # champ de vision de la caméra sans poussée (-1 : rien posé)
+static var _fov_pose := 0.0        # dernier champ posé par nous (si la caméra en a un autre, quelqu'un d'autre l'a changé)
+static var _fov_image := -1
+static var _vivants: Array = []
+
+static func _poser_fov(cam: Camera3D) -> void:
+	if cam == null or Engine.get_process_frames() == _fov_image:
+		return
+	_fov_image = Engine.get_process_frames()
+	var p := 0.0
+	for r: RayonNoir in _vivants:
+		if is_instance_valid(r):
+			p = maxf(p, r._fov_poussee)
+	if _fov_base > 0.0 and not is_equal_approx(cam.fov, _fov_pose):
+		_fov_base = cam.fov   # l'arc ou les réglages ont changé le champ : on repart de leur valeur
+	if p < 0.01:
+		if _fov_base > 0.0:
+			cam.fov = _fov_base
+			_fov_base = -1.0
+		return
+	if _fov_base <= 0.0:
+		_fov_base = cam.fov
+	cam.fov = _fov_base + p
+	_fov_pose = cam.fov
+
+func _enter_tree() -> void:
+	_vivants.append(self)
+
+func _exit_tree() -> void:
+	_vivants.erase(self)
+	_fov_poussee = 0.0
+	if _fov_base > 0.0 and is_inside_tree():
+		_fov_image = -1
+		_poser_fov(get_viewport().get_camera_3d())
 
 ## Impact soigné : disque lumineux, anneaux qui s'élargissent, étincelles rayonnantes, petit cercle de runes.
 func _maj_impact(g: GestionMagie) -> void:

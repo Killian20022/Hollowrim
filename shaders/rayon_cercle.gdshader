@@ -3,7 +3,7 @@
 // hexagramme intérieur, graduations. `ouv` (0..1) : le cercle s'ouvre en tournant (du centre vers l'extérieur) et se ferme de même.
 // Mélange alpha en HDR (le glow fait la lueur). Aucune texture, aucun tramage.
 shader_type spatial;
-render_mode unshaded, blend_mix, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
+render_mode unshaded, blend_premul_alpha, cull_disabled, depth_draw_never, fog_disabled, shadows_disabled;
 
 uniform vec3 noir : source_color = vec3(0.01, 0.0, 0.03);
 uniform vec3 bord : source_color = vec3(0.78, 0.13, 0.66);
@@ -49,7 +49,7 @@ void fragment() {
 	float fen = 1.0 - smoothstep(re - 0.08, re, r);
 	// fond sombre translucide, plus dense au centre (le rayon sort du noir), vide au milieu pour voir le tir
 	float fond = smoothstep(0.98, 0.35, r) * (1.0 - smoothstep(0.30, 0.0, r)) * 0.3;
-	col = noir; al = fond * fen;
+	col = bord * 0.35; al = fond * fen * 0.6;   // v4 : fond violet lumineux (additif), plus de disque sombre
 	float pix = 0.012;
 	// anneau extérieur double + graduations
 	float a1 = trait(abs(r - 0.96), 0.02 + pix);
@@ -98,6 +98,6 @@ void fragment() {
 	c = mix(c, filet * 3.0, front); aa = max(aa, front);
 	aa *= fen * smoothstep(0.0, 0.15, ouv);
 	aa *= mix(1.0, 0.5, smoothstep(0.55, 0.95, face));   // v3f : cercle discret quand on le regarde de face (1re personne)
-	ALBEDO = c;
-	ALPHA = clamp(aa, 0.0, 1.0);
+	ALBEDO = c * clamp(aa, 0.0, 1.0);   // v4 : additif prémultiplié (couche fine : aucune opacité, donc aucun aplat sombre)
+	ALPHA = 0.0;
 }

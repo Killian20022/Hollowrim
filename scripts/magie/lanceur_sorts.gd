@@ -466,11 +466,15 @@ func canaliser(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, dt:
 			touchees.append(cible_joueur)
 		return touchees
 	var candidats := []
-	for c in PvpCoop.cibles(oeil, s.portee + 0.5):
-		if _dans_jet(oeil, avant, s, Elements._centre(c)) and not _mur_entre(oeil, Elements._centre(c)):
-			candidats.append(c)
 	if noir:
-		candidats = _premiers(oeil, candidats)   # le rayon noir s'arrête au premier ennemi : c'est lui qui prend le tic
+		# v4 : le rayon noir touche SEULEMENT l'ennemi qu'il traverse (axe exact du réticule, premier corps rencontré)
+		var bout := bout_rayon_noir(s, oeil, avant)
+		if bout["cible"] != null:
+			candidats.append(bout["cible"])
+	else:
+		for c in PvpCoop.cibles(oeil, s.portee + 0.5):
+			if _dans_jet(oeil, avant, s, Elements._centre(c)) and not _mur_entre(oeil, Elements._centre(c)):
+				candidats.append(c)
 	var maxi_cibles := 1 + s.traverse
 	for c in candidats:
 		if touchees.size() >= maxi_cibles:
@@ -546,13 +550,43 @@ func bout_rayon_noir(s: DonneesSort, oeil: Vector3, avant: Vector3) -> Dictionar
 			if _dans_jet(oeil, avant, s, cj) and oeil.distance_to(cj) < d_mur + 0.4 and not _mur_entre(oeil, cj):
 				res = {"point": cj, "normale": -avant, "decor": false, "cible": cible_joueur}
 		return res
-	var meilleur := d_mur + 0.4
-	for c in PvpCoop.cibles(oeil, s.portee + 0.5):
-		var ce := Elements._centre(c)
-		var dc := oeil.distance_to(ce)
-		if dc < meilleur and _dans_jet(oeil, avant, s, ce) and not _mur_entre(oeil, ce):
-			meilleur = dc
-			res = {"point": ce, "normale": -avant, "decor": false, "cible": c}
+	# v4 : AUCUNE aide à la visée. Le rayon part dans l'axe exact du réticule ; un ennemi n'est touché que si ce rayon traverse
+	# sa forme de collision (le même tir, ennemis inclus, s'arrête sur son corps : le bout est le point d'impact réel).
+	var c: Variant = _corps_sur_axe(oeil, avant, d_mur)
+	if c != null:
+		res = {"point": c[1], "normale": c[2], "decor": false, "cible": c[0]}
+	return res
+
+## Premier ennemi (ou avatar PvP) dont la forme de collision est traversée par le rayon exact oeil → oeil + avant × portée, avant le décor
+## (`d_mur` : distance du premier décor). Renvoie [cible, point d'impact, normale] ou null. Aucun cône, aucune marge.
+func _corps_sur_axe(oeil: Vector3, avant: Vector3, d_mur: float) -> Variant:
+	var monde := _monde()
+	if monde == null:
+		return null
+	var ex: Array[RID] = []
+	if lanceur is CollisionObject3D:
+		ex.append((lanceur as CollisionObject3D).get_rid())
+	if cible_joueur is CollisionObject3D:
+		ex.append((cible_joueur as CollisionObject3D).get_rid())
+	var res: Variant = null
+	for i in 6:   # un obstacle non ennemi (cadavre, prop) est ignoré : on repart derrière lui
+		var q := PhysicsRayQueryParameters3D.create(oeil, oeil + avant * (d_mur + 0.05))
+		q.exclude = ex
+		var r := monde.intersect_ray(q)
+		if r.is_empty():
+			break
+		var col: Object = r["collider"]
+		if col is CollisionObject3D:
+			var n := col as Node
+			var cibles := PvpCoop.cibles(oeil, d_mur + 1.0)
+			while n != null and not cibles.has(n):
+				n = n.get_parent()
+			if n != null:
+				res = [n, r["position"], r["normal"]]
+				break
+			ex.append((col as CollisionObject3D).get_rid())
+		else:
+			break
 	return res
 
 func _rayon_noir_image(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vector3, depart: Vector3, cle: String) -> void:
@@ -560,8 +594,8 @@ func _rayon_noir_image(s: DonneesSort, paume: Node3D, oeil: Vector3, avant: Vect
 	var fin: Vector3 = b["point"]
 	var c: Node3D = b["cible"]
 	if c != null:
-		# le rayon finit SUR le corps (côté lanceur), pas en son centre
-		fin = fin + (depart - fin).normalized() * 0.22
+		# le rayon finit SUR le corps, au point touché (v4 : plus de visée vers le centre)
+		fin = fin + (depart - fin).normalized() * 0.05
 	var dbl: bool = _doubles.has(s.id) and _doubles[s.id][1] == s
 	derniers_bouts[cle] = b
 	EffetsMagie.rayon_noir(paume, depart, fin, b["normale"], bool(b["decor"]), c, s.largeur, 1.45 if dbl else 1.0, true)
