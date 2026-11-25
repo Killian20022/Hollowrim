@@ -628,6 +628,15 @@ func _prechauffer() -> void:
 	fi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_chauffe.add_child(fi)
 	cam.add_child(_chauffe)
+	# filet : si ce _process s'arrête (village désactivé/éloigné : départ direct dans la grotte, film), le préchauffage restait collé à la
+	# caméra et sa flamme (cases d'écran entières) s'affichait en GROSSE flamme fixe au centre de l'écran
+	get_tree().create_timer(0.3).timeout.connect(_fin_chauffe)
+
+func _fin_chauffe() -> void:
+	if _chauffe != null and is_instance_valid(_chauffe):
+		_chauffe.queue_free()
+	_chauffe = null
+	_chauffe_images = -1
 
 func _exit_tree() -> void:
 	if _fil >= 0:

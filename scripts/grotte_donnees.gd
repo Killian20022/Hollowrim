@@ -306,7 +306,7 @@ static func zones_hrafn() -> Array:
 			"ennemis": [
 				{"id": "bandit_0", "type": "sbire", "s": 3.5, "lat": -1.4, "tenue": 0, "nom": "Bandit"},
 				{"id": "bandit_1", "type": "sbire", "s": 6.2, "lat": 2.6, "tenue": 1, "nom": "Bandit", "casque": "casque_nasal"},
-				{"id": "bandit_2", "type": "sbire", "s": 9.8, "lat": -2.4, "tenue": 2, "nom": "Bandit"},
+				{"id": "bandit_2", "type": "sbire", "s": 9.0, "lat": -1.2, "tenue": 2, "nom": "Bandit"},
 				{"id": "bandit_3", "type": "sbire", "s": 12.0, "lat": 1.6, "tenue": 3, "nom": "Bandit"},
 				{"id": "bandit_archer_0", "type": "sbire", "archer": true, "s": 8.5, "lat": 4.1, "sur": "corniche_camp", "tenue": 3, "nom": "Archer bandit", "face": "centre"},
 				{"id": "bandit_archer_1", "type": "sbire", "archer": true, "s": 11.5, "lat": 4.1, "sur": "corniche_camp", "tenue": 1, "nom": "Archer bandit", "face": "centre"},
@@ -332,7 +332,7 @@ static func zones_hrafn() -> Array:
 		{"id": "cache", "branche": "H", "s": [3.0, 19.89], "theme": "cache", "role": "tresor", "graine": 601, "densite": 1.0, "n_lum": 2,
 			"teinte": [Color(1.0, 0.6, 0.3), Color(1.0, 0.66, 0.36)],
 			"meca": [
-				{"genre": "mur_fragile", "id": "mur_cache", "s": 5.4, "lat": 0.0, "taille": Vector3(4.6, 3.4, 0.7), "evt": "grotte:mur_cache"},
+				{"genre": "mur_fragile", "id": "mur_cache", "s": 7.5, "lat": 0.0, "taille": Vector3(4.6, 3.4, 0.7), "evt": "grotte:mur_cache"},
 			],
 			"interactions": [
 				{"id": "registre_hrafn", "nom": "Registre de Hrafn", "verbe": "Prendre le registre de Hrafn", "s": 14.0, "lat": 0.4, "prop": "registre", "evt": "ramasse:registre_hrafn", "objet": "registre_hrafn",

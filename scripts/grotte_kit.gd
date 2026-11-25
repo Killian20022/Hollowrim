@@ -980,6 +980,10 @@ func _bloc(id: String, s: float, lat: float, rr: float, solide := true, petit :=
 			p.y = fo
 		# retours exe 5 : dans une congère du décor, la roche s'y enfonce (sinon elle semble posée sur la neige)
 		p = g.decor.enfoncer_neige(p)
+	if g.decor.regles_pose and not petit and g.decor._chevauche(p, e * 0.6, eh, false) > 0.25:      # v3 : pas de bloc dans l'autel (67 % commun), mêmes tirages
+		if rr > 0.6 and r.randf() < 0.45:
+			r.randf(); r.randf_range(0.4, 0.6); r.randi_range(0, 7); r.randf(); r.randf_range(0.9, 1.3); r.randf_range(-0.4, 0.4)
+		return
 	if g.decor.regles_pose and g._hauteurs(p.x, p.z).x > 1e8:      # lot D : hors de la galerie (dans la roche) : rien, mêmes tirages
 		if not petit and rr > 0.6 and r.randf() < 0.45:
 			r.randf(); r.randf_range(0.4, 0.6); r.randi_range(0, 7); r.randf(); r.randf_range(0.9, 1.3); r.randf_range(-0.4, 0.4)

@@ -519,8 +519,19 @@ func _tri_coque(a: Vector3, b: Vector3, c: Vector3, ka: int, kb: int, kc: int, r
 		sombre = m[2]
 		masque *= 0.8 + 0.4 * GrotteDecor.hash2(ct.x * 0.7, ct.z * 1.3 + ct.y)
 	if nom == "ciel":
+		# faille de ciel : facettes plates, mais bords découpés comme la coque voisine (éventail depuis le centre : pas de jonction en T)
 		var cl := Color(1, 1, 1, 0)
-		decor.facette(nom, a, b, c, ref, [cl, cl, cl], true, 4.0, true)
+		var sm := [a, b, c]
+		var hs := [att[0][2], att[1][2], att[2][2]]
+		var kk := [ka, kb, kc]
+		for e in 3:
+			var X: Vector3 = sm[e]
+			var Y: Vector3 = sm[(e + 1) % 3]
+			var ne := _n_arete(X, Y, float(hs[e]), float(hs[(e + 1) % 3]), FACETTE_SOL if (kk[e] == kk[(e + 1) % 3] and kk[e] == 0) else FACETTE_PAROI)
+			for t in ne:
+				var q0 := X * (float(ne - t) / ne) + Y * (float(t) / ne)
+				var q1 := X * (float(ne - t - 1) / ne) + Y * (float(t + 1) / ne)
+				decor.facette(nom, ct, q0, q1, ref, [cl, cl, cl], true, 4.0, true)
 		return
 	var etroit := minf(float(ra["wl"]) + float(ra["wr"]), float(rb["wl"]) + float(rb["wr"]))
 	var aos := PackedFloat32Array()
@@ -532,7 +543,17 @@ func _tri_coque(a: Vector3, b: Vector3, c: Vector3, ka: int, kb: int, kc: int, r
 	# attributs de relief des trois coins (a, b sur l'anneau ra ou rb selon l'appel : voir _coque)
 	# UV : parois = (s, |arc|) (strates horizontales) ; sol et voûte = plan XZ du monde (des bandes le long de la galerie y
 	# convergeaient en « rayons » vers le point de fuite)
-	_tri_fin(nom, a, b, c, ref, aos, masque, att[0], att[1], att[2], k_seg == 17 or k_seg == 0, k_seg == 17 or k_seg == 0 or (k_seg >= 7 and k_seg <= 10))
+	# découpage PAR ARÊTE (retours exe 4, v3) : l'arête longitudinale k (de ra à rb) est commune aux segments k-1 et k ; le sol (segments 17
+	# et 0) et la paroi visaient des facettes de tailles différentes, d'où deux découpages de la même arête k1 / k17 : jonctions en T,
+	# fissures d'un pixel tout le long du pied des parois (90 % des bords ouverts). L'arête prend la cible fine sauf entre deux segments de sol.
+	var sol_ := k_seg == 17 or k_seg == 0
+	var cs := FACETTE_SOL if sol_ else FACETTE_PAROI
+	var ks := [ka, kb, kc]
+	var cib := Vector3(cs, cs, cs)
+	for e in 3:
+		if ks[e] == ks[(e + 1) % 3]:
+			cib[e] = FACETTE_SOL if ks[e] == 0 else FACETTE_PAROI
+	_tri_fin(nom, a, b, c, ref, aos, masque, att[0], att[1], att[2], cib, k_seg == 17 or k_seg == 0 or (k_seg >= 7 and k_seg <= 10))
 
 ## Bruit de relief (m) au point p : > 0 = creux (vers la roche), < 0 = saillie. hb = hauteur au-dessus du sol de l'anneau.
 ## Échelles : masses (3,5 m), bosses (1 m), grain (0,4 m), strates horizontales en gradins (lèvre en surplomb + dessus de corniche),
@@ -561,8 +582,7 @@ func relief(p: Vector3, hb: float) -> float:
 ## jonction) produisent EXACTEMENT les mêmes points sur leur arête commune, donc aucune fissure. L'intérieur est une grille de pas
 ## n = max(n_e) ; les points de bord de la grille sont ramenés sur le découpage de leur arête (triangles dégénérés ignorés).
 ## Les attributs (poids, direction vers la roche, hauteur au-dessus du sol, occlusion) sont interpolés de la même façon.
-func _tri_fin(nom: String, A: Vector3, B: Vector3, C: Vector3, ref: Vector3, aos: PackedFloat32Array, masque: float, ta: Array, tb: Array, tc: Array, sol_: bool, plan: bool) -> void:
-	var cible := FACETTE_SOL if sol_ else FACETTE_PAROI
+func _tri_fin(nom: String, A: Vector3, B: Vector3, C: Vector3, ref: Vector3, aos: PackedFloat32Array, masque: float, ta: Array, tb: Array, tc: Array, cib: Vector3, plan: bool) -> void:
 	var wA: float = ta[0]
 	var wB: float = tb[0]
 	var wC: float = tc[0]
@@ -573,9 +593,9 @@ func _tri_fin(nom: String, A: Vector3, B: Vector3, C: Vector3, ref: Vector3, aos
 	var hB: float = tb[2]
 	var hC: float = tc[2]
 	# découpage d'une arête : sa longueur et la hauteur de ses extrémités (voûtes hautes des grandes salles : facettes plus grandes)
-	var n_ab := _n_arete(A, B, hA, hB, cible)
-	var n_bc := _n_arete(B, C, hB, hC, cible)
-	var n_ca := _n_arete(C, A, hC, hA, cible)
+	var n_ab := _n_arete(A, B, hA, hB, cib.x)
+	var n_bc := _n_arete(B, C, hB, hC, cib.y)
+	var n_ca := _n_arete(C, A, hC, hA, cib.z)
 	var n := maxi(n_ab, maxi(n_bc, n_ca))
 	var fA: float = ta[4]
 	var fB: float = tb[4]
@@ -669,6 +689,7 @@ func _idx_n(q: Vector3) -> int:
 		_nacc[q] = i
 	return i
 var _coll_fine := PackedVector3Array()
+var _ori_bande := 0.0                   # sens commun des triangles de la bande d'anneaux en cours (0 = test par triangle contre `ref`)
 var nb_facettes_coque := 0
 
 func _buf_coque(nom: String, c: Vector3) -> Dictionary:
@@ -686,7 +707,7 @@ func _tri_lisse(buf: Dictionary, ref: Vector3, pos: PackedVector3Array, col: Pac
 	var g := (b - a).cross(c - a)
 	if g.length_squared() < 1e-10:
 		return
-	if g.dot(ref - (a + b + c) / 3.0) < 0.0:          # face visible vers l'intérieur de la galerie
+	if (g.dot(ref - (a + b + c) / 3.0) < 0.0) if _ori_bande == 0.0 else (_ori_bande < 0.0):          # face visible vers l'intérieur de la galerie
 		var t := i1
 		i1 = i2
 		i2 = t
@@ -802,6 +823,7 @@ func construire() -> void:
 	_coque()
 	etapes["coque_fine"] = Time.get_ticks_msec() - tp
 	_caps()
+	_dos_coque()
 	var cl := decor.coll
 	cl.append_array(_coll_fine)
 	decor.coll = cl
@@ -1004,6 +1026,16 @@ func _coque() -> void:
 				ref = _centroide(rb)
 			elif rb["forcee"]:
 				ref = _centroide(ra)
+			# Sens de la bande : celui de la majorité des quads (face vers l'intérieur). Appliqué à TOUS les triangles de la bande : l'ancien test
+			# par triangle contre un point central retournait les facettes des parois concaves (nez de jonction, alcôves) vers l'extérieur ;
+			# le moteur les supprimait (cull_back) et l'on voyait à travers la roche, dans les salles voisines (« trous dans les murs »).
+			var vote := 0
+			for k in NB:
+				var j0 := (k + 1) % NB
+				var qn := ((pa[j0] as Vector3) - (pa[k] as Vector3)).cross((pb[k] as Vector3) - (pa[k] as Vector3))
+				var cq := ((pa[k] as Vector3) + (pa[j0] as Vector3) + (pb[k] as Vector3) + (pb[j0] as Vector3)) * 0.25
+				vote += 1 if qn.dot(ref - cq) > 0.0 else -1
+			_ori_bande = 1.0 if vote >= 0 else -1.0
 			for k in NB:
 				var j := (k + 1) % NB
 				var ua := float(ra["s"]) + float(b["decalage"])
@@ -1014,6 +1046,109 @@ func _coque() -> void:
 				var tbk := [rb["w"][k], rb["dir"][k], rb["hb"][k], Vector2(ub, rb["arc"][k]), rb["fm"][k]]
 				_tri_coque(pa[k], pa[j], pb[j], k, j, j, ra, rb, k, ref, b, [tak, taj, tbj])
 				_tri_coque(pa[k], pb[j], pb[k], k, j, k, ra, rb, k, ref, b, [tak, tbj, tbk])
+
+## Dos de la coque (retours exe 4 : « les murs ont des trous ») : la coque fine est faite de facettes déplacées une à une par le relief ;
+## entre deux facettes voisines il reste des fentes de moins d'un pixel qui laissent voir le fond noir. Ce tube grossier (une bande par paire
+## d'anneaux) est tendu DERRIÈRE la roche (2 m plus loin que la ligne de base, plus que l'amplitude du relief) :
+## il ne se voit que par ces fentes, en bleu-gris de roche mate au lieu du noir. Sans collision, sans ombre. --sans-dos-coque : désactivé.
+const DOS_DECALAGE := 2.0
+const DOS_BRANCHES := ["A", "B"]      # galeries longues et isolées : mine et lac
+## Rebouchage LOCAL des autres salles : dos de coque FIN (décalage en m) ; assez loin pour cacher les fissures d'1 px des joints
+## d'anneaux, assez près pour ne jamais déborder dans une salle voisine.
+const DOS_FIN := {}      # ESSAYÉ (T1/T2/C/H à 12 cm) : le relief des facettes dépasse le dos, qui perce la roche en grandes taches bleu marine ; à 2 m il déborde. Vide : pas de dos hors A/B
+## Une branche PARENTE d'une jonction (celle où d'autres s'accrochent) est aussi concernée : on cherche si une autre branche s'y pince.
+func _porte_jonction(id: String, debut: bool) -> bool:
+	for o: String in ordre:
+		var od: Dictionary = (br[o] as Dictionary)["d"]
+		for cle: String in ["pince_deb", "pince_fin"]:
+			if od.has(cle):
+				var pj: Dictionary = od[cle]
+				if String(pj.get("de", pj.get("vers", ""))) == id:
+					if cle == "pince_fin" and debut:
+						return true
+					if cle == "pince_deb" and not debut:
+						return true
+	return false
+func _dos_coque() -> void:
+	if OS.get_cmdline_user_args().has("--sans-dos-coque"):
+		return
+	var v := PackedVector3Array()
+	var n := PackedVector3Array()
+	var vf := PackedVector3Array()      # dos fin (T1/T2/C/H) : maillage à part (nom DosCoqueFin)
+	var nf := PackedVector3Array()
+	for id: String in ordre:
+		var dec := DOS_DECALAGE
+		if DOS_FIN.has(id):      # camp, cristaux, cachette : le dos épais déborderait dans la salle voisine (dalles bleues vues en capture) -> dos fin
+			dec = float(DOS_FIN[id])
+		elif not DOS_BRANCHES.has(id):
+			continue
+		var rings: Array = (br[id] as Dictionary)["anneaux"]
+		var dos: Array = []
+		var dd: Dictionary = (br[id] as Dictionary)["d"]
+		var Lb: float = float((br[id] as Dictionary)["L"])
+		for r: Dictionary in rings:
+			var c: Vector3 = (r["P"] as Vector3) + Vector3(0, 0.45 * float(r["h"]), 0)
+			var q: Array = []
+			for p: Vector3 in r["pts"]:
+				q.append(p + (p - c).normalized() * dec)
+			dos.append(q)
+		for i in dos.size() - 1:
+			# zones de jonction : les anneaux se pincent contre le pilier voisin, la bande déborderait dans l'autre galerie (dalles bleues vues en capture)
+			var sa: float = float((rings[i] as Dictionary)["s"])
+			var sb: float = float((rings[i + 1] as Dictionary)["s"])
+			var j_deb: bool = dd.has("pince_deb") or _porte_jonction(id, true)
+			var j_fin: bool = dd.has("pince_fin") or _porte_jonction(id, false)
+			if not DOS_FIN.has(id) and ((j_deb and sb < ZONE_PINCE + 1.0) or (j_fin and sa > Lb - ZONE_PINCE - 1.0)):      # dos fin (12 cm) : pas de zone de jonction à éviter, il ne déborde pas
+				continue
+			var qa: Array = dos[i]
+			var qb: Array = dos[i + 1]
+			for k in NB:
+				var j := (k + 1) % NB
+				for t: Array in [[qa[k], qa[j], qb[j]], [qa[k], qb[j], qb[k]]]:
+					var nn := ((t[1] - t[0]) as Vector3).cross(t[2] - t[0]).normalized()
+					for pt: Vector3 in t:
+						if DOS_FIN.has(id):
+							vf.append(pt)
+							nf.append(nn)
+						else:
+							v.append(pt)
+							n.append(nn)
+	for id: String in ordre:      # fonds en dôme : couvercle en éventail derrière le dôme de glace
+		if not DOS_BRANCHES.has(id) or String(((br[id] as Dictionary)["d"] as Dictionary).get("cap_fin", "")) != "dome":
+			continue
+		var rn: Dictionary = ((br[id] as Dictionary)["anneaux"] as Array).back()
+		var cp: Vector3 = (rn["P"] as Vector3) + Vector3(0, 0.45 * float(rn["h"]), 0)
+		var pn: Array = rn["pts"]
+		var apex: Vector3 = cp + (rn["T"] as Vector3) * (DOS_DECALAGE + 3.5)
+		for k in NB:
+			var j := (k + 1) % NB
+			for pt: Vector3 in [pn[k] + ((pn[k] as Vector3) - cp).normalized() * DOS_DECALAGE, pn[j] + ((pn[j] as Vector3) - cp).normalized() * DOS_DECALAGE, apex]:
+				v.append(pt)
+				n.append(-(rn["T"] as Vector3))
+	_dos_maillage(v, n, false)
+	_dos_maillage(vf, nf, true)
+
+func _dos_maillage(v: PackedVector3Array, n: PackedVector3Array, fin: bool) -> void:
+	if v.is_empty():
+		return
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = v
+	arr[Mesh.ARRAY_NORMAL] = n
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.2, 0.24, 0.3)
+	mat.roughness = 1.0
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT
+	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	var mi := MeshInstance3D.new()
+	mi.mesh = m
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.name = "DosCoqueFin" if fin else "DosCoque"
+	add_child(mi)
 
 ## Extrémités libres : bouche ouverte sur le jour (carte sans éclairage découpée par la bouche rocheuse) ; fond en dôme de glace.
 func _caps() -> void:
@@ -1034,12 +1169,27 @@ func _cap_jour(r0: Dictionary) -> void:
 	var blanc := Color(1, 1, 1, 0)
 	for k in NB:
 		var j := (k + 1) % NB
-		var pts: Array = [c0 - (r0["T"] as Vector3) * 0.2, p0[k], p0[j]]
-		var uvs: Array = []
-		for p: Vector3 in pts:
-			var lat := (p - c0).dot(R0)
-			uvs.append(Vector2(0.5 + lat / 17.0, 1.0 - (p.y - (float(r0["y"]) - 1.5)) / 8.5))
-		decor.facette("jour", pts[0], pts[1], pts[2], ref0, [blanc, blanc, blanc], true, 4.0, true, uvs)
+		var q: Array = _arete_anneau(r0, k)      # mêmes points que la coque sur cette arête : pas de jonction en T
+		for t in q.size() - 1:
+			var pts: Array = [c0 - (r0["T"] as Vector3) * 0.2, q[t], q[t + 1]]
+			var uvs: Array = []
+			for p: Vector3 in pts:
+				var lat := (p - c0).dot(R0)
+				uvs.append(Vector2(0.5 + lat / 17.0, 1.0 - (p.y - (float(r0["y"]) - 1.5)) / 8.5))
+			decor.facette("jour", pts[0], pts[1], pts[2], ref0, [blanc, blanc, blanc], true, 4.0, true, uvs)
+
+## Points de l'arête k -> k+1 d'un anneau d'extrémité libre, EXACTEMENT comme `_tri_fin` les calcule (même découpage, même formule
+## X*(n-t)/n + Y*t/n ; relief nul : poids 0 aux extrémités libres). Les bouchons qui s'y raccordent partagent ainsi les sommets de la coque.
+func _arete_anneau(r: Dictionary, k: int) -> Array:
+	var j := (k + 1) % NB
+	var X: Vector3 = (r["pts"] as Array)[k]
+	var Y: Vector3 = (r["pts"] as Array)[j]
+	var c := FACETTE_SOL if (k == 17 or k == 0) else FACETTE_PAROI
+	var n := _n_arete(X, Y, float((r["hb"] as Array)[k]), float((r["hb"] as Array)[j]), c)
+	var res: Array = []
+	for t in n + 1:
+		res.append(X * (float(n - t) / n) + Y * (float(t) / n))
+	return res
 
 ## Fond : dôme en anneaux concentriques décalés (pas d'étoile de triangles), glace uniforme.
 func _cap_dome(rn: Dictionary) -> void:
@@ -1060,7 +1210,16 @@ func _cap_dome(rn: Dictionary) -> void:
 		var cc := GrotteDecor.col(AO[(r * 3) % NB] * 0.92, 0.9)
 		for k in NB:
 			var j := (k + 1) % NB
-			if r + 1 < anneaux_d.size():
+			if r == 0:
+				# bord du dôme = dernier anneau de la coque : ses arêtes sont découpées comme celles de la coque (mêmes points au bit près),
+				# sinon les sommets de la coque tombent au milieu des arêtes du dôme (jonction en T : fissure d'un pixel autour du fond)
+				var B0: Array = anneaux_d[1]
+				var q: Array = _arete_anneau(rn, k)
+				var mi := q.size() / 2
+				for t in q.size() - 1:
+					decor.facette("c_roche_glace", q[t], q[t + 1], B0[k] if t < mi else B0[j], refn, [cc, cc, cc], true, 4.0, true)
+				decor.facette("c_roche_glace", q[mi], B0[j], B0[k], refn, [cc, cc, cc], true, 4.0, true)
+			elif r + 1 < anneaux_d.size():
 				var B: Array = anneaux_d[r + 1]
 				decor.facette("c_roche_glace", A[k], A[j], B[j], refn, [cc, cc, cc], true, 4.0, true)
 				decor.facette("c_roche_glace", A[k], B[j], B[k], refn, [cc, cc, cc], true, 4.0, true)
@@ -1639,7 +1798,7 @@ func _accroches_zone(z: Dictionary) -> void:
 		accroches.append({"type": "interaction", "id": i["id"], "zone": z["id"], "pos": p + Vector3(0, 0.6, 0), "d": i})
 	for m: Dictionary in z.get("meca", []):
 		var p := sol_en(id, float(m["s"]), float(m["lat"]))
-		accroches.append({"type": "meca", "id": m["id"], "zone": z["id"], "pos": p, "lacet": lacet_en(id, float(m["s"])), "d": m})
+		accroches.append({"type": "meca", "id": m["id"], "zone": z["id"], "pos": p, "lacet": lacet_en(id, float(m["s"])), "d": m, "branche": id, "s": float(m["s"])})
 	if z.has("lieu"):
 		var l: Dictionary = z["lieu"]
 		var s_l: float = float(l.get("s", (float(z["s"][0]) + float(z["s"][1])) * 0.5))

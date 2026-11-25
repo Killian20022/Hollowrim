@@ -276,7 +276,7 @@ func _process(dt: float) -> void:
 	# reflet de la torche et de la lumière : seulement visibles à la troisième personne
 	mains_tps.avancer(dt, _vue_3)
 	var allumee: bool = mains_tps.torche_tenue() and not (joueur.get("arc") != null and joueur.arc.actif)   # arc : la main gauche tient l'arc   # (mains.torche_sortie est VRAI aussi avec un sort ou un bouclier en main gauche)
-	pivot_torche.visible = allumee
+	pivot_torche.visible = allumee and _vue_3      # 1re personne : la torche du corps (flamme, halo) ne se dessine plus (grosse flamme devant l'œil) ; la vraie torche est celle de mains.gd
 	for f in flammes:
 		f.emitting = allumee and _vue_3
 	lumiere.visible = allumee and _vue_3
