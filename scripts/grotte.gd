@@ -1054,6 +1054,8 @@ func _dos_coque() -> void:
 		return
 	var v := PackedVector3Array()
 	var n := PackedVector3Array()
+	var vf := PackedVector3Array()      # dos fin (T1/T2/C/H) : maillage à part (nom DosCoqueFin)
+	var nf := PackedVector3Array()
 	for id: String in ordre:
 		var dec := DOS_DECALAGE
 		if DOS_FIN.has(id):      # camp, cristaux, cachette : le dos épais déborderait dans la salle voisine (dalles bleues vues en capture) -> dos fin
@@ -1076,7 +1078,7 @@ func _dos_coque() -> void:
 			var sb: float = float((rings[i + 1] as Dictionary)["s"])
 			var j_deb: bool = dd.has("pince_deb") or _porte_jonction(id, true)
 			var j_fin: bool = dd.has("pince_fin") or _porte_jonction(id, false)
-			if (j_deb and sb < ZONE_PINCE + 1.0) or (j_fin and sa > Lb - ZONE_PINCE - 1.0):
+			if not DOS_FIN.has(id) and ((j_deb and sb < ZONE_PINCE + 1.0) or (j_fin and sa > Lb - ZONE_PINCE - 1.0)):      # dos fin (12 cm) : pas de zone de jonction à éviter, il ne déborde pas
 				continue
 			var qa: Array = dos[i]
 			var qb: Array = dos[i + 1]
@@ -1085,8 +1087,12 @@ func _dos_coque() -> void:
 				for t: Array in [[qa[k], qa[j], qb[j]], [qa[k], qb[j], qb[k]]]:
 					var nn := ((t[1] - t[0]) as Vector3).cross(t[2] - t[0]).normalized()
 					for pt: Vector3 in t:
-						v.append(pt)
-						n.append(nn)
+						if DOS_FIN.has(id):
+							vf.append(pt)
+							nf.append(nn)
+						else:
+							v.append(pt)
+							n.append(nn)
 	for id: String in ordre:      # fonds en dôme : couvercle en éventail derrière le dôme de glace
 		if not DOS_BRANCHES.has(id) or String(((br[id] as Dictionary)["d"] as Dictionary).get("cap_fin", "")) != "dome":
 			continue
@@ -1099,6 +1105,12 @@ func _dos_coque() -> void:
 			for pt: Vector3 in [pn[k] + ((pn[k] as Vector3) - cp).normalized() * DOS_DECALAGE, pn[j] + ((pn[j] as Vector3) - cp).normalized() * DOS_DECALAGE, apex]:
 				v.append(pt)
 				n.append(-(rn["T"] as Vector3))
+	_dos_maillage(v, n, false)
+	_dos_maillage(vf, nf, true)
+
+func _dos_maillage(v: PackedVector3Array, n: PackedVector3Array, fin: bool) -> void:
+	if v.is_empty():
+		return
 	var arr := []
 	arr.resize(Mesh.ARRAY_MAX)
 	arr[Mesh.ARRAY_VERTEX] = v
@@ -1115,7 +1127,7 @@ func _dos_coque() -> void:
 	mi.mesh = m
 	mi.material_override = mat
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.name = "DosCoque"
+	mi.name = "DosCoqueFin" if fin else "DosCoque"
 	add_child(mi)
 
 ## Extrémités libres : bouche ouverte sur le jour (carte sans éclairage découpée par la bouche rocheuse) ; fond en dôme de glace.

@@ -56,7 +56,7 @@ func _go() -> void:
 				gi.visibility_range_begin = 0.0
 				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				nb_coque += 1
-			elif String(n.name) == "DosCoque":
+			elif String(n.name).begins_with("DosCoque"):
 				gi.visibility_range_end = 0.0
 			elif not (n is Light3D):
 				gi.visible = false
