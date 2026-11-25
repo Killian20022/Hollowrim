@@ -52,14 +52,15 @@ vec3 chemin(float t, float s, float s2) {
 		float z = z0 * 0.8 + t * (0.45 + etire * 1.5 + 0.5 * s2);
 		return ax * z + (u * cos(a) + v * sin(a)) * rr;
 	} else if (mode == 1) {
-		float a = s * 6.2832;
-		float r0 = 0.1 + 0.55 * s2;
+		// éventail BAS dans le sens du jet (+X local), ±70° : langues rasantes qui s'étalent, pas une étoile autour du point
+		float a = (fract(s * 3.7 + s2) - 0.5) * 2.4;
+		float r0 = 0.05 + 0.4 * s2;
 		float pul = 0.6 + 0.4 * sin(TIME * (8.0 + 6.0 * s2) + s * 40.0);
-		float hh = (0.5 + 0.8 * s2) * pul;
+		float hh = (0.12 + 0.28 * s2) * pul;
 		vec3 d = vec3(cos(a), 0.0, sin(a));
 		vec3 lat = vec3(-d.z, 0.0, d.x);
-		float w = sin(t * 7.0 + TIME * 9.0 + s * 30.0) * 0.12 * t;
-		return d * (r0 + t * 0.55) + lat * w + vec3(0.0, 1.0, 0.0) * (hh * sin(t * 1.5707) * (0.15 + 0.85 * t) + 0.02);
+		float w = sin(t * 7.0 + TIME * 9.0 + s * 30.0) * 0.09 * t;
+		return d * (r0 + t * (0.5 + 0.5 * s2)) + lat * w + vec3(0.0, 1.0, 0.0) * (hh * sin(t * 1.5707) * (0.15 + 0.85 * t) + 0.02);
 	} else if (mode == 2) {
 		float e = 1.0 - pow(1.0 - clamp(age, 0.0, 1.0), 2.4);
 		float ys = 0.15 + 0.85 * s2;

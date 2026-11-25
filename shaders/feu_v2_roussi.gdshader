@@ -19,13 +19,14 @@ void vertex() {
 	v_uv = VERTEX.xz;
 }
 void fragment() {
+	// traînée allongée (le maillage est déjà étiré dans le sens du jet) : bord très déchiré, jamais un disque net
 	vec2 q = v_uv * 1.7;
-	float r = length(q);
-	float n = bruit(q * 5.0 + graine) * 0.6 + bruit(q * 11.0 + graine * 2.0) * 0.4;
-	float v = (1.0 - r) + (n - 0.5) * 0.9;
-	// 3 paliers : cœur noir, bord brun, rien
-	float a = v > 0.35 ? 0.34 : (v > 0.1 ? 0.16 : 0.0);
-	a *= 1.0 - smoothstep(0.55, 1.0, age);
+	float r = length(q * vec2(0.8, 1.0));
+	float n = bruit(q * 4.0 + graine) * 0.5 + bruit(q * 9.0 + graine * 2.0) * 0.5;
+	float v = (0.85 - r) + (n - 0.5) * 1.5;
+	// 3 paliers : cœur sombre, bord brun, rien ; apparition progressive (0,8 s) puis effacement
+	float a = v > 0.3 ? 0.24 : (v > 0.12 ? 0.1 : 0.0);
+	a *= smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(0.5, 1.0, age));
 	if (a <= 0.0) { discard; }
 	ALBEDO = v > 0.32 ? couleur.rgb : couleur.rgb * 1.8 + vec3(0.02, 0.01, 0.0);
 	ALPHA = a;
