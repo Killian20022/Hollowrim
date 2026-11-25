@@ -11,9 +11,9 @@ modele = "res://assets/modeles/armes/bouclier_nordique.glb"
 milieu_poignee = 0.0
 habillage = "bouclier"
 reperes_du_modele = false
-repos_poignee = Vector3(0.37, -0.46, -0.38)
+repos_poignee = Vector3(0.47, -0.52, -0.40)
 repos_lame = Vector3(-0.3, 1, 0.2)
-repos_fil = Vector3(-0.55, 0.15, -0.85)
+repos_fil = Vector3(0.36, -0.35, -0.86)
 repos_coude = Vector3(0.8, -0.6, 0.1)
 profil = "torche"
 degats_leger = 0.0
@@ -28,6 +28,6 @@ angle_garde = 170.0
 recul_garde = 2.2
 posture_parade = 0.8
 son_garde = "bois"
-description = "Planches peintes, cerclage et umbo de fer. Garde au clic droit : bloc frontal large (170°), 95 % absorbés, endurance x0,6 ; parade parfaite = coup de bouclier qui brise la posture."
+description = "Bouclier rond de sept planches (84 cm, 2 cm d'épaisseur), cerclage riveté et umbo de fer, sangle d'avant-bras. Garde au clic droit : bloc frontal large (170°), 95 % absorbés, endurance x0,6 ; parade parfaite = coup de bouclier qui brise la posture."
 famille = "bouclier"
 materiau = "bois"

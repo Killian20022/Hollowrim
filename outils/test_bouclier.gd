@@ -141,7 +141,7 @@ func _tester() -> void:
 	var r_garde := _cadre_bouclier()
 	var g_garde := _main("g")
 	_verif(mains.bloque and mains.garde_bouclier(), "clic droit tenu : garde levée au bouclier (état %s)" % mains.combat.nom())
-	_verif(g_garde.y > g_repos.y + 0.05 and g_garde.x > g_repos.x + 0.1, "le bouclier se lève devant (main %.2f,%.2f → %.2f,%.2f)" % [g_repos.x, g_repos.y, g_garde.x, g_garde.y])
+	_verif(g_garde.y > g_repos.y + 0.05, "le bouclier se lève (reste à gauche : centre dégagé) (main %.2f,%.2f → %.2f,%.2f)" % [g_repos.x, g_repos.y, g_garde.x, g_garde.y])
 	_verif(r_garde.get_center().x < 0.5 and r_garde.position.y > 0.3, "garde : bouclier à gauche du centre, bord haut sous le haut du tiers central (cadre x %.2f-%.2f, y %.2f-%.2f)" % [r_garde.position.x, r_garde.end.x, r_garde.position.y, r_garde.end.y])
 	_verif(mains.anim.clip == "repos", "garde au bouclier : l'épée reste au repos (clip %s, pas « garde »)" % mains.anim.clip)
 	var red: float = j.competences.reduction_parade()
