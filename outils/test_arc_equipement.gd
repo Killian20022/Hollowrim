@@ -151,7 +151,7 @@ func _combos() -> Array:
 
 func _corps() -> void:
 	j.basculer_vue(true)
-	for mode in ["process", "physique", "process_tard"]:
+	for mode in ["libere", "physique"]:
 		await _corps_mode(mode)
 
 ## `mode` : instant de l'équipement dans l'image. Un modèle libéré entre deux images se comparait égal à null (copies fantômes sur le corps) :
@@ -164,19 +164,17 @@ func _corps_mode(mode: String) -> void:
 		mg.equiper("droite", "epee")
 		mg.equiper("gauche", "bouclier")
 		await _sim(0.2)
-		match mode:
-			"process":
-				await process_frame
-			"process_tard":
-				await RenderingServer.frame_post_draw
+		var anciens: Array = [j.mains.get("_modele_arme_d"), j.mains.get("_modele_gauche")]
 		if c[3]:
 			arc.equiper()
 		else:
 			mg.equiper("droite", c[1])
 			mg.equiper("gauche", c[2])
-		if mode != "physique":
-			for k in 6:
-				await process_frame   # aucune image physique entre l'équipement et le rendu
+		if mode == "libere":
+			# entrées réelles : les anciens modèles des mains sont libérés AVANT que le corps ne voie le changement
+			for o in anciens:
+				if o is Node and is_instance_valid(o) and (o as Node).is_queued_for_deletion():
+					(o as Node).free()
 		await _sim(0.3)
 		var v := _visibles_corps()
 		var dr := String(c[1])
