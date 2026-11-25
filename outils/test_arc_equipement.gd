@@ -90,7 +90,6 @@ func _tester() -> void:
 	j.inventaire.ajouter("fleche", 30)
 	for i in 20:
 		await physics_frame
-	print("DIAG souris=%d est_local=%s raccourci_1=%s" % [Input.mouse_mode, j.est_local, InputMap.has_action("raccourci_1")])
 	await _changements()
 	await _corps()
 	print("ECHECS : %d" % (0 if _ok else 1), "  (", _n, " vérifications)")
