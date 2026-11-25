@@ -151,6 +151,12 @@ func _combos() -> Array:
 
 func _corps() -> void:
 	j.basculer_vue(true)
+	for mode in ["process", "physique", "process_tard"]:
+		await _corps_mode(mode)
+
+## `mode` : instant de l'équipement dans l'image. Un modèle libéré entre deux images se comparait égal à null (copies fantômes sur le corps) :
+## le bug ne se voyait qu'avec les entrées réelles (clavier, menu), jamais avec un équipement posé depuis la boucle physique.
+func _corps_mode(mode: String) -> void:
 	for c in _combos():
 		if arc.actif:
 			arc.ranger()
@@ -158,11 +164,19 @@ func _corps() -> void:
 		mg.equiper("droite", "epee")
 		mg.equiper("gauche", "bouclier")
 		await _sim(0.2)
+		match mode:
+			"process":
+				await process_frame
+			"process_tard":
+				await RenderingServer.frame_post_draw
 		if c[3]:
 			arc.equiper()
 		else:
 			mg.equiper("droite", c[1])
 			mg.equiper("gauche", c[2])
+		if mode != "physique":
+			for k in 6:
+				await process_frame   # aucune image physique entre l'équipement et le rendu
 		await _sim(0.3)
 		var v := _visibles_corps()
 		var dr := String(c[1])
@@ -181,4 +195,4 @@ func _corps() -> void:
 		for n in attendu:
 			if not v.has(n):
 				ok = false
-		_verif(ok, "3e personne, %s (%s / %s) : visibles %s, attendus %s" % [c[0], dr, ga, v, attendu])
+		_verif(ok, "3e personne (%s), %s (%s / %s) : visibles %s, attendus %s" % [mode, c[0], dr, ga, v, attendu])
