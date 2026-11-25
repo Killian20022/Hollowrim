@@ -4,6 +4,7 @@ extends SceneTree
 ## fond MAGENTA unlit sans brume : un pixel magenta = du vide visible à travers la roche ; matériau qui montre les FACES ARRIÈRE en
 ## JAUNE : un pixel jaune = on regarde l'envers d'une paroi (trou de rendu avec cull_back).
 ##   godot --path . --script res://outils/audit_trous_repaire.gd -- --sortie=C:/chemin [--pas=3] [--lat=0]
+## --jeu : garde les matériaux du jeu (cull_back réel) : le magenta mesure alors les VRAIS trous vus par le joueur.
 ## Écrit <sortie>/audit_trous.csv (branche, s, yaw, pixels vide, pixels face arrière), <sortie>/pires_*.png et imprime le bilan.
 const N_YAW := 8
 const L := 256
@@ -15,6 +16,7 @@ var g: Grotte
 var sortie := ""
 var pas := 3.0
 var lat := 0.0
+var jeu := false      # --jeu : matériaux d'origine (culling réel) au lieu du matériau de diagnostic
 
 func _init() -> void:
 	_go.call_deferred()
@@ -25,6 +27,8 @@ func _go() -> void:
 			sortie = a.substr(9)
 		elif a.begins_with("--pas="):
 			pas = float(a.substr(6))
+		elif a == "--jeu":
+			jeu = true
 		elif a.begins_with("--lat="):
 			lat = float(a.substr(6))
 	DirAccess.make_dir_recursive_absolute(sortie)
@@ -45,11 +49,14 @@ func _go() -> void:
 		if n is GeometryInstance3D:
 			var gi := n as GeometryInstance3D
 			if String(n.name).begins_with("Coque") and n is MeshInstance3D:
-				gi.material_override = mat
+				if not jeu:
+					gi.material_override = mat
 				gi.visibility_range_end = 0.0
 				gi.visibility_range_begin = 0.0
 				gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				nb_coque += 1
+			elif String(n.name) == "DosCoque":
+				gi.visibility_range_end = 0.0
 			elif not (n is Light3D):
 				gi.visible = false
 		if n is Light3D:

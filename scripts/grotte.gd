@@ -802,6 +802,7 @@ func construire() -> void:
 	_coque()
 	etapes["coque_fine"] = Time.get_ticks_msec() - tp
 	_caps()
+	_dos_coque()
 	var cl := decor.coll
 	cl.append_array(_coll_fine)
 	decor.coll = cl
@@ -1014,6 +1015,66 @@ func _coque() -> void:
 				var tbk := [rb["w"][k], rb["dir"][k], rb["hb"][k], Vector2(ub, rb["arc"][k]), rb["fm"][k]]
 				_tri_coque(pa[k], pa[j], pb[j], k, j, j, ra, rb, k, ref, b, [tak, taj, tbj])
 				_tri_coque(pa[k], pb[j], pb[k], k, j, k, ra, rb, k, ref, b, [tak, tbj, tbk])
+
+## Dos de la coque (retours exe 4 : « les murs ont des trous ») : la coque fine est faite de facettes déplacées une à une par le relief ;
+## entre deux facettes voisines il reste des fentes de moins d'un pixel qui laissent voir le fond noir. Ce tube grossier (une bande par paire
+## d'anneaux) est tendu DERRIÈRE la roche (0,9 m plus loin que la ligne de base, plus que l'amplitude du relief) :
+## il ne se voit que par ces fentes, en bleu-gris de roche mate au lieu du noir. Sans collision, sans ombre. --sans-dos-coque : désactivé.
+const DOS_DECALAGE := 0.9
+func _dos_coque() -> void:
+	if OS.get_cmdline_user_args().has("--sans-dos-coque"):
+		return
+	var v := PackedVector3Array()
+	var n := PackedVector3Array()
+	for id: String in ordre:
+		var rings: Array = (br[id] as Dictionary)["anneaux"]
+		var dos: Array = []
+		for r: Dictionary in rings:
+			var c: Vector3 = (r["P"] as Vector3) + Vector3(0, 0.45 * float(r["h"]), 0)
+			var q: Array = []
+			for p: Vector3 in r["pts"]:
+				q.append(p + (p - c).normalized() * DOS_DECALAGE)
+			dos.append(q)
+		for i in dos.size() - 1:
+			var qa: Array = dos[i]
+			var qb: Array = dos[i + 1]
+			for k in NB:
+				var j := (k + 1) % NB
+				for t: Array in [[qa[k], qa[j], qb[j]], [qa[k], qb[j], qb[k]]]:
+					var nn := ((t[1] - t[0]) as Vector3).cross(t[2] - t[0]).normalized()
+					for pt: Vector3 in t:
+						v.append(pt)
+						n.append(nn)
+	for id: String in ordre:      # fonds en dôme : couvercle en éventail derrière le dôme de glace
+		if String(((br[id] as Dictionary)["d"] as Dictionary).get("cap_fin", "")) != "dome":
+			continue
+		var rn: Dictionary = ((br[id] as Dictionary)["anneaux"] as Array).back()
+		var cp: Vector3 = (rn["P"] as Vector3) + Vector3(0, 0.45 * float(rn["h"]), 0)
+		var pn: Array = rn["pts"]
+		var apex: Vector3 = cp + (rn["T"] as Vector3) * (DOS_DECALAGE + 3.5)
+		for k in NB:
+			var j := (k + 1) % NB
+			for pt: Vector3 in [pn[k] + ((pn[k] as Vector3) - cp).normalized() * DOS_DECALAGE, pn[j] + ((pn[j] as Vector3) - cp).normalized() * DOS_DECALAGE, apex]:
+				v.append(pt)
+				n.append(-(rn["T"] as Vector3))
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = v
+	arr[Mesh.ARRAY_NORMAL] = n
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.2, 0.24, 0.3)
+	mat.roughness = 1.0
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mat.diffuse_mode = BaseMaterial3D.DIFFUSE_LAMBERT
+	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	var mi := MeshInstance3D.new()
+	mi.mesh = m
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.name = "DosCoque"
+	add_child(mi)
 
 ## Extrémités libres : bouche ouverte sur le jour (carte sans éclairage découpée par la bouche rocheuse) ; fond en dôme de glace.
 func _caps() -> void:

@@ -482,7 +482,7 @@ func _porte() -> void:
 	lum.shadow_enabled = false
 	g.add_child(lum)
 	var it := _interactif(lp_pos - T * 0.2, "Levier de la porte", "Tirer le levier",
-		func() -> Array: return _tirer_levier(), func() -> bool: return not _porte_ouverte, true, 2.6)
+		func() -> Array: return _tirer_levier(), func() -> bool: return not _porte_ouverte, false, 2.6)
 	it.set_meta("cle_etat", CLE_PORTE % prefixe)
 	interactifs["levier_goulot"] = it
 
@@ -496,6 +496,8 @@ func _porte_etat(ouverte: bool, anime := false) -> void:
 	if _battants.is_empty() or ouverte == _porte_ouverte:
 		return
 	_porte_ouverte = ouverte
+	if interactifs.has("levier_goulot"):
+		(interactifs["levier_goulot"] as Node3D).actif = not ouverte
 	var a := OUVERTURE if ouverte else 0.0
 	var lacet: float = (g.get_meta("porte_goulot") as Dictionary)["lacet"]
 	var t := acces.create_tween().set_parallel(true) if anime else null
