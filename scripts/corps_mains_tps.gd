@@ -377,10 +377,9 @@ func _geste(m: String, _dt: float) -> void:
 			# bouclier tenu au poing comme la torche (avant-bras levé, Idle_Torch) : la prise au poing du bouclier (mains.gd) le présente
 			# face à l'avant dans cette pose ; les tenues Mixamo « sword and shield » le mettaient de chant (bouclier sanglé à l'avant-bras).
 			# En garde : pose de garde du corps entier (Sword_Attack figé, corps_joueur).
-			var garde: bool = mains.get("bloque")
 			# v2 (2026-11-25) : bouclier SANGLÉ à l'avant-bras, comme les captures Mixamo « sword and shield » (idle / block idle) :
 			# avant-bras replié devant le torse, bouclier parallèle à lui, face vers l'avant (au lieu du bras tendu sur le côté).
-			var b2 := _anim("ss_block_idle" if garde else "ss_idle")
+			var b2 := _anim("ss_idle")   # (ss_block_idle croisait le bouclier vers l'épée : la garde reste sur le flanc gauche)
 			couche.regler(m, b2, fposmod(_t, b2.length), 1.0, 12.0, false)
 		_:
 			couche.regler(m, null, 0.0, 0.0, 10.0, false)
