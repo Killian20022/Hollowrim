@@ -3,8 +3,16 @@ extends "res://outils/film_feu_v2.gd"
 ##   godot --path . --write-movie <f.avi> --fixed-fps 30 --resolution 1280x720 --script res://outils/film_feu_sol.gd -- --nouvelle
 ##         --paisible --detail-sorts=eleve [--crypte] [--feu-v1] [--images=<dossier>]
 
+## Mode réel (par défaut) : AUCUN plateau, la vraie forêt du jeu (neige, arbres, brouillard, post-traitement). `--arene` : l'ancien plateau.
+func _site_ouvert() -> void:
+	if _arg("arene") != "":
+		await super._site_ouvert()
+
+func _mur_pose(dist: float) -> void:
+	if _arg("arene") != "":
+		await super._mur_pose(dist)
+
 func _film_feu() -> void:
-	var crypte := _arg("crypte") != ""
 	await _debut("impact du jet de flammes")
 	magie.equiper("droite", "epee")
 	magie.equiper("gauche", "jet_flammes")
@@ -14,30 +22,17 @@ func _film_feu() -> void:
 	var av: Vector3 = -j.camera.global_basis.z
 	av.y = 0.0
 	av = av.normalized()
-	if _mur_n != null:
-		_mur_n.global_position = Vector3(o.x + 1.4, o.y + 0.6, o.z - 14.0)
-		_mur_p = _mur_n.global_position
 	_texte("jet sur le sol")
 	await _regarder(o + av * 2.6 + Vector3.DOWN * 1.5, 0.5)
 	magie.appuyer("gauche")
-	await _attendre(0.25)
-	await _capture("sol_0")
-	await _attendre(0.45)
-	await _capture("sol_1")
-	await _attendre(0.6)
-	await _capture("sol_2")
-	_texte("balayage sol vers mur")
-	if _mur_n != null:
-		_mur_n.global_position = Vector3(o.x + 1.4, o.y + 0.6, o.z - 4.4)
-		for k in 5:
-			var t := float(k) / 4.0
-			await _regarder(o + av * lerpf(3.0, 4.2, t) + Vector3.DOWN * lerpf(1.5, -0.4, t), 0.45)
-	await _attendre(0.5)
-	_texte("jet sur le mur")
-	await _capture("mur_0")
-	await _attendre(1.0)
-	await _capture("mur_1")
+	await _attendre(1.6)
+	_texte("balayage : sol, arbres, relief")
+	# tour d'horizon (jet continu) : le jet rencontre tout ce que la forêt offre (neige, troncs, rochers, feu de camp)
+	var y0 := j.rotation.y
+	var n := 150
+	for k in n:
+		j.rotation.y = y0 + TAU * float(k) / n
+		j.tete.rotation.x = deg_to_rad(-12.0 - 10.0 * sin(float(k) * 0.35))
+		await process_frame
 	magie.relacher("gauche")
-	await _attendre(0.5)
-	await _capture("fin")
-	await _attendre(1.0)
+	await _attendre(0.8)
