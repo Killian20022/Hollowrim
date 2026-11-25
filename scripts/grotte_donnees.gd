@@ -306,7 +306,7 @@ static func zones_hrafn() -> Array:
 			"ennemis": [
 				{"id": "bandit_0", "type": "sbire", "s": 3.5, "lat": -1.4, "tenue": 0, "nom": "Bandit"},
 				{"id": "bandit_1", "type": "sbire", "s": 6.2, "lat": 2.6, "tenue": 1, "nom": "Bandit", "casque": "casque_nasal"},
-				{"id": "bandit_2", "type": "sbire", "s": 9.8, "lat": -2.4, "tenue": 2, "nom": "Bandit"},
+				{"id": "bandit_2", "type": "sbire", "s": 9.0, "lat": -1.2, "tenue": 2, "nom": "Bandit"},
 				{"id": "bandit_3", "type": "sbire", "s": 12.0, "lat": 1.6, "tenue": 3, "nom": "Bandit"},
 				{"id": "bandit_archer_0", "type": "sbire", "archer": true, "s": 8.5, "lat": 4.1, "sur": "corniche_camp", "tenue": 3, "nom": "Archer bandit", "face": "centre"},
 				{"id": "bandit_archer_1", "type": "sbire", "archer": true, "s": 11.5, "lat": 4.1, "sur": "corniche_camp", "tenue": 1, "nom": "Archer bandit", "face": "centre"},

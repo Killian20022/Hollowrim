@@ -1310,6 +1310,9 @@ func caisse(pos: Vector3, taille := Vector3(0.7, 0.5, 0.5), lacet := 0.0) -> voi
 	var pz := pose_objet(pos, taille.x * 0.5, taille.z * 0.5, lacet, taille.y, INCLINE, 0.5, 0.45, true)
 	_eviter_neige = 0
 	pos = pz["p"]
+	if regles_pose and _chevauche(pos, (taille.x + taille.z) * 0.25, taille.y, false) > 0.05:      # v3 : pas de caisse dans un rocher (44 % au camp)
+		objet_fin()
+		return
 	var x0 := _incliner(pz)
 	if not pz["ok"]:          # lot D : aucune place sûre (roche, objet) : objet retiré
 		xf = x0
@@ -1945,6 +1948,14 @@ func _retoucher_lumieres(g: Grotte) -> void:
 			var dl := g.demi_l(id, s)
 			var cote := 1.0 if float(sit[2]) >= 0.0 else -1.0
 			var lat := cote * (dl.y if cote > 0.0 else dl.x) * 0.72
+			for essai in 5:          # v3 : trépied d'aplomb (30 cm de vide sous un pied au camp) : on se rapproche de l'axe jusqu'à un sol plat
+				var y0 := g.sol_en(id, s, lat).y
+				var ecart := 0.0
+				for o: Vector2 in [Vector2(0.4, 0.0), Vector2(-0.4, 0.0), Vector2(0.0, 0.4), Vector2(0.0, -0.4)]:
+					ecart = maxf(ecart, absf(g.sol_en(id, s + o.y, lat + o.x).y - y0))
+				if ecart < 0.08:
+					break
+				lat *= 0.85
 			var p := g.sol_en(id, s, lat)
 			var pbr := brasero_fer(p, g.libre(id, s, lat, 0.45))
 			l.position = pbr + Vector3(0, 1.3, 0) if pbr != Vector3.INF else _poser_poteau(g, id, s, cote)
@@ -2164,6 +2175,14 @@ func _hab_camp(g: Grotte, z: Dictionary) -> void:
 		var cote := -1.0 if k == 0 else 1.0
 		var dlb := g.demi_l(id, sb)
 		var latb := cote * (dlb.y if cote > 0.0 else dlb.x) * 0.7
+		for essai in 5:          # v3 : trépied d'aplomb (30 cm de vide sous un pied au camp) : on se rapproche de l'axe jusqu'à un sol plat
+			var y0 := g.sol_en(id, sb, latb).y
+			var ecart := 0.0
+			for o: Vector2 in [Vector2(0.4, 0.0), Vector2(-0.4, 0.0), Vector2(0.0, 0.4), Vector2(0.0, -0.4)]:
+				ecart = maxf(ecart, absf(g.sol_en(id, sb + o.y, latb + o.x).y - y0))
+			if ecart < 0.08:
+				break
+			latb *= 0.85
 		if g.libre(id, sb, latb, 0.5):
 			var pb := g.sol_en(id, sb, latb)
 			pb = brasero_fer(pb, true)

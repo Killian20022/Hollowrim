@@ -56,6 +56,9 @@ static func _caisse(d: GrotteDecor, pos: Vector3, t: Vector3, lacet: float) -> v
 	d.objet_debut("caisse")
 	var pz := d.pose_objet(pos, t.x * 0.5, t.z * 0.5, lacet, t.y, GrotteDecor.INCLINE)      # lot D : collée au sol, inclinée, hors paroi
 	pos = pz["p"]
+	if d.regles_pose and pos.y < 1e8 and d._chevauche(pos, (t.x + t.z) * 0.25, t.y) > 0.05:      # v3 : pas de caisse dans un rocher déjà posé (44 % au camp)
+		d.objet_fin()
+		return
 	var x0 := d._incliner(pz)
 	d.boite("planches", pos + Vector3(0, t.y * 0.5, 0), t, lacet)
 	var b := Basis(Vector3.UP, lacet)
@@ -272,6 +275,7 @@ static func _pieu(d: GrotteDecor, p: Vector3, h: float, pen: Vector3, r: float) 
 	var tete := p + pen + Vector3(0, h, 0)
 	d.prisme("bois", p - Vector3(0, 0.25, 0), tete, r, 5, 0.012)
 	d.boite("paille", p + pen * 0.55 + Vector3(0, h * 0.55, 0), Vector3(r * 2.3, 0.07, r * 2.3), 0.3)
+	d._empreinte(p + pen * 0.5, r + 0.12, h)      # v3 : les compositions posées après (tonneau du camp : 61 % commun) s'en écartent
 	d.objet_fin()
 	return tete
 
