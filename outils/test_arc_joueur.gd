@@ -278,7 +278,7 @@ func _tester() -> void:
 	var p_plein: Projectile = arc.dernier_tir["projectile"]
 	_verif(r3["parti"] and r3["tension"] >= 0.999 and j.inventaire.nombre("fleche") == 18, "tir plein : tension %.2f, reste %d flèches" % [r3["tension"], j.inventaire.nombre("fleche")])
 	_verif(d_plein > d_faible * 2.0 and v_plein > v_faible * 1.5, "dégâts (%.0f contre %.0f) et vitesse (%.0f contre %.0f m/s) croissent avec la tension" % [d_plein, d_faible, v_plein, v_faible])
-	_verif(r3["facteur"] < 0.7 and r3["fov"] < fov0 - 3.0, "bandage : marche ×%.2f, champ de vision %.1f → %.1f" % [r3["facteur"], fov0, r3["fov"]])
+	_verif(r3["facteur"] < 0.7 and r3["fov"] < fov0 - 3.0 and r3["fov"] > fov0 * 0.86, "bandage : marche ×%.2f, champ de vision %.1f → %.1f" % [r3["facteur"], fov0, r3["fov"]])
 	var axe: Vector3 = -j.camera.global_transform.basis.z
 	var vise := (arc.dernier_tir["cible"] - arc.dernier_tir["depart"]).normalized() as Vector3
 	_verif(vise.angle_to(arc.dernier_tir["direction"]) < 0.001 and axe.angle_to(arc.dernier_tir["direction"]) < deg_to_rad(0.5),
@@ -289,11 +289,11 @@ func _tester() -> void:
 	var pe: Vector2 = r3["poignee_ecran"]
 	var ec: Vector3 = r3["encoche_cam"]
 	_verif(Vector2(pc.x, pc.y).length() < 0.002 and pc.z < -0.4, "visée 1re personne : pointe de la flèche au centre de l'écran (écart %.1f mm à %.2f m)" % [Vector2(pc.x, pc.y).length() * 1000.0, -pc.z])
-	_verif(pe.x > 0.4 and pe.x < 0.65 and pe.y > 0.5 and pe.y < 0.75, "visée 1re personne : arc levé, poignée sous le réticule (%d %% × %d %% de l'écran)" % [roundi(pe.x * 100.0), roundi(pe.y * 100.0)])
+	_verif(pe.x > 0.4 and pe.x < 0.7 and pe.y > 0.6 and pe.y < 0.9, "visée 1re personne : arc levé, poignée en bas de l'écran sous le réticule, bras dégagé (%d %% × %d %% de l'écran)" % [roundi(pe.x * 100.0), roundi(pe.y * 100.0)])
 	var me: Dictionary = r3["ecran"]
 	var pg: Array = me["poing"]
 	_verif(me["arc"] == 0 and me["mains"] == 0, "visée 1re personne : la cible reste visible (aucun point de l'arc ni des mains dans le carré de 8 %% autour du réticule : arc %d, mains %d)" % [me["arc"], me["mains"]])
-	_verif(pg[1] >= 0.53 and pg[1] <= 0.62, "visée 1re personne : poing sous le repose-flèche, la cible au-dessus reste visible (haut du poing à %d %% de la hauteur)" % roundi(pg[1] * 100.0))
+	_verif(pg[1] >= 0.6 and pg[1] <= 0.75, "visée 1re personne : poing bas, sous le repose-flèche, la cible au-dessus reste visible (haut du poing à %d %% de la hauteur)" % roundi(pg[1] * 100.0))
 	_verif(r3["fut_arc"] < 0.01, "visée 1re personne : la flèche repose sur l'arc (fût à %.1f mm du flanc de la poignée)" % (r3["fut_arc"] * 1000.0))
 	_verif(r3["prise_g"][0] < 0.005 and r3["prise_g"][1] < deg_to_rad(6.0), "visée 1re personne : le poing gauche serre la poignée (écart %.1f mm, %.1f°)" % [r3["prise_g"][0] * 1000.0, rad_to_deg(r3["prise_g"][1])])
 	var ob: Variant = (j.corps as Node).get("_ombre_bras")

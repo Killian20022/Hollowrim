@@ -20,7 +20,7 @@ const ATLAS := preload("res://assets/modeles/armes/arc_chasseur.png")
 const INFOS := "res://assets/modeles/armes/arc_chasseur.json"
 ## La flèche repose sur le poing, à gauche de la poignée (archer droitier) et au-dessus de son centre.
 const APPUI := Vector3(-0.024, 0.045, 0.0)
-const RAYON_CORDE := 0.0034
+const RAYON_CORDE := 0.0026
 ## Appui de CE modèle (APPUI par défaut) : la 1re personne passe la flèche à droite de la poignée en visée (composition Skyrim).
 var appui := APPUI
 
@@ -153,11 +153,11 @@ func _vibration() -> float:
 	# la corde suit les branches qui rebondissent : elle reste DROITE entre leurs bouts (l'encoche sur la ligne des attaches)
 	return attache(_poids_claque()).z - attache(_poids).z
 
-## Poids de la clé de forme pendant le claquement : les branches rebondissent un peu au-delà du repos, amorties en ~0,25 s.
+## Poids de la clé de forme pendant le claquement : les branches rebondissent un peu au-delà du repos, amorties en ~0,35 s (v3 : plus ample, plus longue).
 func _poids_claque() -> float:
 	if _claque < 0.0:
 		return _poids
-	return clampf(_poids - 0.07 * exp(-_claque * 16.0) * cos(_claque * 75.0), -0.2, 1.0)
+	return clampf(_poids - 0.11 * exp(-_claque * 11.0) * cos(_claque * 80.0), -0.2, 1.0)
 
 func _process(dt: float) -> void:
 	if _claque >= 0.0:

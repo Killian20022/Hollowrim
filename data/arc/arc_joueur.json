@@ -1,5 +1,6 @@
 {
-	"_doc": "Arc du joueur (scripts/arc_joueur.gd). Équiper l'arc_chasseur (Sac > Armes, ou touche B) : clic gauche MAINTENU = bander, relâché = tirer (une flèche du sac, id « fleche »). Tension 0..1 = temps de bandage / temps_plein (montée adoucie). Vitesse initiale de vitesse_min (tension minimale) à vitesse_max (pleine tension), m/s ; la flèche part exactement vers le centre de l'écran (pas de compensation de la chute). Dégâts à l'IMPACT = degats_max × (vitesse d'impact / vitesse_max)², au moins degats_min. Sous tension_min le tir est annulé sans perdre de flèche. Tenue à pleine tension plus de tremble_apres s : tremblement (écart du tir jusqu'à tremble_ecart degrés). lacet_tps : rotation du corps (rad) en visée à la 3e personne (de profil). inclinaison_visee : inclinaison de l'arc en visée à la 1re personne (rad, positif = haut de l’arc vers la gauche ; -0,17 ≈ 10° vers la droite, comme Skyrim ; seul l’arc tourne autour de la flèche, dont la pointe reste au centre de l’écran).",
+	"_doc": "Arc du joueur (scripts/arc_joueur.gd). Équiper l'arc_chasseur (Sac > Armes, ou touche B) : clic gauche MAINTENU = bander, relâché = tirer (une flèche du sac, id « fleche »). Tension 0..1 = temps de bandage / temps_plein (montée adoucie). Vitesse initiale de vitesse_min (tension minimale) à vitesse_max (pleine tension), m/s ; la flèche part exactement vers le centre de l'écran (pas de compensation de la chute). Dégâts à l'IMPACT = degats_max × (vitesse d'impact / vitesse_max)², au moins degats_min. Sous tension_min le tir est annulé sans perdre de flèche. Tenue à pleine tension plus de tremble_apres s : tremblement (écart du tir jusqu'à tremble_ecart degrés). lacet_tps : rotation du corps (rad) en visée à la 3e personne (de profil). inclinaison_visee : inclinaison de l'arc en visée à la 1re personne (rad, positif = haut de l’arc vers la gauche ; -0,3 ≈ 17° vers la droite (v3) ; seul l’arc tourne autour de la flèche, dont la pointe reste au centre de l’écran).",
+	"_doc_zoom": "fov_zoom : degrés de FOV retirés à pleine tension (7 sur 72 ≈ 10 %, courbe douce) ; fov_kick : dépassement (degrés) au lâcher.",
 	"temps_plein": 0.95,
 	"tension_min": 0.12,
 	"degats_min": 3.0,
@@ -8,12 +9,13 @@
 	"vitesse_max": 100.0,
 	"recuperation": 0.62,
 	"vitesse_marche": 0.55,
-	"fov_zoom": 5.0,
+	"fov_zoom": 7.0,
+	"fov_kick": 1.4,
 	"fleche_recuperable": 0.6,
 	"tremble_apres": 2.5,
 	"tremble_ecart": 1.6,
 	"lacet_tps": -1.4,
-	"inclinaison_visee": -0.17,
+	"inclinaison_visee": -0.3,
 	"id_arc": "arc_chasseur",
 	"id_fleche": "fleche"
 }

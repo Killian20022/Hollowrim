@@ -32,13 +32,16 @@ const ORIENTATION := preload("res://scripts/orientation_main.gd")
 ## n'est étiré. Au repos l'arc est baissé en bas à gauche, couché vers la droite ; la levée (~0,33 s) le monte et le redresse en
 ## même temps (interpolation des rotations).
 ## POSE_REPOS = [appui de la flèche sur l'arc, direction de la flèche, inclinaison (rad, positif = haut vers la gauche)].
-const ENCOCHE_VISEE := Vector3(0.07, -0.09, -0.01)
-const POSE_REPOS := [Vector3(-0.17, -0.34, -0.6), Vector3(0.35, -0.15, -1.0), -1.25]
+## v3 (2026-11-25) : encoche plus basse et plus à droite (la flèche, toujours pointée au centre, arrive du coin bas-droit) : le poing
+## tombe sous le réticule, en bas de l'écran, et le bras d'arc ne couvre plus la visée (avant : encoche (0.07, -0.09), poing sur le
+## réticule et avant-bras en diagonale sur le quart de l'image).
+static var ENCOCHE_VISEE := Vector3(0.2, -0.3, -0.01)
+static var POSE_REPOS := [Vector3(-0.17, -0.34, -0.6), Vector3(0.35, -0.15, -1.0), -1.25]
 ## Repose-flèche en visée (repère local de l'arc) : le fût touche le flanc DROIT de la poignée (demi-largeur 3,1 cm + rayon du
 ## fût), à la hauteur de l'appui du modèle (au repos : ArcModele.APPUI).
 const APPUI_VISEE_LOC := Vector3(-0.035, 0.045, 0.0)
 ## Poing gauche descendu le long de la poignée en visée (local) : son index juste sous le fût.
-const DESCENTE_POING := 0.07
+static var DESCENTE_POING := 0.07
 ## Épaule gauche avancée en visée (repère de la caméra).
 const AVANCE_EPAULE_G := Vector3(0.0, 0.0, 0.0)
 ## Vitesse de la levée (1/s) : 1 / 3 ≈ 0,33 s du repos à la visée.
@@ -63,7 +66,9 @@ const CARQUOIS := Vector3(0.3, -0.5, 0.05)
 const COUDE_G := Vector3(-0.6, -1.2, -0.3)
 ## Coude gauche en visée : sorti vers l'extérieur (gauche) à hauteur d'épaule, comme le bras d'arc d'un vrai archer. Coude bas (repos),
 ## l'avant-bras montait à 60-65° et devenait presque parallèle à la poignée : le poignet borné ne pouvait plus serrer l'arc.
-const COUDE_G_VISEE := Vector3(-0.8, -0.75, -0.25)
+## v3 : coude très à gauche et bas : l'avant-bras entre par le COIN BAS-GAUCHE de l'écran, à plat sous la ligne d'horizon (avant : coude
+## (-0.8, -0.75), avant-bras en diagonale jusqu'au centre).
+static var COUDE_G_VISEE := Vector3(-1.6, -1.3, -0.1)
 ## Levée : détour du coude gauche (haut et en dehors, au milieu du redressement de l'arc) : l'avant-bras reste en travers de l'arc.
 var detour_coude_g := Vector3(-0.6, 0.4, 0.0)
 ## Levée et descente : l'arc tourne de la pose de repos à celle de visée (direction de la flèche et inclinaison interpolées, jamais
@@ -73,6 +78,9 @@ const FIN_REDRESSEMENT := 0.7   # l'arc se redresse avant la fin de la levée (p
 const ROTATION_ARC_MAX := 7.5   # degrés par image à 60 i/s
 const FLEXION_TRAJET := 180.0
 const DEVIATION_TRAJET := 90.0
+## Bornes du poignet gauche en visée (degrés) : le bras arrive de plus bas depuis la v3 (poing en bas de l'écran), le poignet fléchit plus.
+static var FLEXION_VISEE := 100.0
+static var DEVIATION_VISEE := 70.0
 const COUDE_D := Vector3(0.8, -0.6, 0.1)
 ## Coude droit en visée : haut et en arrière (ligne de l'épaule, comme un vrai archer), le bras de corde reste hors champ.
 const COUDE_D_VISEE := Vector3(0.7, 0.05, 0.6)
@@ -116,6 +124,8 @@ var _clip_tir := 0.0
 var _levee := 0.0
 var _abaisse := 0.0
 var _recul := 0.0
+## Impulsion du lâcher (1 -> 0) : petit « pompage » du champ de vision et micro-secousse de la vue (réduites par l'option Secousses).
+var _kick := 0.0
 var _encochee := false
 var _t := 0.0
 var _dt := 1.0 / 60.0
@@ -574,6 +584,7 @@ func _physics_process(dt: float) -> void:
 	_t += dt
 	_clip_tir = maxf(0.0, _clip_tir - dt)
 	_recul = maxf(0.0, _recul - dt)
+	_kick = maxf(0.0, _kick - dt * 5.0)
 	var tenu := _tenu()
 	match etat:
 		REPOS:
@@ -641,14 +652,27 @@ func _annuler() -> void:
 	if _fov_base > 0.0 and _cam_zoom != null:
 		_cam_zoom.fov = _fov_base
 
+## Zoom du bandage : le champ se resserre de `fov_zoom` degrés (≈ 10 %) selon une courbe douce de la tension (plein effet à pleine
+## tension), reprend en douceur au lâcher avec un léger dépassement (impulsion `_kick`) ; micro-secousse de la vue au lâcher et
+## frémissement à pleine tension tenue trop longtemps. Local seulement (les autres joueurs ne voient pas la caméra).
 func _zoom(dt: float) -> void:
+	_secousse_vue()
 	if _fov_base <= 0.0 or _cam_zoom == null:
 		return
-	var cible := _fov_base - reglage("fov_zoom", 10.0) * (tension if etat == BANDE else 0.0)
-	_cam_zoom.fov = lerpf(_cam_zoom.fov, cible, 1.0 - exp(-14.0 * dt))
-	if etat == REPOS and absf(_cam_zoom.fov - _fov_base) < 0.05:
+	var u := smoothstep(0.0, 1.0, tension) if etat == BANDE else 0.0
+	var cible := _fov_base - reglage("fov_zoom", 7.0) * u + reglage("fov_kick", 1.4) * sin(PI * _kick) * _kick
+	_cam_zoom.fov = lerpf(_cam_zoom.fov, cible, 1.0 - exp(-(9.0 if etat == BANDE else 14.0) * dt))
+	if etat == REPOS and _kick <= 0.0 and absf(_cam_zoom.fov - _fov_base) < 0.05:
 		_cam_zoom.fov = _fov_base
 		_fov_base = -1.0
+
+func _secousse_vue() -> void:
+	var cam: Camera3D = joueur.camera
+	var f := float(CameraCorps.facteurs()["secousses"])
+	var k := _kick * _kick
+	var v := Vector2(sin(_t * 90.0) * 0.5, 0.5 + sin(_t * 70.0) * 0.5) * (-0.008 * k) + Vector2(_bruit(5.0), _bruit(8.0)) * 0.0016 * tremblement
+	cam.h_offset += v.x * f
+	cam.v_offset += v.y * f
 
 func _modele() -> ArcModele:
 	return _tp if joueur.troisieme else _vm
@@ -824,9 +848,12 @@ func _placer_vm() -> void:
 		appui += Vector3(_bruit(0.0), _bruit(1.7), 0.0) * 0.006 * tremblement
 		d_u = d_u.rotated(Vector3.UP, _bruit(3.1) * 0.012 * tremblement)
 	if _recul > 0.0:
-		var k := _recul / 0.22
-		appui += Vector3(0.0, 0.01, 0.035) * k * k
-		incl += 0.06 * k
+		# recul de l'arc (v3) : ressort amorti (part vers l'archer et se redresse, rebondit un peu au-delà, se stabilise en ~0,2 s)
+		var e := 0.22 - _recul
+		var k := exp(-e * 13.0) * cos(e * 30.0)
+		appui += Vector3(0.008, 0.014, 0.05) * k
+		incl += 0.1 * k
+		d_u = d_u.rotated(Vector3.RIGHT, 0.035 * k)   # le haut de l'arc se relève au départ
 	# levée : position de l'appui interpolée, ROTATION interpolée (quaternions) entre la pose de repos et celle de visée
 	_vm.appui = ArcModele.APPUI.lerp(APPUI_VISEE_LOC, l)
 	var d_loc := (_vm.appui - Vector3(0.0, _vm.appui.y, z_u)).normalized()
@@ -857,8 +884,8 @@ func _placer_vm() -> void:
 	# levée et descente : poignet gauche libre, il absorbe l'écart d'orientation (l'arc garde sa pose propre, le poing reste fermé
 	# sur la poignée). En visée : bornes d'origine (repose-flèche, inclinaison inchangés)
 	var w_g := poids_trajet()
-	_or_g_vm.set("flexion_max", deg_to_rad(lerpf(65.0, FLEXION_TRAJET, w_g)))
-	_or_g_vm.set("deviation_max", deg_to_rad(lerpf(40.0, DEVIATION_TRAJET, w_g)))
+	_or_g_vm.set("flexion_max", deg_to_rad(lerpf(FLEXION_VISEE, FLEXION_TRAJET, w_g)))
+	_or_g_vm.set("deviation_max", deg_to_rad(lerpf(DEVIATION_VISEE, DEVIATION_TRAJET, w_g)))
 	var ech := ECHELLE_ARC_VM
 	_poing_vm.ferme_d = 1.0
 	_vm.fleche_libre = null
@@ -1019,6 +1046,7 @@ func _tirer() -> void:
 	inv.retirer(_id_fleche(), 1)
 	var t := tension
 	var vit := lerpf(reglage("vitesse_min", 9.0), reglage("vitesse_max", 46.0), t)
+	var dir_encoche := _modele().direction_fleche()   # orientation de la flèche encochée : le visuel part de là (pas de pop)
 	var v := _visee()
 	var depart: Vector3 = v["depart"]
 	var cible: Vector3 = v["cible"]
@@ -1030,6 +1058,7 @@ func _tirer() -> void:
 		dir = dir.rotated(Vector3.UP, randf_range(-ecart, ecart)).rotated(cote, randf_range(-ecart, ecart))
 	var recup := randf() < reglage("fleche_recuperable", 0.6)
 	var p := Projectile.tirer_joueur(joueur.get_parent(), depart, dir, joueur, reglage("degats_max", 36.0), vit, recup)
+	p.orienter_depart(dir_encoche)
 	p.vitesse_reference = reglage("vitesse_max", 46.0)
 	p.degats_min = reglage("degats_min", 3.0)
 	ReseauProjectiles.annoncer_fleche_joueur(p, vit)   # coop : la flèche vole aussi chez les autres (copie visuelle) ; solo : sans effet
@@ -1041,6 +1070,7 @@ func _tirer() -> void:
 	etat = RECUP
 	_t_recup = 0.0
 	_recul = 0.22
+	_kick = 1.0
 	_abaisse = 0.0
 	_encochee = false
 	_clip_tir = reglage("recuperation", 0.62)

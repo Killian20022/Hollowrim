@@ -116,6 +116,7 @@ func _go() -> void:
 		cam.current = true
 		_plan = _arg("cam", "epaule")
 		croix.visible = false
+	_reglages_essai()
 	arc.equiper()
 	arc.mesure = true
 	if _arg("sans-ombre-corps") != "":   # contrôle : le corps (invisible en 1re personne) ne projette plus d'ombre
@@ -129,6 +130,14 @@ func _go() -> void:
 		sqc.set_bone_pose_scale(sqc.find_bone(_arg("cacher")), Vector3.ONE * 0.001)
 	if mode == "poses":
 		await _poses()
+		quit(0)
+		return
+	if mode == "visee":
+		await _viser(Vector3(0.6, 1.3, -14.0))
+		await _attendre(20)
+		arc.appuyer()
+		await _attendre(75)
+		await _photo("pleine")
 		quit(0)
 		return
 	if mode == "levee":
@@ -512,3 +521,13 @@ func _filmer(k: int, texte: String) -> void:
 		im.convert(Image.FORMAT_RGBA8)
 		im.save_png(sortie.path_join("f_%05d.png" % n))
 		n += 1
+
+## Essais de réglage sans éditer le jeu : --v=NOM=x,y,z (constantes Vector3 d'ArcJoueur), --r=cle=valeur (arc_joueur.json), séparés par « ; ».
+func _reglages_essai() -> void:
+	for a in _arg("v").split(";", false):
+		var kv := a.split("=")
+		var c := kv[1].split(",")
+		(ArcJoueur as GDScript).set(kv[0], Vector3(float(c[0]), float(c[1]), float(c[2])) if c.size() == 3 else float(c[0]))
+	for a in _arg("r").split(";", false):
+		var kv := a.split("=")
+		ArcJoueur.reglages()[kv[0]] = float(kv[1])
