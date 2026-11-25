@@ -163,6 +163,11 @@ func torche_tenue() -> bool:
 func clip_repos() -> String:
 	return "Sword_Idle" if categorie("droite").begins_with("arme") else "Idle"
 
+## L'arc du joueur est en main (ArcJoueur) : ni épée ni bouclier sur le corps, même si les mains les « tiennent » encore en données.
+func _arc_en_main() -> bool:
+	var a: Variant = joueur.get("arc") if joueur != null else null
+	return a != null and a.actif
+
 ## Arme du corps (copie du modèle tenu à la 1re personne) ou null.
 func arme_tenue() -> Node3D:
 	return _arme_d
@@ -211,7 +216,7 @@ static func _copie(source: Node3D) -> Node3D:
 
 func _maj_arme_d() -> void:
 	var cat := categorie("droite")
-	var src: Node3D = mains.get("_modele_arme_d") if cat.begins_with("arme") else null
+	var src: Node3D = mains.get("_modele_arme_d") if cat.begins_with("arme") and not _arc_en_main() else null   # arc : les deux mains tiennent l'arc
 	if src != null and not is_instance_valid(src):
 		src = null
 	var ancienne = corps.get("arme_corps")   # épée fixe d'avant (epee_nordique.glb) : remplacée par le vrai modèle
@@ -295,7 +300,7 @@ func _coup_en_cours() -> bool:
 	return ct != null and is_instance_valid(ct) and ct.pilote()
 
 func _maj_objet_g() -> void:
-	var src: Node3D = mains.get("_modele_gauche") if categorie("gauche") == "bouclier" else null
+	var src: Node3D = mains.get("_modele_gauche") if categorie("gauche") == "bouclier" and not _arc_en_main() else null   # arc : la main gauche tient l'arc
 	if src != null and not is_instance_valid(src):
 		src = null
 	if src == _source_g:

@@ -39,7 +39,7 @@ func _touche(code: Key) -> void:
 		e.physical_keycode = code
 		e.keycode = code
 		e.pressed = p
-		j.mains._unhandled_input(e)
+		j.mains._entree_avec_arc(e) if arc.actif else j.mains._unhandled_input(e)
 
 ## Met l'arc dans l'état voulu : "repos", "bande" (tension > 0.5), "apres_tir".
 func _etat_arc(etat: String) -> void:
@@ -90,6 +90,7 @@ func _tester() -> void:
 	j.inventaire.ajouter("fleche", 30)
 	for i in 20:
 		await physics_frame
+	print("DIAG souris=%d est_local=%s raccourci_1=%s" % [Input.mouse_mode, j.est_local, InputMap.has_action("raccourci_1")])
 	await _changements()
 	await _corps()
 	print("ECHECS : %d" % (0 if _ok else 1), "  (", _n, " vérifications)")
@@ -122,7 +123,9 @@ func _changements() -> void:
 				await _sim(0.1)
 				var tag := "%s, %s, arc %s" % ["3e pers." if vue else "1re pers.", nom, etat]
 				_verif(not arc.actif, "%s : l'arc est rangé" % tag)
-				if nom.begins_with("menu : épée") or nom == "raccourci 1" or nom == "raccourci 2":
+				if nom == "menu : main nue":
+					_verif(_tenu("droite") == "epee" or _tenu("droite") == "vide", "%s : mains lisibles (%s|%s)" % [tag, _tenu("gauche"), _tenu("droite")])
+				elif nom.begins_with("menu : épée") or nom == "raccourci 1" or nom == "raccourci 2":
 					_verif(j.mains._peut_agir(), "%s : l'épée reprend la main" % tag)
 				else:
 					_verif("%s|%s" % [_tenu("gauche"), _tenu("droite")] != avant or nom.begins_with("raccourci"), "%s : l'équipement demandé est en main (%s|%s)" % [tag, _tenu("gauche"), _tenu("droite")])
