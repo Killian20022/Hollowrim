@@ -71,7 +71,7 @@ const ACCENTS := {
 }
 
 func construire() -> void:
-	d.sans_brume.append([pos_compagnon() + Basis(Vector3.UP, LACET_COMPAGNON) * Vector3(0, 0, -0.8), 1.2])     # corps du compagnon mort
+	d.sans_brume.append([Vector3(-16.0, BAS, -53.0), 1.3])     # corps du compagnon mort
 	for m: Dictionary in plan():
 		m.merge(ACCENTS.get(m["id"], {}), false)
 		module(m)
@@ -903,12 +903,14 @@ func _x_barricade(_m: Dictionary) -> void:
 	var y := BAS
 	# barricade de l'intérieur contre la porte, brèche à l'est ; les compagnons d'Eirik sont morts ici
 	d.barricade(_l(-14.0, -49.1, y), PI, 3.0, 1.3, -0.9)      # tonneau et table renversée côté salle (ils entraient dans le mur) ; même brèche
+	d.ombre_cranes = true      # salle du compagnon : crânes au sol avec une ombre de contact (ils semblaient flotter)
 	d.os_tas(_l(-17.1, -54.1, y), 5, 0.6)      # écarté du point de fouille : le corps du compagnon y gît (un crâne tombait sur son torse)
 	# « Corps d'un compagnon » (interaction note_compagnon_2) : il lui fallait un corps. Pieds 0,6 m devant l'interaction : allongé sur le
 	# dos (Death01), son torse est sous le point de fouille
 	_compagnon_mort(pos_compagnon(), LACET_COMPAGNON)
 	d.os_tas(_l(-12.6, -54.2, y), 4, 0.5)
 	d.os_tas(_l(-15.0, -51.4, y), 4, 0.5)
+	d.ombre_cranes = false
 	d.sac_dechire(_l(-16.8, -52.2, y), 0.5)
 	d.sac_dechire(_l(-11.5, -50.8, y), 2.0)
 	d.arme(_l(-13.6, -52.6, y), 1.5)
@@ -924,10 +926,12 @@ func _x_barricade(_m: Dictionary) -> void:
 ## l'entrée dans l'arbre, sinon il restait DEBOUT bras en croix, pose de repos), puis _affaler (chute finie par le ragdoll, figé).
 ## Autour : sang séché sous le torse, torche éteinte tombée de sa main, pas de nappe de brume sur lui (CrypteDecor.sans_brume).
 ## Retour arrière : `--compagnon-ancien` (Guerrier d'origine, PnjNordique) ; `--compagnon-sans-ragdoll` (Death01 seul).
-const LACET_COMPAGNON := 0.9
-## Pieds du compagnon (repère de la crypte) : 0,6 m devant le point de fouille (-16 ; -53), son torse est dessous.
+const LACET_COMPAGNON := 0.9 + PI
+## Origine du compagnon (repère de la crypte) : la première image de Releve_Ventre le couche DEVANT son origine (torse vers +z local,
+## ~(-0,33 ; 1,4) m après la chute) : origine reculée d'autant pour que son torse soit sous le point de fouille (-16 ; -53).
+const TORSE_LOCAL := Vector3(-0.33, 0.0, 1.4)
 static func pos_compagnon() -> Vector3:
-	return Vector3(-16.0, BAS + 0.02, -53.0) + Basis(Vector3.UP, LACET_COMPAGNON) * Vector3(0, 0, 0.6)
+	return Vector3(-16.0, BAS + 0.02, -53.0) - Basis(Vector3.UP, LACET_COMPAGNON) * TORSE_LOCAL
 const COMPAGNON := {"role": "epee", "ensemble": "fer", "tabard": "", "arme": "", "bouclier": "", "poil": 2, "peau": 1}
 func _compagnon_mort(pos: Vector3, lacet: float) -> void:
 	var ancien := OS.get_cmdline_user_args().has("--compagnon-ancien") or not GardeMaison.actif()
@@ -937,63 +941,357 @@ func _compagnon_mort(pos: Vector3, lacet: float) -> void:
 	c.rotation.y = lacet
 	d.racine.add_child(c)
 	(load("res://scripts/draugr.gd") as GDScript).call("figer_pose_allongee", c)      # draugr.gd sans class_name (comme Butin)
+	if not ancien:
+		teint_mort(c)
 	if ancien or d.muet:
 		return
 	if not OS.get_cmdline_user_args().has("--compagnon-sans-ragdoll"):
 		c.tree_entered.connect(_affaler.bind(c), CONNECT_ONE_SHOT | CONNECT_DEFERRED)
-	# sang séché sous le torse (il tombe sur le dos, le torse ~0,7 à 1,3 m derrière les pieds) et à son flanc
-	var dos := Basis(Vector3.UP, lacet) * Vector3(0, 0, -1)
-	_sang_seche(pos + dos * 0.95 + Basis(Vector3.UP, lacet) * Vector3(-0.25, 0, 0) + Vector3(0, 0.012, 0), 1.2, lacet, 0)
-	_sang_seche(pos + Basis(Vector3.UP, lacet) * Vector3(0.55, 0, -0.5) + Vector3(0, 0.014, 0), 0.45, lacet + 1.1, 1)
-	# torche éteinte échappée de sa main droite (après la chute : main droite vers (-0,38 ; -0,99) du repère du corps) : manche de bois
-	# fin, tête charbonnée vers l'extérieur (d.boite est en repère du module : lw)
-	var t := pos + Basis(Vector3.UP, lacet) * Vector3(-0.72, 0, -1.0)
-	var lt := lacet - 1.85      # tête vers -X du corps (son côté droit), un peu vers sa tête
-	d.boite("bois", lw(t + Vector3(0, 0.02, 0)), Vector3(0.035, 0.035, 0.55), lw_lacet(lt))
-	d.boite("noir", lw(t + Basis(Vector3.UP, lt) * Vector3(0, 0, 0.31) + Vector3(0, 0.045, 0)), Vector3(0.095, 0.09, 0.17), lw_lacet(lt))
+	# sang séché, torche éteinte, épée et bouclier : posés une fois le corps FIGÉ, d'après la pose finale (_apres_chute) — le ragdoll
+	# ne retombe pas au millimètre près d'un chargement à l'autre, et un objet posé d'avance finissait sous ou en travers du corps
 
-## Death01 seul finit en étoile, bras levés (« une croix couchée ») : le corps repart de l'image où il bascule (CHUTE_COMPAGNON de la
-## durée du clip capturé) et la PHYSIQUE (Ragdoll, comme les morts au combat) finit la chute, poussé un peu vers son flanc gauche :
-## bras et jambes retombent chacun à sa façon, puis tout est figé (corps statiques) ~2 à 7 s après l'entrée dans l'arbre.
-const CHUTE_COMPAGNON := 0.37
+## Pose : clip CAPTURÉ puis physique, rien de posé à la main. Death01 seul finissait en étoile, bras levés (« une croix couchée ») ;
+## Death01 à 37 % + ragdoll restait sur le dos, grand écart, bras écartés (retour 2026-11-26 : « en étoile, trop symétrique »).
+## Retenu après essai de 20 chutes (outils/essai_chute_compagnon.gd : Death01, Releve_Ventre/Dos, Fin_*) : première image de
+## Releve_Ventre (capture « se relever depuis le ventre » : face contre terre) lâchée au ragdoll avec une petite poussée vers son flanc :
+## face contre terre, jambe gauche repliée (genoux 172° / 119°), un bras allongé devant, l'autre contre le corps ; aucun os
+## physique sans appui (plus bas sommet du corps < 3 cm du sol pour chacun). Figé (corps statiques) ~2 à 7 s après l'entrée dans l'arbre.
+const CHUTE_CLIP := "Releve_Ventre"
+const CHUTE_COMPAGNON := 0.0
+const CHUTE_POUSSEE := Vector3(0.3, 0.0, 0.0)
+const CHUTE_FORCE := 8.0
+const CHUTE_OS := "spine_03"
 func _affaler(c: Node3D) -> void:
+	var rd := affaler(c, CHUTE_CLIP, CHUTE_COMPAGNON, CHUTE_POUSSEE, CHUTE_FORCE, CHUTE_OS)
+	if rd != null:
+		rd.fige.connect(_apres_chute.bind(c, rd), CONNECT_ONE_SHOT | CONNECT_DEFERRED)
+
+## Chute finie par la physique : `clip` capturé figé à `fraction` de sa durée, ragdoll poussé de `force` N·s vers `dir_local` (repère
+## du corps) sur l'os `os_touche`, figé une fois immobile. Statique : outils/essai_chute_compagnon.gd compare les variantes.
+static func affaler(c: Node3D, clip: String, fraction: float, dir_local: Vector3, force: float, os_touche: String, sommeil := 2.0) -> Ragdoll:
 	if not is_instance_valid(c) or not c.is_inside_tree():
-		return
+		return null
 	var ap := c.get_node_or_null("Animations") as AnimationPlayer
 	var sq := c.find_child("Skeleton3D", true, false) as Skeleton3D
-	if ap == null or sq == null or not ap.has_animation("Death01"):
-		return
-	ap.play("Death01")
-	ap.seek(ap.get_animation("Death01").length * CHUTE_COMPAGNON, true)
+	if ap == null or sq == null or not ap.has_animation(clip):
+		return null
+	ap.play(clip)
+	ap.seek(ap.get_animation(clip).length * fraction, true)
 	ap.pause()
 	sq.force_update_all_bone_transforms()
 	var rd := Ragdoll.equiper(c) as Ragdoll
 	if rd == null:
-		return
-	rd.endormir_apres(2.0)
-	var flanc := c.global_basis * Vector3(0.55, 0.0, -0.45)
-	rd.declencher(flanc.normalized() * 22.0, c.global_position + Vector3.UP * 0.4, "spine_03")
+		return null
+	rd.endormir_apres(sommeil)
+	var sol_y := c.global_position.y - 0.02
+	rd.fige.connect(func() -> void: ombre_contact(c, rd, sol_y), CONNECT_ONE_SHOT)
+	var flanc := c.global_basis * dir_local
+	rd.declencher(flanc.normalized() * force, c.global_position + Vector3.UP * 0.4, os_touche)
+	return rd
 
-## Tache de sang SÉCHÉ (permanente, contrairement aux traces de combat de Sang qui s'effacent) : plan au ras du sol, texture de flaque
-## de Sang, brun noirâtre mat, découpe alpha nette (pixels PS1).
+## Après la chute (corps figé) : flaque de sang séché en partie sous le torse et tache près de la tête, torche éteinte échappée de la
+## main, épée tombée à 0,5-1 m d'une main, bouclier posé à côté. Chaque objet est cherché autour de sa cible (angles et distances
+## dans un ordre fixe) sur du dallage LIBRE : hors du corps (segments des os physiques + marge) et sans meuble (rayon vers le bas qui
+## touche le sol). Repère : monde, puis rangé sous la racine de la crypte.
+const EPEE_SOL := preload("res://assets/modeles/joueur/epee_nordique.glb")
+const BOUCLIER_SOL := "res://assets/modeles/armes/bouclier_nordique.glb"
+func _apres_chute(c: Node3D, rd: Ragdoll) -> void:
+	if not is_instance_valid(c) or not c.is_inside_tree():
+		return
+	var sol := c.global_position.y - 0.02
+	var P := func(n: String) -> Vector3: return (rd.pose_monde(n) as Transform3D).origin
+	var bassin: Vector3 = P.call("pelvis")
+	var tete: Vector3 = P.call("Head")
+	var torse := (bassin + (P.call("spine_03") as Vector3)) * 0.5
+	var axe := Vector3(tete.x - bassin.x, 0, tete.z - bassin.z).normalized()
+	var cote := axe.cross(Vector3.UP)      # vers la droite de l'axe bassin -> tête vu de dessus
+	var segs: Array = []
+	for ch: Array in [["pelvis", "spine_03", "Head"], ["upperarm_l", "lowerarm_l", "hand_l"], ["upperarm_r", "lowerarm_r", "hand_r"],
+			["pelvis", "thigh_l", "calf_l", "foot_l"], ["pelvis", "thigh_r", "calf_r", "foot_r"], ["spine_03", "upperarm_l"], ["spine_03", "upperarm_r"]]:
+		for k in ch.size() - 1:
+			var r := 0.2 if String(ch[0]) == "pelvis" and k == 0 and ch.size() == 3 else 0.1
+			segs.append([P.call(ch[k]), P.call(ch[k + 1]), r])
+	var espace := c.get_world_3d().direct_space_state
+	var libre := func(q: Vector3, marge: float) -> bool:
+		for sg: Array in segs:
+			var a2 := Vector2((sg[0] as Vector3).x, (sg[0] as Vector3).z)
+			var b2 := Vector2((sg[1] as Vector3).x, (sg[1] as Vector3).z)
+			var ab := b2 - a2
+			var q2 := Vector2(q.x, q.z)
+			var t := clampf((q2 - a2).dot(ab) / maxf(ab.length_squared(), 1e-6), 0.0, 1.0)
+			if (a2 + ab * t).distance_to(q2) < float(sg[2]) + marge:
+				return false
+		var rq := PhysicsRayQueryParameters3D.create(Vector3(q.x, sol + 1.2, q.z), Vector3(q.x, sol - 0.3, q.z), 0xFFFFFFFF & ~Ragdoll.CALQUE_OS)
+		var hit := espace.intersect_ray(rq)
+		return not hit.is_empty() and absf((hit["position"] as Vector3).y - sol) < 0.03
+	# cherche un point (et une direction) d'un objet allongé de demi-longueur `demi` : tous ses points d'échantillon libres
+	var chercher := func(centre: Vector3, vers: Vector3, d0: float, d1: float, demi: float, marge: float, cap: float, disque := false) -> Array:
+		for dist in [d0, (d0 + d1) * 0.5, d1]:
+			for da in [0.0, 0.5, -0.5, 1.0, -1.0, 1.5, -1.5, 2.2, -2.2]:
+				var dir := vers.rotated(Vector3.UP, da)
+				var q: Vector3 = centre + dir * dist
+				for dc in [cap, cap + 0.6, cap - 0.6, cap + 1.3]:
+					var l := dir.rotated(Vector3.UP, dc)
+					var ok := true
+					var ech: Array = [l * -demi, l * -demi * 0.5, Vector3.ZERO, l * demi * 0.5, l * demi]
+					if disque:
+						for k in 8:
+							ech.append(l.rotated(Vector3.UP, k * TAU / 8.0) * demi)
+					for o: Vector3 in ech:
+						if not libre.call(q + o, marge):
+							ok = false
+							break
+					if ok:
+						return [q, l]
+		return []
+	var racine := d.racine
+	# sang : grande flaque décalée d'un côté du torse (elle dépasse du corps), tache plus petite sous la tête
+	var cote_sang := cote if libre.call(torse + cote * 0.6, 0.0) else -cote
+	var axe_r := racine.global_basis.inverse() * axe
+	var lac := atan2(axe_r.x, axe_r.z)
+	_sang_seche(racine.to_local(torse + cote_sang * 0.22 - axe * 0.05) + Vector3(0, 0.012, 0), 1.35, lac, 0)
+	_sang_seche(racine.to_local(tete - cote_sang * 0.1 + axe * 0.12) + Vector3(0, 0.014, 0), 0.5, lac + 1.1, 1)
+	var main_r: Vector3 = P.call("hand_r")
+	var main_l: Vector3 = P.call("hand_l")
+	# torche éteinte : échappée de la main droite, tombée à 25-55 cm, vers l'extérieur du corps
+	var ext_r := Vector3(main_r.x - torse.x, 0, main_r.z - torse.z).normalized()
+	var tr: Array = chercher.call(main_r, ext_r, 0.3, 0.55, 0.3, 0.04, 0.9)
+	if not tr.is_empty():
+		var n := Node3D.new()
+		n.name = "TorcheCompagnon"
+		var l: Vector3 = tr[1]
+		var manche := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(0.035, 0.035, 0.55)
+		manche.mesh = bm
+		manche.material_override = d.mat("bois")
+		n.add_child(manche)
+		var tete_t := MeshInstance3D.new()
+		var bt := BoxMesh.new()
+		bt.size = Vector3(0.095, 0.09, 0.17)
+		tete_t.mesh = bt
+		tete_t.material_override = d.mat("noir")
+		tete_t.position = Vector3(0, 0.0275, 0.31)
+		n.add_child(tete_t)
+		_poser_au_sol(racine, n, tr[0], Basis.looking_at(-l, Vector3.UP), sol)
+	# épée : tombée à 0,5-1 m de la main qui a le plus de place, lame à plat
+	var ext_l := Vector3(main_l.x - torse.x, 0, main_l.z - torse.z).normalized()
+	var ep: Array = chercher.call(main_l, ext_l, 0.6, 0.85, 0.5, 0.05, 1.5)
+	if ep.is_empty():
+		ep = chercher.call(main_r, ext_r, 0.6, 0.85, 0.5, 0.05, 1.5)
+	if not ep.is_empty():
+		var e: Node3D = EPEE_SOL.instantiate()
+		e.name = "EpeeCompagnon"
+		GardeTripo._matieres_epee(e)
+		var lame: Vector3 = ep[1]
+		var b := Basis(lame.cross(Vector3.UP), lame, Vector3.UP).rotated(lame, 0.12)      # sur le plat, un peu calée par la garde
+		_poser_au_sol(racine, e, ep[0], b, sol)
+	# bouclier : posé face en l'air à côté du torse, du côté libre (rayon ~0,36 m)
+	var bo: Array = chercher.call(torse, -cote_sang, 0.75, 1.0, 0.36, 0.1, 0.0, true)
+	if bo.is_empty():
+		bo = chercher.call(torse, cote_sang, 0.85, 1.1, 0.36, 0.1, 0.0, true)
+	if not bo.is_empty() and ResourceLoader.exists(BOUCLIER_SOL):
+		var sb: Node3D = (load(BOUCLIER_SOL) as PackedScene).instantiate()
+		sb.name = "BouclierCompagnon"
+		BouclierNordique.habiller(sb)
+		# vieux bouclier du compagnon : peinture ternie par la poussière et le givre (le rouge vif du bouclier du joueur criait
+		# sous la torche), mêmes textures maison
+		for mi: MeshInstance3D in sb.find_children("*", "MeshInstance3D", true, false):
+			for k in mi.mesh.get_surface_count():
+				var m0 := mi.get_surface_override_material(k)
+				if m0 is ShaderMaterial:
+					var m1 := (m0 as ShaderMaterial).duplicate() as ShaderMaterial
+					var te: Variant = m1.get_shader_parameter("teinte")
+					m1.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(0.62, 0.6, 0.6))
+					m1.set_shader_parameter("saturation", 0.5)
+					Palette.suivre(m1)
+					Palette._appliquer(m1, Palette._ps1_actif)
+					mi.set_surface_override_material(k, m1)
+		var h: Vector3 = bo[1]
+		_poser_au_sol(racine, sb, bo[0], Basis(Vector3.UP, h, Vector3.UP.cross(h)).rotated(h, 0.1), sol)
+
+## Range `n` sous `racine`, orienté (monde) par `b`, centré en `q` et posé : le bas de ses maillages au niveau du sol.
+func _poser_au_sol(racine: Node3D, n: Node3D, q: Vector3, b: Basis, sol: float) -> void:
+	racine.add_child(n)
+	n.global_transform = Transform3D(b, q)
+	var bb := AABB()
+	var premier := true
+	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
+		var x := mi.global_transform * mi.get_aabb()
+		bb = x if premier else bb.merge(x)
+		premier = false
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if not premier:
+		var ctr := bb.get_center()
+		n.global_position += Vector3(q.x - ctr.x, sol - bb.position.y, q.z - ctr.z)
+
+## Teint de mort : la peau (visage, cou) du corps perd sa couleur (saturation 0,22) et tire vers un gris froid ; le reste du jeu
+## (draugrs, cadavres) a des chairs grises, pas le rose chaud des vivants que la torche rendait rougeâtre (retour 2026-11-26).
+const TEINT_MORT := Color(0.80, 0.83, 0.88)
+static func teint_mort(c: Node3D) -> void:
+	var sq := c.find_child("Skeleton3D", true, false) as Skeleton3D
+	var peau := sq.get_node_or_null("peau") as MeshInstance3D if sq else null
+	if peau == null or peau.mesh == null:
+		return
+	for s in peau.mesh.get_surface_count():
+		var m := peau.get_surface_override_material(s)
+		if not (m is ShaderMaterial):
+			continue
+		var m2 := (m as ShaderMaterial).duplicate() as ShaderMaterial
+		var te: Variant = m2.get_shader_parameter("teinte")
+		m2.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * TEINT_MORT)
+		m2.set_shader_parameter("saturation", 0.22)
+		Palette.suivre(m2)
+		Palette._appliquer(m2, Palette._ps1_actif)
+		peau.set_surface_override_material(s, m2)
+	peau.set_meta("teint_mort", true)
+
+## Ombre de contact (le jeu n'a pas d'ombre portée sous la torche : le corps semblait flotter au-dessus des dalles) : UN plan au ras
+## du sol sous le corps figé, image 4 px / 10 cm (pixels PS1) peinte d'après les os physiques couchés (distance aux segments),
+## noir à 45 % au plus, fondu en 3 paliers. Posée une fois le ragdoll figé (signal fige).
+static func ombre_contact(c: Node3D, rd: Ragdoll, sol_y: float) -> void:
+	if not is_instance_valid(c) or rd == null:
+		return
+	var chaines := [["pelvis", "spine_01", "spine_03", "Head"], ["upperarm_l", "lowerarm_l", "hand_l"], ["upperarm_r", "lowerarm_r", "hand_r"],
+		["pelvis", "thigh_l", "calf_l", "foot_l"], ["pelvis", "thigh_r", "calf_r", "foot_r"], ["spine_03", "upperarm_l"], ["spine_03", "upperarm_r"]]
+	var segs: Array = []
+	var mn := Vector2(INF, INF)
+	var mx := Vector2(-INF, -INF)
+	for ch: Array in chaines:
+		for k in ch.size() - 1:
+			var a: Variant = rd.pose_monde(ch[k])
+			var b: Variant = rd.pose_monde(ch[k + 1])
+			if a == null or b == null:
+				continue
+			var pa := (a as Transform3D).origin
+			var pb := (b as Transform3D).origin
+			if minf(pa.y, pb.y) - sol_y > 0.25:      # membre relevé (bras posé sur le corps) : pas d'ombre de contact
+				continue
+			var r := 0.16 if String(ch[0]) == "pelvis" and ch.size() == 4 and String(ch[1]) == "spine_01" else 0.09
+			segs.append([Vector2(pa.x, pa.z), Vector2(pb.x, pb.z), r])
+			for q: Vector2 in [Vector2(pa.x, pa.z), Vector2(pb.x, pb.z)]:
+				mn = mn.min(q - Vector2.ONE * 0.3)
+				mx = mx.max(q + Vector2.ONE * 0.3)
+	if segs.is_empty():
+		return
+	var px := 0.025
+	var w := ceili((mx.x - mn.x) / px)
+	var h := ceili((mx.y - mn.y) / px)
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in h:
+		for x in w:
+			var q := mn + Vector2(x + 0.5, y + 0.5) * px
+			var dmin := INF
+			for sg: Array in segs:
+				var a2: Vector2 = sg[0]
+				var b2: Vector2 = sg[1]
+				var ab := b2 - a2
+				var t := clampf((q - a2).dot(ab) / maxf(ab.length_squared(), 1e-6), 0.0, 1.0)
+				dmin = minf(dmin, (a2 + ab * t).distance_to(q) - float(sg[2]))
+			var al := 0.45 if dmin < 0.0 else (0.28 if dmin < 0.05 else (0.12 if dmin < 0.1 else 0.0))
+			img.set_pixel(x, y, Color(0, 0, 0, al))
+	var mi := MeshInstance3D.new()
+	mi.name = "OmbreContact"
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(w * px, h * px)
+	mi.mesh = pm
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = ImageTexture.create_from_image(img)
+	m.albedo_color = Color(0, 0, 0)
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.render_priority = -1
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	c.get_parent().add_child(mi)
+	var ctr := (mn + mx) * 0.5
+	mi.global_position = Vector3(ctr.x, sol_y + 0.006, ctr.y)
+	mi.global_rotation = Vector3.ZERO
+
+## Tache de sang SÉCHÉ (permanente, contrairement aux traces de combat de Sang qui s'effacent) : plan au ras du sol, texture propre
+## (_img_sang_seche : bord découpé en lobes et coulures, cœur presque noir, croûte brun rouge sur le pourtour, gouttes autour),
+## mate, découpe alpha nette (pixels PS1). Retour 2026-11-26 : l'ancienne (flaque de Sang teintée) lisait comme de la boue plate.
 func _sang_seche(p: Vector3, taille: float, lacet: float, variante: int) -> void:
 	var mi := MeshInstance3D.new()
 	mi.name = "SangSeche_%d" % variante
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(taille, taille * 0.8)
+	pm.size = Vector2(taille, taille * 0.75)
 	mi.mesh = pm
 	var m := StandardMaterial3D.new()
-	m.albedo_texture = Sang.texture("flaque", variante)
-	m.albedo_color = Color(0.11, 0.035, 0.025)      # séché : brun noirâtre, peu saturé (le sang frais des combats est rouge)
+	m.albedo_texture = texture_sang_seche(variante)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.alpha_scissor_threshold = 0.5
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
-	m.roughness = 0.95
+	m.roughness = 0.9
 	mi.material_override = m
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.position = p
 	mi.rotation.y = lacet
 	d.racine.add_child(mi)
+
+static var _tex_sang := {}
+static func texture_sang_seche(variante: int) -> ImageTexture:
+	if not _tex_sang.has(variante):
+		_tex_sang[variante] = ImageTexture.create_from_image(_img_sang_seche(variante))
+	return _tex_sang[variante]
+
+static func _img_sang_seche(variante: int) -> Image:
+	var n := 64
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("sang_seche_%d" % variante)
+	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var lobes := FastNoiseLite.new()
+	lobes.seed = rng.randi()
+	lobes.frequency = 0.9
+	var grain := FastNoiseLite.new()
+	grain.seed = rng.randi()
+	grain.frequency = 0.25
+	var coeur := Color(0.055, 0.012, 0.010)       # sang caillé épais : presque noir
+	var milieu := Color(0.10, 0.022, 0.016)
+	var croute := Color(0.17, 0.05, 0.03)        # pourtour fin, séché plus vite : brun rouge
+	var c := Vector2(n, n) * 0.5
+	var r0 := n * 0.34
+	var rayon := func(a: float) -> float:
+		return r0 * (0.62 + 0.55 * (lobes.get_noise_2d(cos(a) * 1.6, sin(a) * 1.6) * 0.5 + 0.5) + 0.12 * lobes.get_noise_2d(cos(a) * 5.0, sin(a) * 5.0))
+	for y in n:
+		for x in n:
+			var v := Vector2(x + 0.5, y + 0.5) - c
+			var a := atan2(v.y, v.x)
+			var rr: float = rayon.call(a)
+			var dd := v.length()
+			if dd < rr:
+				var bord := rr - dd
+				var g := grain.get_noise_2d(x * 2.0, y * 2.0)
+				var col := coeur.lerp(milieu, clampf(0.5 + g, 0.0, 1.0) * 0.6)
+				if bord < 1.6:
+					col = croute
+				elif bord < 3.0:
+					col = milieu
+				img.set_pixel(x, y, col)
+	# coulures (le sang a filé entre les dalles) et gouttes satellites
+	for k in 3:
+		var a := rng.randf() * TAU
+		var r: float = rayon.call(a)
+		var l := rng.randf_range(4.0, 9.0)
+		for t in int(l):
+			var p := c + Vector2(cos(a), sin(a)) * (r - 1.0 + t)
+			var w := 1 if t > l * 0.5 else 2
+			for ox in w:
+				for oy in w:
+					var q := Vector2i(int(p.x) + ox, int(p.y) + oy)
+					if q.x >= 0 and q.y >= 0 and q.x < n and q.y < n:
+						img.set_pixelv(q, milieu if t < l - 2 else croute)
+	for k in 9:
+		var a := rng.randf() * TAU
+		var p := c + Vector2(cos(a), sin(a)) * (float(rayon.call(a)) + rng.randf_range(2.0, 7.0))
+		var q := Vector2i(int(p.x), int(p.y))
+		if q.x >= 1 and q.y >= 1 and q.x < n - 1 and q.y < n - 1:
+			img.set_pixelv(q, croute)
+			if rng.randf() < 0.4:
+				img.set_pixelv(q + Vector2i(1, 0), milieu)
+	return img
 
 func _x_piege_lb2w(_m: Dictionary) -> void:
 	_indice_dalle(-25.0, -43.0, BAS, PI * 0.5, Vector3(-25.0, BAS + 1.1, -44.3))

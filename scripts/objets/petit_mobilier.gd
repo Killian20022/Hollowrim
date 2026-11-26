@@ -124,6 +124,8 @@ static func crane(dcr: CrypteDecor, pos: Vector3, lacet := 0.0) -> void:
 	# ossuaire v2 : crâne anatomique (ossuaire.py, même anatomie que le squelette ennemi) ; ancien crâne en enveloppes si absent
 	var pre := "oss_crane_" if CrypteDecor.modele_existe("oss_crane_a") else "crane_"
 	dcr.modele(pre + variante(dcr, pos, 2), pos, lacet, Vector3.ONE, {}, false)
+	if dcr.ombre_cranes:
+		dcr.ombre_sol(pos, 0.3)
 	dcr.j1()
 
 static func os_tas(dcr: CrypteDecor, pos: Vector3, n := 4, rayon := 0.4) -> void:

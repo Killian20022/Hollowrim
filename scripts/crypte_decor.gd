@@ -1771,6 +1771,37 @@ func crane(pos: Vector3, lacet := 0.0) -> void:
 func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
 	ObjPetitMobilier.os_tas(self, pos, n, rayon)      # props/lot4 : os épars et crâne anatomique maison gardés (q_crane, q_os_tas : lisent comme une boule / une bête)
 
+## Ombres de contact sous les crânes (vrai pendant la pose d'un récit qui les veut : salle du compagnon mort). Sans ombre portée sous la
+## torche, un crâne debout sur sa mâchoire semblait flotter au-dessus du dallage (retour 2026-11-26). Aucun tirage : rien ne bouge.
+var ombre_cranes := false
+static var _tex_ombre: ImageTexture
+func ombre_sol(pos: Vector3, taille: float) -> void:
+	if muet or racine == null:
+		return
+	if _tex_ombre == null:
+		var n := 16
+		var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+		for y in n:
+			for x in n:
+				var dd := Vector2(x + 0.5 - n * 0.5, y + 0.5 - n * 0.5).length() / (n * 0.5)
+				img.set_pixel(x, y, Color(0, 0, 0, 0.5 if dd < 0.45 else (0.3 if dd < 0.7 else (0.13 if dd < 0.95 else 0.0))))
+		_tex_ombre = ImageTexture.create_from_image(img)
+	var mi := MeshInstance3D.new()
+	mi.name = "OmbreCrane"
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(taille, taille * 1.2)
+	mi.mesh = pm
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _tex_ombre
+	m.albedo_color = Color(0, 0, 0)
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = xf * pos + Vector3(0, 0.005, 0)
+	racine.add_child(mi)
+
 # ------------------------------------------------------------------ C7 : ossuaire en relief (panneaux d'os)
 ## Les panneaux d'os (DonjonKit.panneau_os) n'étaient qu'une texture de crânes peints (ossuaire.res) : à 1-3 m, « papier peint ».
 ## Version en relief : de y0 à y0 + 1,5 m (0,8 -> 2,3 m, hauteur d'yeux), 3 rangées de niches de 0,5 m en vraie pierre (modules de
