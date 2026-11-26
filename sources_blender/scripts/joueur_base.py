@@ -35,7 +35,7 @@ SRC = arg("src", os.path.join(JEUX, "references", "joueur_base", "%s_base.glb" %
 OUT = arg("sortie", os.path.join(BASE, "assets", "modeles", "joueur", "joueur_%s.glb" % SEXE))
 DEBUG = arg("debug")
 TRIS = int(arg("tris", "11000"))
-TEX = int(arg("tex", "256"))
+TEX = int(arg("tex", "512"))      # passe 3 : 512 (les coutures et plis du dos se lisent ; 256 les fondait)
 HAUT_TRIS = int(arg("haut", "300000"))
 HAUTEUR = {"homme": 1.75, "femme": 1.65}[SEXE]
 HQ = 1.82                      # hauteur du corps des humains (homme_vetu.glb, sommet de la tête)
@@ -182,19 +182,86 @@ for u in list(mb.uv_layers):
         mb.uv_layers.remove(u)
 uv_at = mb.uv_layers.new(name="atlas")
 mb.uv_layers.active = uv_at
-sel_seul(basse)
-bpy.ops.object.mode_set(mode="EDIT")
-bpy.ops.mesh.select_all(action="SELECT")
-bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.004, area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
-bpy.ops.uv.select_all(action="SELECT")
-bpy.ops.uv.average_islands_scale()
-bpy.ops.object.mode_set(mode="OBJECT")
-# tête et mains agrandies (plus de texels là où on regarde)
+# tête et mains : plus de texels là où on regarde (agrandies plus bas)
 Pb = coords(mb)
 colb = couleurs_sommets(mb)  # (UV source encore en couche 0)
 rb_, gb_, bb_ = colb[:, 0], colb[:, 1], colb[:, 2]
 peau_b = (rb_ > gb_ * 1.12) & (gb_ > bb_ * 1.05) & (rb_ > 0.16) & ((rb_ - bb_) > 0.07)
 grand = (Pb[:, 2] > tete_z) | (peau_b & (Pb[:, 2] < 0.60 * H) & (Pb[:, 2] > 0.36 * H))
+mains_b = peau_b & (Pb[:, 2] < 0.60 * H) & (Pb[:, 2] > 0.36 * H) & (np.abs(Pb[:, 0]) > 0.13 * H / 1.75)
+# UV « 6 vues » (passe 3) : chaque face est dépliée par PROJECTION depuis la vue qui la regarde le mieux - face, dos, profils, dessus,
+# dessous -, en grands îlots d'un seul tenant (le dos de la chemise : un îlot projeté depuis le dos, ses côtés depuis le profil).
+# L'ancien dépliage automatique (angle 60°) découpait le corps en centaines d'îlots de quelques pixels, bordés de noir : à 256 px et
+# avec la texture affine du PS1, le dos virait à l'aplat sombre. Les mains (doigts repliés devant la paume : une projection se
+# recouvrirait) restent en dépliage automatique.
+VUES = np.array([[0, -1, 0], [0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]], dtype=float)
+POIDS_VUES = np.array([1.0, 1.0, 0.92, 0.92, 0.85, 0.85])     # à égalité, la face ou le dos (les grandes vues) l'emportent
+bm = bmesh.new(); bm.from_mesh(mb); bm.faces.ensure_lookup_table()
+la = bm.loops.layers.uv["atlas"]
+NF = len(bm.faces)
+nrm = np.array([tuple(f.normal) for f in bm.faces])
+vue_f = np.argmax((nrm @ VUES.T) * POIDS_VUES, axis=1)
+main_f = np.array([np.mean([mains_b[v.index] for v in f.verts]) > 0.5 for f in bm.faces])
+voisins = [[g.index for e in f.edges for g in e.link_faces if g != f] for f in bm.faces]
+def lisser(vf, tours):
+    for _ in range(tours):
+        nv_ = vf.copy()
+        for i in range(NF):
+            vs = [vf[j] for j in voisins[i]]
+            if vs:
+                m_ = max(set(vs), key=vs.count)
+                if vs.count(m_) >= 2 and vs.count(vf[i]) <= 1:
+                    nv_[i] = m_
+        vf = nv_
+    return vf
+vue_f = lisser(vue_f, 4)
+def composantes(vf):
+    comp = -np.ones(NF, dtype=int); n_ = 0
+    for i in range(NF):
+        if comp[i] >= 0 or main_f[i]: continue
+        pile = [i]; comp[i] = n_
+        while pile:
+            a_ = pile.pop()
+            for j in voisins[a_]:
+                if comp[j] < 0 and not main_f[j] and vf[j] == vf[a_]:
+                    comp[j] = n_; pile.append(j)
+        n_ += 1
+    return comp, n_
+for _ in range(3):      # petits îlots (< 16 faces) absorbés par la vue voisine majoritaire
+    comp, n_ = composantes(vue_f)
+    taille = np.bincount(comp[comp >= 0], minlength=n_)
+    chg = 0
+    for i in range(NF):
+        if comp[i] >= 0 and taille[comp[i]] < 16:
+            vs = [vue_f[j] for j in voisins[i] if comp[j] >= 0 and taille[comp[j]] >= 16]
+            if vs:
+                vue_f[i] = max(set(vs), key=vs.count); chg += 1
+    if not chg: break
+comp, n_ = composantes(vue_f)
+def proj(co, k):
+    x_, y_, z_ = co
+    return ((x_, z_), (-x_, z_), (y_, z_), (-y_, z_), (x_, y_), (x_, -y_))[k]
+for f in bm.faces:
+    if main_f[f.index]: continue
+    k_ = int(vue_f[f.index])
+    off = Vector((comp[f.index] * 0.0, 0))
+    for l in f.loops:
+        u_, v_ = proj(l.vert.co, k_)
+        l[la].uv = Vector((u_, v_)) + off
+    f.select = False
+for f in bm.faces:
+    f.select = bool(main_f[f.index])
+bm.to_mesh(mb); bm.free()
+log("UV 6 vues : %d îlots projetés (face/dos/profils/dessus/dessous : %s), %d faces de main en dépliage automatique" % (
+    n_, np.bincount(vue_f[~main_f], minlength=6).tolist(), int(main_f.sum())))
+sel_seul(basse)
+bpy.ops.object.mode_set(mode="EDIT")
+bpy.ops.mesh.select_mode(type="FACE")
+bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.004, area_weight=0.0, correct_aspect=True, scale_to_bounds=False)
+bpy.ops.mesh.select_all(action="SELECT")
+bpy.ops.uv.select_all(action="SELECT")
+bpy.ops.uv.average_islands_scale()
+bpy.ops.object.mode_set(mode="OBJECT")
 bm = bmesh.new(); bm.from_mesh(mb)
 la = bm.loops.layers.uv["atlas"]
 bm.faces.ensure_lookup_table()
@@ -259,7 +326,7 @@ for a_, b_ in ((uvn.outputs["UV"], ti.inputs["Vector"]), (uvn.outputs["UV"], tn.
                (mr.outputs[0], mu.inputs[7]), (mu.outputs[2], em.inputs["Color"]), (em.outputs[0], out.inputs[0])):
     nt.links.new(a_, b_)
 haut.data.materials.clear(); haut.data.materials.append(mhd)
-TB = 1024
+TB = int(arg("cuisson", "2048"))
 CUIT = bpy.data.images.new("cuit", TB, TB, alpha=False)
 mat = bpy.data.materials.new("joueur_%s" % SEXE); mat.use_nodes = True
 nt = mat.node_tree; nt.nodes.clear()
@@ -269,7 +336,7 @@ nt.links.new(cible.outputs[0], bsdf.inputs["Base Color"]); nt.links.new(bsdf.out
 mb.materials.clear(); mb.materials.append(mat)
 sc = bpy.context.scene
 sc.render.engine = "CYCLES"; sc.cycles.device = "CPU"; sc.cycles.samples = 1
-sc.render.bake.margin = 8; sc.render.bake.margin_type = "EXTEND"; sc.render.bake.use_clear = True
+sc.render.bake.margin = 24; sc.render.bake.margin_type = "EXTEND"; sc.render.bake.use_clear = True
 sc.render.bake.use_selected_to_active = True; sc.render.bake.cage_extrusion = 0.015; sc.render.bake.max_ray_distance = 0.05
 sel_seul(basse, haut, actif=basse)
 bpy.ops.object.bake(type="EMIT")
@@ -278,6 +345,19 @@ log("cuisson %d px faite" % TB)
 A = np.array(CUIT.pixels[:], dtype=np.float32).reshape(TB, TB, 4)
 f = TB // TEX
 A = A.reshape(TEX, f, TEX, f, 4).mean(axis=(1, 3))
+# fond de l'atlas (hors îlots) rempli par la couleur des îlots voisins : la texture affine du PS1 déborde des îlots de près
+cuit = np.array(CUIT.pixels[:], dtype=np.float32).reshape(TB, TB, 4)
+plein = (cuit[:, :, :3].sum(2) > 0.003).reshape(TEX, f, TEX, f).mean(axis=(1, 3)) > 0.5
+ok_ = plein.copy()
+for _ in range(TEX):
+    if ok_.all(): break
+    acc = np.zeros_like(A[:, :, :3]); n_ = np.zeros(ok_.shape)
+    for dy_, dx_ in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        sh = np.roll(ok_, (dy_, dx_), (0, 1)); col_ = np.roll(A[:, :, :3], (dy_, dx_), (0, 1))
+        acc += col_ * sh[:, :, None]; n_ += sh
+    neuf = (~ok_) & (n_ > 0)
+    A[neuf, :3] = acc[neuf] / n_[neuf][:, None]
+    ok_ = ok_ | neuf
 A[:, :, 3] = 1.0
 ATLAS = bpy.data.images.new("joueur_%s_atlas" % SEXE, TEX, TEX, alpha=False)
 ATLAS.pixels[:] = A.ravel()

@@ -190,7 +190,7 @@ func _epee(squelette: Skeleton3D) -> void:
 	accroche.bone_name = "hand_r"
 	squelette.add_child(accroche)
 	var arme: Node3D = EPEE.instantiate()
-	arme.transform = PRISE
+	arme.transform = squelette.get_meta("prise_r", PRISE)   # joueur_base : prise mesurée sur le poing du modèle
 	arme_corps = arme
 	accroche.add_child(arme)
 	# acier et cuir en matériaux PS1, par nom de matériau Blender (comme les mains)
@@ -214,6 +214,8 @@ func _epee(squelette: Skeleton3D) -> void:
 const PRISE_GAUCHE := Transform3D(Basis(Vector3(-0.999251, 0.038329, 0.00529), Vector3(0.014458, 0.243068, 0.969902), Vector3(0.03589, 0.969252, -0.24344)), Vector3(0.007936, 0.142938, 0.002241))
 
 func _prise_gauche(squelette: Skeleton3D) -> Transform3D:
+	if squelette.has_meta("prise_l"):   # joueur_base : centre du poing gauche du modèle (JoueurBase.prise)
+		return squelette.get_meta("prise_l")
 	if squelette.find_bone("index_01_l") < 0:
 		return PRISE_GAUCHE
 	var p := func(n: String) -> Vector3: return squelette.get_bone_global_rest(squelette.find_bone(n)).origin

@@ -23,6 +23,8 @@ var heure := 13.0
 var sexes := ["homme", "femme"]
 var familles := ["aucune", "fer"]
 var film := false
+var mode_mains := false
+var mode_dos_jeu := false
 var l: Label
 
 func _init() -> void:
@@ -48,6 +50,10 @@ func _go() -> void:
 			familles = Array(a.substr(11).split(","))
 		elif a == "--film":
 			film = true
+		elif a == "--mains":
+			mode_mains = true
+		elif a == "--dos-jeu":
+			mode_dos_jeu = true
 	if sortie != "":
 		DirAccess.make_dir_recursive_absolute(sortie)
 	Jeu.nouvelle_partie = true
@@ -90,6 +96,10 @@ func _go() -> void:
 	await _attendre(1.5)
 	if film:
 		await _film()
+	elif mode_mains:
+		await _mains_v3()
+	elif mode_dos_jeu:
+		await _dos_jeu()
 	else:
 		await _planches()
 	quit()
@@ -159,6 +169,95 @@ func _planches() -> void:
 		_placer(-60.0, 0.6, 0.0, 0.08, mr)
 		await _attendre(0.15)
 		await _capture("%s_%s_main" % [s, hn], "%s - main droite (epee)" % s)
+
+## Centre du poing `c` ("l" | "r") dans le monde (JoueurBase.prise, sinon l'os de la main).
+func _poing(c: String) -> Vector3:
+	var sq: Skeleton3D = j.corps.modele.find_child("Skeleton3D", true, false)
+	var i := sq.find_bone("hand_" + c)
+	var g := sq.global_transform * sq.get_bone_global_pose(i)
+	if sq.has_meta("prise_" + c):
+		var t: Transform3D = sq.get_meta("prise_" + c)
+		return g * (t * Vector3(0, JoueurBase.POING_ARME if c == "r" else 0.0, 0))
+	return g.origin
+
+## Gros plans v3 (passe 3) : tête face / dos ; poing droit (épée) et gauche (torche, bouclier, arc, sort) au repos, en garde, au
+## milieu d'un coup et en course, deux angles chacun. Pose lue à l'instant de la capture (skeleton_updated).
+func _mains_v3() -> void:
+	cam = Camera3D.new()
+	cam.fov = 38.0
+	m.add_child(cam)
+	cam.current = true
+	var hn := "nuit" if heure >= 19.0 or heure < 6.0 else "jour"
+	for s: String in sexes:
+		j.definir_apparence(s)
+		_equiper("aucune")
+		j.mains.magie.equiper("droite", "epee")
+		j.mains.magie.equiper("gauche", "torche")
+		await _attendre(1.0)
+		var ht := _os("Head").y - j.global_position.y
+		_placer(0.0, 0.7, ht + 0.03, ht + 0.06)
+		await _attendre(0.15)
+		await _capture("%s_%s_v3_tete_face" % [s, hn], "%s - tete (face)" % s)
+		_placer(180.0, 0.7, ht + 0.03, ht + 0.06)
+		await _attendre(0.15)
+		await _capture("%s_%s_v3_tete_dos" % [s, hn], "%s - tete (dos)" % s)
+		for etat: String in ["repos", "garde", "coup", "course"]:
+			if etat == "garde":
+				j.mains.entrees.forcer_garde(3.0)
+				await _attendre(0.6)
+			elif etat == "coup":
+				j.mains.entrees.forcer_garde(0.0)
+				await _attendre(0.5)
+				j.mains.entrees.appuyer()
+				await _attendre(0.05)
+				j.mains.entrees.relacher()
+				await _attendre(0.28)
+			elif etat == "course":
+				Input.action_press("course")
+				Input.action_press("avant")
+				await _attendre(0.9)
+			else:
+				await _attendre(0.4)
+			var lent := Engine.time_scale
+			Engine.time_scale = 0.0001 if etat in ["coup", "course"] else 1.0    # image figée pendant les trois prises de vue
+			for v: Array in [["r", -55.0, 0.05], ["r", 125.0, 0.12], ["l", 60.0, 0.05]]:
+				var cible := _poing(v[0])
+				_placer(v[1], 0.55, 0.0, v[2], cible)
+				await process_frame
+				await _capture("%s_%s_v3_main_%s_%s_%d" % [s, hn, etat, v[0], int(v[1])], "%s - %s - main %s (%s)" % [s, etat, "droite epee" if v[0] == "r" else "gauche torche", etat])
+			Engine.time_scale = lent
+			if etat == "course":
+				Input.action_release("avant")
+				Input.action_release("course")
+				await _attendre(0.8)
+				j.global_position = Vector3(3.0, m.hauteur(3.0, -2.0) + 0.05, -2.0)
+				j.velocity = Vector3.ZERO
+		# autres objets tenus : bouclier, sort, arc (poing gauche)
+		for g: Array in [["bouclier", "droite", "epee", "gauche", "bouclier"], ["sort", "droite", "epee", "gauche", "boule_feu"], ["arc", "droite", "arc_chasseur", "gauche", ""]]:
+			j.mains.magie.equiper(g[1], g[2])
+			j.mains.magie.equiper(g[3], g[4])
+			await _attendre(1.2)
+			for v: Array in [["l", 60.0, 0.05], ["l", -120.0, 0.1]]:
+				_placer(v[1], 0.6, 0.0, v[2], _poing(v[0]))
+				await process_frame
+				await _capture("%s_%s_v3_main_%s_%s_%d" % [s, hn, g[0], v[0], int(v[1])], "%s - %s (main gauche)" % [s, g[0]])
+		j.mains.magie.equiper("droite", "epee")
+		j.mains.magie.equiper("gauche", "torche")
+
+## Planche de dos à la vraie caméra de jeu (3e personne, ~3 m, épaule) : repos, marche, avec et sans armure.
+func _dos_jeu() -> void:
+	var hn := "nuit" if heure >= 19.0 or heure < 6.0 else "jour"
+	for s: String in sexes:
+		j.definir_apparence(s)
+		for f: String in familles:
+			_equiper(f)
+			j.camera_tp.set("_orbite", 0.0)
+			j.camera_tp.recaler()
+			await _attendre(1.0)
+			await _capture("%s_%s_%s_jeu_dos" % [s, f, hn], "%s - %s - %s - camera de jeu (dos)" % [s, f, hn])
+			j.camera_tp.set("_orbite", deg_to_rad(25.0))
+			await _attendre(0.5)
+			await _capture("%s_%s_%s_jeu_dos25" % [s, f, hn], "%s - %s - %s - camera de jeu (dos, 25 deg)" % [s, f, hn])
 
 func _appui(action: String, sec: float) -> void:
 	Input.action_press(action)

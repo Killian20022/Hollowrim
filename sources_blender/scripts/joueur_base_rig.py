@@ -365,6 +365,166 @@ if MAIN_L["l"] != 1.0 or MAIN_L["r"] != 1.0:
     mb.vertices.foreach_set("co", Pm.ravel())
     mb.update()
 
+# ---------------------------------------------------------------------------------------------------- poings (passe 3)
+# La main du modèle est sculptée mi-ouverte et RIGIDE (doigts pondérés à hand_* : les phalanges décimées se froissaient en éclats),
+# et les os des doigts (ceux des humains, translatés) ne suivent pas les doigts sculptés : rien ne fermait la main sur la poignée,
+# placée d'après ces os (elle passait entre le pouce et l'index). Ici, tout part du MAILLAGE de la main :
+#   repère de la main par analyse en composantes (longueur poignet -> doigts, travers de la paume, épaisseur ; la paume est du côté
+#   où les bouts des doigts sont déjà repliés), jointures à JOINT x la longueur de la main ;
+#   FUSÉE : cylindre de rayon POIGNEE couché en travers de la paume, au pied des doigts, posé contre la paume ;
+#   deux FORMES (shape keys glTF -> blend shapes Godot) « poing_l » / « poing_r » : les quatre doigts enroulés autour de la fusée
+#   (cintrage à rayon constant depuis les jointures), le pouce rabattu sur les doigts.
+# Godot ferme le poing qui tient quelque chose (PostureJoueur) et pose l'objet sur l'axe de la fusée : centre et axes écrits, en
+# coordonnées du modèle Godot, dans assets/modeles/joueur/joueur_<sexe>_poings.gd (JoueurBase.prise).
+POIGNEE = float(arg("poignee", "0.016"))
+JOINT = float(arg("joint", "0.55"))
+def v3(b, bout=False):
+    bb = arm.data.bones[b]
+    return np.array(arm.matrix_world @ (bb.tail_local if bout else bb.head_local))
+def unit(v):
+    return v / np.linalg.norm(v)
+def godot(v):
+    return (float(v[0]), float(v[2]), float(-v[1]))
+PO = {}
+Pm = coords(mb)
+CO = {}
+for s in ("l", "r"):
+    sg = 1.0 if s == "l" else -1.0
+    w = np.zeros(len(Pm))
+    for v in mb.vertices:
+        for g in v.groups:
+            if corps.vertex_groups[g.group].name == "hand_" + s:
+                w[v.index] += g.weight
+    main = (w > 0.5) & (sg * Pm[:, 0] > 0)
+    W = v3("hand_" + s)
+    Q = Pm[main]
+    c_ = Q.mean(0)
+    val, vec = np.linalg.eigh(np.cov((Q - c_).T))
+    e1, e2, e3 = vec[:, 2], vec[:, 1], vec[:, 0]
+    if (c_ - W) @ e1 < 0: e1 = -e1
+    sv = (Pm - W) @ e1
+    L = float(sv[main].max())
+    bouts = main & (sv > 0.85 * L)
+    if ((Pm[bouts] - c_) @ e3).mean() < 0: e3 = -e3       # e3 : vers la paume
+    e2 = np.cross(e3, e1)
+    hv = (Pm - W) @ e3
+    wv = (Pm - W) @ e2
+    sK = JOINT * L
+    paume = main & (sv > 0.18 * L) & (sv < sK - 0.01)
+    h_p = float(np.percentile(hv[paume], 92)); h_d = float(np.percentile(hv[paume], 8))
+    w_lo, w_hi = np.percentile(wv[paume], 4), np.percentile(wv[paume], 96)
+    # pouce : ce qui dépasse du travers de la paume avant les jointures (côté du pouce : celui où ça dépasse le plus)
+    deb_hi = main & (sv < sK + 0.01) & (wv > w_hi + 0.004); deb_lo = main & (sv < sK + 0.01) & (wv < w_lo - 0.004)
+    # en T, paumes vers le sol, les pouces regardent DEVANT (-Y de Blender) : plus sûr que le compte des sommets qui dépassent
+    cote_pouce = 1.0 if e2[1] < 0 else -1.0
+    pouce = deb_hi if cote_pouce > 0 else deb_lo
+    # étend le pouce à ses bouts (sommets reliés au-delà des jointures, du même côté)
+    pouce = pouce | (main & (cote_pouce * (wv - (w_hi if cote_pouce > 0 else w_lo)) > -0.006) & (sv < 0.8 * L) & (hv > h_d + 0.004))
+    # fusée contre la paume, son quart enfoncé dans le pli (paume / doigts) ; doigts cintrés autour, peau contre la fusée
+    # Fermeture : les doigts (au-delà des jointures) pivotent en bloc à deux charnières (jointures, mi-doigt ; transitions douces de
+    # 6 mm), vers la paume. On cherche les deux angles qui laissent dans le poing un trou du rayon de la fusée : coupe des doigts du
+    # milieu dans le plan (longueur, épaisseur), plus grand cercle vide à l'intérieur de leur enveloppe convexe.
+    racines = main & (sv > sK) & (sv < sK + 0.02)
+    h_c = float(np.median(hv[racines])) if racines.any() else 0.0
+    s2 = sK + 0.42 * (L - sK)
+    doigt = main & ~pouce & (sv > sK - 0.008)
+    w_mid = float(np.median(wv[main & (sv > sK) & (sv < sK + 0.03)]))
+    nz_ = np.array([tuple(v.normal) for v in mb.vertices]) @ e3
+    # coupe : les doigts entiers, et de la paume sa seule surface côté paume (l'intérieur de la chair n'est pas un trou)
+    tranche = main & (np.abs(wv - w_mid) < 0.012) & (sv > 0.15 * L) & ((sv > sK - 0.004) | (nz_ > 0.25))
+    def plier(a1, a2, idx):
+        P_ = Pm[idx] - W
+        s_, h_, w_ = P_ @ e1, P_ @ e3, P_ @ e2
+        f1 = sstep(sK - 0.006, sK + 0.006, s_); f2 = sstep(s2 - 0.006, s2 + 0.006, s_)
+        # charnière 2 (mi-doigt) d'abord, puis charnière 1 (jointures) ; rotation dans le plan (e1, e3) vers +e3
+        for (sc_, hc_, a_, f_) in ((s2, h_c, a2, f2), (sK, h_c, a1, f1)):
+            t_ = a_ * f_
+            ds_, dh_ = s_ - sc_, h_ - hc_
+            s_, h_ = sc_ + ds_ * np.cos(t_) - dh_ * np.sin(t_), hc_ + ds_ * np.sin(t_) + dh_ * np.cos(t_)
+        return W + np.outer(s_, e1) + np.outer(h_, e3) + np.outer(w_, e2), s_, h_
+    def enveloppe(pts):
+        pts = sorted(set(map(tuple, np.round(pts, 5))))
+        if len(pts) < 3: return pts
+        def cr(o, a_, b_): return (a_[0]-o[0])*(b_[1]-o[1]) - (a_[1]-o[1])*(b_[0]-o[0])
+        lo, hi = [], []
+        for q_ in pts:
+            while len(lo) >= 2 and cr(lo[-2], lo[-1], q_) <= 0: lo.pop()
+            lo.append(q_)
+        for q_ in reversed(pts):
+            while len(hi) >= 2 and cr(hi[-2], hi[-1], q_) <= 0: hi.pop()
+            hi.append(q_)
+        return lo[:-1] + hi[:-1]
+    def trou(a1, a2):
+        idx = np.nonzero(tranche)[0]
+        _, s_, h_ = plier(a1 if True else 0, a2, idx)
+        ok = doigt[idx]
+        s_ = np.where(ok, s_, (Pm[idx] - W) @ e1); h_ = np.where(ok, h_, (Pm[idx] - W) @ e3)
+        pts = np.stack([s_, h_], 1)
+        hull = np.array(enveloppe(pts))
+        gs = np.linspace(pts[:, 0].min(), pts[:, 0].max(), 48); gh = np.linspace(pts[:, 1].min(), pts[:, 1].max(), 48)
+        G_ = np.array([(a_, b_) for a_ in gs for b_ in gh])
+        dedans = np.ones(len(G_), bool)
+        for k_ in range(len(hull)):
+            a_, b_ = hull[k_], hull[(k_ + 1) % len(hull)]
+            dedans &= ((b_[0]-a_[0])*(G_[:, 1]-a_[1]) - (b_[1]-a_[1])*(G_[:, 0]-a_[0])) >= 0
+        if not dedans.any(): return 0.0, None
+        G_ = G_[dedans]
+        d_ = np.sqrt(((G_[:, None, :] - pts[None, :, :]) ** 2).sum(2)).min(1)
+        k_ = int(np.argmax(d_))
+        return float(d_[k_]), G_[k_]
+    # fusée posée contre la paume au pli des doigts ; on cherche les charnières qui l'ENTOURENT le plus (angle couvert par les doigts
+    # à moins de 12 mm de sa surface) sans qu'aucun doigt n'y entre (marge 1 mm)
+    c2 = np.array([sK + float(arg("pli", "0.004")), h_p + POIGNEE * float(arg("enfonce", "0.85"))])
+    idx_t = np.nonzero(tranche & doigt)[0]
+    best = None
+    for a1 in np.radians(np.arange(0, 100, 5)):
+        for a2 in np.radians(np.arange(0, 110, 10)):
+            _, s_, h_ = plier(a1, a2, idx_t)
+            d_ = np.hypot(s_ - c2[0], h_ - c2[1])
+            dedans = int((d_ < POIGNEE - 0.002).sum())
+            proche = d_ < POIGNEE + 0.012
+            ang = np.degrees(np.arctan2(h_[proche] - c2[1], s_[proche] - c2[0]))
+            couvert = len(set(np.floor(ang / 15.0).astype(int).tolist())) * 15.0
+            note = couvert - 6.0 * dedans
+            if best is None or note > best[0]:
+                best = (note, a1, a2, couvert, dedans)
+    _, a1, a2, couvert, dedans = best
+    r_trou = POIGNEE
+    co = Pm.copy()
+    idx = np.nonzero(doigt)[0]
+    co[idx] = plier(a1, a2, idx)[0]
+    n_d = len(idx)
+    # pouce : rabattu autour de l'axe de la main (e1) passant par sa base, vers la paume
+    for i in np.nonzero(pouce)[0]:
+        pt = Pm[i]
+        base = W + e1 * (0.25 * L) + e2 * (w_hi if cote_pouce > 0 else w_lo)
+        f_ = float(sstep(0.0, 0.03, np.linalg.norm(pt - base)))
+        ang = math.radians(float(arg("pouce", "35"))) * f_ * -cote_pouce
+        q = np.array(Matrix.Rotation(ang, 3, Vector(e1)))
+        co[i] = base + q @ (pt - base)
+    n_p = int(pouce.sum())
+    C = W + e1 * c2[0] + e3 * c2[1] + e2 * w_mid
+    rc = float(c2[1])
+    log("poing %s : charnières %.0f° / %.0f°, fusée entourée sur %.0f° par les doigts, %d sommets dedans (fusée %.1f mm)" % (s, math.degrees(a1), math.degrees(a2), couvert, dedans, POIGNEE * 1000))
+    CO[s] = co
+    PO[s] = dict(centre=godot(C), axe=godot(e2 * cote_pouce), doigts=godot(e1))
+    log("poing %s : main %.3f m, paume %+.3f / dos %+.3f (épaisseur %.3f), pouce côté %+d (%d sommets), %d sommets de doigts enroulés ; fusée à %.3f m du dos de l'os" % (
+        s, L, h_p, h_d, h_p - h_d, cote_pouce, n_p, n_d, rc))
+if not corps.data.shape_keys:
+    corps.shape_key_add(name="Basis", from_mix=False)
+for s in ("l", "r"):
+    k_ = corps.shape_key_add(name="poing_" + s, from_mix=False)
+    k_.data.foreach_set("co", CO[s].ravel())
+def gv(t):
+    return "Vector3(%.5f, %.5f, %.5f)" % t
+with open(os.path.join(BASE, "assets", "modeles", "joueur", "joueur_%s_poings.gd" % SEXE), "w", encoding="utf-8") as fp:
+    fp.write("## Généré par sources_blender/scripts/joueur_base_rig.py (poings) : ne pas modifier à la main.\n")
+    fp.write("## Par main, repère du MODÈLE Godot au repos : centre de la fusée, son axe (du petit doigt vers le pouce), direction des doigts.\n")
+    fp.write("const POINGS := {\n")
+    for c_ in ("l", "r"):
+        fp.write('\t"%s": {"centre": %s, "axe": %s, "doigts": %s},\n' % (c_, gv(PO[c_]["centre"]), gv(PO[c_]["axe"]), gv(PO[c_]["doigts"])))
+    fp.write("}\nconst RAYON_POIGNEE := %.4f\n" % POIGNEE)
+
 # normales lissées sur le corps entier, gardées (normales personnalisées) avant la découpe en pièces : pas de couture d'éclairage
 mb = corps.data
 mb.calc_loop_triangles()
@@ -393,6 +553,11 @@ log("TOTAL %d tris, %d os" % (tot, len(arm.data.bones)))
 if DEBUG:
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(DEBUG, "final_%s.blend" % SEXE))
 # ---------------------------------------------------------------------------------------------------- 6. export
+for o in list(bpy.data.objects):       # forme de « custom shape » des os créée par l'import glTF des humains : jamais exportée
+    if o.name.startswith("Icosphere"):
+        bpy.data.objects.remove(o)
+for pb_ in arm.pose.bones:
+    pb_.custom_shape = None
 sel_seul(arm, *pieces.values(), actif=arm)
 bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", use_selection=True, export_skins=True, export_animations=False,
                           export_apply=False, export_image_format="AUTO")

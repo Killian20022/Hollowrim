@@ -240,7 +240,7 @@ func _maj_arme_d() -> void:
 	_arme_d = _copie(src)
 	_arme_d.name = "ArmeTps"
 	_accroche["droite"].add_child(_arme_d)
-	_arme_d.transform = PRISE_D * Transform3D(Basis(), Vector3(0.0, POING_D - float(mains.get("_milieu_d")), 0.0))
+	_arme_d.transform = (sq.get_meta("prise_r", PRISE_D) as Transform3D) * Transform3D(Basis(), Vector3(0.0, POING_D - float(mains.get("_milieu_d")), 0.0))
 	_inscrire(_arme_d)
 	# effet passif de l'élément de la lame (après _inscrire : ses arcs ne sont pas des mailles du corps) ; montré à la 3e personne
 	var a: DonneesArme = mains.get("arme")

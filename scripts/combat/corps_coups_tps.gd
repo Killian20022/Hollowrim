@@ -179,6 +179,8 @@ func _installer(squelette: Skeleton3D) -> void:
 	sq = squelette
 	_i_bassin = sq.find_bone("pelvis")
 	prise_corps = (load("res://scripts/corps_joueur.gd") as GDScript).get_script_constant_map()["PRISE"]
+	if sq.has_meta("prise_r"):   # joueur_base : prise mesurée sur le poing du modèle
+		prise_corps = sq.get_meta("prise_r")
 	for i in sq.get_bone_count():
 		if sq.get_bone_parent(i) >= 0:
 			_os.append(i)

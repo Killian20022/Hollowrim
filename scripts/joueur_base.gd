@@ -14,6 +14,13 @@ const MODELES := {
 	"homme": "res://assets/modeles/joueur/joueur_homme.glb",
 	"femme": "res://assets/modeles/joueur/joueur_femme.glb",
 }
+## Poings (passe 3) : centre et axes de la fusée tenue par chaque main, écrits par la chaîne Blender (repère du modèle au repos).
+const POINGS := {
+	"homme": "res://assets/modeles/joueur/joueur_homme_poings.gd",
+	"femme": "res://assets/modeles/joueur/joueur_femme_poings.gd",
+}
+## Prise d'arme (corps_joueur.PRISE) : le poing serre l'arme à POING_ARME du repère le long de la lame (milieu de la poignée).
+const POING_ARME := 0.04
 ## Hauteur du bassin des humains au repos (homme_vetu.glb) : les clips n'ont qu'une piste de POSITION, celle de « pelvis », animée
 ## pour ce corps-là ; Skeleton3D.motion_scale la ramène à la taille du modèle (sinon le corps flotte au-dessus de ses pieds).
 const BASSIN_HUMAINS := 0.949
@@ -53,6 +60,11 @@ static func creer(sexe := DEFAUT) -> Node3D:
 		PostureJoueur.equiper(sq, ap)     # repos accroupis des clips humains redressés (jambes seules), voir posture_joueur.gd
 	racine.set_meta("apparence", sexe)
 	sq.set_meta("apparence", sexe)
+	for c: String in ["l", "r"]:
+		var t := prise(sq, sexe, c)
+		if t != Transform3D():
+			# main droite : repère d'arme (PRISE) ; main gauche : centre du poing (torche, bouclier : corps_joueur._prise_gauche)
+			sq.set_meta("prise_" + c, t * Transform3D(Basis(), Vector3(0, -POING_ARME, 0)) if c == "r" else t)
 	if AJUSTEMENT_ARMURE.has(sexe) and not OS.get_cmdline_user_args().has("--armure-non-ajustee"):   # (comparaison avant / après)
 		sq.set_meta("ajustement_armure", AJUSTEMENT_ARMURE[sexe])
 	return racine
@@ -81,6 +93,23 @@ const AJUSTEMENT_ARMURE := {
 		"ball": ["o", Vector3(0.90, 0.94, 0.90)],
 	},
 }
+
+## Repère de la fusée tenue par la main `cote` ("l" | "r") dans le repère de l'os hand_<cote> : origine au centre du poing fermé,
+## Y le long de la fusée (du petit doigt vers le pouce : la lame d'une épée), Z vers les doigts (même convention que
+## corps_joueur._prise_gauche). Transform3D() si le modèle n'a pas ses poings.
+static func prise(sq: Skeleton3D, sexe: String, cote: String) -> Transform3D:
+	var chemin: String = POINGS.get(sexe, "")
+	if chemin == "" or not ResourceLoader.exists(chemin):
+		return Transform3D()
+	var d: Dictionary = (load(chemin) as GDScript).get_script_constant_map()["POINGS"].get(cote, {})
+	var i := sq.find_bone("hand_" + cote)
+	if d.is_empty() or i < 0:
+		return Transform3D()
+	var axe: Vector3 = (d["axe"] as Vector3).normalized()
+	var z: Vector3 = d["doigts"]
+	z = (z - axe * z.dot(axe)).normalized()
+	var b := Basis(axe.cross(z), axe, z)
+	return sq.get_bone_global_rest(i).affine_inverse() * Transform3D(b, d["centre"])
 
 ## Pièce d'armure portée (MeshInstance3D skinné, enfant du squelette) : liaisons recalculées pour le corps (voir AJUSTEMENT_ARMURE).
 ## Sans effet sur un squelette qui n'en demande pas (homme, ancien héros, PNJ).

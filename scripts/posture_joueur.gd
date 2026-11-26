@@ -30,6 +30,14 @@ const COTES := ["l", "r"]
 
 var anim: AnimationPlayer
 var poids := 0.0
+## POINGS (passe 3) : formes « poing_l » / « poing_r » de la pièce « peau » (chaîne Blender) : la main qui tient quelque chose (arme,
+## torche, bouclier, arc) se ferme sur sa fusée ; main libre ou sort : main sculptée, mi-ouverte. poing = {côté: 0..1}.
+const CATEGORIES_FERMEES := ["arme", "arme_deux_mains", "bouclier", "torche"]
+const VITESSE_POING := 10.0
+var poing := {"l": 0.0, "r": 0.0}
+var forcer_poings := {}      # tests / captures : {"l": 1.0} impose une main
+var _peau: MeshInstance3D
+var _formes := {}
 var _coups: Node = null
 var _bassin := -1
 var _jambes := {}          # côté -> [cuisse, mollet, pied, orteil]
@@ -44,6 +52,42 @@ static func equiper(sq: Skeleton3D, ap: AnimationPlayer) -> PostureJoueur:
 	for c: String in COTES:
 		m._jambes[c] = [sq.find_bone("thigh_" + c), sq.find_bone("calf_" + c), sq.find_bone("foot_" + c), sq.find_bone("ball_" + c)]
 	return m
+
+## Fermeture voulue de chaque main, d'après ce qu'elle tient (CorpsMainsTps.categorie, arc du joueur).
+func _cibles_poings() -> Dictionary:
+	var r := {"l": 0.0, "r": 0.0}
+	var sq := get_skeleton()
+	var corps: Node = sq.owner.get_parent() if sq != null and sq.owner != null else null
+	var mt: Variant = corps.get("mains_tps") if corps != null else null
+	if mt is Object and is_instance_valid(mt) and (mt as Object).has_method("categorie"):
+		var cd := String(mt.call("categorie", "droite"))
+		var cg := String(mt.call("categorie", "gauche"))
+		r["r"] = 1.0 if cd in CATEGORIES_FERMEES else 0.0
+		r["l"] = 1.0 if (cg in CATEGORIES_FERMEES or cd == "arme_deux_mains") else 0.0
+		var j: Variant = corps.get("joueur")
+		var arc: Variant = j.get("arc") if j is Object and is_instance_valid(j) else null
+		if arc is Object and is_instance_valid(arc) and bool(arc.get("actif")):
+			r["l"] = 1.0                 # l'arc dans le poing gauche
+			r["r"] = 0.35                # main de corde : doigts en crochet
+	for c: String in forcer_poings:
+		r[c] = float(forcer_poings[c])
+	return r
+
+func _poings(dt: float) -> void:
+	if _peau == null:
+		var sq := get_skeleton()
+		_peau = sq.find_child("peau", false, false) as MeshInstance3D if sq != null else null
+		if _peau == null or _peau.mesh == null:
+			_peau = null
+			return
+		for c: String in ["l", "r"]:
+			_formes[c] = _peau.find_blend_shape_by_name("poing_" + c)
+	var cibles := _cibles_poings()
+	for c: String in ["l", "r"]:
+		poing[c] = move_toward(float(poing[c]), float(cibles[c]), VITESSE_POING * dt) if dt > 0.0 else float(cibles[c])
+		var k: int = _formes.get(c, -1)
+		if k >= 0:
+			_peau.set_blend_shape_value(k, poing[c])
 
 func _cible() -> float:
 	if anim == null or not anim.is_playing():
@@ -63,6 +107,7 @@ func _process_modification_with_delta(dt: float) -> void:
 	var sq := get_skeleton()
 	if sq == null or _bassin < 0:
 		return
+	_poings(dt)
 	poids = move_toward(poids, _cible(), VITESSE * dt) if dt > 0.0 else _cible()
 	if poids <= 0.001:
 		return
