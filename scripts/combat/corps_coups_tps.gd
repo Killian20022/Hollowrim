@@ -127,7 +127,7 @@ const CLIPS := {
 	# masses / marteaux PAR CAPTURES (combat/coups_masses_marteaux, bras_masses.tres, gestes_masses.py) : le corps joue la MÊME
 	# capture et la même plage que le clip FPS (images calées sur ses marqueurs) ; le grand marteau puissant (FPS : « great sword
 	# jump attack », absente de corps_coups_tps.res) joue au corps le grand vertical de la claymore
-	"ms_a": {"src": "revers", "im": [14, 22, 24, 28, 40], "retour": 56},
+	"ms_a": {"src": "slash_1", "im": [10, 16, 17, 21, 34], "retour": 44},
 	"ms_b": {"src": "interieur", "im": [24, 31, 33, 39, 50], "retour": 62},
 	"ms_c": {"src": "vertical", "im": [10, 19, 21, 27, 45], "retour": 60},
 	"charge_ms": {"src": "vertical", "im": [1, 19, 21]},

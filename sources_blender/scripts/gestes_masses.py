@@ -71,9 +71,12 @@ S = dict(ref=0, decalage=(0.0, 0.06, -0.30), echelle_epaule=0.7)
 CLIPS_M = {
     # crochet droite -> gauche : « outward slash », la main part à droite à hauteur d'épaule, traverse devant le buste
     # cadrage passe 2 (tête lisible à l'impact 9/9, mesurée par _tete_lisible) : bras tourné de 25° vers la gauche, relevé de 20°
-    "ms_a": dict(S, source="revers", centre=25, amplitude=0.5, cadrage=(25, 20, -15),
-                 temps=[(14, 0.0), (19, 0.12), (22.5, 0.22), (23.5, 0.26), (27.5, 0.40), (28.5, 0.48), (30, 0.60), (30, 0.80)],
-                 fondu=(0.22, 0.50), plein=(0.22, 0.56), arc=(0.26, 0.40, 0.85), creux=0.04),
+    # passe 3 (« plus un coup plat ») : AUTRE capture, « Sword And Shield Slash (1) » (diagonale haut-droite -> bas-gauche, la
+    # capture du coup 1 de l'épée v6), armé 14-16,5, rapide 17,5 -> 21, roulis du bras +20° : la tête plonge à ~41° à l'écran
+    # (« revers » : 11°), tête lisible 9/9 à l'impact, à 0,37 m de l'œil au plus près
+    "ms_a": dict(S, source="slash_1", centre=19, amplitude=0.5, cadrage=(25, 30, 20),
+                 temps=[(10, 0.0), (14, 0.14), (16.5, 0.24), (17.5, 0.28), (21, 0.42), (22.5, 0.50), (23, 0.62), (23, 0.84)],
+                 fondu=(0.24, 0.52), plein=(0.24, 0.58), arc=(0.28, 0.42, 0.85), creux=0.04),
     # revers gauche -> droite : « inward slash », armé sur l'épaule gauche, la tête balaie vers la droite
     # passe 2 : bras relevé de 60° et tourné de 15° vers la droite, frappe lue à partir de l'image 33,4 (la tête montait encore de
     # sous le cadre aux images 32,5-33) : tête lisible à l'impact 9/9
@@ -92,7 +95,7 @@ CLIPS_M = {
                      fondu=(0.0, 0.40), plein=(0.0, 0.46), arc=(0.06, 0.22, 0.85), creux=0.06),
 }
 MARQUEURS_M = {
-    "ms_a": {"arme": 0.22, "frappe": 0.26, "fin_frappe": 0.40, "suivi": 0.48, "fin": 0.80},
+    "ms_a": {"arme": 0.24, "frappe": 0.28, "fin_frappe": 0.42, "suivi": 0.50, "fin": 0.84},
     "ms_b": {"arme": 0.22, "frappe": 0.26, "fin_frappe": 0.40, "suivi": 0.48, "fin": 0.80},
     "ms_c": {"arme": 0.24, "frappe": 0.28, "fin_frappe": 0.42, "suivi": 0.50, "fin": 0.84},
     "charge_ms": {"arme": 0.34, "fin": 0.62},
@@ -197,7 +200,10 @@ def mesurer(ns, nom, act, longueur, mq, freq=60):
     if "frappe" in mq:
         okf = sum(1 for (tt, ok) in imp if mq["frappe"] - 1e-6 <= tt <= mq["fin_frappe"] + 1e-6 and ok)
         nf = sum(1 for (tt, ok) in imp if mq["frappe"] - 1e-6 <= tt <= mq["fin_frappe"] + 1e-6)
-        print("MASSES %-10s IMPACT tete lisible %d/%d" % (nom, okf, nf))
+        seg = [e for tt, e in pts if mq["frappe"] - 1e-6 <= tt <= mq["fin_frappe"] + 1e-6]
+        dx, dy = seg[-1][0] - seg[0][0], seg[-1][1] - seg[0][1]
+        pente = math.degrees(math.atan2(abs(dy), abs(dx) * 16 / 9)) if seg else 0.0
+        print("MASSES %-10s IMPACT tete lisible %d/%d | pente de la frappe a l'ecran %.0f deg (0 = plat, 90 = vertical)" % (nom, okf, nf, pente))
     print("MASSES %-10s bout du manche (35 cm sous le poing) : profondeur min %.2f m | tete profondeur min %.2f m" % (nom, min(pom), min(tz)))
     # retour en arrière pendant la frappe : la tête recule sur sa propre trajectoire (produit scalaire de pas successifs < 0)
     arr = 0
