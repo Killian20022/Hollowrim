@@ -65,8 +65,16 @@ static func depuis_donjon(donjon: Object, repere_: Node3D, joueur_: Node3D, arbr
 			if vers != "" and not voisins.has(vers):
 				voisins.append(vers)
 		var r: Rect2 = z["rect"]
+		var portes: Array = []      # [vers, a, b] : l'embrasure en plan, élargie de MARGE_PORTE (_calculer_visibles)
+		for ou: Dictionary in md["ouv"]:
+			var pp := Vector2((ou["pos"] as Vector3).x, (ou["pos"] as Vector3).z)
+			var dl := minf(absf(pp.x - r.position.x), absf(pp.x - r.end.x))
+			var dz := minf(absf(pp.y - r.position.y), absf(pp.y - r.end.y))
+			var hl := float(ou["largeur"]) * 0.5 + MARGE_PORTE
+			var u := Vector2(0, hl) if dl < dz else Vector2(hl, 0)
+			portes.append([String(ou["vers"]), pp - u, pp + u])
 		sa.salles[id] = {"rect": r, "y0": y0, "y1": y1, "pts": PackedVector3Array(), "voisins": voisins,
-			"long": escalier or String(md.get("role", "")) == "passage", "noeuds": []}
+			"long": escalier or String(md.get("role", "")) == "passage", "noeuds": [], "portes": portes}
 		sa._englober(Vector3(r.position.x, y0, r.position.y), Vector3(r.end.x, y1, r.end.y))
 	sa._symetriser()
 	sa._visibles = sa._calculer_actives("")
@@ -127,6 +135,9 @@ func ajouter_piece(id: String, rect: Rect2, y0: float, y1: float, long := true) 
 	salles[id] = {"rect": rect, "y0": y0, "y1": y1, "pts": PackedVector3Array(), "voisins": voisins, "long": long, "noeuds": [], "piece": true}
 	_englober(Vector3(rect.position.x, y0, rect.position.y), Vector3(rect.end.x, y1, rect.end.y))
 	_visibles[id] = true
+	_cache_visibles.clear()
+	_cache_chaines.clear()
+	_cache_permis.clear()
 	_force = true
 
 ## Les portes sont à double sens : si A cite B, B cite A.
@@ -167,7 +178,7 @@ func _classer_pas(budget_us: int) -> void:
 			if (r[1] as Rect2).intersects(rn) and bb.position.y < float(r[3]) and bb.end.y > float(r[2]):
 				liste.append(r[0])
 		if not liste.is_empty():
-			_noeuds[n.get_instance_id()] = {"n": n, "s": liste}
+			_noeuds[n.get_instance_id()] = {"n": n, "s": liste, "r": rn.grow(0.5)}
 			for id: String in liste:
 				(salles[id]["noeuds"] as Array).append(n)
 			if cacher_decor and not _visibles.is_empty():
@@ -239,11 +250,22 @@ func _calculer_actives(id: String) -> Dictionary:
 	return a
 
 ## Salles dont le DÉCOR reste dessiné depuis `id` (crypte_trous, 2026-11-25) : l'ensemble actif de `_calculer_actives`, plus les salles
-## à au plus PROF_DECOR portes dont le rectangle est à moins de PORTEE_DECOR m de celui de `id`. Avant, une salle vue par l'enfilade
-## de deux portes (s2 -> quartiers -> armurerie, prep -> herse -> rituelle…) n'était pas dessinée : un rectangle de VIDE (le fond, couleur
-## de brume) dans l'embrasure, à 10-20 m, là où la brume ne cache encore rien. La simulation (ennemis gelés) garde l'ensemble actif.
+## à au plus PROF_DECOR portes, à moins de PORTEE_DECOR m, VRAIMENT VISIBLES par l'enfilade des embrasures depuis un point de `id`.
+## Avant, une salle vue par l'enfilade de deux portes (s2 -> quartiers -> armurerie…) n'était pas dessinée : un rectangle de VIDE (le fond,
+## couleur de brume) dans l'embrasure, à 10-20 m, là où la brume ne cache encore rien. Première version : toutes les salles à 3 portes /
+## 26 m, -20 à -35 % de FPS (300 à 560 objets dessinés au lieu de 30 à 60) ; d'où le test de visibilité, en plan et prudent : une salle
+## de plus est dessinée s'il existe, depuis un point de la grille (1 m) de `id`, une demi-droite qui traverse toutes les portes de la
+## chaîne (élargies de MARGE_PORTE), portes fermées comprises. Calculé une fois par salle (géométrie fixe). La simulation (ennemis
+## gelés) garde l'ensemble actif.
 const PROF_DECOR := 3
 const PORTEE_DECOR := 26.0
+const MARGE_PORTE := 0.3
+var _cache_visibles := {}
+var _cache_chaines := {}     # id -> {salle de plus -> [chaînes de portes qui y mènent]}
+var _cache_permis := {}      # id -> {instance_id -> true} : nœuds des salles « de plus » vus par une chaîne
+var _partielles := {}        # salles « de plus » de la salle courante : seuls leurs nœuds permis sont dessinés
+var _permis := {}
+var dernier_permis_us := 0   # durée du dernier calcul de _calculer_permis (bancs)
 
 func _calculer_visibles(id: String) -> Dictionary:
 	var a := _calculer_actives(id)
@@ -252,26 +274,176 @@ func _calculer_visibles(id: String) -> Dictionary:
 	var r0: Rect2 = salles[id]["rect"]
 	if r0.size == Vector2.ZERO:      # grotte (salles en points) : inchangé
 		return a
-	var front: Array = [id]
-	var vus := {id: true}
-	for k in PROF_DECOR:
-		var suite: Array = []
-		for s: String in front:
-			for v: String in salles[s]["voisins"]:
-				if vus.has(v) or not salles.has(v):
-					continue
-				vus[v] = true
-				suite.append(v)
-				var r: Rect2 = salles[v]["rect"]
-				if r.size != Vector2.ZERO and _dist_rects(r0, r) <= PORTEE_DECOR:
-					a[v] = true
-		front = suite
+	if not _cache_visibles.has(id):
+		var plus := {}
+		var pts := _grille(r0)
+		_chercher(id, [id], [], a, plus, pts, r0)
+		_cache_chaines[id] = plus
+		var ens := {}
+		for v: String in plus:
+			ens[v] = true
+		_cache_visibles[id] = ens
+	a.merge(_cache_visibles[id])
 	return a
+
+## Parcours des chemins simples depuis `chemin[0]` (au plus PROF_DECOR portes) ; `segs` = portes traversées.
+func _chercher(s: String, chemin: Array, segs: Array, base: Dictionary, plus: Dictionary, pts: Array, r0: Rect2) -> void:
+	if chemin.size() > PROF_DECOR:
+		return
+	for v: String in salles[s]["voisins"]:
+		if chemin.has(v) or not salles.has(v):
+			continue
+		var r: Rect2 = salles[v]["rect"]
+		if r.size == Vector2.ZERO or _dist_rects(r0, r) > PORTEE_DECOR:
+			continue
+		for seg: Array in _portes_entre(s, v):
+			var s2: Array = segs.duplicate()
+			s2.append(seg)
+			if not _visible_par(pts, s2):
+				continue
+			if not base.has(v):
+				if not plus.has(v):
+					plus[v] = []
+				(plus[v] as Array).append(s2)
+			var c2: Array = chemin.duplicate()
+			c2.append(v)
+			_chercher(v, c2, s2, base, plus, pts, r0)
+
+## Points de vue de la salle : grille de 1 m, à 0,35 m des murs (le joueur ne s'en approche pas plus).
+func _grille(r: Rect2, pas_ := 1.0) -> Array:
+	var l: Array = []
+	var rr := r.grow(-0.35)
+	if rr.size.x <= 0.0 or rr.size.y <= 0.0:
+		rr = Rect2(r.get_center(), Vector2.ZERO)
+	var nx := maxi(1, int(ceil(rr.size.x / pas_)))
+	var nz := maxi(1, int(ceil(rr.size.y / pas_)))
+	for i in nx + 1:
+		for k in nz + 1:
+			l.append(rr.position + Vector2(rr.size.x * i / nx, rr.size.y * k / nz))
+	return l
+
+## Portes (segments en plan, élargis) entre deux salles voisines : ouvertures `vers` de l'une ou de l'autre ; vers une pièce bâtie à part
+## (vestibule, couloir de la herse : ouvertures « "" »), celles dont le milieu est dans la pièce. Rien de connu : le rectangle commun.
+func _portes_entre(s: String, v: String) -> Array:
+	var l: Array = []
+	for pr: Array in [[s, v], [v, s]]:
+		var de: Dictionary = salles[pr[0]]
+		var vers_: Dictionary = salles[pr[1]]
+		for po: Array in de.get("portes", []):
+			if po[0] == pr[1] or (po[0] == "" and vers_.get("piece", false) and (vers_["rect"] as Rect2).grow(1.0).has_point(((po[1] as Vector2) + (po[2] as Vector2)) * 0.5)):
+				l.append([po[1], po[2]])
+	if l.is_empty():      # pièces entre elles : le recouvrement des deux rectangles, vu comme une porte
+		var c: Rect2 = (salles[s]["rect"] as Rect2).grow(0.6).intersection((salles[v]["rect"] as Rect2).grow(0.6))
+		if c.size != Vector2.ZERO:
+			l.append([c.position, c.end] if c.size.x > c.size.y else [Vector2(c.position.x, c.end.y), Vector2(c.end.x, c.position.y)])
+	return l
+
+## Une demi-droite issue d'un des points traverse-t-elle tous les segments ? (angles autour de la direction de la 1re porte)
+static func _visible_par(pts: Array, segs: Array) -> bool:
+	for p: Vector2 in pts:
+		var m0: Vector2 = ((segs[0][0] as Vector2) + (segs[0][1] as Vector2)) * 0.5 - p
+		if m0.length_squared() < 1e-6:
+			m0 = Vector2(1, 0)
+		var lo := -INF
+		var hi := INF
+		var ok := true
+		for sg: Array in segs:
+			var ea: Vector2 = (sg[0] as Vector2) - p
+			var eb: Vector2 = (sg[1] as Vector2) - p
+			var ta := atan2(m0.cross(ea), m0.dot(ea))
+			var tb := atan2(m0.cross(eb), m0.dot(eb))
+			if absf(ta - tb) > PI:      # le segment passe derrière le point : on ne regarde pas par là
+				ok = false
+				break
+			lo = maxf(lo, minf(ta, tb))
+			hi = minf(hi, maxf(ta, tb))
+			if lo > hi:
+				ok = false
+				break
+		if ok:
+			return true
+	return false
 
 static func _dist_rects(a: Rect2, b: Rect2) -> float:
 	var dx := maxf(maxf(a.position.x - b.end.x, b.position.x - a.end.x), 0.0)
 	var dz := maxf(maxf(a.position.y - b.end.y, b.position.y - a.end.y), 0.0)
 	return sqrt(dx * dx + dz * dz)
+
+## Nœuds des salles « de plus » de `id` que l'on voit vraiment par l'enfilade (crypte_trous, banc FPS 2026-11-26 : dessiner ces salles
+## en entier coûtait jusqu'à -11 % de FPS, d1 : +40 % de primitives pour une tranche de g1 vue par une porte). Un nœud est permis si,
+## depuis un point de la grille (2 m) de `id`, le faisceau qui passe toutes les portes de la chaîne touche son emprise en plan
+## (élargie de 0,5 m). Calculé une fois par salle, après le classement.
+func _calculer_permis(id: String) -> Dictionary:
+	if _cache_permis.has(id) and _a_classer.is_empty():
+		return _cache_permis[id]
+	var t0 := Time.get_ticks_usec()
+	var res := {}
+	var chaines: Dictionary = _cache_chaines.get(id, {})
+	if chaines.is_empty():
+		return res
+	var pts := _grille(salles[id]["rect"], 2.0)
+	for v: String in chaines:
+		var fx: Array = []      # faisceaux [p, m0, lo, hi] de toutes les chaînes vers v (calculés une fois, pas par nœud)
+		for ch: Array in chaines[v]:
+			fx.append_array(_faisceaux(pts, ch))
+		for n: GeometryInstance3D in salles[v]["noeuds"]:
+			if not is_instance_valid(n):
+				continue
+			var iid := n.get_instance_id()
+			if not res.has(iid) and _rect_vu(fx, _noeuds[iid]["r"]):
+				res[iid] = true
+	if _a_classer.is_empty():
+		_cache_permis[id] = res
+	dernier_permis_us = Time.get_ticks_usec() - t0
+	return res
+
+## Faisceaux des points qui voient à travers toute la chaîne : [p, m0, lo, hi] (angles autour de m0, direction de la 1re porte).
+static func _faisceaux(pts: Array, segs: Array) -> Array:
+	var l: Array = []
+	for p: Vector2 in pts:
+		var m0: Vector2 = ((segs[0][0] as Vector2) + (segs[0][1] as Vector2)) * 0.5 - p
+		if m0.length_squared() < 1e-6:
+			m0 = Vector2(1, 0)
+		var lo := -INF
+		var hi := INF
+		var ok := true
+		for sg: Array in segs:
+			var ea: Vector2 = (sg[0] as Vector2) - p
+			var eb: Vector2 = (sg[1] as Vector2) - p
+			var ta := atan2(m0.cross(ea), m0.dot(ea))
+			var tb := atan2(m0.cross(eb), m0.dot(eb))
+			if absf(ta - tb) > PI:
+				ok = false
+				break
+			lo = maxf(lo, minf(ta, tb))
+			hi = minf(hi, maxf(ta, tb))
+			if lo > hi:
+				ok = false
+				break
+		if ok:
+			l.append([p, m0, lo, hi])
+	return l
+
+## Un des faisceaux touche-t-il le rectangle `rn` ?
+static func _rect_vu(fx: Array, rn: Rect2) -> bool:
+	var cs: Array = [rn.position, Vector2(rn.end.x, rn.position.y), rn.end, Vector2(rn.position.x, rn.end.y)]
+	for f: Array in fx:
+		var p: Vector2 = f[0]
+		var m0: Vector2 = f[1]
+		if rn.has_point(p):
+			return true
+		var rlo := INF
+		var rhi := -INF
+		for c: Vector2 in cs:
+			var d := c - p
+			var t := atan2(m0.cross(d), m0.dot(d))
+			rlo = minf(rlo, t)
+			rhi = maxf(rhi, t)
+		if rhi - rlo > PI:      # le rectangle entoure presque le point : prudence, visible
+			return true
+		if rlo <= float(f[3]) and rhi >= float(f[2]):
+			return true
+	return false
 
 func est_active(id: String) -> bool:
 	return id == "" or actives.has(id)
@@ -285,6 +457,15 @@ func pas(dt: float, dedans: bool) -> void:
 		return
 	_t = 0.0
 	rafraichir(dedans)
+	# une voisine de la salle courante par pas : son décor « de plus » est préparé avant qu'on y entre (pas d'à-coup à la porte)
+	if dedans and cacher_decor and _a_classer.is_empty() and salles.has(courante):
+		for v: String in salles[courante]["voisins"]:
+			if salles.has(v) and not _cache_permis.has(v) and (salles[v]["rect"] as Rect2).size != Vector2.ZERO:
+				_calculer_visibles(v)
+				_calculer_permis(v)
+				if not _cache_permis.has(v):
+					_cache_permis[v] = {}
+				break
 
 ## Salles (ids, triées) des autres joueurs qui sont dans le volume de ce donjon ("" = dans le volume mais hors de toute salle = tout actif).
 func _salles_autres() -> Array:
@@ -326,18 +507,27 @@ func rafraichir(dedans := true) -> void:
 		actives = local.duplicate()
 		for sid: String in autres:
 			actives.merge(_calculer_actives(sid))
-		_appliquer_decor(_calculer_visibles(id) if dedans else _calculer_actives(""))
+		var vis := _calculer_visibles(id) if dedans else _calculer_actives("")
+		var part := {}
+		if dedans and _cache_visibles.has(id):
+			var base := _calculer_actives(id)
+			for v: String in _cache_visibles[id]:
+				if not base.has(v):
+					part[v] = true
+		_appliquer_decor(vis, part, _calculer_permis(id) if not part.is_empty() else {})
 	if geler_ennemis:
 		_ennemis()
 
-func _appliquer_decor(neuf: Dictionary) -> void:
+func _appliquer_decor(neuf: Dictionary, part := {}, permis := {}) -> void:
 	if not cacher_decor:
 		return
 	var change := {}
 	for k: String in salles:
-		if neuf.has(k) != _visibles.has(k):
+		if neuf.has(k) != _visibles.has(k) or part.has(k) or _partielles.has(k):
 			change[k] = true
 	_visibles = neuf.duplicate()
+	_partielles = part
+	_permis = permis
 	for k: String in change:
 		for n: GeometryInstance3D in salles[k]["noeuds"]:
 			if is_instance_valid(n):
@@ -347,8 +537,9 @@ func _appliquer_decor(neuf: Dictionary) -> void:
 
 ## Visible si au moins une des salles que touche le nœud est visible.
 func _voulu(n: GeometryInstance3D) -> bool:
-	for sid: String in _noeuds[n.get_instance_id()]["s"]:
-		if _visibles.has(sid):
+	var iid := n.get_instance_id()
+	for sid: String in _noeuds[iid]["s"]:
+		if _visibles.has(sid) and (not _partielles.has(sid) or _permis.has(iid)):
 			return true
 	return false
 
@@ -391,5 +582,7 @@ func tout_reveler() -> void:
 			e.call("degeler")
 	actives = _calculer_actives("")
 	_visibles = actives.duplicate()
+	_partielles = {}
+	_permis = {}
 	courante = ""
 	_force = true

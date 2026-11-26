@@ -13,7 +13,7 @@ extends SceneTree
 ##                  voit un trou noir-bleu là où il devrait voir de la pierre) ; au-delà, la coupure est noyée dans la brume (normal) ;
 ##  - TRAVERSANT  : en P, la surface la plus proche est une face ARRIÈRE à culling, à moins de PORTEE_VUE m (paroi vue de dos).
 ##   godot --path . --script res://outils/audit_trous_crypte.gd -- --nouvelle --paisible --crypte=0,0.5,0,0 --sortie=C:/chemin
-##         [--pas=4] [--yaw=8] [--salle=id,id] [--planche] [--grotte-non]
+##         [--pas=4] [--yaw=8] [--salle=id,id] [--planche] [--grotte-non] [--tri=vide] [--nb_pires=60]
 ## --planche : en plus, 4 vues joueur RÉELLES (fenêtre du jeu, post-traitement compris) par salle au point le plus central :
 ##             <sortie>/vues/<salle>_<lacet>.png (planche avant/après).
 ## Écrit <sortie>/audit_trous_crypte.csv, <sortie>/bilan.txt, <sortie>/pires/*.png et imprime « BILAN ».
@@ -191,6 +191,8 @@ func _go() -> void:
 				t._gerer_zones()
 			if t.salles != null:
 				t.salles.rafraichir(true)
+				if _arg("sans_cacher") != "":      # diagnostic : tout le décor dessiné (le vide restant n'est pas dû à SalleActive)
+					t.salles.tout_reveler()
 			cam.environment = _env_j()
 			for kk in n_yaw * TANGAGES.size():
 				_viser(p, kk)
@@ -273,7 +275,7 @@ func _go() -> void:
 		var lp: Vector3 = t.crypte.to_local(p)
 		csv += "%s;%.1f;%.1f;%.1f;%d;%d;%d;%d\n" % [v[0], lp.x, lp.y, lp.z, v[2], vide, trav, loin]
 		if vide > 0 or (vide + trav > 0 and _arg("traversant") != ""):
-			pires.append([vide * 10 + trav if _arg("traversant") == "" else vide + trav, v, ip, masque])
+			pires.append([vide if _arg("tri") == "vide" else (vide * 10 + trav if _arg("traversant") == "" else vide + trav), v, ip, masque])
 	print("passe P : %d vues en %d s" % [vues.size(), (Time.get_ticks_msec() - t1) / 1000])
 	_mode_p(false)
 	var f := FileAccess.open(sortie + "/audit_trous_crypte.csv", FileAccess.WRITE)

@@ -1309,6 +1309,11 @@ func escalier(x0: float, x1: float, z_haut: float, z_bas: float, y_haut: float, 
 		var yt: float = lerpf(y_haut, y_bas, (i + 1.0) / n)
 		var ybas_m: float = yt - 0.25 - 0.1
 		d.boite("dalle0", Vector3((xa + xb) * 0.5, (yt + ybas_m) * 0.5, zc), Vector3(xb - xa, yt - ybas_m, pas))
+	# crypte_trous : paliers des 0,3 m entre le bord du module et la 1re / dernière marche — sans eux, ni sol ni 1re contremarche (bande
+	# de vide sous le nez de la 1re marche, vue du palier). Dessus 3 mm sous le sol voisin (pas de scintillement avec le seuil de l'embrasure).
+	for pl: Array in [[z_haut, z1, y_haut], [z2, z_bas, y_bas]]:
+		var yy: float = pl[2] - 0.003
+		d.boite("dalle0", Vector3((xa + xb) * 0.5, yy - 0.175, (float(pl[0]) + float(pl[1])) * 0.5), Vector3(xb - xa, 0.35, absf(float(pl[1]) - float(pl[0])) + 0.04), 0.0, true)
 	var seg := 6
 	var long_tot := absf(z_bas - z_haut)
 	for s in seg:
