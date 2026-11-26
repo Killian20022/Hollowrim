@@ -74,8 +74,8 @@ const VIE_TENUE := 0.3
 ## Le nœud s'éteint seul s'il n'est plus nourri (main coupée sans arrêt explicite).
 const OUBLI := 0.25
 ## Rayon du faisceau (m) loin de la main (× largeur du sort) et à la sortie de la paume ; distance d'ouverture.
-const RAYON_LOIN := 0.2   # v5b : s'affine au loin (~3 % de l'écran) ; v4 : 0,4
-const RAYON_MAIN := 0.075   # v5b : corps épais à la main (~5-6 % de l'écran), v4 : 0,045
+const RAYON_LOIN := 0.25   # v5c : +25 % (demande utilisateur « légèrement plus épais ») ; v5b : 0,2
+const RAYON_MAIN := 0.095   # v5c : +25 % ; v5b : 0,075
 const OUVERTURE := 7.0
 ## Tache d'ombre : côté du quad (m ; la flaque en couvre ~25 à 80 %) à l'impact, croissance pendant qu'on tient le même point, taches laissées en balayant.
 const TACHE := 1.9
