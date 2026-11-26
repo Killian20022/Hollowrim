@@ -668,7 +668,7 @@ func _en_jeu(ps: Array) -> void:
 		for m: MeshInstance3D in bras.find_children("*", "MeshInstance3D", true, false):
 			for s in m.mesh.get_surface_count():
 				var mm := m.mesh.surface_get_material(s)
-				if mm and mm.resource_name.get_slice(".", 0) == "ab_gant" and m.get_surface_override_material(s) == AvantBras.materiaux()["ab_gant"]:
+				if mm and mm.resource_name.get_slice(".", 0) == "ab_gant" and _gant_origine(m.get_surface_override_material(s)):
 					revenu += 1
 		ok(revenu == n_ab, "1re personne : gants ôtés, les gants d'origine reviennent")
 	j.basculer_vue(true)
@@ -714,3 +714,9 @@ func _lancer() -> void:
 	await _en_jeu(ps)
 	print("TEST ARMURE VISIBLE : %s (ECHECS : %d)" % ["OK" if echecs == 0 else "ÉCHEC", echecs])
 	quit(echecs)
+
+
+## Gant d'origine : la matière ab_gant, ou sa copie « fondu près de l'œil » (AvantBras.appliquer_fondu, bras_vide 9fc838df).
+func _gant_origine(ov: Material) -> bool:
+	var g: Material = AvantBras.materiaux()["ab_gant"]
+	return ov == g or (AvantBras._deja.has(g) and ov == AvantBras._deja[g])
