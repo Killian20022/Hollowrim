@@ -507,7 +507,19 @@ func _ouvrir_partie() -> void:
 	_abonner()
 	_aller("salon")
 
+## joueur_base : appelé avec la suite du lancement quand l'hôte lance un NOUVEAU monde (l'écran titre y ouvre le choix du personnage,
+## puis appelle la suite) ; non défini = lancement direct. Les invités ne sont prévenus (salon_lancer) qu'une fois le choix validé.
+var choix_avant_lancement: Callable
+
 func _lancer_hote() -> void:
+	if _role != "hote":
+		return
+	if monde_choisi() == NOUVEAU_MONDE and choix_avant_lancement.is_valid():
+		choix_avant_lancement.call(_lancer_hote_suite)
+		return
+	_lancer_hote_suite()
+
+func _lancer_hote_suite() -> void:
 	if _role != "hote":
 		return
 	var r := _R()

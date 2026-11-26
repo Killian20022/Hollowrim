@@ -474,6 +474,7 @@ func _poser_chausses() -> void:
 	mi.set_meta("maillage_origine", mi.mesh)
 	squelette.add_child(mi)
 	mi.skeleton = NodePath("..")
+	JoueurBase.ajuster_armure(mi, squelette)     # corps du joueur (femme) : pièce ajustée à sa morphologie
 	_portees["jambes"] = mi
 
 ## Toutes les pièces posées (chausses comprises).
@@ -520,6 +521,7 @@ func _poser(e: String) -> void:
 	mi.set_meta("armure_emplacement", e)
 	squelette.add_child(mi)
 	mi.skeleton = NodePath("..")
+	JoueurBase.ajuster_armure(mi, squelette)     # corps du joueur (femme) : pièce ajustée à sa morphologie
 	_portees[e] = mi
 
 ## Maillage porté d'une pièce, prêt à rattacher à un Skeleton3D du héros (skin du glb, liaisons par NOM d'os ; matériaux habillés).
@@ -994,6 +996,12 @@ static func recouvert(nom: String, surface: int, c: Vector3, u: Vector2, z: Arra
 ## Copie du maillage sans les triangles recouverts (mêmes surfaces, mêmes sommets : les matériaux surchargés restent valables).
 static func _filtrer(orig: Mesh, nom: String, z: Array, lim := {}) -> ArrayMesh:
 	var m := ArrayMesh.new()
+	# formes (poings du joueur de base) gardées : sans elles, la main restait ouverte sur l'épée dès qu'une armure filtrait la peau
+	var formes: int = orig.get_blend_shape_count() if orig is ArrayMesh else 0
+	for k in formes:
+		m.add_blend_shape((orig as ArrayMesh).get_blend_shape_name(k))
+	if formes > 0:
+		m.blend_shape_mode = (orig as ArrayMesh).blend_shape_mode
 	for s in orig.get_surface_count():
 		var a := orig.surface_get_arrays(s)
 		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
@@ -1046,7 +1054,24 @@ static func _filtrer(orig: Mesh, nom: String, z: Array, lim := {}) -> ArrayMesh:
 		if garde.is_empty():
 			garde = PackedInt32Array([0, 0, 0])     # surface gardée (index des matériaux surchargés), sans aire
 		a[Mesh.ARRAY_INDEX] = garde
-		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a)
+		var fa: Array = []
+		if formes > 0:
+			fa = orig.surface_get_blend_shape_arrays(s)
+			if fa.size() != formes or (a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() != (fa[0][Mesh.ARRAY_VERTEX] as PackedVector3Array).size():
+				fa = []          # sommets ajoutés par une coupe : formes abandonnées (pas sur la peau)
+		if formes > 0 and fa.is_empty():
+			for k in formes:       # une surface doit fournir toutes les formes : formes neutres (= base)
+				var neutre: Array = []
+				neutre.resize(Mesh.ARRAY_MAX)
+				if m.blend_shape_mode == Mesh.BLEND_SHAPE_MODE_RELATIVE:    # décalages nuls
+					var zv := PackedVector3Array(); zv.resize((a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size())
+					neutre[Mesh.ARRAY_VERTEX] = zv
+				else:
+					neutre[Mesh.ARRAY_VERTEX] = a[Mesh.ARRAY_VERTEX]
+					neutre[Mesh.ARRAY_NORMAL] = a[Mesh.ARRAY_NORMAL]
+					neutre[Mesh.ARRAY_TANGENT] = a[Mesh.ARRAY_TANGENT]
+				fa.append(neutre)
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, a, fa)
 		m.surface_set_material(s, orig.surface_get_material(s))
 	return m
 

@@ -53,6 +53,9 @@ var arme_corps: Node3D
 ## mains / pieds sur le squelette du corps, parties recouvertes de la tenue masquées, gants sur les bras FPS. Branchement :
 ## equiper() dans _creer_modele (après les mains), definir_vue().
 var armure: ArmureVisible
+## Corps du joueur (chantier joueur_base) : modèle JoueurBase « homme » | « femme » ; --heros-ancien : l'ancien héros HerosSkarnholt.
+var apparence := "homme"
+static var heros_ancien := OS.get_cmdline_user_args().has("--heros-ancien")
 
 func _ready() -> void:
 	_creer_modele()
@@ -78,7 +81,12 @@ func _creer_modele() -> void:
 	# héros « garde de Skarnholt amélioré » (HerosSkarnholt, base GardienNordique, cache disque des corps) ; --persos-kit : personnage de
 	# base unifié (PersoDefs.joueur). Équipement (bouclier, casque) : options de HerosSkarnholt.creer.
 	var t0 := Time.get_ticks_usec()
-	modele = Personnage.creer(PersoDefs.joueur()) if Personnage.kit_actif() else HerosSkarnholt.creer({})
+	if Personnage.kit_actif():
+		modele = Personnage.creer(PersoDefs.joueur())
+	elif heros_ancien:
+		modele = HerosSkarnholt.creer({})
+	else:
+		modele = JoueurBase.creer(apparence)   # joueur_base : homme / femme choisi en début de partie
 	if Chrono.actif:
 		print("CHRONO   corps du joueur %.1f ms (cache lus=%d)" % [(Time.get_ticks_usec() - t0) / 1000.0, CachePersos.lus])
 	modele.rotation.y = PI  # le modèle regarde +Z, le joueur -Z
@@ -103,6 +111,21 @@ func _creer_modele() -> void:
 	_cle = ""
 	_jouer("Sword_Idle", 0.0)
 	definir_vue(_vue_3)
+
+## Change de corps (homme / femme) : le modèle est reconstruit tout de suite (même chemin que la résurrection).
+func definir_apparence(a: String) -> void:
+	a = JoueurBase.valide(a)
+	if a == apparence and modele != null and (heros_ancien or Personnage.kit_actif() or String(modele.get_meta("apparence", "")) == a):
+		return
+	apparence = a
+	if modele == null or heros_ancien or Personnage.kit_actif():
+		return
+	var vue := _vue_3
+	_ragdoll = null
+	remove_child(modele)
+	modele.queue_free()
+	_creer_modele()
+	definir_vue(vue)
 
 ## Mort : le corps tombe en ragdoll, projeté dans le sens du dernier coup reçu.
 func _chuter() -> void:
@@ -167,7 +190,7 @@ func _epee(squelette: Skeleton3D) -> void:
 	accroche.bone_name = "hand_r"
 	squelette.add_child(accroche)
 	var arme: Node3D = EPEE.instantiate()
-	arme.transform = PRISE
+	arme.transform = squelette.get_meta("prise_r", PRISE)   # joueur_base : prise mesurée sur le poing du modèle
 	arme_corps = arme
 	accroche.add_child(arme)
 	# acier et cuir en matériaux PS1, par nom de matériau Blender (comme les mains)
@@ -191,6 +214,8 @@ func _epee(squelette: Skeleton3D) -> void:
 const PRISE_GAUCHE := Transform3D(Basis(Vector3(-0.999251, 0.038329, 0.00529), Vector3(0.014458, 0.243068, 0.969902), Vector3(0.03589, 0.969252, -0.24344)), Vector3(0.007936, 0.142938, 0.002241))
 
 func _prise_gauche(squelette: Skeleton3D) -> Transform3D:
+	if squelette.has_meta("prise_l"):   # joueur_base : centre du poing gauche du modèle (JoueurBase.prise)
+		return squelette.get_meta("prise_l")
 	if squelette.find_bone("index_01_l") < 0:
 		return PRISE_GAUCHE
 	var p := func(n: String) -> Vector3: return squelette.get_bone_global_rest(squelette.find_bone(n)).origin

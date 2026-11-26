@@ -261,6 +261,9 @@ static func _valider_joueur(j: Variant, corr: Array[String]) -> Dictionary:
 			d[cle] = clampf(v, 0.0, STAT_MAX)
 	if d.has("lacet"):
 		d["lacet"] = float(d["lacet"]) if _fini(d["lacet"]) else 0.0
+	if d.has("apparence") and not (String(d["apparence"]) in JoueurBase.SEXES):   # joueur_base : homme / femme seulement
+		d["apparence"] = JoueurBase.DEFAUT
+		corr.append("corps inconnu : homme")
 	if d.has("position"):
 		var p: Variant = d["position"]
 		var bon: bool = p is Array and (p as Array).size() == 3

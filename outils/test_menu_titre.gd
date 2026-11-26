@@ -52,6 +52,61 @@ func _tester() -> void:
 		var haut_logo: float = rect.position.y + 90.0 * s   # haut des lettres du logo (la pointe au-dessus peut être rognée en 21:9)
 		ok(g >= 0.0 and bas <= v.y and haut_logo >= 0.0 and titre.BOUTON_TAILLE.y * s >= 40.0,
 			"écran %dx%d : colonne et logo visibles (gauche %.0f px, bas %.0f/%d, bouton %.0f px de haut)" % [v.x, v.y, g, bas, v.y, titre.BOUTON_TAILLE.y * s])
+	# joueur_base : Nouvelle partie -> choix du personnage (homme / femme, aperçu 3D) -> Commencer lance la partie avec ce corps
+	titre._menu_principal()
+	await process_frame
+	Jeu.regler("personnage", "apparence", "homme", false)   # dernier choix : homme (en mémoire, options.cfg intact)
+	titre._nouvelle()
+	await process_frame
+	ok(titre._choix.visible or titre._confirmation.visible, "Nouvelle partie : choix du personnage (ou confirmation s'il existe des parties)")
+	titre._ouvrir_choix()
+	for i in 3:
+		await process_frame
+	var ch: ChoixPersonnage = titre._choix
+	ok(ch.visible and ch.sexe == "homme" and ch._modele != null and ch._modele.get_meta("apparence") == "homme", "choix ouvert : homme par défaut, aperçu 3D")
+	ok(root.gui_get_focus_owner() == ch._b_go, "choix : focus sur Commencer")
+	ch._b_femme.pressed.emit()
+	for i in 2:
+		await process_frame
+	ok(ch.sexe == "femme" and ch._modele.get_meta("apparence") == "femme" and ch._b_femme.button_pressed and not ch._b_homme.button_pressed, "choix : Femme sélectionnée, aperçu changé")
+	var r0: float = ch._pivot.rotation.y
+	for i in 10:
+		await process_frame
+	ok(ch._pivot.rotation.y != r0, "choix : l'aperçu tourne")
+	# multijoueur : l'hôte qui lance un NOUVEAU monde passe par le même choix (avant de prévenir les invités) ; Retour ramène au salon
+	titre._ouvrir_multi()
+	var mu: EcranMulti = titre._multi
+	mu._role = "hote"
+	mu._indice_monde = mu._emplacements.find(EcranMulti.NOUVEAU_MONDE)
+	mu._lancer_hote()
+	await process_frame
+	ok(ch.visible and not mu.visible and titre._choix_suite.is_valid(), "multijoueur hôte, nouveau monde : écran de choix du personnage")
+	ch.retour.emit()
+	await process_frame
+	ok(mu.visible and not ch.visible and not titre._choix_suite.is_valid(), "multijoueur : Retour du choix -> salon de l'hôte")
+	var suite_appelee := [false]
+	titre._choix_multi(func() -> void: suite_appelee[0] = true)    # suite factice (pas de réseau ouvert dans le test)
+	await process_frame
+	ch.choisir("femme")
+	ch._b_go.pressed.emit()
+	await process_frame
+	ok(suite_appelee[0] and Jeu.apparence_choisie == "femme" and String(Jeu.option("personnage", "apparence")) == "femme" and not Jeu.nouvelle_partie,
+		"multijoueur hôte : Commencer -> corps « femme » retenu, puis lancement de l'hôte (suite)")
+	mu._role = ""
+	Jeu.regler("personnage", "apparence", "homme", false)
+	titre._lancer_multi("invite", false, -1)
+	ok(Jeu.apparence_choisie == "homme", "multijoueur invité : reprend le dernier choix (homme)")
+	Jeu.regler("personnage", "apparence", "femme", false)
+	titre._demarre = false
+	titre._ouvrir_choix()
+	await process_frame
+	ok(ch.sexe == "femme", "choix rouvert sur le dernier choix (femme)")
+	ch._b_go.pressed.emit()
+	await process_frame
+	ok(Jeu.apparence_choisie == "femme" and Jeu.nouvelle_partie, "Commencer : nouvelle partie avec le corps « femme »")
+	Jeu.apparence_choisie = "homme"
+	Jeu.regler("personnage", "apparence", "homme", false)
+	Jeu.nouvelle_partie = false
 	titre.queue_free()
 	await process_frame
 	if garde.size() > 0:

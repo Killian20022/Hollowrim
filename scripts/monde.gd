@@ -1678,6 +1678,7 @@ func exporter_personnage() -> Dictionary:
 		"joueur": {
 			"position": [joueur.position.x, joueur.position.y, joueur.position.z],   # position de retour
 			"lacet": joueur.rotation.y, "vie": joueur.vie, "vigueur": joueur.vigueur,
+			"apparence": joueur.apparence,   # joueur_base : corps choisi en début de partie (homme / femme)
 		},
 		"progression": joueur.progression.exporter(),   # niveau, points, attributs, perks, compétences (noms canoniques)
 		"equipement_corps": joueur.equipement_corps.exporter(),
@@ -1806,6 +1807,8 @@ func _importer_personnage_corps(d: Dictionary, position := true) -> void:
 		joueur.rotation.y = float(j.get("lacet", joueur.rotation.y))
 	joueur.vie = float(j.get("vie", joueur.vie_max))
 	joueur.vigueur = float(j.get("vigueur", joueur.vigueur_max))
+	if Jeu.apparence_arg() == "":   # joueur_base : partie sans choix (anciennes sauvegardes) = homme
+		joueur.definir_apparence(String(j.get("apparence", JoueurBase.DEFAUT)))
 	joueur.progression.importer(d.get("progression", {}))
 	joueur.inventaire.importer(d.get("inventaire", {}))
 	_test_butin_fait = bool(d.get("test_butin_fait", false))

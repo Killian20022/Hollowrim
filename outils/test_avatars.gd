@@ -7,9 +7,9 @@ extends Node3D
 
 const JOUEUR := preload("res://scripts/joueur.gd")
 const MOI := {
-	"hote": {"nom": "Eirik", "droite": "epee", "gauche": "bouclier", "pos": Vector3(0, 0, 0), "lacet": 0.0,
+	"hote": {"nom": "Eirik", "apparence": "homme", "droite": "epee", "gauche": "bouclier", "pos": Vector3(0, 0, 0), "lacet": 0.0,
 		"corps": {"tete": "casque_fer", "torse": "cuirasse_fer", "mains": "gantelets_fer", "pieds": "bottes_fer"}},
-	"invite": {"nom": "Astrid", "droite": "claymore", "gauche": "vide", "pos": Vector3(0, 0, -3.0), "lacet": PI,
+	"invite": {"nom": "Astrid", "apparence": "femme", "droite": "claymore", "gauche": "vide", "pos": Vector3(0, 0, -3.0), "lacet": PI,
 		"corps": {"tete": "casque_acier_nordique", "torse": "cuirasse_acier_nordique", "mains": "gantelets_acier_nordique", "pieds": "bottes_acier_nordique"}},
 }
 
@@ -109,6 +109,11 @@ func _hauteur_tete(av: CharacterBody3D) -> float:
 	var i := sq.find_bone("Head")
 	return (sq.global_transform * sq.get_bone_global_pose(i)).origin.y - av.global_position.y
 
+## Seuil « debout » : 1,3 m pour une tête au repos à 1,60 m (ancien héros) ; mis à la taille du corps (joueur_base : femme 1,65 m).
+func _debout(av: CharacterBody3D) -> float:
+	var sq: Skeleton3D = av.corps.modele.find_child("Skeleton3D", true, false)
+	return 1.3 * (sq.global_transform * sq.get_bone_global_rest(sq.find_bone("Head"))).origin.y / 1.60 if sq else 1.3
+
 ## Capture (rendu réel seulement) : caméra d'observation devant l'avatar de l'autre, décalée vers la droite.
 func _cap(nom: String, distance := 2.7, haut := 1.45, vise := 1.05, cote := 0.9) -> void:
 	if _dossier == "" or DisplayServer.get_name() == "headless":
@@ -154,6 +159,7 @@ func _lancer() -> void:
 	_joueur.name = "Joueur"
 	_joueur.position = moi["pos"]
 	add_child(_joueur)
+	_joueur.definir_apparence(moi["apparence"])   # joueur_base : corps homme / femme
 	_joueur.set_physics_process(false)   # le test pilote la position / la vitesse du joueur (voir _physics_process ci-dessus)
 	_joueur.rotation.y = moi["lacet"]
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -198,6 +204,20 @@ func _lancer() -> void:
 	_verif(_ac.avatars[_autre].etiquette != null and _ac.avatars[_autre].etiquette.text == autre["nom"], "nom flottant « %s »" % autre["nom"])
 	_verif(_ac.avatars[_autre].etiquette.visible, "nom flottant visible à %.1f m" % _cam.global_position.distance_to(av.global_position))
 	_verif(_res.registre.noeud(_autre) == av, "avatar inscrit au registre des joueurs")
+	# joueur_base : le corps (homme / femme) de l'autre est répliqué, puis un changement aussi (chacun prend l'autre corps)
+	_verif(String(av.apparence) == autre["apparence"] and String(av.corps.modele.get_meta("apparence", "")) == autre["apparence"],
+		"corps de l'autre répliqué : %s (lu : %s / modèle %s)" % [autre["apparence"], av.apparence, av.corps.modele.get_meta("apparence", "")])
+	await _barriere("apparence_vue")
+	_joueur.definir_apparence("femme" if moi["apparence"] == "homme" else "homme")
+	var change: String = "femme" if autre["apparence"] == "homme" else "homme"
+	await _attendre(func() -> bool: return _av() != null and String(_av().apparence) == change, 15.0)
+	await get_tree().create_timer(0.5).timeout
+	av = _av()
+	_verif(String(av.apparence) == change and String(av.corps.modele.get_meta("apparence", "")) == change and av.corps.armure.porte("torse") == autre["corps"]["torse"],
+		"changement de corps répliqué : %s, armure toujours portée (%s)" % [change, av.corps.armure.porte("torse")])
+	await _barriere("apparence_changee")
+	_joueur.definir_apparence(moi["apparence"])
+	await _attendre(func() -> bool: return _av() != null and String(_av().apparence) == autre["apparence"], 15.0)
 	_verif(Progression.courante() == _joueur.progression, "la progression courante reste celle du joueur local (pas l'avatar)")
 	await _cap("armure", 3.4, 1.35, 0.95, 1.1)
 	await _cap("nom", 2.3, 1.75, 1.55, 0.5)
@@ -311,7 +331,7 @@ func _lancer() -> void:
 	av = _av()
 	_verif(not av.mort and av.corps._ragdoll == null, "réapparition : plus de cadavre, corps recréé")
 	_verif(_dist_xz(av.global_position, re["pos"]) < 0.3, "avatar réapparu à la position du joueur (écart %.2f m)" % _dist_xz(av.global_position, re["pos"]))
-	_verif(_hauteur_tete(av) > 1.3, "avatar debout après la réapparition")
+	_verif(_hauteur_tete(av) > _debout(av), "avatar debout après la réapparition (tête à %.2f m, seuil %.2f)" % [_hauteur_tete(av), _debout(av)])
 	_verif(av.corps.armure != null and av.corps.armure.porte("torse") == autre["corps"]["torse"], "armure toujours visible après la réapparition")
 	await _barriere("fin")
 
@@ -356,7 +376,7 @@ func _phase_terre(tombe: String) -> void:
 		var av2 := _av()
 		_verif(not av2.a_terre, "avatar relevé (flag)")
 		var h2 := _hauteur_tete(av2)
-		_verif(h2 > 1.3, "corps debout après le relevé : tête à %.2f m" % h2)
+		_verif(h2 > _debout(av2), "corps debout après le relevé : tête à %.2f m (seuil %.2f)" % [h2, _debout(av2)])
 		_verif(av2.corps._action == "", "corps_joueur reprend sa locomotion (action « %s »)" % av2.corps._action)
 	await _barriere("releve_vu_" + tombe)   # le propriétaire ne passe à la suite (mort, etc.) qu'une fois le relevé constaté (évènements en course)
 
