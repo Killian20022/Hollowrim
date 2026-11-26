@@ -99,7 +99,7 @@ func liberer() -> void:
 static func noms_clips() -> Array:
 	if _noms_clips.is_empty():
 		var d := {}
-		for b: AnimationLibrary in [AnimateurBras.BIBLIOTHEQUE, AnimateurBras.DEUX_MAINS, AnimateurBras.LOURDS, AnimateurBras.GARDES, AnimateurBras.FINISHERS]   # GARDES : gardes par famille (combat/gardes_toutes_armes):
+		for b: AnimationLibrary in [AnimateurBras.BIBLIOTHEQUE, AnimateurBras.DEUX_MAINS, AnimateurBras.LOURDS, AnimateurBras.GARDES, AnimateurBras.FINISHERS]:   # GARDES : gardes par famille (combat/gardes_toutes_armes)
 			for n in b.get_animation_list():
 				d[String(n)] = true
 		_noms_clips = d.keys()

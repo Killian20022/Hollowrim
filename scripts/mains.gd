@@ -1524,6 +1524,15 @@ const FONDU_PARADE_MONTEE := 0.12
 static func _gardes_anciennes() -> bool:
 	return GardesArmes.anciennes
 
+## Point de contact du choc de garde : sur la lame / le manche de l'arme AFFICHÉE (60 % garde -> pointe), celle du corps en 3e
+## personne, celle du bras FPS sinon (avant : un point fixe à côté de la main FPS, même en 3e personne).
+func _point_contact() -> Vector3:
+	var ct = joueur.corps.get("coups_tps") if (joueur.get("troisieme") and joueur.corps != null) else null
+	var m: Node3D = ct.modele_arme() if ct != null else _modele_arme_d
+	if m != null and is_instance_valid(m) and m.is_inside_tree():
+		return m.global_transform * _garde_lame.lerp(_pointe_lame, 0.6)
+	return pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
+
 ## Effets d'impact au contact de l'arme : tout de suite, ou après `delai` s (temps de jeu, mains.avancer : pas imposé des tests).
 var _contacts: Array = []
 
@@ -1559,6 +1568,10 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 	var fm := FONDU_PARADE_MONTEE * (2.0 if arme.deux_mains else 1.0)   # armes à deux mains : plus lourdes, montée plus longue
 	var montee := clampf(fm - temps_garde, 0.0, fm) if not _gardes_anciennes() else 0.0
 	var fondu := maxf(0.02, montee)
+	# 3e personne : le corps (CorpsCoupsTps) monte en garde plus lentement que le bras FPS ; le contact attend qu'il y soit
+	var ct = joueur.corps.get("coups_tps") if (joueur.get("troisieme") and joueur.corps != null) else null
+	if ct != null and not _gardes_anciennes():
+		montee = maxf(montee, (1.0 - float(ct.get("_poids_lin"))) * CorpsCoupsTps.FONDU_GARDE)
 	match String(r["issue"]):
 		"parade":
 			# parade parfaite : tintement clair (parade_parfaite), gerbe d'étincelles, la lame chasse l'arme adverse ;
@@ -1567,7 +1580,7 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 			_encaisse = 0.0
 			anim.jouer("parade", fondu)
 			_au_contact(montee * 0.8, func():
-				var p := pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
+				var p := _point_contact()
 				RetourImpact.son(self, "parade_parfaite", p, 2.0)
 				GerbePixels.emettre(self, p, _vers_attaquant(p, origine), "etincelles", 2.2)
 				if RetourImpact.temps_actif():
@@ -1577,7 +1590,7 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 			_encaisse = DUREE_ENCAISSE
 			anim.jouer("encaisse", fondu)
 			_au_contact(montee * 0.8, func():
-				var p := pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
+				var p := _point_contact()
 				RetourImpact.son(self, "metal_blocage", p, 0.0)
 				GerbePixels.emettre(self, p, _vers_attaquant(p, origine), "etincelles", 1.1)
 				joueur.secousse = maxf(joueur.secousse, 0.35))
