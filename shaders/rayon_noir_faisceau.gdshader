@@ -34,9 +34,9 @@ uniform float graine = 0.0;
 
 const float GROS = 1.45;         // le volume englobant dépasse le rayon de ce facteur (fumée)
 // v5 : opacité de la matière sombre (cœur : de AM_MIN à AM_MAX selon la densité des volutes ; gaine : AM_GAINE)
-const float AM_MIN = 0.62;
+const float AM_MIN = 0.72;
 const float AM_MAX = 0.9;
-const float AM_GAINE = 0.6;   // la gaine garde sa couleur violette même sur un ciel clair (l'additif seul y blanchit)
+const float AM_GAINE = 0.7;   // la gaine garde sa couleur violette même sur un ciel clair (l'additif seul y blanchit)
 
 varying float v_s;               // abscisse du fragment en mètres
 varying float v_u;               // 0..1
