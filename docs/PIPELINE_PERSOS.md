@@ -286,3 +286,12 @@ Pièges : la peau des femmes est liée par NOM d'os (`get_bind_bone` = -1 → `D
 mettre `ARRAY_CUSTOM0-3` à null avant `add_surface_from_arrays` ; le **tablier** de l'archétype a ses normales tournées vers le
 corps (noir, et le gonflement le rentrait dans le buste) → `_normales_dehors` ; cacher la mante des femmes laisse l'encolure vide.
 Mesure de la peau par lumière : `outils/planche_pnj_v2.gd` (midi, crépuscule, intérieur à la torche ; ligne `PEAU id lumière h s v`).
+
+### 12.2 Passe v2 : corsages des femmes (`CorsagePnj`, `scripts/corsage_pnj.gd`)
+Défaut corrigé : toutes les femmes gardaient la jaque à écailles (« mailles / clous ») de la Chasseresse. Table `CORSAGES` par id :
+laine (lin écru, laine brune, vert sombre, bleu délavé, rouille, bleu nuit, brun-gris), tissage (toile, sergé, chevrons, losanges,
+côtelé), galon tissé à l'encolure, fermoir (paire de fibules ovales en bronze reliées par un rang de perles + bretelles de la
+robe-tablier ; laçage de cuir à l'encolure fendue ; broche ronde). Peint dans le torse et les manches de l'atlas de la tunique
+(v < `ChasseresseTextures.V_JUPE`) AVANT `_usure` (plis, taches, boue) ; positions de poitrine mesurées sur les sommets de la tunique
+(`CorsagePnj.ancres`). Texture seulement : triangles, squelette, animations inchangés. Après toute modif de la table :
+`RealismePnj.VERSION++` puis `outils/generer_realisme_pnj.gd`.

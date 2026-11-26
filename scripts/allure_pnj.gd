@@ -109,6 +109,12 @@ static func avant(n: Node3D, id: String) -> void:
 			var tb := (acc.get_active_material(0) as ShaderMaterial).get_shader_parameter("tex_base") as Texture2D if acc.get_active_material(0) is ShaderMaterial else null
 			if tb != null and tb.get_width() == 256:
 				_retirer(acc, 0, func(_c: Vector3, uv: Vector2) -> bool: return uv.x > 0.625 and uv.x < 0.75 and uv.y > 0.5 and uv.y < 0.5625)
+		# passe v2 : corsage de laine propre à chaque femme (au lieu de la jaque à écailles commune), ancres mesurées AVANT la corpulence
+		if CorsagePnj.concerne(id) and p.has("tunique") and (p["tunique"] as MeshInstance3D).visible:
+			var tun := p["tunique"] as MeshInstance3D
+			var cs: Dictionary = (CorsagePnj.CORSAGES[id] as Dictionary).duplicate()
+			cs["ancres"] = CorsagePnj.ancres(tun, 256, 128)
+			tun.set_meta("corsage_pnj", cs)
 		_carrure(sq, a.get("carrure", {}))
 
 ## Après les peintures : chevelure en cartes, barbe, col, réglages de peau et de capuche.
