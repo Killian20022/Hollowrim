@@ -21,6 +21,7 @@ extends SceneTree
 const SCENE := preload("res://scenes/test_combat.tscn")
 const DT := 1.0 / 60.0
 const SEUIL_VISAGE := 0.12
+const TORSE_RAYON := 0.17   # rayon du buste (m) : la lame doit rester hors de ce cylindre
 const ARMES := ["epee_metal", "epee_soldat", "sabre_pillard", "dague_acier", "veilleuse", "claymore", "coeur_de_braise",
 	"hache_guerre", "hachette", "hache_kolbeinn", "masse_cloutee", "gourdin", "marteau_guerre", "grand_marteau"]
 
@@ -74,6 +75,12 @@ func _attaches(vue: String) -> void:
 			b.bone_name = "%s_%s" % [o, c]
 			sq.add_child(b)
 			_att["%s_%s" % [o, c]] = b
+	for nom in ["Head", "spine_01", "spine_03"]:   # passe 5 : tête et buste, APRÈS modificateurs (lame / visage, lame / torse)
+		if sq.find_bone(nom) >= 0:
+			var b2 := BoneAttachment3D.new()
+			b2.bone_name = nom
+			sq.add_child(b2)
+			_att[nom] = b2
 
 func _p(n: String) -> Vector3:
 	return (_att[n] as Node3D).global_position
@@ -138,6 +145,10 @@ func _echantillon(vue: String) -> Dictionary:
 		"clip": String(mains.anim.reel(mains.anim.clip)), "etat": int(mains.combat.etat), "ecran": 0.0}
 	if vue == "1p":
 		d["mg_ecran"] = _ecran(_p("hand_l"))
+		# main gauche « détachée » (passe 5) : distance (m) entre le poignet gauche de l'os et le poignet visé par l'IK (cible sur la poignée) ;
+		# grande = le bras ne l'atteint pas (l'avant-bras s'arrête avant la main)
+		var cible_g: Transform3D = (mains.pivot_torche.get_parent() as Node3D).global_transform * (mains.pivot_torche.transform * mains.PRISE_G.affine_inverse())
+		d["mg_ecart"] = cible_g.origin.distance_to(_p("hand_l"))
 		var mn := Vector2(1, 1)
 		var mx := Vector2(-1, -1)
 		for p in pts:
@@ -149,13 +160,30 @@ func _echantillon(vue: String) -> Dictionary:
 		d["poignet_tps"] = corps.coups_tps.poignet_deg
 		# lame devant le visage : distance de la tête (os head) au segment garde -> pointe, en m, si la lame est devant la tête
 		d["visage"] = 9.0
-		if m != null and is_instance_valid(m) and _squelette(vue).find_bone("head") >= 0:
-			var sq := _squelette(vue)
-			var tete := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("head")).origin + Vector3.UP * 0.08
+		if m != null and is_instance_valid(m) and _att.has("Head"):
+			var tete := _p("Head") + Vector3.UP * 0.08
 			var g: Vector3 = m.global_transform * (ar[1] as Vector3)
 			var pt: Vector3 = m.global_transform * (ar[2] as Vector3)
 			var u := clampf((tete - g).dot(pt - g) / maxf((pt - g).length_squared(), 1e-6), 0.0, 1.0)
 			d["visage"] = tete.distance_to(g.lerp(pt, u))
+		# lame / torse : distance (m) de la lame (hors poignée : 25 % -> pointe) à l'axe du torse (spine_01 -> spine_03 -> neck_01) moins
+		# son rayon ; négative = la lame traverse le buste (passe 5)
+		d["torse"] = 9.0
+		if m != null and is_instance_valid(m) and _att.has("spine_01") and _att.has("spine_03"):
+			var a0: Vector3 = _p("spine_01")
+			var a1: Vector3 = _p("spine_03")
+			var a2: Vector3 = a1 + (a1 - a0) * 0.6
+			var g2: Vector3 = m.global_transform * (ar[1] as Vector3)
+			var p2: Vector3 = m.global_transform * (ar[2] as Vector3)
+			var best := 9.0
+			for k in 25:
+				var q := g2.lerp(p2, 0.25 + 0.75 * float(k) / 24.0)
+				for seg in [[a0, a1], [a1, a2]]:
+					var sa: Vector3 = seg[0]
+					var sb: Vector3 = seg[1]
+					var u2 := clampf((q - sa).dot(sb - sa) / maxf((sb - sa).length_squared(), 1e-6), 0.0, 1.0)
+					best = minf(best, q.distance_to(sa.lerp(sb, u2)))
+			d["torse"] = best - TORSE_RAYON
 		d["biais"] = corps.coups_tps.biais_deg
 		d["w"] = corps.coups_tps._garde_w * corps.coups_tps._poids
 	return d
@@ -202,7 +230,7 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 	var stats := {}
 	for ph in ["repos", "entree", "tenue", "encaisse", "sortie", "parade"]:
 		stats[ph] = {"flex": 0.0, "dev": 0.0, "flex_g": 0.0, "dev_g": 0.0, "saut": 0.0, "fa_min": 999.0, "fa_max": 0.0, "incl_min": 999.0,
-			"incl_max": 0.0, "vert_horiz": 0, "ecran": 0.0, "clips": {}, "saut_arme": 0.0, "mg_hors": 0, "visage": 0, "vis_min": 9.0}
+			"incl_max": 0.0, "vert_horiz": 0, "ecran": 0.0, "clips": {}, "saut_arme": 0.0, "mg_hors": 0, "visage": 0, "vis_min": 9.0, "tor_min": 9.0}
 	var prec: Dictionary = {}
 	for e: Dictionary in ech:
 		var st: Dictionary = stats[e["phase"]]
@@ -218,8 +246,11 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 			st["saut"] = maxf(st["saut"], maxf(absf(dw.x), absf(dw.y)))
 			st["saut_arme"] = maxf(st["saut_arme"], rad_to_deg((e["ax"] as Vector3).angle_to(prec["ax"])))
 		st["vis_min"] = minf(st["vis_min"], float(e.get("visage", 9.0)))
+		st["tor_min"] = minf(st["tor_min"], float(e.get("torse", 9.0)))
 		if float(e.get("visage", 9.0)) < SEUIL_VISAGE:
 			st["visage"] += 1
+		if e.has("mg_ecart") and deux:
+			st["mg_ecart"] = maxf(float(st.get("mg_ecart", 0.0)), float(e["mg_ecart"]))
 		if e.has("mg_ecran") and deux and e["phase"] == "tenue":
 			var m: Vector2 = e["mg_ecran"]
 			if absf(m.x) > 0.95 or m.y < -0.95:
@@ -237,10 +268,12 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 			wg.x, wg.y, e["fa_ar"], e["incl"], e["fa_v"], e["ecran"]])
 	for ph in ["repos", "entree", "tenue", "encaisse", "sortie", "parade"]:
 		var st: Dictionary = stats[ph]
-		print("GARDE %s %-15s %s %-8s visage %2d arme/img %5.1f | " % [_etiq, id, vue, ph, st["visage"], st["saut_arme"]] + "poignet flex %5.1f dev %5.1f%s saut %5.1f | arme/avbras %5.1f-%5.1f | incl %5.1f-%5.1f | vert+horiz %d | ecran %4.1f%% | clips %s" % [
+		print("GARDE %s %-15s %s %-8s visage %2d (min %3.0f cm) torse min %4.0f cm arme/img %5.1f | " % [_etiq, id, vue, ph, st["visage"], st["vis_min"] * 100.0, st["tor_min"] * 100.0, st["saut_arme"]] + "poignet flex %5.1f dev %5.1f%s saut %5.1f | arme/avbras %5.1f-%5.1f | incl %5.1f-%5.1f | vert+horiz %d | ecran %4.1f%% | clips %s" % [
 			st["flex"], st["dev"], (" (g flex %5.1f dev %5.1f)" % [st["flex_g"], st["dev_g"]]) if deux else "", st["saut"],
 			st["fa_min"], st["fa_max"], st["incl_min"], st["incl_max"], st["vert_horiz"], st["ecran"] * 100.0, str(st["clips"].keys())])
 	var t: Dictionary = stats["tenue"]
+	if vue == "1p" and deux:
+		print("GARDE %s %s 1p main gauche : écart os / cible IK max %.1f cm (tenue %.1f cm, parade %.1f cm)" % [_etiq, id, float(stats["parade"].get("mg_ecart", 0.0)) * 100.0, float(t.get("mg_ecart", 0.0)) * 100.0, float(stats["parade"].get("mg_ecart", 0.0)) * 100.0])
 	var n := "%s %s" % [id, vue]
 	if vue == "3p":
 		print("GARDE %s %s 3p biais signé (tenue, dernière image) %.1f" % [_etiq, id, float((ech.filter(func(x): return x["phase"] == "tenue")[-1] as Dictionary).get("biais", 0.0))])
@@ -273,6 +306,15 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 		var nv := 0
 		for ph in ["entree", "tenue", "encaisse", "parade"]:
 			nv += int(stats[ph]["visage"])
+		var vmin := 9.0
+		var tmin := 9.0
+		for ph in ["repos", "entree", "tenue", "encaisse", "sortie", "parade"]:
+			vmin = minf(vmin, float(stats[ph]["vis_min"]))
+			tmin = minf(tmin, float(stats[ph]["tor_min"]))
+		if deux and id != "grand_marteau":   # le grand marteau est à l'agent masses/marteaux (18 cm mesurés, non critère)
+			_verif(vmin >= 0.20, "%s : lame à >= 20 cm du visage dans toutes les phases (min %.0f cm)" % [n, vmin * 100.0])
+		if deux and id != "grand_marteau":
+			_verif(tmin > 0.0, "%s : la lame ne traverse pas le buste (distance lame / torse min %.0f cm)" % [n, tmin * 100.0])
 		_verif(nv == 0, "%s : la lame ne passe pas devant le visage (à < %.0f cm de la tête) en garde / parade (%d images)" % [n, SEUIL_VISAGE * 100.0, nv])
 	if deux and vue == "1p":
 		_verif(t["mg_hors"] == 0, "%s garde : main gauche sur le manche visible à l'écran (%d images hors cadre)" % [n, t["mg_hors"]])

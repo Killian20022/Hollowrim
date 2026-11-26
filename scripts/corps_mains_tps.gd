@@ -602,6 +602,7 @@ class CoucheBras extends SkeletonModifier3D:
 class RedresseDeuxMains extends SkeletonModifier3D:
 	const AVANT_DEG := 14.0
 	const DROITE_DEG := 12.0      # grand marteau : inchangé (repos validé, agent masses/marteaux)
+	const AVANT_DEG_LAME := 24.0  # passe 5 : lame un peu en avant et vers la droite : >= 20 cm du visage, hors du buste
 	const DROITE_DEG_LAME := 50.0 # passe 4 (gardes) : claymore / hybrides, lame par le côté (≈ 50° de la verticale), plus devant le visage
 	const PART := 0.95            # part de l'écart corrigée (la tenue garde un peu de son naturel)
 	const PART_AVANT_BRAS := 0.5
@@ -639,7 +640,8 @@ class RedresseDeuxMains extends SkeletonModifier3D:
 		var avant := (inv * -j.global_basis.z).normalized()
 		var droite := (inv * j.global_basis.x).normalized()
 		var cote := DROITE_DEG if lourd else DROITE_DEG_LAME
-		var cible := (haut * cos(deg_to_rad(AVANT_DEG)) + avant * sin(deg_to_rad(AVANT_DEG)) + droite * sin(deg_to_rad(cote))).normalized()
+		var av_deg := AVANT_DEG if lourd else AVANT_DEG_LAME
+		var cible := (haut * cos(deg_to_rad(av_deg)) + avant * sin(deg_to_rad(av_deg)) + droite * sin(deg_to_rad(cote))).normalized()
 		var pm := PiedsAuSol.pose_globale(s, im)
 		var lame := (pm.basis * arme.transform.basis.y).normalized()
 		var axe := lame.cross(cible)
