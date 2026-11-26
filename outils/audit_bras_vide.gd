@@ -32,6 +32,8 @@ var _mat_det := {}
 var _pires: Array = []
 var _pires_f: Array = []    # [flottant, seq, n, image normale, image détection]
 var _flottant_img := 0
+var _main_hors_img := 0
+var _main_hors_total := 0
 var _bout_img := 0         # pixels (demi-résolution) de bout de corps vus (dôme d'épaule, bas du buste)
 var _bout_images := 0
 const BOUT_MIN := 6
@@ -297,6 +299,16 @@ func _image(seq: String, n: int, garder_images: bool) -> int:
 	# une composante connexe (8 voisins) qui ne touche AUCUN bord de l'écran et contient au moins FLOTTANT_MIN pixels de bras
 	# = un bras qu'on voit finir dans le champ (épaule coupée, morceau détaché par le fondu). Critère : 0 image.
 	var flottant := _flottant(donnees, w, h)
+	# MAIN À L'IMPACT (bras_corps_1p) : pendant la frappe (marqueurs frappe -> fin_frappe du clip), la main droite (qui tient
+	# l'arme) doit être dans le champ ; compte les images où elle n'y est pas
+	_main_hors_img = 0
+	if mains.combat.etat in [EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CONTRE] and mains._m.has("frappe") \
+			and mains.anim.t >= float(mains._m["frappe"]) and mains.anim.t <= float(mains._m.get("fin_frappe", mains._m["frappe"])):
+		var cj: Camera3D = root.get_viewport().get_camera_3d()
+		var ih: int = mains._sq.find_bone("hand_r")
+		var pm: Vector3 = mains._sq.global_transform * mains._sq.get_bone_global_pose(ih).origin
+		if not cj.is_position_in_frustum(pm):
+			_main_hors_img = 1
 	var pct := 100.0 * rouges / float(w * h)
 	var detail := ""
 	if par.has("tunique"):
@@ -310,7 +322,7 @@ func _image(seq: String, n: int, garder_images: bool) -> int:
 		if is_instance_valid(_sources[c2]):
 			fondu_min = minf(fondu_min, float((_sources[c2] as MeshInstance3D).get_meta("fondu_bras", 1.0)))
 	detail += " fondu=%.2f d_os=%.2f/%.2f" % [fondu_min, float(mains._sq.get_meta("d_os_l", 9.0)), float(mains._sq.get_meta("d_os_r", 9.0))]
-	print("IMAGE %s %03d flottant=%d bout=%d rouge=%d px (%.3f %%) coeur=%d tache=%d%s cartes_decor=%d proche25cm=%.2f%% manche_proche=%.2f%% manche_aire=%.2f%% etat=%s" % [seq, n, flottant, _bout_img, rouges, pct, coeur, tache, detail, cartes, 100.0 * proches / float(w * h), 100.0 * proches_manche / float(w * h), 100.0 * aire_manche / float(w * h), _etat()])
+	print("IMAGE %s %03d main_hors=%d flottant=%d bout=%d rouge=%d px (%.3f %%) coeur=%d tache=%d%s cartes_decor=%d proche25cm=%.2f%% manche_proche=%.2f%% manche_aire=%.2f%% etat=%s" % [seq, n, _main_hors_img, flottant, _bout_img, rouges, pct, coeur, tache, detail, cartes, 100.0 * proches / float(w * h), 100.0 * proches_manche / float(w * h), 100.0 * aire_manche / float(w * h), _etat()])
 	var mauvais := flottant + (_bout_img if _bout_img >= BOUT_MIN else 0)
 	if mauvais > 0 and (_pires_f.is_empty() or mauvais > _pires_f[-1][0] or _pires_f.size() < 24):
 		var nf := root.get_viewport().get_texture().get_image()
@@ -443,6 +455,7 @@ func _sequence(nom: String, droite: Variant, gauche: Variant, actions: Dictionar
 	var garder := _arg("images") != ""
 	var flott_n := 0
 	var bout_n := 0
+	var main_n := 0
 	var bout_max := 0
 	var flott_max := 0
 	for i in n:
@@ -493,6 +506,7 @@ func _sequence(nom: String, droite: Variant, gauche: Variant, actions: Dictionar
 					"bouclier_coup":
 						mains.entrees.forcer_garde(1.2)
 		var r := await _image(nom, i, garder)
+		main_n += _main_hors_img
 		if _bout_img >= BOUT_MIN:
 			bout_n += 1
 			bout_max = maxi_i(bout_max, _bout_img)
@@ -513,7 +527,7 @@ func _sequence(nom: String, droite: Variant, gauche: Variant, actions: Dictionar
 	var px := float(dv.size.x * dv.size.y)
 	_flottant_images += flott_n
 	_bout_images += bout_n
-	var ligne := ("SEQ %-22s flottant_images=%d flottant_max=%d bout_images=%d bout_max=%d px(demi-res) " % [nom, flott_n, flott_max, bout_n, bout_max]) + "images=%d touchees=%d max=%d px (%.3f %%) moy=%.1f px coeur_max=%d px tache_max=%d px manche_proche_max=%.2f %%" % [n, touchees, maxi, 100.0 * maxi / px, total / float(n), coeur_max, tache_max, manche_proche_max]
+	var ligne := ("SEQ %-22s main_hors_impact=%d flottant_images=%d flottant_max=%d bout_images=%d bout_max=%d px(demi-res) " % [nom, main_n, flott_n, flott_max, bout_n, bout_max]) + "images=%d touchees=%d max=%d px (%.3f %%) moy=%.1f px coeur_max=%d px tache_max=%d px manche_proche_max=%.2f %%" % [n, touchees, maxi, 100.0 * maxi / px, total / float(n), coeur_max, tache_max, manche_proche_max]
 	print(ligne)
 	_bilan.append(ligne)
 	j.velocity = Vector3.ZERO

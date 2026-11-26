@@ -261,6 +261,9 @@ const RECUL_LISSAGE := 30.0   # 1/s (ressort critique vers le recul visé)
 const RAYON_EPAULE := 0.10   # rayon de la manche autour du bout de la rotule
 const BOUT_ROTULE := 0.05    # bout du dôme d'épaule de la manche, en deçà de la tête de l'humérus (buste_fps.py)
 const CADRAGE_MAX := 0.20
+const CADRAGE_FRAPPE := 0.05   # pendant le coup
+const LEVEE_MAX := 0.08        # pendant le coup : la main de l'arme ramenée dans le champ (m)
+const MAIN_MARGE := 0.06       # la main (poing + arme) reste au moins à ce rayon au-dessus du bord bas
 
 static func _point_proche(sq: Skeleton3D, cam: Camera3D, cote: String) -> Vector3:
 	var ids := [sq.find_bone("upperarm_" + cote), sq.find_bone("lowerarm_" + cote), sq.find_bone("hand_" + cote)]
@@ -327,7 +330,41 @@ static func reculer(racine: Node3D, cam: Camera3D, dt: float) -> void:
 			continue
 		# bord bas : e.y + R·sqrt(1+t²) <= -t·devant  (l'épaule entière sous le plan du bord bas)
 		bas = maxf(bas, e.y + t * devant + RAYON_EPAULE * sqrt(1.0 + t * t))
-	vise.y -= minf(bas, CADRAGE_MAX)
+	# PRIORITÉS (relecture coordinateur) : pendant le coup (armé, frappe, contre, achèvement), la main qui tient l'arme reste à
+	# l'écran (ramenée de LEVEE_MAX au plus si le geste la sortait), et le viewmodel ne descend que de CADRAGE_FRAPPE au plus (la pointe se déplace de < 2,5° à
+	# 1,2 m : on ne rate pas visuellement la cible). Au retour et au repos, cadrage complet.
+	var limite := CADRAGE_MAX
+	var m := racine.get_parent()
+	var en_coup := false
+	if m != null and m.get("combat") != null:
+		en_coup = int(m.combat.etat) in [EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE, EtatCombat.CONTRE, EtatCombat.FINISHER]
+	var ramene := Vector2.ZERO
+	if en_coup:
+		limite = CADRAGE_FRAPPE
+		var asp := cam.get_viewport().get_visible_rect().size.aspect()
+		var th := t * asp
+		var ih := sq.find_bone("hand_r")   # main de l'arme (épée, haches, masses, claymore, poing droit)
+		if ih >= 0:
+			var h := cam_inv * (sq.global_transform * sq.get_bone_global_pose(ih).origin)
+			h -= cam_inv.basis * (parent.basis * recul)
+			var dv := -h.z
+			if dv > 0.1:
+				var mx := th * dv - MAIN_MARGE * sqrt(1.0 + th * th)
+				var my := t * dv - MAIN_MARGE * sqrt(1.0 + t * t)
+				# hauteur libre au-dessus du bord bas : le cadrage ne descend pas plus bas que ça
+				limite = clampf(h.y + my, 0.0, limite)
+				# main hors champ pendant le coup : le viewmodel la ramène dans l'écran (LEVEE_MAX au plus)
+				if h.x > mx:
+					ramene.x = mx - h.x
+				elif h.x < -mx:
+					ramene.x = -mx - h.x
+				if h.y < -my:
+					ramene.y = -my - h.y
+				ramene = ramene.limit_length(LEVEE_MAX)
+	if ramene != Vector2.ZERO:
+		vise += Vector3(ramene.x, ramene.y, 0.0)
+		bas = 0.0
+	vise.y -= clampf(bas, 0.0, limite)
 	recul = recul.lerp(vise, 1.0 - exp(-RECUL_LISSAGE * maxf(dt, 0.0)))
 	if recul.length() < 1e-4 and vise == Vector3.ZERO:
 		recul = Vector3.ZERO
