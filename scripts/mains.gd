@@ -1094,6 +1094,7 @@ func avancer(dt: float) -> void:
 	_parade_eclat = maxf(0.0, _parade_eclat - dt)
 	_souris_recente *= exp(-10.0 * dt)
 	_encaisse = maxf(0.0, _encaisse - dt)
+	_avancer_contacts(dt)
 
 	var veut_garde: bool = entrees.veut_garde() and not joueur.mort and defense.peut_garder()
 	var plat := Vector3(joueur.velocity.x, 0.0, joueur.velocity.z)
@@ -1125,7 +1126,7 @@ func avancer(dt: float) -> void:
 				elif anim.clip in ["parade", "encaisse"] and not anim.fini():
 					anim.avancer(dt)
 				else:
-					_tenir("garde", 0.12 if anim.clip not in ["parade", "encaisse"] else 0.06, dt)
+					_tenir("garde", (0.12 * (1.6 if arme.deux_mains else 1.0)) if anim.clip not in ["parade", "encaisse"] else 0.06, dt)   # deux mains : montée plus lente (gardes_toutes_armes)
 				if not veut_garde:
 					combat.changer(EtatCombat.REPOS)
 				elif combat.etat == EtatCombat.PARADE and not defense.en_parade():
@@ -1517,6 +1518,29 @@ func _info_coup(e: Dictionary) -> Dictionary:
 ## Coup reçu par le joueur (appelé par joueur.recevoir_coup) : garde levée ET attaquant dans le cône de garde → parade
 ## parfaite, blocage ou garde brisée (DefenseJoueur). Renvoie {} si la garde ne joue pas (dos, garde baissée), sinon
 ## {issue, degats (qui passent), cout}. Sons et étincelles distincts ; l'endurance est dépensée ici.
+## Garde levée depuis moins de FONDU_PARADE_MONTEE s au moment du choc : fondu du choc = le temps qui manque à la montée.
+const FONDU_PARADE_MONTEE := 0.12
+
+static func _gardes_anciennes() -> bool:
+	return GardesArmes.anciennes
+
+## Effets d'impact au contact de l'arme : tout de suite, ou après `delai` s (temps de jeu, mains.avancer : pas imposé des tests).
+var _contacts: Array = []
+
+func _au_contact(delai: float, f: Callable) -> void:
+	if delai <= 0.0:
+		f.call()
+	else:
+		_contacts.append([delai, f])
+
+func _avancer_contacts(dt: float) -> void:
+	for i in range(_contacts.size() - 1, -1, -1):
+		_contacts[i][0] -= dt
+		if _contacts[i][0] <= 0.0:
+			var f: Callable = _contacts[i][1]
+			_contacts.remove_at(i)
+			f.call()
+
 func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictionary:
 	var garde_arme: DonneesArme = magie.arme_de_garde(arme) if magie != null else arme
 	if not bloque or not DefenseJoueur.couvre(joueur, origine, garde_arme.angle_garde):
@@ -1529,24 +1553,34 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 		_defendre_bouclier(r, garde_arme, origine)
 		return r
 	var point := pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
+	# garde levée juste avant l'impact (parade parfaite depuis le repos, combat/gardes_toutes_armes) : le bras n'est pas encore en
+	# garde ; le choc part d'un fondu plus long depuis la pose affichée (pas de saut), et étincelles / son / secousse attendent que
+	# l'arme arrive au contact (fin du fondu)
+	var fm := FONDU_PARADE_MONTEE * (2.0 if arme.deux_mains else 1.0)   # armes à deux mains : plus lourdes, montée plus longue
+	var montee := clampf(fm - temps_garde, 0.0, fm) if not _gardes_anciennes() else 0.0
+	var fondu := maxf(0.02, montee)
 	match String(r["issue"]):
 		"parade":
 			# parade parfaite : tintement clair (parade_parfaite), gerbe d'étincelles, la lame chasse l'arme adverse ;
 			# l'attaquant est déséquilibré (draugr : combat.subir_parade() sur le retour « parade ») ; fenêtre de contre-attaque
 			_parade_eclat = 0.22
 			_encaisse = 0.0
-			anim.jouer("parade", 0.02)
-			RetourImpact.son(self, "parade_parfaite", point, 2.0)
-			GerbePixels.emettre(self, point, _vers_attaquant(point, origine), "etincelles", 2.2)
-			if RetourImpact.temps_actif():
-				Effets.arret_image(get_tree(), 0.06)
-			joueur.secousse = maxf(joueur.secousse, 0.18)
+			anim.jouer("parade", fondu)
+			_au_contact(montee * 0.8, func():
+				var p := pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
+				RetourImpact.son(self, "parade_parfaite", p, 2.0)
+				GerbePixels.emettre(self, p, _vers_attaquant(p, origine), "etincelles", 2.2)
+				if RetourImpact.temps_actif():
+					Effets.arret_image(get_tree(), 0.06)
+				joueur.secousse = maxf(joueur.secousse, 0.18))
 		"bloque":
 			_encaisse = DUREE_ENCAISSE
-			anim.jouer("encaisse", 0.02)
-			RetourImpact.son(self, "metal_blocage", point, 0.0)
-			GerbePixels.emettre(self, point, _vers_attaquant(point, origine), "etincelles", 1.1)
-			joueur.secousse = maxf(joueur.secousse, 0.35)
+			anim.jouer("encaisse", fondu)
+			_au_contact(montee * 0.8, func():
+				var p := pivot_epee.global_position + (get_parent() as Node3D).global_transform.basis * Vector3(-0.25, 0.12, -0.15)
+				RetourImpact.son(self, "metal_blocage", p, 0.0)
+				GerbePixels.emettre(self, p, _vers_attaquant(p, origine), "etincelles", 1.1)
+				joueur.secousse = maxf(joueur.secousse, 0.35))
 		"brisee":
 			# garde brisée : choc plus sourd, l'épée est rabattue, le joueur titube ; garde impossible ~1 s
 			RetourImpact.son(self, "metal_blocage", point, 3.0, 0.8)

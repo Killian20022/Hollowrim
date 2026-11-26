@@ -38,6 +38,9 @@ const BIBLIOTHEQUE := preload("res://assets/animations/corps_coups_tps.res")
 ##   locomotion (FONDU_SORTIE).
 const FONDU := 0.2          # s : entrée depuis la locomotion (courbe douce ; finie au plus tard à la frappe du geste)
 const FONDU_DEUX_MAINS := 0.07   # s : entrée à deux mains
+## gardes (combat/gardes_toutes_armes) : montée en garde depuis la locomotion, toutes armes (l'arme parcourt ~120° : à 0,2 s, et
+## à 0,07 s pour les deux mains, elle tournait de 25° par image)
+const FONDU_GARDE := 0.34
 const FONDU_COUP := 0.24    # s : passage d'un geste à l'autre (le geste quitté continue pendant ce fondu)
 const FONDU_SORTIE := 0.26  # s : retour à la locomotion, une fois le geste fini
 const SUIVI_LISSAGE := 0.07 # s : lissage de la vitesse de la capture (le clip FPS accélère / freine par morceaux)
@@ -400,7 +403,8 @@ func _process(dt: float) -> void:
 		var im_e: Array = sp["im"]
 		var ph := _phase_armee(im_e)
 		# deux mains : entrée brève (pendant un fondu, la main gauche est entre la tenue de CorpsMainsTps et la poignée de la capture)
-		_poids_lin = minf(1.0, maxf(_poids_lin + dt / (FONDU_DEUX_MAINS if _deux_mains() else FONDU), ph))
+		var f_ent := FONDU_GARDE if (gardes_v2 and est_garde(_clip)) else (FONDU_DEUX_MAINS if _deux_mains() else FONDU)
+		_poids_lin = minf(1.0, maxf(_poids_lin + dt / f_ent, ph))
 	else:
 		_quitter()
 	# geste quitté : il finit son suivi et son retour à sa vitesse naturelle
@@ -532,14 +536,33 @@ func _poignet_garde() -> void:
 	_garde_w = move_toward(_garde_w, voulu, dt * 8.0) if voulu > _garde_w else lerpf(_garde_w, voulu, 1.0 - exp(-14.0 * dt))
 	var w := _garde_w * _poids
 	if w < 0.01:
+		_main_prec_ok = false
+		_delta_ok = false
 		return
 	var im := sq.find_bone("hand_r")
 	if im < 0:
 		return
 	_borne_poignet(im, w)
+	_lisser_poignet(im)
 	# biais plein dès 35 % du fondu de la capture : sinon, pendant la montée en garde, le bras capturé lève déjà l'arme quand la
 	# surcouche n'est encore qu'à moitié : la lame passait par la verticale au-dessus de la tête (relecture du 2026-11-26)
 	_biais_garde(_garde_w * clampf(_poids / 0.35, 0.0, 1.0))
+
+## Poignet (rotation de hand_r dans le repère de l'avant-bras) limité à POIGNET_VITESSE_MAX° par image pendant les gardes : à
+## l'entrée d'une garde à deux mains, le fondu de la capture faisait claquer le poignet de 14-16° en une image.
+const POIGNET_VITESSE_MAX := 7.0
+var _main_prec := Quaternion()
+var _main_prec_ok := false
+
+func _lisser_poignet(im: int) -> void:
+	var q := sq.get_bone_pose_rotation(im)
+	if _main_prec_ok:
+		var a := rad_to_deg(_main_prec.angle_to(q))
+		if a > POIGNET_VITESSE_MAX:
+			q = _main_prec.slerp(q, POIGNET_VITESSE_MAX / a).normalized()
+			sq.set_bone_pose_rotation(im, q)
+	_main_prec = q
+	_main_prec_ok = true
 
 func _borne_poignet(im: int, w: float) -> void:
 	var repos := sq.get_bone_rest(im).basis.get_rotation_quaternion()
@@ -558,6 +581,9 @@ func _borne_poignet(im: int, w: float) -> void:
 ## gardes de la 1re personne, le bras droit ENTIER tourne rigidement autour de l'épaule (axe avant du joueur) pour coucher l'arme à
 ## BIAIS_GARDE° de la verticale, tête / pointe vers la droite du joueur (même côté qu'en 1re personne). Poignet et coude intacts.
 const BIAIS_GARDE := 45.0
+const BIAIS_VITESSE_MAX := 6.0
+var _delta_prec := 0.0
+var _delta_ok := false
 
 func _biais_garde(w: float) -> void:
 	var m := modele_arme()
@@ -574,6 +600,11 @@ func _biais_garde(w: float) -> void:
 	var lame := (pm.basis.orthonormalized() * _prise_arme().basis.y).normalized()
 	var a := atan2(lame.dot(droite), lame.dot(haut))   # angle signé dans le plan frontal (+ : pointe à droite)
 	var delta := clampf(deg_to_rad(BIAIS_GARDE) - a, deg_to_rad(-70.0), deg_to_rad(70.0)) * w
+	# correction lissée : au plus BIAIS_VITESSE_MAX° de plus ou de moins par image (parade levée depuis le repos : pas de saut)
+	if _delta_ok:
+		delta = _delta_prec + clampf(delta - _delta_prec, -deg_to_rad(BIAIS_VITESSE_MAX), deg_to_rad(BIAIS_VITESSE_MAX))
+	_delta_prec = delta
+	_delta_ok = true
 	# rotation d'axe -avant (+ = vers la droite vu de derrière) autour de l'épaule, appliquée à la pose globale du bras
 	var R := Basis(avant, delta)
 	var pu := PiedsAuSol.pose_globale(sq, iu)

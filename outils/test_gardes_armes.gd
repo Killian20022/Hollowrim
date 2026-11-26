@@ -134,6 +134,7 @@ func _echantillon(vue: String) -> Dictionary:
 	var d := {"wd": wd, "wg": wg, "fa_ar": rad_to_deg(fa.angle_to(ax)), "incl": _incl(ax), "fa_v": _incl(fa), "ax": ax, "fa": fa,
 		"clip": String(mains.anim.reel(mains.anim.clip)), "etat": int(mains.combat.etat), "ecran": 0.0}
 	if vue == "1p":
+		d["mg_ecran"] = _ecran(_p("hand_l"))
 		var mn := Vector2(1, 1)
 		var mx := Vector2(-1, -1)
 		for p in pts:
@@ -189,7 +190,7 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 	var stats := {}
 	for ph in ["repos", "entree", "tenue", "encaisse", "sortie", "parade"]:
 		stats[ph] = {"flex": 0.0, "dev": 0.0, "flex_g": 0.0, "dev_g": 0.0, "saut": 0.0, "fa_min": 999.0, "fa_max": 0.0, "incl_min": 999.0,
-			"incl_max": 0.0, "vert_horiz": 0, "ecran": 0.0, "clips": {}}
+			"incl_max": 0.0, "vert_horiz": 0, "ecran": 0.0, "clips": {}, "saut_arme": 0.0, "mg_hors": 0}
 	var prec: Dictionary = {}
 	for e: Dictionary in ech:
 		var st: Dictionary = stats[e["phase"]]
@@ -203,6 +204,11 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 		if not prec.is_empty() and not (e["phase"] == "parade" and prec["phase"] != "parade"):   # _remettre entre les deux : pas d'image commune
 			var dw: Vector2 = wd - (prec["wd"] as Vector2)
 			st["saut"] = maxf(st["saut"], maxf(absf(dw.x), absf(dw.y)))
+			st["saut_arme"] = maxf(st["saut_arme"], rad_to_deg((e["ax"] as Vector3).angle_to(prec["ax"])))
+		if e.has("mg_ecran") and deux and e["phase"] == "tenue":
+			var m: Vector2 = e["mg_ecran"]
+			if absf(m.x) > 0.95 or m.y < -0.95:
+				st["mg_hors"] += 1
 		prec = e
 		st["fa_min"] = minf(st["fa_min"], e["fa_ar"])
 		st["fa_max"] = maxf(st["fa_max"], e["fa_ar"])
@@ -216,8 +222,8 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 			wg.x, wg.y, e["fa_ar"], e["incl"], e["fa_v"], e["ecran"]])
 	for ph in ["repos", "entree", "tenue", "encaisse", "sortie", "parade"]:
 		var st: Dictionary = stats[ph]
-		print("GARDE %s %-15s %s %-8s poignet flex %5.1f dev %5.1f%s saut %5.1f | arme/avbras %5.1f-%5.1f | incl %5.1f-%5.1f | vert+horiz %d | ecran %4.1f%% | clips %s" % [
-			_etiq, id, vue, ph, st["flex"], st["dev"], (" (g flex %5.1f dev %5.1f)" % [st["flex_g"], st["dev_g"]]) if deux else "", st["saut"],
+		print("GARDE %s %-15s %s %-8s arme/img %5.1f | " % [_etiq, id, vue, ph, st["saut_arme"]] + "poignet flex %5.1f dev %5.1f%s saut %5.1f | arme/avbras %5.1f-%5.1f | incl %5.1f-%5.1f | vert+horiz %d | ecran %4.1f%% | clips %s" % [
+			st["flex"], st["dev"], (" (g flex %5.1f dev %5.1f)" % [st["flex_g"], st["dev_g"]]) if deux else "", st["saut"],
 			st["fa_min"], st["fa_max"], st["incl_min"], st["incl_max"], st["vert_horiz"], st["ecran"] * 100.0, str(st["clips"].keys())])
 	var t: Dictionary = stats["tenue"]
 	var n := "%s %s" % [id, vue]
@@ -247,6 +253,9 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 		var bd := maxf(r["dev"], t["dev"]) + 5.0
 		_verif(st["flex"] <= bf and st["dev"] <= bd, "%s %s : poignet entre repos et garde (flex %.0f <= %.0f, dev %.0f <= %.0f)" % [n, ph, st["flex"], bf, st["dev"], bd])
 	_verif(saut <= 12.0, "%s : aucun saut de poignet > 12° entre deux images (%.1f)" % [n, saut])
+	_verif(stats["parade"]["saut_arme"] <= 15.0, "%s parade parfaite depuis le repos : l'arme tourne de <= 15° par image (%.1f)" % [n, stats["parade"]["saut_arme"]])
+	if deux and vue == "1p":
+		_verif(t["mg_hors"] == 0, "%s garde : main gauche sur le manche visible à l'écran (%d images hors cadre)" % [n, t["mg_hors"]])
 	if vue == "1p":
 		_verif(t["ecran"] <= 0.35, "%s garde : <= 35 %% de l'écran (%.0f %%)" % [n, t["ecran"] * 100.0])
 	_verif((stats["encaisse"]["clips"] as Dictionary).size() >= 1, "%s : coup bloqué joué (%s)" % [n, str(stats["encaisse"]["clips"].keys())])

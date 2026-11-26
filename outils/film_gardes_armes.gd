@@ -44,7 +44,11 @@ func _images(n: int, garde := false, texte := "") -> void:
 func _sequence(id: String, vue: String) -> void:
 	var nom := "%s  [%s]" % [id, "1re personne" if vue == "1p" else "3e personne"]
 	mains.equipement.equiper("droite", CatalogueArmes.donnees(id) if CatalogueArmes.connu(id) else load("res://data/armes/%s.tres" % id))
-	await _images(40, false, nom + " : repos")
+	await _images(10, false)
+	# armes à une main : la torche reste en main gauche (on vérifie que la garde ne la cache pas)
+	if not mains.arme.deux_mains and not mains.torche_sortie:
+		mains.torche_sortie = true
+	await _images(30, false, nom + " : repos")
 	await _images(70, true, nom + " : garde (clic droit)")
 	var origine := j.global_position + (-j.global_transform.basis.z) * 2.0
 	mains.defendre(10.0, origine, true)

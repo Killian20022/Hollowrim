@@ -69,10 +69,12 @@ def _choc(base, source, temps):
 # verticale, coude plus haut que la main) : rejeté.
 G1 = _tenue("gs_block_2", 0, cadrage=(-25, 2, -18), decalage=(0.14, 0.02, -0.24))
 GL = _tenue("gs_block_2", 0, cadrage=(-20, 5, -22), decalage=(0.12, 0.02, -0.14))
-G2 = _tenue("gs_block_2", 0, cadrage=(-8, 2, -18), decalage=(0.12, 0.06, -0.18))
+# passe 2 (2026-11-26) : bras relevé (épaule +0,12 m) pour que la main GAUCHE, posée par IK sur le manche sous la droite
+# (mains._poser_deux_mains, écart du catalogue), reste dans le cadre : poing droit à y -0,3 écran, poing gauche à y -0,6 / -0,9
+G2 = _tenue("gs_block_2", 0, cadrage=(-8, 2, -18), decalage=(0.12, 0.12, -0.26))
 # grand marteau (manche ~1,2 m, poing près du bout) : avec G2, tête hors cadre et manche au centre de l'écran (relecture
 # 2026-11-26) -> bras plus loin de l'œil (épaule avancée de 0,32 m) et manche plus couché (53°), tête dans le coin haut droit
-GM = _tenue("gs_block_2", 0, cadrage=(-8, 2, -28), decalage=(0.14, -0.04, -0.32))
+GM = _tenue("gs_block_2", 0, cadrage=(-8, 2, -28), decalage=(0.14, 0.12, -0.32))
 # coup encaissé : gs_impact images 0 -> 24 (choc à 3-6, recul max à 9, retour en garde à 21-24), rejoué en 0,40 s
 T_ENCAISSE = [(0, 0.0), (6, 0.06), (9, 0.11), (15, 0.22), (21, 0.33), (24, 0.40)]
 # parade parfaite : gs_block images 15 -> 10 -> 15 (la garde jaillit un peu plus haut puis se replace), 0,24 s
@@ -106,9 +108,10 @@ def mesurer(nom, act, longueur):
     ecr = lambda p: (p.x / max(-p.z, 0.05) / 1.2916, p.y / max(-p.z, 0.05) / 0.7265)
     e0, e1 = ecr(poing), ecr(poing + ax * float(ARGS.get("long_arme", "0.85")))
     coude = ecr(C @ la.head)
+    mg = ecr(poing - ax * float(ARGS.get("ecart", "0.24")))
     print("GARDE_MESURE %-12s arme incl %.0f (x %+.2f y %+.2f z %+.2f) avant-bras incl %.0f (x %+.2f y %+.2f z %+.2f) ; arme/avant-bras %.0f ; "
-          "écran poing (%+.2f %+.2f) pointe (%+.2f %+.2f) coude (%+.2f %+.2f)" % (
-        nom, incl(ax), ax.x, ax.y, ax.z, incl(fa), fa.x, fa.y, fa.z, math.degrees(ax.angle(fa)), e0[0], e0[1], e1[0], e1[1], coude[0], coude[1]))
+          "écran poing (%+.2f %+.2f) pointe (%+.2f %+.2f) coude (%+.2f %+.2f) main_g (%+.2f %+.2f)" % (
+        nom, incl(ax), ax.x, ax.y, ax.z, incl(fa), fa.x, fa.y, fa.z, math.degrees(ax.angle(fa)), e0[0], e0[1], e1[0], e1[1], coude[0], coude[1], mg[0], mg[1]))
 
 
 def main():
