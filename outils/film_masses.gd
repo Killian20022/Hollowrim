@@ -26,8 +26,27 @@ func _arg(nom: String, defaut := "") -> String:
 			return "1"
 	return defaut
 
+var _image := 0
+var _clip_prec := ""
+var _phases_vues := {}
+## PHASES (planche avant / après aux mêmes phases) : image du film où le clip en cours passe chaque marqueur.
+func _noter_phases() -> void:
+	var c: String = mains.anim.clip
+	if c == "":
+		return
+	if c != _clip_prec:
+		_clip_prec = c
+		_phases_vues = {}
+	var m: Dictionary = mains.anim.marqueurs(c)
+	for ph in ["arme", "frappe", "fin_frappe", "suivi"]:
+		if m.has(ph) and not _phases_vues.has(ph) and float(mains.anim.t) >= float(m[ph]) - 1e-4:
+			_phases_vues[ph] = true
+			print("PHASE %s %s %s %d %.3f" % [mains.arme.nom.replace(" ", "_"), c, ph, _image, _image * DT])
+
 func _attendre(sec: float) -> void:
 	for i in maxi(1, roundi(sec / DT)):
+		_image += 1
+		_noter_phases()
 		j.vigueur = j.vigueur_max
 		if d != null and is_instance_valid(d) and d.get("vie") != null:
 			d.set("vie", maxf(float(d.get("vie")), 80.0))   # le draugr reste debout tout le film
