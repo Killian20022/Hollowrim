@@ -620,6 +620,7 @@ func _bras() -> void:
 	torsion_bras = TorsionAvantBras.new()
 	torsion_bras.name = "TorsionAvantBras"
 	_sq.add_child(torsion_bras)
+	AvantBras.installer_fondu(bras, _sq)   # après la torsion : fondu près de l'œil sur la pose finale
 
 ## Prise d'un objet dans le poing fermé (repère de l'os de la main) : axe passant par le
 ## creux de chaque doigt, de l'auriculaire vers l'index ; le +X de l'objet (tranchant,
@@ -1065,6 +1066,10 @@ func _rebondir() -> void:
 	combat.changer(EtatCombat.DESEQUILIBRE)
 
 func _process(dt: float) -> void:
+	# bras 1P (épée/sorts et arc) : fondu en trame près de l'œil (AvantBras.appliquer_fondu ; sans effet s'il est déjà posé)
+	AvantBras.appliquer_fondu(bras)
+	if joueur != null and joueur.get("arc") != null:
+		AvantBras.appliquer_fondu(joueur.arc.get("_bras"))
 	if joueur == null or pas_manuel:
 		return
 	avancer(dt)

@@ -170,3 +170,98 @@ static func _pixel(nom: String, x: int, y: int) -> Color:
 				k -= 0.15
 			return _rampe(FOURRURE, k, 7)
 	return Color.MAGENTA
+
+# ------------------------------------------------------------------ fondu près de l'œil (combat/bras_vide_1p, 2026-11-26)
+## Ce que font les jeux en vue 1re personne : un bras qui passe tout contre l'œil (contre-attaque : il balaie la vue
+## pendant 2 images) s'efface en TRAME 4x4 (même grain que le tramage PS1). Le fondu est UNIFORME par bras (paramètre
+## d'instance `fondu_bras`, calculé ici depuis la distance de ses os à la caméra), pas par pixel : la trame retire alors
+## les mêmes pixels à toutes les couches du bras (manche, doublure, brassard), on ne voit donc jamais son intérieur.
+## Plein au-delà de FONDU_LOIN de l'œil (surface du bras), effacé à FONDU_PRES. Variante des shaders des bras seulement
+## (le `discard` ne touche pas les autres matériaux du monde).
+const FONDU_PRES := 0.12
+const FONDU_LOIN := 0.29   # surface : os à 0,36 m (les coups ordinaires restent au-delà, 0,36 m au plus près ; contre : 0,24)
+const RAYON_BRAS := 0.07   # des os à la surface de la manche / du brassard
+const _CODE_FONDU := """
+instance uniform float fondu_bras = 1.0;
+const float TRAME_OEIL[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+void fragment() {
+	if (fondu_bras < 0.999) {
+		ivec2 q_oeil = ivec2(FRAGCOORD.xy) % 4;
+		if (fondu_bras < (TRAME_OEIL[q_oeil.y * 4 + q_oeil.x] + 0.5) / 16.0) {
+			discard;
+		}
+	}
+"""
+static var _variantes := {}   # Shader -> même shader avec le fondu
+static var _deja := {}        # matière d'origine -> sa copie à fondu (partagée entre les bras)
+
+static func shader_fondu(sh: Shader) -> Shader:
+	if not _variantes.has(sh):
+		var v := Shader.new()
+		v.code = sh.code.replace("void fragment() {", _CODE_FONDU)
+		_variantes[sh] = v
+	return _variantes[sh]
+
+## Passe les matières des maillages skinnés de `racine` (bras 1P) sur la variante à fondu ; à rappeler après un
+## changement de matières (ArmureVisible repose ses gants) : les matières déjà converties sont reconnues et sautées.
+static func appliquer_fondu(racine: Node) -> void:
+	if racine == null:
+		return
+	for mi: MeshInstance3D in racine.find_children("*", "MeshInstance3D", true, false):
+		if mi.skin == null or mi.mesh == null or mi.get_meta("det_bras", false):
+			continue   # armes et objets tenus (sans peau), copies de l'audit : pas de fondu
+		for k in mi.mesh.get_surface_count():
+			var m := mi.get_surface_override_material(k) as ShaderMaterial
+			if m == null:
+				m = mi.mesh.surface_get_material(k) as ShaderMaterial
+			if m == null or m.shader == null or m.has_meta("fondu_oeil") or m.shader.code.contains("fondu_bras"):
+				continue
+			if not _deja.has(m):
+				var m2 := m.duplicate() as ShaderMaterial
+				m2.shader = shader_fondu(m.shader)
+				m2.set_meta("fondu_oeil", true)
+				Palette.suivre(m2)   # suit le réglage ps1 (grille, affine) comme l'original
+				_deja[m] = m2
+			mi.set_surface_override_material(k, _deja[m])
+
+## Opacité (0-1) du bras `cote` ("l"/"r") : distance de la caméra au segment milieu du bras -> main, moins RAYON_BRAS.
+static func opacite(sq: Skeleton3D, cam: Camera3D, cote: String) -> float:
+	var ids := [sq.find_bone("upperarm_" + cote), sq.find_bone("lowerarm_" + cote), sq.find_bone("hand_" + cote)]
+	if ids.has(-1):
+		return 1.0
+	var p: Array[Vector3] = []
+	for i: int in ids:
+		p.append(sq.global_transform * sq.get_bone_global_pose(i).origin)
+	var o := cam.global_position
+	var d := INF
+	for k in 11:
+		var t := k / 10.0
+		var q: Vector3 = p[0].lerp(p[1], 0.3 + 1.4 * t) if t < 0.5 else p[1].lerp(p[2], (t - 0.5) * 2.0)
+		d = minf(d, o.distance_to(q))
+	sq.set_meta("d_os_" + cote, d)   # distance caméra -> os du bras (audit)
+	return clampf((d - RAYON_BRAS - FONDU_PRES) / (FONDU_LOIN - FONDU_PRES), 0.0, 1.0)
+
+## Installe le fondu sur le squelette des bras : modificateur ajouté EN DERNIER (scripts/combat/fondu_bras.gd).
+static func installer_fondu(racine: Node, sq: Skeleton3D) -> void:
+	var f := SkeletonModifier3D.new()
+	f.set_script(preload("res://scripts/combat/fondu_bras.gd"))
+	f.set("racine", racine)
+	f.name = "FonduBras"
+	sq.add_child(f)
+
+## Pose l'opacité de chaque bras sur ses maillages (avant_bras_l/_r, manche_l/_r).
+static func regler_fondu(racine: Node, cam: Camera3D) -> void:
+	if racine == null or cam == null:
+		return
+	var sq: Skeleton3D = racine.find_child("Skeleton3D", true, false)
+	if sq == null:
+		return
+	var a := {"l": opacite(sq, cam, "l"), "r": opacite(sq, cam, "r")}
+	for mi: MeshInstance3D in racine.find_children("*", "MeshInstance3D", true, false):
+		if mi.skin == null or mi.get_meta("det_bras", false):
+			continue
+		var n := String(mi.name)
+		var c := "l" if (n.ends_with("_l") or n.contains("_l_")) else ("r" if (n.ends_with("_r") or n.contains("_r_")) else "")
+		if c != "" and absf(float(mi.get_meta("fondu_bras", 1.0)) - a[c]) > 0.001:
+			mi.set_meta("fondu_bras", a[c])   # dernière valeur posée (lue sans synchroniser le serveur de rendu)
+			mi.set_instance_shader_parameter("fondu_bras", a[c])

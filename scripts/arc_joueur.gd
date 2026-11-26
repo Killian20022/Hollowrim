@@ -475,6 +475,7 @@ func _installer_bras() -> void:
 	_poing_vm.decalages["clavicle_l"] = Vector3.ZERO
 	_sq.skeleton_updated.connect(_sur_squelette)
 	_sq.add_child(TorsionAvantBras.new())   # dernier : torsion des avant-bras répartie, mains inchangées
+	AvantBras.installer_fondu(_bras, _sq)   # puis le fondu près de l'œil (combat/bras_vide_1p)
 
 # ------------------------------------------------------------------ équipement
 
