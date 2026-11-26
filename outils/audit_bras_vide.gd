@@ -34,10 +34,12 @@ var _pires_f: Array = []    # [flottant, seq, n, image normale, image détection
 var _flottant_img := 0
 var _main_hors_img := 0
 var _main_hors_total := 0
+var _arme_seule_img := 0   # pixels (demi-résolution) d'arme sans aucun bras, qui ne touche aucun bord (arme qui flotte seule)
 var _bout_img := 0         # pixels (demi-résolution) de bout de corps vus (dôme d'épaule, bas du buste)
 var _bout_images := 0
 const BOUT_MIN := 6
 var _flottant_images := 0
+const ARME_SEULE_MIN := 40
 const FLOTTANT_MIN := 12   # pixels de bras (demi-résolution) d'une composante pour la compter      # [rouge, seq, n, image normale, image détection]
 var _bilan: PackedStringArray = []
 var _max_global := 0
@@ -322,6 +324,7 @@ func _image(seq: String, n: int, garder_images: bool) -> int:
 		if is_instance_valid(_sources[c2]):
 			fondu_min = minf(fondu_min, float((_sources[c2] as MeshInstance3D).get_meta("fondu_bras", 1.0)))
 	detail += " fondu=%.2f d_os=%.2f/%.2f" % [fondu_min, float(mains._sq.get_meta("d_os_l", 9.0)), float(mains._sq.get_meta("d_os_r", 9.0))]
+	detail += " arme_seule=%d" % _arme_seule_img
 	print("IMAGE %s %03d main_hors=%d flottant=%d bout=%d rouge=%d px (%.3f %%) coeur=%d tache=%d%s cartes_decor=%d proche25cm=%.2f%% manche_proche=%.2f%% manche_aire=%.2f%% etat=%s" % [seq, n, _main_hors_img, flottant, _bout_img, rouges, pct, coeur, tache, detail, cartes, 100.0 * proches / float(w * h), 100.0 * proches_manche / float(w * h), 100.0 * aire_manche / float(w * h), _etat()])
 	var mauvais := flottant + (_bout_img if _bout_img >= BOUT_MIN else 0)
 	if mauvais > 0 and (_pires_f.is_empty() or mauvais > _pires_f[-1][0] or _pires_f.size() < 24):
@@ -368,6 +371,7 @@ func _flottant(donnees: PackedByteArray, w: int, h: int) -> int:
 	var vu := PackedByteArray()
 	vu.resize(hw * hh)
 	_bout_img = 0
+	_arme_seule_img = 0
 	for y in hh:
 		for x in hw:
 			var i := ((y * 2) * w + x * 2) * 3
@@ -383,11 +387,13 @@ func _flottant(donnees: PackedByteArray, w: int, h: int) -> int:
 		pile.append(k0)
 		var bord := false
 		var bras := 0
+		var taille := 0
 		while not pile.is_empty():
 			var k := pile[pile.size() - 1]
 			pile.remove_at(pile.size() - 1)
 			var x := k % hw
 			var y := k / hw
+			taille += 1
 			if m[k] == 1:
 				bras += 1
 			if x == 0 or y == 0 or x == hw - 1 or y == hh - 1:
@@ -406,6 +412,8 @@ func _flottant(donnees: PackedByteArray, w: int, h: int) -> int:
 						pile.append(q)
 		if not bord and bras >= FLOTTANT_MIN:
 			total += bras
+		if not bord and bras == 0 and taille >= ARME_SEULE_MIN:
+			_arme_seule_img += taille
 	return total
 
 func _etat() -> String:
