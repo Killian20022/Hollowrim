@@ -6,7 +6,7 @@ extends SceneTree
 ##         --script res://outils/film_masses.gd -- --nouvelle [--masses-anciennes] [--arme=masse_cloutee] [--fps=<n>] [--tps] [--titre=...]
 ##   --fps=<n> : même valeur que --fixed-fps (120 pour un ralenti × 0,5 lu à 60 i/s : une image de jeu tous les 1/120 s) ;
 ##   --tps     : vue à la 3e personne, caméra derrière l'épaule (celle du jeu) ;
-##   --sans-puissant : combo seul.
+##   --sans-puissant : combo seul ;   --seul-repos : s'arrête après le repos (cadrage de la tenue).
 var DT := 1.0 / 60.0
 
 var s: Node
@@ -103,6 +103,10 @@ func _go() -> void:
 		print("FILM profil %s combo %s" % [mains.arme.profil, str(p["combo"])])
 		_texte("%s - %s : repos" % [nom_arme, titre])
 		await _attendre(0.8)
+		if _arg("seul-repos") != "":   # cadrage du repos seul (essais de la tenue) : film court
+			print("FIN_FILM_MASSES")
+			quit(0)
+			return
 		for k in 4:
 			mains.entrees.appuyer()
 			await _attendre(0.05)

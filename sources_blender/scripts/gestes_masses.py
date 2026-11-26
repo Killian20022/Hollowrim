@@ -275,7 +275,10 @@ def main():
         D["_preparer_mx_2m"]()
         # tenue propre au grand marteau (repos_gm6) : la tenue repos_2m de la claymore (inclinaison cubitale -44°, mesurée) re-résolue
         # dans les butées du critère (|inclinaison| <= 25°) ; même poing, même manche visé, poignet anatomique
-        REPOS_GM6 = dict(D["REPOS_2M"], nom="repos_gm6")
+        # cadrage du repos 1P (passe 3) : la lame de repos_2m (0,20 ; 0,88 ; -0,42) laissait la tête du long marteau coupée par le bord
+        # haut de l'écran ; manche plus incliné vers l'avant-droite, tête dans le cadre (option lame_gm=x,y,z pour les essais), même poing, même prise
+        LAME_GM = tuple(float(v) for v in OPT.get("lame_gm", "0.34,0.55,-0.76").split(","))
+        REPOS_GM6 = dict(D["REPOS_2M"], nom="repos_gm6", lame=LAME_GM)
         _orig = D["_poser"]
 
         def _tenue_gm6(cote="r"):

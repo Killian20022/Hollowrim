@@ -163,11 +163,20 @@ func _tester() -> void:
 		# 4. grand marteau : main gauche sur le manche
 		if a.deux_mains:
 			var pire := 0.0
-			for pose in ["repos_gm:0.0", "gm_a:0.45", "gm_a:0.70", "lourd_gm:0.31"]:
+			# clips réellement joués (captures gm_a6 / gm_b6 / lourd_gm6 : armé, frappe, suivi) ; les anciennes poses écrites (gm_a…) ne le sont plus
+			var poses_g := ["repos_gm6:0.0"]
+			for c in ["gm_a6", "gm_b6", "lourd_gm6"]:
+				var mq: Dictionary = mains.anim.marqueurs(c)
+				for ph in ["arme", "frappe", "fin_frappe", "suivi"]:
+					if mq.has(ph):
+						poses_g.append("%s:%.3f" % [c, float(mq[ph])])
+			for pose in poses_g:
 				mains._pose_figee = pose
-				await _images(4)
+				await _images(14)   # le poignet gauche tourne à 6°/image : on laisse finir le saut entre deux poses figées
 				var poing_g: Vector3 = mains._accroche_g.global_transform * mains.PRISE_G.origin
-				pire = maxf(pire, poing_g.distance_to(mains.to_global(mains.pivot_torche.position)))
+				var ecart_g := poing_g.distance_to(mains.to_global(mains.pivot_torche.position))
+				print("   main gauche %s : %.1f cm de la prise" % [pose, ecart_g * 100.0])
+				pire = maxf(pire, ecart_g)
 			mains._pose_figee = ""
 			_verif(pire <= 0.06 and not mains.porte_torche.visible, "%s : main gauche sur le manche (pire %.1f cm)" % [id, pire * 100.0])
 		# 3. combo

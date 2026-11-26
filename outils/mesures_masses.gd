@@ -101,7 +101,8 @@ func _echantillon(t: float) -> Dictionary:
 	var fa: Vector3 = (inv.basis * (sq.global_transform.basis * (th.origin - tl.origin))).normalized()
 	var mt: Transform3D = inv * mains._modele_arme_d.global_transform
 	var d := {"t": t, "etat": int(mains.combat.etat), "clip": String(mains.anim.clip), "tc": float(mains.anim.t), "w": _poignet(), "wl": _poignet("l"),
-		"e": _ecran(pe * tete_l), "em": _ecran(pe * milieu_l), "m3": mt * tete_l, "ax": mt.basis.y.normalized(), "fx": mt.basis.x.normalized() * _fil_signe,
+		"e": _ecran(pe * tete_l), "ep": _ecran(pe * Vector3(0.0, mains._milieu_d, 0.0)),
+		"ec": _ecran(mains.global_transform.affine_inverse() * (_att["lowerarm_r"].global_position as Vector3)), "em": _ecran(pe * milieu_l), "m3": mt * tete_l, "ax": mt.basis.y.normalized(), "fx": mt.basis.x.normalized() * _fil_signe,
 		"fa": fa, "actif": mains._actif_lance and mains.combat.etat in [EtatCombat.ATTAQUE_LEGERE, EtatCombat.ATTAQUE_LOURDE]}
 	# caméra : rotation par rapport à la tête du joueur
 	var rc: Basis = j.tete.global_transform.basis.orthonormalized().inverse() * j.camera.global_transform.basis.orthonormalized()
@@ -193,6 +194,8 @@ func _analyser(nom: String, ech: Array) -> void:
 		var lf := 0.0
 		var ld := 0.0
 		var lvar := 0.0
+		var lis := 0
+		var nimp := 0
 		var axe_min := INF
 		var axe_max := 0.0
 		var fils: Array[float] = []
@@ -206,6 +209,7 @@ func _analyser(nom: String, ech: Array) -> void:
 		var lignes := []
 		for i in range(maxi(sg[1], 1), mini(sg[2], ech.size() - 2) + 1):
 			var e: Dictionary = ech[i]
+			var lis_ici := "."
 			var w: Vector2 = e["w"]
 			wf = maxf(wf, absf(w.x))
 			wd = maxf(wd, absf(w.y))
@@ -237,11 +241,28 @@ func _analyser(nom: String, ech: Array) -> void:
 			fx = (fx - ax * fx.dot(ax)).normalized()
 			var fil := rad_to_deg(fx.angle_to(v.normalized())) if v.length() > 0.004 else -1.0
 			if e["actif"]:
+				# tête lisible : dans le cadre, et pas derrière le poing / l'avant-bras (à < 40 px du segment poing-coude à l'écran et plus loin)
+				nimp += 1
+				var ep: Vector3 = e["ep"]
+				var ec: Vector3 = e["ec"]
+				var a2 := Vector2(ep.x, ep.y)
+				var b2 := Vector2(ec.x, ec.y) if ec.z > 0.05 else a2
+				var t2 := Vector2(p.x, p.y)
+				var ab := b2 - a2
+				var u := clampf((t2 - a2).dot(ab) / maxf(ab.length_squared(), 1e-6), 0.0, 1.0)
+				var cache := (a2 + ab * u).distance_to(t2) < 40.0 and p.z > minf(ep.z, ec.z if ec.z > 0.05 else ep.z)
+				if dans.call(p) and not cache:
+					lis += 1
+					lis_ici = "L"
+				elif cache:
+					lis_ici = "c"   # tête derrière le poing / l'avant-bras
+				else:
+					lis_ici = "h"   # tête hors du cadre
 				axe = maxf(axe, rad_to_deg(ax.angle_to(e["fa"])))
 				if fil >= 0.0:
 					fils.append(fil)
 				tr = maxf(tr, float(e.get("trace_cm", 0.0)))
-			lignes.append("%.2f%s[%.3f]:w(%.0f,%.0f)fil%.0f" % [e["t"], "*" if e["actif"] else "", e["tc"], w.x, w.y, fil])
+			lignes.append("%.2f%s[%.3f]:w(%.0f,%.0f)fil%.0f%s(%.0f,%.0f)" % [e["t"], "*" if e["actif"] else "", e["tc"], w.x, w.y, fil, lis_ici, p.x, p.y])
 		var fm := 0.0
 		var fx_ := 0.0
 		for a in fils:
@@ -255,8 +276,8 @@ func _analyser(nom: String, ech: Array) -> void:
 		var anticip := float(m.get("frappe", 0.0)) / v
 		var frappe := (float(m.get("fin_frappe", 0.0)) - float(m.get("frappe", 0.0))) / v
 		var retour := (float(m.get("fin", 0.0)) - float(m.get("fin_frappe", 0.0))) / v
-		print("MASSES_CRITERES %s %s %s %s : poignet D |dev| %.0f (<=25) |flex| %.0f (<=60) saut %.1f (<=12) | G |dev| %.0f |flex| %.0f saut %.1f | manche/avant-bras %.0f..%.0f | tete visible %d/%d | anticipation %.2f s frappe %.2f s retour %.2f s" % [
-			_id, etiq, nom, c, wd, wf, wvar, ld, lf, lvar, axe_min, axe_max, vis, tot, anticip, frappe, retour])
+		print("MASSES_CRITERES %s %s %s %s : poignet D |dev| %.0f (<=25) |flex| %.0f (<=60) saut %.1f (<=12) | G |dev| %.0f |flex| %.0f saut %.1f | manche/avant-bras %.0f..%.0f | tete visible %d/%d | anticipation %.2f s frappe %.2f s retour %.2f s | tete lisible a l'impact %d/%d" % [
+			_id, etiq, nom, c, wd, wf, wvar, ld, lf, lvar, axe_min, axe_max, vis, tot, anticip, frappe, retour, lis, nimp])
 		_csv.append("%s;%s;%s;%s;%.1f;%.1f;%.1f;%.1f;%.1f;%.1f;%.0f;%.0f;%d;%d;%.2f;%.2f;%.2f;%.0f;%.0f" % [
 			_id, etiq, nom, c, wd, wf, wvar, ld, lf, lvar, axe_min, axe_max, vis, tot, anticip, frappe, retour,
 			100.0 * (xr.y - xr.x) / 480.0, 100.0 * (yr.y - yr.x) / 270.0])
