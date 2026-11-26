@@ -65,14 +65,16 @@ def _poignet_autour(k, f, r):
     return ((max(f - 17, -50), min(f + 19, 50)), (max(r - 6, -24), min(r + 10, 18)))
 
 
-S = dict(ref=0, decalage=(0.0, 0.06, -0.15), echelle_epaule=0.7)
+# épaule avancée de 0,30 m (vue joueur) : à -0,15 la tête de la masse passait DERRIÈRE la caméra à l'armé du revers et du crochet
+# (profondeur mesurée -0,08 / -0,01 m : grosse tête cloutée plein écran) ; à -0,30 : 0,07-0,39 m, hors champ ou loin de l'œil
+S = dict(ref=0, decalage=(0.0, 0.06, -0.30), echelle_epaule=0.7)
 CLIPS_M = {
     # crochet droite -> gauche : « outward slash », la main part à droite à hauteur d'épaule, traverse devant le buste
-    "ms_a": dict(S, source="revers", centre=25, amplitude=0.6, cadrage=(0, 30, -15),
+    "ms_a": dict(S, source="revers", centre=25, amplitude=0.5, cadrage=(0, 30, -15),
                  temps=[(14, 0.0), (19, 0.12), (22.5, 0.22), (23.5, 0.26), (27.5, 0.40), (28.5, 0.48), (30, 0.60), (30, 0.80)],
                  fondu=(0.22, 0.50), plein=(0.22, 0.56), arc=(0.26, 0.40, 0.85), creux=0.04),
     # revers gauche -> droite : « inward slash », armé sur l'épaule gauche, la tête balaie vers la droite
-    "ms_b": dict(S, source="interieur", centre=35, amplitude=0.6, cadrage=(0, 30, 15),
+    "ms_b": dict(S, source="interieur", centre=35, amplitude=0.45, decalage=(0.05, 0.06, -0.40), cadrage=(0, 30, 15),
                  temps=[(24, 0.0), (29, 0.12), (31.5, 0.22), (32.5, 0.26), (38.5, 0.40), (39.5, 0.48), (41, 0.60), (41, 0.80)],
                  fondu=(0.22, 0.50), plein=(0.22, 0.56), arc=(0.26, 0.40, 0.85), creux=0.04),
     # écrasement par-dessus l'épaule droite : « Standing Melee Attack Downward » (cadrage du coup puissant de l'épée v6)
@@ -145,7 +147,7 @@ def tete_ecran(ns, longueur=0.55):
 def mesurer(ns, nom, act, longueur, mq, freq=60):
     """Tête de l'arme à l'écran (dans le cadre ? arc continu ?) et pires sauts de rotation des os par image."""
     ns["A"].animation_data.action = act
-    pts, rot, pom = [], [], []
+    pts, rot, pom, tz = [], [], [], []
     prec = None
     t = 0.0
     while t <= longueur + 1e-6:
@@ -155,13 +157,14 @@ def mesurer(ns, nom, act, longueur, mq, freq=60):
         W = ns["CAM_DE_B"] @ ns["A"].pose.bones["hand_r"].matrix @ ns["PRISE_D"]
         from mathutils import Vector
         pom.append(-(W @ Vector((0, ns["MILIEU_POIGNEE"] - float(OPT.get("bout", "0.35")), 0))).z)
+        tz.append(min(-(W @ Vector((0, ns["MILIEU_POIGNEE"] + l, 0))).z for l in (0.3, 0.45, 0.6)))
         q = {b: ns["A"].pose.bones[b].matrix.to_quaternion() for b in ("upperarm_r", "lowerarm_r", "hand_r")}
         if prec is not None:
             rot.append(max(min(a, 360.0 - a) for a in (math.degrees(q[b].rotation_difference(prec[b]).angle) for b in q)))
         prec = q
         t += 1.0 / freq
     vis = sum(1 for _, e in pts if abs(e[0]) < 1.0 and abs(e[1]) < 1.0)
-    print("MASSES %-10s bout du manche (35 cm sous le poing) : profondeur min %.2f m" % (nom, min(pom)))
+    print("MASSES %-10s bout du manche (35 cm sous le poing) : profondeur min %.2f m | tete profondeur min %.2f m" % (nom, min(pom), min(tz)))
     # retour en arrière pendant la frappe : la tête recule sur sa propre trajectoire (produit scalaire de pas successifs < 0)
     arr = 0
     if "frappe" in mq:
