@@ -27,8 +27,10 @@ static func peindre(img: Image, p: Dictionary, graine: int) -> void:
 	var rougeur := float(p.get("rougeur", 0.5))
 	var barbe := float(p.get("barbe", 0.0)) if sexe == "h" else 0.0
 	var f_age := 1.0 + 0.25 * age
-	var f_orb := 0.72 if sexe == "f" else 1.0     # orbites moins creusées chez les femmes (sinon effet « maquillage charbonneux »)
-	# ---- grain de peau et marbrures (tout le visage)
+	var f_orb := 0.45 if sexe == "f" else 0.9     # orbites peu creusées chez les femmes (passe 2 : plus de « fard » autour des yeux)
+	# ---- teint (passe 2) : tout l'atlas ramené vers une peau nordique pâle, rosée ou hâlée selon l'individu (ni orange ni gris)
+	_teint(String(p.get("teint", ["pale", "rose", "hale", "pale"][graine % 4])), age)
+	# ---- grain de peau (tout le visage)
 	_grain(graine)
 	for s in [-1.0, 1.0]:
 		# orbites : creux sous l'arcade, coin interne profond, paupière supérieure
@@ -71,6 +73,62 @@ static func peindre(img: Image, p: Dictionary, graine: int) -> void:
 		_rides(graine, age)
 	if barbe > 0.0:
 		_barbe_naissante(graine, barbe)
+	if p.has("doigts"):
+		doigts(img, p["doigts"])
+
+## Teintes de peau cibles : [teinte (h), saturation max, facteur de valeur]. Mesurées sur les références (joueur_base) : peau claire
+## h 0,03-0,06, s 0,20-0,35.
+const TEINTS := {"pale": [0.045, 0.26, 1.05], "rose": [0.025, 0.31, 1.02], "hale": [0.060, 0.34, 0.95]}
+
+static func _teint(nom: String, age: int) -> void:
+	var t: Array = TEINTS.get(nom, TEINTS["pale"])
+	var ht := float(t[0])
+	var smax := float(t[1]) * (0.9 if age >= 2 else 1.0)
+	var vm := float(t[2])
+	for y in _W:
+		for x in _W:
+			var c := _img.get_pixel(x, y)
+			if c.a < 0.05:
+				continue
+			var h := c.h
+			if h > 0.5:
+				h -= 1.0
+			var s2 := clampf(c.s * 0.80, 0.13, smax)
+			var v2 := clampf(c.v * vm, 0.0, 1.0)
+			_img.set_pixel(x, y, Color.from_hsv(fposmod(lerpf(h, ht, 0.7), 1.0), s2, v2, c.a))
+
+## Doigts : triangles de la main assombris là où le poids se partage entre deux os (creux entre les doigts, plis des phalanges).
+static func doigts(img: Image, tris: Array) -> void:
+	var W := img.get_width()
+	var H := img.get_height()
+	var vu := {}
+	for t: Array in tris:
+		var a: Vector2 = (t[0] as Vector2) * Vector2(W, H)
+		var b: Vector2 = (t[1] as Vector2) * Vector2(W, H)
+		var c: Vector2 = (t[2] as Vector2) * Vector2(W, H)
+		var x0 := maxi(0, int(floorf(minf(a.x, minf(b.x, c.x)))))
+		var x1 := mini(W - 1, int(ceilf(maxf(a.x, maxf(b.x, c.x)))))
+		var y0 := maxi(0, int(floorf(minf(a.y, minf(b.y, c.y)))))
+		var y1 := mini(H - 1, int(ceilf(maxf(a.y, maxf(b.y, c.y)))))
+		var aire := (b - a).cross(c - a)
+		if absf(aire) < 0.0001 or (x1 - x0) * (y1 - y0) > 400:
+			continue
+		for y in range(y0, y1 + 1):
+			for x in range(x0, x1 + 1):
+				var q := Vector2(x + 0.5, y + 0.5)
+				var w0 := (b - q).cross(c - q) / aire
+				var w1 := (c - q).cross(a - q) / aire
+				var w2 := 1.0 - w0 - w1
+				if w0 < -0.15 or w1 < -0.15 or w2 < -0.15:
+					continue
+				var k := x + y * W
+				if vu.has(k):
+					continue
+				vu[k] = true
+				var d := clampf(w0 * float(t[3]) + w1 * float(t[4]) + w2 * float(t[5]), 0.0, 1.0)
+				var f := 1.0 - 0.55 * smoothstep(0.12, 0.45, d)
+				var p := img.get_pixel(x, y)
+				img.set_pixel(x, y, Color(p.r * f, p.g * f * 0.97, p.b * f * 0.94, p.a))
 
 static func _y_nez() -> float:
 	return (float(_r["ny"]) - float(_r["ey"])) / float(_r["e"])
@@ -86,7 +144,10 @@ static func _mul(x: int, y: int, f: float) -> void:
 	if x < 0 or y < 0 or x >= _W or y >= _W:
 		return
 	var c := _img.get_pixel(x, y)
-	_img.set_pixel(x, y, Color(clampf(c.r * f, 0, 1), clampf(c.g * f, 0, 1), clampf(c.b * f, 0, 1), c.a))
+	if f < 1.0:
+		_img.set_pixel(x, y, Color(clampf(c.r * f, 0, 1), clampf(c.g * pow(f, 1.08), 0, 1), clampf(c.b * pow(f, 1.22), 0, 1), c.a))
+	else:
+		_img.set_pixel(x, y, Color(clampf(c.r * f, 0, 1), clampf(c.g * f, 0, 1), clampf(c.b * f, 0, 1), c.a))
 
 ## Tache elliptique douce : luminosité x (1 + force) au centre, décroissance (1 - d²)².
 static func _tache(dx: float, dy: float, rx: float, ry: float, force: float) -> void:

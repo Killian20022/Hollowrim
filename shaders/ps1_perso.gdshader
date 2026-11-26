@@ -18,6 +18,7 @@ uniform vec3 emission : source_color = vec3(0.0);
 uniform float saturation = 1.0;
 uniform bool decoupe = false;
 uniform float soleil_desat = 0.45;  // part de la couleur du soleil/lune ramenée au gris (0 = inchangée)
+uniform float lampe_desat = 0.0;    // idem pour les lumières ponctuelles (torches) ; 0 = inchangé (peau des PNJ maison : pnj/realisme_v1)
 uniform vec3 ombre_froide : source_color = vec3(0.30, 0.42, 0.75); // teinte de la face non éclairée par le soleil
 uniform float ombre_force = 0.75;   // intensité de cette teinte, relative à la lumière du soleil
 uniform float rehaut = 0.9;
@@ -75,6 +76,9 @@ void light() {
 		float contre = clamp(dot(LIGHT, -VIEW) * 0.5 + 0.5, 0.0, 1.0);
 		float r = step(0.55, bord) * step(0.0, ndl + 0.25) * contre;
 		DIFFUSE_LIGHT += col * r * rehaut * ATTENUATION / PI;
+	}
+	else if (lampe_desat > 0.0) {
+		col = mix(col, vec3(dot(col, vec3(0.3, 0.59, 0.11))), lampe_desat);
 	}
 	DIFFUSE_LIGHT += clamp(ndl, 0.0, 1.0) * ATTENUATION * col / PI;
 }

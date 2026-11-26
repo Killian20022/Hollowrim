@@ -15,7 +15,7 @@ class_name RealismePnj
 static var _ancien := -1
 ## Images précalculées (outils/generer_realisme_pnj.gd, VERSION++ après toute modif des peintures) : rien n'est repeint au lancement.
 const DOSSIER := "res://assets/pnj/realisme"
-const VERSION := 2
+const VERSION := 3
 static var enregistrer := false
 static var chrono := false
 
@@ -47,7 +47,8 @@ const PROFILS := {
 
 ## Étoffes repeintes (nom du MeshInstance3D -> genre de pièce).
 const ETOFFES := {"tunique": "haut", "pantalon": "bas", "mante": "mante", "cape": "cape", "capuche": "capuche", "jupe": "jupe",
-		"brassards": "cuir", "bottes": "bottes", "ceinture": "cuir", "gants": "cuir"}
+		"brassards": "cuir", "bottes": "bottes", "ceinture": "cuir", "gants": "cuir", "robe": "jupe", "tablier": "tablier",
+		"cape_courte": "cape", "sacoche": "cuir", "manchettes": "cuir"}
 const CHEVEUX := ["Hair_Long", "Hair_Beard", "Hair_Buns", "Hair_SimpleParted", "Hair_Buzzed", "Hair_Long_Tied"]
 
 static func ancien() -> bool:
@@ -68,8 +69,9 @@ static func appliquer(n: Node3D, id: String) -> void:
 		return
 	var p: Dictionary = PROFILS[id]
 	var graine := absi(hash(id)) % 100000
+	AllurePnj.avant(n, id)     # passe 2 : tenue recombinée, corpulence, rubans retirés (avant les peintures : les pièces montrées sont usées aussi)
 	for mi: MeshInstance3D in n.find_children("*", "MeshInstance3D", true, false):
-		if mi.mesh == null:
+		if mi.mesh == null or not mi.visible:
 			continue
 		var nom := String(mi.name)
 		var genre := ""
@@ -84,9 +86,15 @@ static func appliquer(n: Node3D, id: String) -> void:
 				for s in mi.mesh.get_surface_count():
 					var tb := (mi.get_active_material(s) as ShaderMaterial).get_shader_parameter("tex_base") as Texture2D if mi.get_active_material(s) is ShaderMaterial else null
 					if nom == "accessoires" and s == 0 and tb != null and tb.get_width() >= 256:
-						_repeindre(mi, s, "yeux", p, graine, "%s_%s_%d" % [id, nom, s])     # atlas des accessoires : yeux en amande (cartes R_OEIL)
+						var p_a := p
+						if mi.has_meta("plastron_laine"):
+							p_a = p.duplicate()
+							p_a["plastron_laine"] = mi.get_meta("plastron_laine")
+						_repeindre(mi, s, "yeux", p_a, graine, "%s_%s_%d" % [id, nom, s])     # atlas des accessoires : yeux en amande (cartes R_OEIL)
+					elif nom == "accessoires" and s == 1 and tb != null and tb.get_width() == GuerrierTextures.DECOUPES.x and tb.get_height() == GuerrierTextures.DECOUPES.y:
+						_repeindre(mi, s, "decoupes", p, graine, "%s_%s_%d" % [id, nom, s])     # cartes découpées : fourrure en touffes denses
 					elif nom == "accessoires" and s == 1:
-						_regler(mi, s, {"saturation": SAT_ACCESSOIRES, "teinte": FOURRURE})     # cartes découpées : fourrure, mèches (moins blanc plastique)
+						_regler(mi, s, {"saturation": SAT_ACCESSOIRES, "teinte": FOURRURE})
 					else:
 						_regler(mi, s, {"saturation": SAT_ACCESSOIRES})     # pièces modelées (tresses, ceintures, plastron) : un peu ternies
 			continue
@@ -97,14 +105,24 @@ static func appliquer(n: Node3D, id: String) -> void:
 				_regler(mi, s, {"saturation": float(SAT[genre]), "teinte": Color(VAL_CHEVEUX, VAL_CHEVEUX * 0.97, VAL_CHEVEUX * 0.97)})
 				continue
 			var t0 := Time.get_ticks_usec()
-			_repeindre(mi, s, genre, p, graine + s * 17 + nom.length() * 31, "%s_%s_%d" % [id, nom, s])
+			var genre_s := genre
+			var p_s := p
+			if nom == "mante" and mi.has_meta("fourrure_pnj"):
+				genre_s = "fourrure"
+				p_s = p.duplicate()
+				p_s["fourrure"] = mi.get_meta("fourrure_pnj")
+			elif nom == "peau":
+				p_s = p.duplicate()
+				p_s["doigts"] = Doigts.traits(mi, s)
+			_repeindre(mi, s, genre_s, p_s, graine + s * 17 + nom.length() * 31, "%s_%s_%d" % [id, nom, s])
 			if chrono:
 				print("RealismePnj %s %s s%d : %.0f ms" % [id, nom, s, (Time.get_ticks_usec() - t0) / 1000.0])
+	AllurePnj.apres(n, id)     # passe 2 : chevelure en cartes, barbe, collet, peau sans contour, capuche mate
 	n.set_meta("realisme_pnj", id)
 
 ## Saturation (uniforme `saturation` du shader ps1_perso, multipliée) par genre de pièce : peau moins orangée « poupée », cheveux
 ## moins vifs (roux orange vif, blond paille), étoffes et cuirs passés.
-const SAT := {"peau": 0.78, "cheveux": 0.62, "barbe": 0.66, "etoffe": 0.70, "yeux": 0.82}
+const SAT := {"peau": 1.0, "cheveux": 0.62, "barbe": 0.66, "etoffe": 0.70, "yeux": 0.82}
 const SAT_ACCESSOIRES := 0.82
 ## Fourrures et mèches découpées (surface 1 des accessoires) : gris-brun un peu plus sombre (le blanc pur faisait « plastique » au soleil).
 const FOURRURE := Color(0.84, 0.82, 0.80)
@@ -192,6 +210,12 @@ static func _repeindre(mi: MeshInstance3D, s: int, genre: String, p: Dictionary,
 					VisagePnj.peindre(img, p, graine)
 				"yeux":
 					_yeux(img, graine)
+					if p.has("plastron_laine"):
+						_plastron_laine(img, p["plastron_laine"], graine)
+				"decoupes":
+					Fourrure.cartes(img, p, graine)
+				"fourrure":
+					Fourrure.mante(img, p.get("fourrure", Color(0.4, 0.31, 0.23)), graine)
 				"cheveux", "barbe":
 					_meches(img, graine, genre == "barbe")
 				_:
@@ -211,9 +235,13 @@ static func _repeindre(mi: MeshInstance3D, s: int, genre: String, p: Dictionary,
 	var reg := {"saturation": float(SAT.get(genre, SAT["etoffe"]))}
 	if genre == "cheveux" or genre == "barbe":
 		reg["teinte"] = Color(VAL_CHEVEUX, VAL_CHEVEUX * 0.97, VAL_CHEVEUX * 0.97)
-	elif genre == "peau":
-		reg["teinte"] = Color(0.96, 0.94, 0.95)
 	_appliquer_reglages(m, m2, reg)
+	if genre == "peau":
+		# teinte ABSOLUE : le teint est dans l'image (VisagePnj._teint) ; l'ancienne teinte multipliée (orangée, ou grise pour la völva
+		# et l'ancienne) n'est plus appliquée
+		m2.set_shader_parameter("teinte", Color(1.0, 1.0, 1.0))
+	elif genre in ["decoupes", "fourrure"]:
+		m2.set_shader_parameter("teinte", Color(1.0, 1.0, 1.0))
 	m2.set_shader_parameter("tex_base", tex)
 	if m2.get_shader_parameter("tex_neige") is Texture2D:
 		m2.set_shader_parameter("tex_neige", tex)
@@ -330,7 +358,7 @@ static func _champ(W: int, H: int, cx: int, cy: int, g: int) -> Image:
 
 # ------------------------------------------------------------------------------------------------ yeux
 ## Teintes d'iris (ternes) : gris-bleu, gris, brun, vert-gris, bleu sombre.
-const IRIS := [Color("#4c5f72"), Color("#5a5d5e"), Color("#4a3a2c"), Color("#50583f"), Color("#3c4c66")]
+const IRIS := [Color("#334354"), Color("#3c4040"), Color("#3a2a1e"), Color("#3a4230"), Color("#2c3a50")]
 
 ## Œil des cartes R_OEIL (16 x 8 de l'atlas des accessoires) : fente en amande (paupière haute lourde qui couvre le haut de l'iris,
 ## paupière basse), blanc terne et rosé aux coins, iris plus petit et sombre, pupille, reflet d'un texel. Remplace l'œil rond grand
@@ -351,10 +379,12 @@ static func _yeux(img: Image, g: int) -> void:
 			var yc := y + 0.5
 			var c := peau
 			if yc > haut and yc < bas:
-				c = Color("#8d857a") if absf(dx) < 0.55 else Color("#76665c")
-				var di := Vector2(x + 0.5 - 8.0, (yc - 4.3) * 1.15).length()
-				if di < 2.5:
-					c = iris if di > 1.0 else Color("#0e0c0b")
+				c = Color("#7a7268") if absf(dx) < 0.55 else Color("#6a5a50")
+				var di := Vector2(x + 0.5 - 8.0, (yc - 4.3) * 1.1).length()
+				if di < 3.0:
+					c = iris if di > 1.25 else Color("#080706")
+					if di > 2.4:
+						c = iris.darkened(0.35)                   # limbe sombre : l'iris se détache du blanc
 					if di > 1.0 and x == 7 and y == 3:
 						c = iris.lightened(0.35)              # reflet
 				if yc < haut + 1.0:
@@ -362,6 +392,29 @@ static func _yeux(img: Image, g: int) -> void:
 			elif yc <= haut and yc > haut - 1.2:
 				c = Color("#1e1512")                          # ligne de cils / pli de paupière
 			img.set_pixel(r.position.x + x, r.position.y + y, c)
+
+## Plastron de mailles du Guerrier (R_PLASTRON de l'atlas des accessoires) repeint en devant de tunique de laine : sergé, laçage
+## de cuir au milieu (encolure fendue), grain, ombre vers le bas.
+static func _plastron_laine(img: Image, c: Color, g: int) -> void:
+	var r := GuerrierTextures.R_PLASTRON
+	if r.end.x > img.get_width() or r.end.y > img.get_height():
+		return
+	var cx := r.position.x + r.size.x / 2
+	for y in r.size.y:
+		for x in r.size.x:
+			var px := r.position.x + x
+			var py := r.position.y + y
+			var f := 1.0 + (0.06 if (x + y) % 3 == 0 else -0.03) + (_h(x, y, g + 31) - 0.5) * 0.10
+			f += (bruit(x, y, r.size.x, r.size.y, 8, 4, g + 32) - 0.5) * 0.16
+			f *= 1.0 - 0.15 * float(y) / r.size.y
+			var col := c * f
+			var dx := absi(px - cx)
+			if dx <= 1 and y < r.size.y * 0.45:
+				col = Color(0.12, 0.09, 0.07)                       # fente de l'encolure
+			elif dx <= 3 and y < r.size.y * 0.45 and (y / 3) % 2 == 0:
+				col = Color(0.30, 0.21, 0.14)                       # laçage de cuir
+			col.a = 1.0
+			img.set_pixel(px, py, col)
 
 # ------------------------------------------------------------------------------------------------ cheveux
 ## Mèches : sillons sombres et reflets le long des brins (axe v de l'atlas Quaternius des coupes), variations de teinte par mèche.
