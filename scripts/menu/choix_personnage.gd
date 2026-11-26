@@ -94,9 +94,9 @@ func _bouton(texte: String, action: Callable, nom: String) -> Button:
 		action.call())
 	return b
 
-## Ouvre le panneau (homme par défaut, ou le dernier choix) ; focus sur « Commencer ».
+## Ouvre le panneau sur le dernier choix (homme la 1re fois) ; focus sur « Commencer ».
 func ouvrir() -> void:
-	choisir(sexe, false)
+	choisir(JoueurBase.valide(String(Jeu.option("personnage", "apparence"))), false)   # le dernier choix (homme la 1re fois)
 	_b_go.grab_focus.call_deferred()
 
 func choisir(s: String, avec_son := true) -> void:

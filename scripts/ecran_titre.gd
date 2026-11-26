@@ -280,6 +280,7 @@ func _construire() -> void:
 	_multi.ferme.connect(_menu_principal)
 	_multi.son.connect(func(nom: String) -> void: _audio.jouer(nom))
 	_multi.lancer_partie.connect(_lancer_multi)
+	_multi.choix_avant_lancement = _choix_multi     # hôte d'un nouveau monde : même choix du personnage qu'en solo
 	_panneaux.add_child(_multi)
 	_confirmation = _panneau_confirmation()
 	_panneaux.add_child(_confirmation)
@@ -288,7 +289,12 @@ func _construire() -> void:
 	_choix.valide.connect(_choix_valide)
 	_choix.retour.connect(func() -> void:
 		_audio.jouer("retour")
-		_menu_principal())
+		if _choix_suite.is_valid():      # venu du salon multijoueur : on y retourne (la partie reste ouverte)
+			_choix_suite = Callable()
+			_ouvrir_panneau(_multi)
+			_multi._aller(_multi.vue)
+		else:
+			_menu_principal())
 	_choix.son.connect(func(nom: String) -> void: _audio.jouer(nom))
 	_panneaux.add_child(_choix)
 
@@ -600,7 +606,19 @@ func _ouvrir_choix() -> void:
 
 func _choix_valide(sexe: String) -> void:
 	Jeu.apparence_choisie = JoueurBase.valide(sexe)
+	Jeu.regler("personnage", "apparence", Jeu.apparence_choisie, not mode_test)   # dernier choix (repris par un invité)
+	if _choix_suite.is_valid():          # hôte multijoueur : la suite prévient les invités puis lance le monde (_lancer_multi)
+		var suite := _choix_suite
+		_choix_suite = Callable()
+		suite.call()
+		return
 	_lancer(true)
+
+## Multijoueur, hôte d'un NOUVEAU monde : choix du personnage avant de lancer (EcranMulti.choix_avant_lancement).
+var _choix_suite: Callable
+func _choix_multi(suite: Callable) -> void:
+	_choix_suite = suite
+	_ouvrir_choix()
 
 func _ouvrir_options() -> void:
 	_ouvrir_panneau(_options)
@@ -623,6 +641,8 @@ func _ouvrir_multi() -> void:
 func _lancer_multi(role: String, nouveau: bool, emplacement: int) -> void:
 	if role == "hote" and not nouveau and emplacement >= 0:
 		Sauvegardes.actif = emplacement
+	if role != "hote":   # invité : son dernier corps choisi (le monde de l'hôte rend le sien s'il y est déjà venu : sauvegarde_multi)
+		Jeu.apparence_choisie = JoueurBase.valide(String(Jeu.option("personnage", "apparence")))
 	_lancer(nouveau and role == "hote")
 
 func _quitter() -> void:

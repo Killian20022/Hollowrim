@@ -470,6 +470,7 @@ func _poser_chausses() -> void:
 	mi.set_meta("maillage_origine", mi.mesh)
 	squelette.add_child(mi)
 	mi.skeleton = NodePath("..")
+	JoueurBase.ajuster_armure(mi, squelette)     # corps du joueur (femme) : pièce ajustée à sa morphologie
 	_portees["jambes"] = mi
 
 ## Toutes les pièces posées (chausses comprises).
@@ -516,6 +517,7 @@ func _poser(e: String) -> void:
 	mi.set_meta("armure_emplacement", e)
 	squelette.add_child(mi)
 	mi.skeleton = NodePath("..")
+	JoueurBase.ajuster_armure(mi, squelette)     # corps du joueur (femme) : pièce ajustée à sa morphologie
 	_portees[e] = mi
 
 ## Maillage porté d'une pièce, prêt à rattacher à un Skeleton3D du héros (skin du glb, liaisons par NOM d'os ; matériaux habillés).

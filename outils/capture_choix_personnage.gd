@@ -19,6 +19,11 @@ func _go() -> void:
 	var titre: Control = (load("res://scenes/ecran_titre.tscn") as PackedScene).instantiate()
 	titre.mode_test = true
 	root.add_child(titre)
+	var ips := root.get_node_or_null("CompteurIps")     # compteur d'IPS (option du joueur) : hors capture
+	if ips != null:
+		ips.process_mode = Node.PROCESS_MODE_DISABLED
+		ips.visible = false
+	Jeu.regler("personnage", "apparence", "homme", false)   # ouvre sur l'homme (en mémoire seulement)
 	await _attendre(150)          # apparition du menu
 	titre._ouvrir_choix()
 	await _attendre(70)

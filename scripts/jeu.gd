@@ -76,6 +76,7 @@ const OPTIONS_DEFAUT := {
 	"son": {"general": 1.0, "musique": 0.8, "effets": 1.0},
 	"commandes": {"sensibilite": 1.0, "inverser_y": false},
 	"sauvegarde": {"dossier_secours": "", "emplacement": 1},   # "" = copie de secours désactivée ; emplacement : dernier emplacement manuel (1 à 3) utilisé par F5 et « Sauvegarder »
+	"personnage": {"apparence": "homme"},   # joueur_base : dernier corps choisi (écran de choix) ; repris par un invité en multijoueur
 	"jeu": {"aides": true},   # bulles d'aide contextuelles, une fois chacune (scripts/aides.gd) ; le cartouche des touches (F1) reste
 	"manette": {},   # rempli par Manette.options_defaut() (charger_options) : "<action>" = bouton (scripts/manette.gd), sensibilite, inverser_y, zone_morte, courbe
 	"touches": {},   # rempli par Touches.options_defaut() (charger_options) : "<action>" et "<action>_2" = touches physiques

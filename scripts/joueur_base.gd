@@ -52,7 +52,60 @@ static func creer(sexe := DEFAUT) -> Node3D:
 	if not sans_posture:
 		PostureJoueur.equiper(sq, ap)     # repos accroupis des clips humains redressés (jambes seules), voir posture_joueur.gd
 	racine.set_meta("apparence", sexe)
+	sq.set_meta("apparence", sexe)
+	if AJUSTEMENT_ARMURE.has(sexe) and not OS.get_cmdline_user_args().has("--armure-non-ajustee"):   # (comparaison avant / après)
+		sq.set_meta("ajustement_armure", AJUSTEMENT_ARMURE[sexe])
 	return racine
+
+## ARMURES AJUSTÉES AU CORPS (passe 2) : les pièces portées (ArmureVisible) sont faites pour le corps d'homme (liaisons par nom d'os,
+## taille du héros) ; sur la femme elles étaient trop massives. Par os, une mise à l'échelle autour de l'os, appliquée aux liaisons
+## (bind poses) du skin de la pièce : « m » = axes du MODÈLE (x largeur, y hauteur, z profondeur ; os du tronc), « o » = axes de l'OS
+## (y le long de l'os, x / z son épaisseur ; membres). Rapports mesurés femme / homme (outils/mesure_corps_joueur.gd : sections du tronc,
+## rayons des membres, longueurs d'os), arrondis et lissés d'un os au voisin ; épaules et taille un peu plus fines encore (silhouette).
+## L'homme : rien (référence d'ajustement des armures).
+const AJUSTEMENT_ARMURE := {
+	"femme": {
+		"pelvis": ["m", Vector3(0.90, 0.94, 0.88)],
+		"spine_01": ["m", Vector3(0.86, 0.94, 0.88)],
+		"spine_02": ["m", Vector3(0.82, 0.94, 0.82)],
+		"spine_03": ["m", Vector3(0.82, 0.94, 0.84)],
+		"neck_01": ["m", Vector3(0.84, 0.94, 0.90)],
+		"Head": ["m", Vector3(0.93, 0.93, 0.93)],
+		"clavicle": ["o", Vector3(0.84, 0.90, 0.84)],
+		"upperarm": ["o", Vector3(0.78, 0.94, 0.78)],
+		"lowerarm": ["o", Vector3(0.74, 0.94, 0.74)],
+		"hand": ["o", Vector3(0.76, 0.86, 0.76)],
+		"thigh": ["o", Vector3(0.88, 0.94, 0.88)],
+		"calf": ["o", Vector3(0.92, 0.94, 0.92)],
+		"foot": ["o", Vector3(0.90, 0.94, 0.90)],
+		"ball": ["o", Vector3(0.90, 0.94, 0.90)],
+	},
+}
+
+## Pièce d'armure portée (MeshInstance3D skinné, enfant du squelette) : liaisons recalculées pour le corps (voir AJUSTEMENT_ARMURE).
+## Sans effet sur un squelette qui n'en demande pas (homme, ancien héros, PNJ).
+static func ajuster_armure(mi: MeshInstance3D, sq: Skeleton3D) -> void:
+	if mi == null or sq == null or mi.skin == null or not sq.has_meta("ajustement_armure"):
+		return
+	var aj: Dictionary = sq.get_meta("ajustement_armure")
+	var skin := mi.skin.duplicate() as Skin
+	for b in skin.get_bind_count():
+		var nom := String(skin.get_bind_name(b))
+		var i := sq.find_bone(nom) if nom != "" else skin.get_bind_bone(b)
+		if i < 0:
+			continue
+		nom = sq.get_bone_name(i)
+		var cle := nom.trim_suffix("_l").trim_suffix("_r")
+		if not aj.has(cle):
+			continue
+		var mode: String = aj[cle][0]
+		var d: Vector3 = aj[cle][1]
+		var m := Basis.from_scale(d)
+		if mode == "m":
+			var r := sq.get_bone_global_rest(i).basis.orthonormalized()
+			m = r.inverse() * m * r
+		skin.set_bind_pose(b, Transform3D(m, Vector3.ZERO) * skin.get_bind_pose(b))
+	mi.skin = skin
 
 ## Teinte moyenne de la peau du modèle (atlas, faces de la pièce « peau » sous le cou = mains) : pour accorder les bras 1re personne.
 static func teinte_peau(sexe := DEFAUT) -> Color:

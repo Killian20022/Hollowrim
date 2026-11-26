@@ -80,6 +80,10 @@ func _go() -> void:
 	for n in root.find_children("*", "CanvasLayer", true, false):
 		if n != calque:
 			(n as CanvasLayer).visible = false
+	var ips := root.get_node_or_null("CompteurIps")     # compteur d'IPS (option du joueur) : il se ré-affiche tout seul sinon
+	if ips != null:
+		ips.process_mode = Node.PROCESS_MODE_DISABLED
+		ips.visible = false
 	j.basculer_vue(true)
 	j.mains.magie.equiper("droite", "epee")
 	j.mains.magie.equiper("gauche", "torche" if heure >= 19.0 or heure < 6.0 else "vide")
@@ -161,33 +165,38 @@ func _appui(action: String, sec: float) -> void:
 	await _attendre(sec)
 	Input.action_release(action)
 
+## Pose le joueur dans la clairière du feu (rayon ~11 m sans arbre, feu en 0,0) : x, z, cap en degrés (0 = vers -Z, -90 = vers +X).
+func _depart(x: float, z: float, cap: float, orbite: float) -> void:
+	j.global_position = Vector3(x, m.hauteur(x, z) + 0.05, z)
+	j.rotation.y = deg_to_rad(cap)
+	j.velocity = Vector3.ZERO
+	j.camera_tp.set("_orbite", deg_to_rad(orbite))
+	j.camera_tp.recaler()
+	await _attendre(0.5)
+
+## Film v2 : chaque séquence repart d'un point de la clairière, vers l'est, la caméra du côté du centre (aucun arbre entre elle et le corps).
 func _film() -> void:
 	var s := String(j.apparence)
 	var f: String = String(familles[0]) if familles.size() > 0 else "aucune"
 	_equiper(f)
-	j.camera_tp.set("_orbite", 0.0)
+	l.text = "%s - repos (garde)" % s
+	await _depart(-2.5, 4.0, -90.0, 250.0)
+	await _attendre(1.6)
 	l.text = "%s - marche" % s
-	await _attendre(0.8)
+	await _depart(-5.0, 4.0, -90.0, 0.0)
 	await _appui("avant", 2.6)
 	await _attendre(0.4)
-	j.camera_tp.set("_orbite", deg_to_rad(150.0))
 	l.text = "%s - marche (3/4 face)" % s
-	await _attendre(0.6)
-	await _appui("avant", 2.0)
+	await _depart(-4.0, -4.5, -90.0, 150.0)
+	await _appui("avant", 2.2)
 	l.text = "%s - course" % s
+	await _depart(-8.0, 5.5, -90.0, 270.0)
 	Input.action_press("course")
-	await _appui("avant", 2.6)
+	await _appui("avant", 2.0)
 	Input.action_release("course")
 	await _attendre(0.6)
-	# retour dans la clairière (dégagée) pour le combat et la chute : rien entre la caméra et le corps
-	j.global_position = Vector3(3.0, m.hauteur(3.0, 3.0) + 0.05, 3.0)
-	j.rotation.y = deg_to_rad(200.0)
-	j.velocity = Vector3.ZERO
-	j.camera_tp.recaler()
-	await _attendre(0.4)
-	j.camera_tp.set("_orbite", deg_to_rad(110.0))
 	l.text = "%s - combo d'epee 1-2-3-4" % s
-	await _attendre(0.5)
+	await _depart(3.0, 3.0, 200.0, 110.0)
 	for k in 4:
 		j.mains.entrees.appuyer()
 		await _attendre(0.05)
