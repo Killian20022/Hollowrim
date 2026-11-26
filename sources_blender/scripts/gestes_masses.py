@@ -49,7 +49,7 @@ G = L["G"]
 
 # Poignet : critère du brief (2026-11-26) — inclinaison radiale / cubitale ≤ 25°, flexion / extension ≤ 60° à TOUTE image.
 # LIM_MX : butées du solveur pour ces clips ; POIGNET : verrou autour de la tenue (même logique que l'épée v6 et la hache).
-LIM_MX_M = dict(torsion=(-85, 85), flexion=(-50, 50), inclinaison=(-24, 18))
+LIM_MX_M = dict(torsion=(-85, 85), flexion=(-50, 50), inclinaison=(int(OPT.get("incl_coups", "-8")), 18))
 RACCORD_M = 1.0
 # tenue de bord des clips : repos_m, poignet re-résolu dans les butées ci-dessus (même poing, même direction du manche : le
 # solveur garde la tenue la plus proche dont le poignet est anatomique ; repos_m d'origine : inclinaison cubitale ~-40°)
@@ -58,7 +58,7 @@ REPOS_M6 = dict(L["REPOS_M"], nom="repos_m6")
 
 # butées de la TENUE (inclinaison) : poignet presque droit, le manche reste dans la prise naturelle du poing (critère du brief :
 # angle manche / avant-bras 70-110°) ; mesuré : à -24 (butée des coups) le manche tombait à 50-69° de l'avant-bras
-INCL_TENUE = (int(OPT.get("incl_min", "-10")), 18)
+INCL_TENUE = (int(OPT.get("incl_min", "0")), 18)
 
 
 def _poignet_autour(k, f, r):
@@ -83,7 +83,7 @@ CLIPS_M = {
     "charge_ms": dict(S, source="vertical", centre=23, amplitude=0.45, cadrage=(30, -37, 0),
                       temps=[(2, 0.0), (19, 0.34), (21, 0.62)], fondu=(0.34, 0.62), plein=(0.34, 0.62)),
     "lourd_ms": dict(S, source="vertical", centre=23, amplitude=0.45, cadrage=(30, -37, 0),
-                     temps=[(21, 0.0), (21.5, 0.06), (26.5, 0.22), (27.5, 0.30), (29, 0.40), (29, 0.68)],
+                     temps=[(21, 0.0), (21.5, 0.06), (26.5, 0.22), (27.5, 0.30), (29, 0.40), (29, 0.64)],
                      fondu=(0.0, 0.40), plein=(0.0, 0.46), arc=(0.06, 0.22, 0.85), creux=0.06),
 }
 MARQUEURS_M = {
@@ -91,7 +91,7 @@ MARQUEURS_M = {
     "ms_b": {"arme": 0.22, "frappe": 0.26, "fin_frappe": 0.40, "suivi": 0.48, "fin": 0.80},
     "ms_c": {"arme": 0.24, "frappe": 0.28, "fin_frappe": 0.42, "suivi": 0.50, "fin": 0.84},
     "charge_ms": {"arme": 0.34, "fin": 0.62},
-    "lourd_ms": {"arme": 0.05, "frappe": 0.06, "fin_frappe": 0.22, "suivi": 0.30, "fin": 0.68},
+    "lourd_ms": {"arme": 0.05, "frappe": 0.06, "fin_frappe": 0.22, "suivi": 0.30, "fin": 0.64},
 }
 
 # ---------------------------------------------------------------------------------------------------------------------------
@@ -103,22 +103,22 @@ LIM_MX_GM = dict(torsion=(-85, 85), flexion=(-55, 55), inclinaison=(-24, 18))
 S2 = dict(ref=0, decalage=(0.0, 0.08, -0.12), echelle_epaule=0.6, poignet=POIGNET_GM, lim_mx=LIM_MX_GM)
 CLIPS_GM = {
     "gm_a6": dict(S2, source="gs_slash_2", centre=26, amplitude=0.55, cadrage=(0, 30, 25),
-                 temps=[(10, 0.0), (16, 0.14), (18, 0.24), (21, 0.30), (27.5, 0.44), (28.5, 0.52), (29.5, 0.66), (29.5, 0.92)],
-                 fondu=(0.24, 0.56), plein=(0.24, 0.62), arc=(0.30, 0.44, 0.85), creux=0.05),
+                 temps=[(10, 0.0), (16, 0.12), (18, 0.20), (21, 0.24), (27.5, 0.36), (28.5, 0.43), (29.5, 0.52), (29.5, 0.70)],
+                 fondu=(0.20, 0.45), plein=(0.20, 0.50), arc=(0.24, 0.36, 0.85), creux=0.05),
     "gm_b6": dict(S2, source="gs_slash", centre=20, amplitude=0.55, cadrage=(0, 35, -10),
-                 temps=[(8, 0.0), (13, 0.14), (15.5, 0.24), (16.5, 0.30), (22, 0.44), (23, 0.52), (24, 0.66), (24, 0.92)],
-                 fondu=(0.24, 0.56), plein=(0.24, 0.62), arc=(0.30, 0.44, 0.85), creux=0.05),
+                 temps=[(8, 0.0), (13, 0.12), (15.5, 0.20), (16.5, 0.24), (22, 0.36), (23, 0.43), (24, 0.52), (24, 0.70)],
+                 fondu=(0.20, 0.45), plein=(0.20, 0.50), arc=(0.24, 0.36, 0.85), creux=0.05),
     "charge_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.55, cadrage=(0, 25, 10),
                       temps=[(14, 0.0), (23, 0.38), (25.5, 0.70)], fondu=(0.38, 0.70), plein=(0.38, 0.70)),
     "lourd_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.55, cadrage=(0, 25, 10),
-                     temps=[(25.5, 0.0), (27, 0.08), (35.5, 0.26), (36.5, 0.36), (38, 0.54), (38, 1.04)],
-                     fondu=(0.0, 0.54), plein=(0.0, 0.62), arc=(0.08, 0.26, 0.85), creux=0.07),
+                     temps=[(25.5, 0.0), (27, 0.08), (35.5, 0.22), (36.5, 0.30), (38, 0.40), (38, 0.60)],
+                     fondu=(0.0, 0.40), plein=(0.0, 0.46), arc=(0.08, 0.22, 0.85), creux=0.07),
 }
 MARQUEURS_GM = {
-    "gm_a6": {"arme": 0.24, "frappe": 0.30, "fin_frappe": 0.44, "suivi": 0.52, "fin": 0.92},
-    "gm_b6": {"arme": 0.24, "frappe": 0.30, "fin_frappe": 0.44, "suivi": 0.52, "fin": 0.92},
+    "gm_a6": {"arme": 0.20, "frappe": 0.24, "fin_frappe": 0.36, "suivi": 0.43, "fin": 0.70},
+    "gm_b6": {"arme": 0.20, "frappe": 0.24, "fin_frappe": 0.36, "suivi": 0.43, "fin": 0.70},
     "charge_gm6": {"arme": 0.38, "fin": 0.70},
-    "lourd_gm6": {"arme": 0.07, "frappe": 0.08, "fin_frappe": 0.26, "suivi": 0.36, "fin": 1.04},
+    "lourd_gm6": {"arme": 0.07, "frappe": 0.08, "fin_frappe": 0.22, "suivi": 0.30, "fin": 0.60},
 }
 
 _essai = OPT.get("essai", "")   # --essai=<fichier.json> : réglages sans modifier ce fichier
