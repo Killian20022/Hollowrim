@@ -160,7 +160,7 @@ static func reglages_peau(mi: MeshInstance3D) -> void:
 		m2.set_shader_parameter("ombre_froide", Vector3(0.42, 0.42, 0.50))
 		m2.set_shader_parameter("ombre_force", 0.55)
 		m2.set_shader_parameter("soleil_desat", 0.62)
-		m2.set_shader_parameter("lampe_desat", 0.60)
+		m2.set_shader_parameter("lampe_desat", 0.50)
 		m2.set_shader_parameter("contour_froid", Vector3(0.10, 0.12, 0.16))
 		Palette.suivre(m2)
 		if mi.material_override == m:
@@ -281,7 +281,7 @@ static func _tenue(sq: Skeleton3D, p: Dictionary, a: Dictionary, tenue: String, 
 				_montrer(p, "sacoche", _etoffe("bottes_cuir_b", Color.WHITE))
 			if tenue == "forge":
 				_montrer(p, "tunique", _laine(LAINES["lin"]))
-				_montrer(p, "tablier", _etoffe("tunique_cuir_b", Color.WHITE))
+				_montrer(p, "tablier", _etoffe("bottes_cuir_b", Color(0.92, 0.88, 0.84)))     # cuir brun (tunique_cuir_b : rangs gris-bleu)
 		"robe":
 			# femmes : tunique et mante de l'archétype gardées (sous la mante, l'encolure est vide) ; robe longue et tablier de lin
 			_montrer(p, "robe", _laine(laine.darkened(0.08)))
