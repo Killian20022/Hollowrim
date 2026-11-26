@@ -1891,14 +1891,16 @@ func _poser_torche(dt: float) -> void:
 ## clip joué par le bras droit (repos, coups, garde, encaisse…) : sa cible IK est posée chaque image sur la pose AFFICHÉE de
 ## l'arme (pivot_epee, déjà calculée, sans retard d'une image), à `ecart_mains` du centre du poing droit vers le pommeau (prise
 ## lue dans le modèle : repère « prise »), même sens de fusée (les deux pouces vers la lame). Torche et objet gauche rangés.
+## A/B : `--ik-gauche-ancien` rend la borne générique (35°, sans limite de vitesse) au poignet gauche à deux mains.
+static var ik_gauche_ancien := OS.get_cmdline_user_args().has("--ik-gauche-ancien")
 const VITESSE_POIGNET_G_2M := 360.0   # °/s : 6° par image à 60 i/s
 func _poser_deux_mains(dt: float) -> void:
 	# poignet gauche anatomique (combat/coups_masses_marteaux) : la main peut s'écarter un peu de l'axe exact de la fusée plutôt
 	# que de casser le poignet (borne propre de l'orienteur, pas de pose)
-	_orient_g.deviation_max = deg_to_rad(arme.deviation_poignet_g_2m)
+	_orient_g.deviation_max = deg_to_rad(35.0 if ik_gauche_ancien else arme.deviation_poignet_g_2m)
 	_orient_g.angle_min = -1.0
 	_orient_g.angle_max = -1.0
-	_orient_g.vitesse_max = deg_to_rad(VITESSE_POIGNET_G_2M)
+	_orient_g.vitesse_max = 0.0 if ik_gauche_ancien else deg_to_rad(VITESSE_POIGNET_G_2M)
 	_baisse_torche = lerpf(_baisse_torche, 0.5, 1.0 - exp(-8.0 * dt))
 	var y := maxf(_milieu_d - arme.ecart_mains, arme.fusee_bas)
 	var prise := Transform3D(Basis(Vector3.UP, deg_to_rad(arme.rotation_main_gauche)), Vector3(0.0, y, 0.0))
