@@ -566,6 +566,7 @@ func _seqs() -> Dictionary:
 		"epee_longue_combo": [CatalogueArmes.donnees("veilleuse"), "vide", CLICS4, 2.6],
 		"claymore_combo": [CatalogueArmes.donnees("claymore"), "vide", CLICS4, 3.2],
 		"claymore_lourd": [CatalogueArmes.donnees("claymore"), "vide", LOURD, 2.2],
+		"claymore_garde": [CatalogueArmes.donnees("claymore"), "vide", {0: ["garde"], 40: ["coup_face"]}, 1.4],
 		"mains_nues": ["vide", "vide", CLICS4, 2.4],
 		"bouclier_combo": [epee, "bouclier", CLICS4, 2.4],
 		"bouclier_garde_coup": [epee, "bouclier", {0: ["garde"], 10: ["coup_face"], 40: ["coup_face"], 60: ["fin_garde"], 62: ["appuyer"], 65: ["relacher"]}, 1.8],
