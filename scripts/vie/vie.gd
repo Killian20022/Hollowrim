@@ -21,6 +21,9 @@ const PAS := 0.5                     # s : horloge (2 Hz)
 const R_DANGER := 15.0               # m : un hostile ou un combat à moins de R_DANGER d'un civil le fait fuir
 const R_SORTIE := 22.0               # m : tant qu'un danger rôde à moins de R_SORTIE de son abri, il y reste
 const DELAI_RETOUR := 9.0            # s sans danger avant de sortir de l'abri
+const ECART_SORTIE := 1.1            # s : au moins cet écart entre deux civils qui ressortent (file de sortie, bugs/pnj_popin)
+static var _ancien_retour := OS.get_cmdline_user_args().has("--ancien-retour-abri")   # A/B : tous ressortent au même tick, comme avant
+var _file_sortie := -1.0e9           # instant (horloge) de la dernière sortie d'abri prévue
 const R_FRAPPE := 2.4                # m : distance de la porte où l'on « frappe » la nuit
 const DELAI_FRAPPE := 25.0
 const MEMOIRE_DANGER := 180.0        # s : un danger de moins de 3 min colore les dialogues
@@ -277,6 +280,18 @@ func _fuir(c: Dictionary, e: Node3D, instant: bool) -> void:
 	else:
 		n.rentrer(porte, true, _via(n, porte), true)
 
+## Le joueur est à moins de R_SORTIE de `porte` alors qu'un garde le combat encore (crime) : un civil réfugié ne sort pas sous son nez.
+func _meurtrier_devant(porte: Vector3) -> bool:
+	if joueur == null or Vector2(joueur.global_position.x - porte.x, joueur.global_position.z - porte.z).length() >= R_SORTIE:
+		return false
+	var cr := Crime.trouver(self)
+	if cr == null or not cr.est_hostile():
+		return false
+	for c in cr.combattants:
+		if is_instance_valid(c) and not c.est_mort and c.mode == "hostile":
+			return true
+	return false
+
 func _abri_proche(pos: Vector3) -> String:
 	var best := ""
 	var dmin := INF
@@ -292,12 +307,31 @@ func _fin_abri(c: Dictionary, menaces: Array, instant: bool) -> void:
 	var n: Node3D = c["n"]
 	# encore en route vers l'abri, ou caché : on attend la fin du danger
 	if _horloge - float(c["danger_t"]) < DELAI_RETOUR:
+		c["sortie_t"] = -1.0
 		return
 	var porte: Vector3 = c["porte"]
 	for e: Node3D in menaces:
 		if Vector2(e.global_position.x - porte.x, e.global_position.z - porte.z).length() < R_SORTIE:
 			c["danger_t"] = _horloge   # il rôde encore près de l'abri
+			c["sortie_t"] = -1.0
 			return
+	if not _ancien_retour and _meurtrier_devant(porte):
+		c["danger_t"] = _horloge       # bugs/pnj_popin : la garde se bat encore contre le joueur devant sa porte : il reste dedans
+		c["sortie_t"] = -1.0
+		return
+	# bugs/pnj_popin (2026-11-26) : ils ressortaient TOUS au même tick (9 s après la fin du danger) : rue vide, puis tout le village
+	# d'un coup au demi-tour. Désormais une file de sortie : un par un ou à deux, ECART_SORTIE s au moins entre deux sorties.
+	var st := float(c.get("sortie_t", -1.0))
+	if _ancien_retour or instant:     # heure sautée (sommeil, attente) : tout le monde est déjà sorti
+		st = 0.0
+	elif st < 0.0:
+		var h := absi(hash(String(c["id"]) + str(alarmes)))
+		st = maxf(_horloge + 0.5 + float(h % 100) / 100.0 * 2.0, _file_sortie + ECART_SORTIE + float((h / 100) % 100) / 100.0 * 1.5)
+		_file_sortie = st
+		c["sortie_t"] = st
+	if _horloge < st:
+		return
+	c["sortie_t"] = -1.0
 	c["fuit"] = false
 	c["retour_t"] = _horloge
 	c["mode"] = ""         # replanifié tout de suite
