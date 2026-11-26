@@ -188,6 +188,9 @@ func _mort(g: Node3D) -> void:
 func _repulsion(g: Node3D) -> void:
 	_prefixe = "repulsion"
 	_n_img = 0
+	g = Elements.corps_visible(g) as Node3D      # déjà en armes (meurtre vu) : c'est son combattant qu'on voit
+	if g is CharacterBody3D:
+		(g as CharacterBody3D).set_physics_process(false)   # immobile le temps de viser (il courrait sur le joueur)
 	_devant(g, 3.0)
 	await _attendre(0.4)
 	var mod: Node3D = g.modele
@@ -197,6 +200,8 @@ func _repulsion(g: Node3D) -> void:
 	var s := es._sort("repulsion")
 	var oeil: Vector3 = j.camera.global_position
 	var avant := (g.global_position + Vector3.UP * 1.0 - oeil).normalized()
+	if g is CharacterBody3D:
+		(g as CharacterBody3D).set_physics_process(true)
 	var res := es.repulsion(s, 1.0, null, oeil, avant)
 	print("   répulsion : niveau %.2f force %.1f portée %.1f ; touchés %d" % [float(res["niveau"]), float(res["force"]), float(res["portee"]), (res["ennemis"] as Array).size()])
 	var y_max := -99.0
@@ -213,7 +218,10 @@ func _repulsion(g: Node3D) -> void:
 	for x in es.journal.slice(-8):
 		print("   ES %.2f %s" % [x[0], x[1]])
 	print("   garde projeté : %.2f m à l'horizontale, bassin monté de %.2f m" % [d_max, y_max])
-	_verif(g in res["ennemis"] or (cr.combattant_de(g) != null and cr.combattant_de(g) in res["ennemis"]), "le garde est touché par l'onde")
+	var vu := false
+	for e in res["ennemis"]:
+		vu = vu or e == g or Elements.corps_visible(g) == e or (g is PnjCombat and (g as PnjCombat).pnj == e)
+	_verif(vu, "le garde est touché par l'onde")
 	_verif(d_max >= DEPLACEMENT_MIN, "répulsion pleine charge : garde projeté de %.2f m (≥ %.1f m)" % [d_max, DEPLACEMENT_MIN])
 	_verif(y_max >= 0.5, "il décolle (bassin +%.2f m)" % y_max)
 
