@@ -125,9 +125,13 @@ for s, sg in (("l", 1), ("r", -1)):
         b = eb[nom + "_" + s]
         b.head.x += sg * dx; b.tail.x += sg * dx
 bpy.ops.object.mode_set(mode="OBJECT")
+# doigts RIGIDES par défaut (comme les gardes Tripo) : la main du modèle garde sa forme sculptée (doigts mi-fléchis), entière sur
+# hand_* ; fermés par les clips, les doigts décimés se froissaient en éclats autour de la poignée (essai 1). --doigts=souples : phalanges.
+DOIGTS_SOUPLES = arg("doigts", "rigides") == "souples"
 for b in arm.data.bones:
     n = b.name
-    b.use_deform = not (n == "root" or n.endswith("_leaf_l") or n.endswith("_leaf_r"))
+    doigt = n.startswith(("index_", "middle_", "pinky_", "ring_", "thumb_"))
+    b.use_deform = not (n == "root" or n.endswith("_leaf_l") or n.endswith("_leaf_r") or (doigt and not DOIGTS_SOUPLES))
 
 # bras : pose T -> pose A mesurée (rotation de l'épaule)
 ROT = {}
@@ -186,7 +190,7 @@ if sans:
 DOIGTS = ("thumb", "index", "middle", "ring", "pinky")
 def seg(pb):
     return np.array(arm.matrix_world @ pb.head), np.array(arm.matrix_world @ pb.tail)
-for s, sg in (("l", 1), ("r", -1)):
+for s, sg in ((("l", 1), ("r", -1)) if DOIGTS_SOUPLES else ()):
     segs = []
     for d_ in DOIGTS:
         for n_ in ("01", "02", "03"):

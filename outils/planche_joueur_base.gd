@@ -59,6 +59,14 @@ func _go() -> void:
 		t += DT
 	j = m.joueur
 	m.cycle.heure = heure
+	# clairière du cercle (dégagée) : rien entre la caméra et le joueur ; vrai 960x540 / 1280x720 (le projet étire un 640x360)
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
+	root.size = Vector2i(1280, 720) if film else Vector2i(960, 540)
+	var px := float(_arg("x", "3.0"))
+	var pz := float(_arg("z", "-2.0"))
+	j.global_position = Vector3(px, m.hauteur(px, pz) + 0.05, pz)
+	j.rotation.y = deg_to_rad(float(_arg("lacet", "200")))
+	j.velocity = Vector3.ZERO
 	var calque := CanvasLayer.new()
 	calque.layer = 90
 	root.add_child(calque)
@@ -81,6 +89,12 @@ func _go() -> void:
 	else:
 		await _planches()
 	quit()
+
+func _arg(n: String, d: String) -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--" + n + "="):
+			return a.substr(n.length() + 3)
+	return d
 
 func _equiper(f: String) -> void:
 	for e in ["tete", "torse", "mains", "pieds"]:
@@ -149,7 +163,7 @@ func _appui(action: String, sec: float) -> void:
 
 func _film() -> void:
 	var s := String(j.apparence)
-	var f := familles[0] if familles.size() > 0 else "aucune"
+	var f: String = String(familles[0]) if familles.size() > 0 else "aucune"
 	_equiper(f)
 	j.camera_tp.set("_orbite", 0.0)
 	l.text = "%s - marche" % s
