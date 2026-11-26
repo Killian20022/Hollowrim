@@ -544,9 +544,9 @@ func _poignet_garde() -> void:
 		return
 	_borne_poignet(im, w)
 	_lisser_poignet(im)
-	# biais plein dès 35 % du fondu de la capture : sinon, pendant la montée en garde, le bras capturé lève déjà l'arme quand la
+	# biais plein dès 15 % du fondu de la capture (passe 3 : l'arme part par le côté, plus devant le visage) : sinon, pendant la montée en garde, le bras capturé lève déjà l'arme quand la
 	# surcouche n'est encore qu'à moitié : la lame passait par la verticale au-dessus de la tête (relecture du 2026-11-26)
-	_biais_garde(_garde_w * clampf(_poids / 0.35, 0.0, 1.0))
+	_biais_garde(clampf(_garde_w / 0.5, 0.0, 1.0) * clampf(_poids / 0.15, 0.0, 1.0))
 
 ## Poignet (rotation de hand_r dans le repère de l'avant-bras) limité à POIGNET_VITESSE_MAX° par image pendant les gardes : à
 ## l'entrée d'une garde à deux mains, le fondu de la capture faisait claquer le poignet de 14-16° en une image.
@@ -581,7 +581,7 @@ func _borne_poignet(im: int, w: float) -> void:
 ## gardes de la 1re personne, le bras droit ENTIER tourne rigidement autour de l'épaule (axe avant du joueur) pour coucher l'arme à
 ## BIAIS_GARDE° de la verticale, tête / pointe vers la droite du joueur (même côté qu'en 1re personne). Poignet et coude intacts.
 const BIAIS_GARDE := 45.0
-const BIAIS_VITESSE_MAX := 6.0
+const BIAIS_VITESSE_MAX := 7.0
 var _delta_prec := 0.0
 var _delta_ok := false
 

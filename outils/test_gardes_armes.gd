@@ -125,6 +125,8 @@ func _echantillon(vue: String) -> Dictionary:
 	var m: Node3D = ar[0]
 	var ax := Vector3.UP
 	var pts: Array[Vector3] = [_p("lowerarm_r"), _p("hand_r")]
+	if mains.arme != null and mains.arme.deux_mains:
+		pts.append_array([_p("lowerarm_l"), _p("hand_l")])   # deux mains : le bras gauche compte dans la place à l'écran
 	if m != null and is_instance_valid(m):
 		var g: Vector3 = m.global_transform * (ar[1] as Vector3)
 		var pt: Vector3 = m.global_transform * (ar[2] as Vector3)
