@@ -255,11 +255,11 @@ static func installer_fondu(racine: Node, sq: Skeleton3D) -> void:
 ## le viewmodel entier (bras + buste + arme) qui recule, sans changer le geste : quand un os passe à moins de RECUL_OS de l'œil,
 ## le nœud des bras est poussé de la différence, de l'œil vers cet os (lissé : jamais de saut d'une image à l'autre).
 ## Coups ordinaires (os à 0,36 m au plus près) : aucun recul.
-const RECUL_OS := 0.34
+const RECUL_OS := 0.38
 const RECUL_MAX := 0.16
 const RECUL_LISSAGE := 30.0   # 1/s (ressort critique vers le recul visé)
-const RAYON_EPAULE := 0.085  # rayon de la manche autour du bout de la rotule
-const BOUT_ROTULE := 0.045   # bout du dôme d'épaule de la manche, en deçà de la tête de l'humérus (buste_fps.py)
+const RAYON_EPAULE := 0.10   # rayon de la manche autour du bout de la rotule
+const BOUT_ROTULE := 0.05    # bout du dôme d'épaule de la manche, en deçà de la tête de l'humérus (buste_fps.py)
 const CADRAGE_MAX := 0.20
 
 static func _point_proche(sq: Skeleton3D, cam: Camera3D, cote: String) -> Vector3:
