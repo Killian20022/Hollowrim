@@ -29,7 +29,14 @@ var dcam: Camera3D
 var _copies: Array[MeshInstance3D] = []
 var _sources := {}   # copie de détection -> maillage du jeu (pour recopier son fondu)
 var _mat_det := {}
-var _pires: Array = []      # [rouge, seq, n, image normale, image détection]
+var _pires: Array = []
+var _pires_f: Array = []    # [flottant, seq, n, image normale, image détection]
+var _flottant_img := 0
+var _bout_img := 0         # pixels (demi-résolution) de bout de corps vus (dôme d'épaule, bas du buste)
+var _bout_images := 0
+const BOUT_MIN := 6
+var _flottant_images := 0
+const FLOTTANT_MIN := 12   # pixels de bras (demi-résolution) d'une composante pour la compter      # [rouge, seq, n, image normale, image détection]
 var _bilan: PackedStringArray = []
 var _max_global := 0
 var _seuil := 0
@@ -60,6 +67,7 @@ func _shader_det() -> Shader:
 render_mode unshaded, cull_disabled, fog_disabled, shadows_disabled, depth_draw_opaque;
 uniform float code = 0.0;
 uniform bool carte = false;
+uniform bool tunique = false;   // bras_corps_1p : bouts du corps (dôme d'épaule des manches, bas du buste) marqués
 const float TRAME_OEIL[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
 instance uniform float fondu_bras = 1.0;   // même fondu en trame que le bras du jeu (AvantBras.regler_fondu), recopié
 void fragment() {
@@ -70,7 +78,10 @@ void fragment() {
 	// vert du dos : position le long du bras (UV.y de la manche, 0 = épaule, 3,2 = coude) pour situer un défaut
 	// rouge faible sur la face avant : bras à moins de 0,25 m de l'œil (« objet géant près de l'œil »)
 	float proche = length(VERTEX) < 0.25 ? 0.12 : 0.0;
-	ALBEDO = FRONT_FACING ? vec3(proche, 1.0, code) : (carte ? vec3(1.0, 1.0, code) : vec3(1.0, clamp(UV.y / 1.6, 0.0, 1.0) * 0.05, code));
+	// BOUT (bras_corps_1p) : bout d'épaule d'une manche (UV.y > 0,79 : dôme, |x| < 0,13) ou bas du buste (UV.y -3,5..-2,5 :
+	// z < 1,15) vu de face = un endroit où le corps FINIT dans le champ ; vert moyen (0,45) sans rouge
+	bool bout = tunique && FRONT_FACING && (UV.y > 0.79 || (UV.y > -3.5 && UV.y < -2.5));
+	ALBEDO = bout ? vec3(0.0, 0.45, code) : FRONT_FACING ? vec3(proche, 1.0, code) : (carte ? vec3(1.0, 1.0, code) : vec3(1.0, clamp(UV.y / 1.6, 0.0, 1.0) * 0.05, code));
 }
 """
 	return sh
@@ -80,7 +91,7 @@ func _noir() -> ShaderMaterial:
 	if _mat_noir == null:
 		_mat_noir = ShaderMaterial.new()
 		var sh := Shader.new()
-		sh.code = "shader_type spatial;\nrender_mode unshaded, cull_disabled, fog_disabled;\nvoid fragment() { ALBEDO = vec3(0.0); }\n"
+		sh.code = "shader_type spatial;\nrender_mode unshaded, cull_disabled, fog_disabled;\nvoid fragment() { ALBEDO = vec3(0.0, 0.0, 1.0); }\n"
 		_mat_noir.shader = sh
 	return _mat_noir
 
@@ -92,6 +103,7 @@ func _materiau_det(nom: String) -> ShaderMaterial:
 		mm.set_shader_parameter("code", float(k) / 10.0)
 		# fourrure : mèches en CARTES à une face, double face voulue (pas un volume) : leur dos est compté à part (jaune)
 		mm.set_shader_parameter("carte", nom in CARTES)
+		mm.set_shader_parameter("tunique", nom == "tunique")
 		_mat_det[nom] = mm
 	return _mat_det[nom]
 
@@ -281,6 +293,10 @@ func _image(seq: String, n: int, garder_images: bool) -> int:
 						r4 = false
 				if r4:
 					tache += 1
+	# BRAS FLOTTANT (chantier combat/bras_corps_1p, 2026-11-26) : masque bras + objets tenus (bleu pur) à demi-résolution ;
+	# une composante connexe (8 voisins) qui ne touche AUCUN bord de l'écran et contient au moins FLOTTANT_MIN pixels de bras
+	# = un bras qu'on voit finir dans le champ (épaule coupée, morceau détaché par le fondu). Critère : 0 image.
+	var flottant := _flottant(donnees, w, h)
 	var pct := 100.0 * rouges / float(w * h)
 	var detail := ""
 	if par.has("tunique"):
@@ -294,7 +310,16 @@ func _image(seq: String, n: int, garder_images: bool) -> int:
 		if is_instance_valid(_sources[c2]):
 			fondu_min = minf(fondu_min, float((_sources[c2] as MeshInstance3D).get_meta("fondu_bras", 1.0)))
 	detail += " fondu=%.2f d_os=%.2f/%.2f" % [fondu_min, float(mains._sq.get_meta("d_os_l", 9.0)), float(mains._sq.get_meta("d_os_r", 9.0))]
-	print("IMAGE %s %03d rouge=%d px (%.3f %%) coeur=%d tache=%d%s cartes_decor=%d proche25cm=%.2f%% manche_proche=%.2f%% manche_aire=%.2f%% etat=%s" % [seq, n, rouges, pct, coeur, tache, detail, cartes, 100.0 * proches / float(w * h), 100.0 * proches_manche / float(w * h), 100.0 * aire_manche / float(w * h), _etat()])
+	print("IMAGE %s %03d flottant=%d bout=%d rouge=%d px (%.3f %%) coeur=%d tache=%d%s cartes_decor=%d proche25cm=%.2f%% manche_proche=%.2f%% manche_aire=%.2f%% etat=%s" % [seq, n, flottant, _bout_img, rouges, pct, coeur, tache, detail, cartes, 100.0 * proches / float(w * h), 100.0 * proches_manche / float(w * h), 100.0 * aire_manche / float(w * h), _etat()])
+	var mauvais := flottant + (_bout_img if _bout_img >= BOUT_MIN else 0)
+	if mauvais > 0 and (_pires_f.is_empty() or mauvais > _pires_f[-1][0] or _pires_f.size() < 24):
+		var nf := root.get_viewport().get_texture().get_image()
+		nf.convert(Image.FORMAT_RGB8)
+		_pires_f.append([mauvais, seq, n, nf, det.duplicate()])
+		_pires_f.sort_custom(func(a, b): return a[0] > b[0])
+		if _pires_f.size() > 24:
+			_pires_f.resize(24)
+	_flottant_img = flottant
 	if rouges > 0 or garder_images:
 		var norm := root.get_viewport().get_texture().get_image()
 		norm.convert(Image.FORMAT_RGB8)
@@ -311,6 +336,65 @@ func _image(seq: String, n: int, garder_images: bool) -> int:
 	_tache_img = tache
 	_manche_proche_img = 100.0 * proches_manche / float(w * h)
 	return rouges
+
+## Pixels de bras (demi-résolution) des composantes qui ne touchent aucun bord (voir _image).
+func _flottant(donnees: PackedByteArray, w: int, h: int) -> int:
+	var hw := w / 2
+	var hh := h / 2
+	var m := PackedByteArray()
+	m.resize(hw * hh)
+	for y in hh:
+		for x in hw:
+			var i := ((y * 2) * w + x * 2) * 3
+			var r := donnees[i]
+			var g := donnees[i + 1]
+			var b := donnees[i + 2]
+			if r > 150 or g > 150:
+				m[y * hw + x] = 1
+			elif b > 200 and r < 40 and g < 40:
+				m[y * hw + x] = 2
+	var vu := PackedByteArray()
+	vu.resize(hw * hh)
+	_bout_img = 0
+	for y in hh:
+		for x in hw:
+			var i := ((y * 2) * w + x * 2) * 3
+			if donnees[i] < 40 and donnees[i + 1] > 150 and donnees[i + 1] < 230:
+				_bout_img += 1
+	var total := 0
+	var pile := PackedInt32Array()
+	for k0 in hw * hh:
+		if m[k0] == 0 or vu[k0] != 0:
+			continue
+		vu[k0] = 1
+		pile.clear()
+		pile.append(k0)
+		var bord := false
+		var bras := 0
+		while not pile.is_empty():
+			var k := pile[pile.size() - 1]
+			pile.remove_at(pile.size() - 1)
+			var x := k % hw
+			var y := k / hw
+			if m[k] == 1:
+				bras += 1
+			if x == 0 or y == 0 or x == hw - 1 or y == hh - 1:
+				bord = true
+			for dy in [-1, 0, 1]:
+				var yy: int = y + dy
+				if yy < 0 or yy >= hh:
+					continue
+				for dx in [-1, 0, 1]:
+					var xx: int = x + dx
+					if xx < 0 or xx >= hw:
+						continue
+					var q := yy * hw + xx
+					if m[q] != 0 and vu[q] == 0:
+						vu[q] = 1
+						pile.append(q)
+		if not bord and bras >= FLOTTANT_MIN:
+			total += bras
+	return total
 
 func _etat() -> String:
 	var t := ""
@@ -357,6 +441,10 @@ func _sequence(nom: String, droite: Variant, gauche: Variant, actions: Dictionar
 	var tache_max := 0
 	var manche_proche_max := 0.0
 	var garder := _arg("images") != ""
+	var flott_n := 0
+	var bout_n := 0
+	var bout_max := 0
+	var flott_max := 0
 	for i in n:
 		if actions.has(i):
 			for a in actions[i]:
@@ -405,6 +493,12 @@ func _sequence(nom: String, droite: Variant, gauche: Variant, actions: Dictionar
 					"bouclier_coup":
 						mains.entrees.forcer_garde(1.2)
 		var r := await _image(nom, i, garder)
+		if _bout_img >= BOUT_MIN:
+			bout_n += 1
+			bout_max = maxi_i(bout_max, _bout_img)
+		if _flottant_img > 0:
+			flott_n += 1
+			flott_max = maxi_i(flott_max, _flottant_img)
 		coeur_max = maxi_i(coeur_max, _coeur_img)
 		tache_max = maxi_i(tache_max, _tache_img)
 		manche_proche_max = maxf(manche_proche_max, _manche_proche_img)
@@ -417,7 +511,9 @@ func _sequence(nom: String, droite: Variant, gauche: Variant, actions: Dictionar
 	_tache_global = maxi_i(_tache_global, tache_max)
 	_manche_proche_global = maxf(_manche_proche_global, manche_proche_max)
 	var px := float(dv.size.x * dv.size.y)
-	var ligne := "SEQ %-22s images=%d touchees=%d max=%d px (%.3f %%) moy=%.1f px coeur_max=%d px tache_max=%d px manche_proche_max=%.2f %%" % [nom, n, touchees, maxi, 100.0 * maxi / px, total / float(n), coeur_max, tache_max, manche_proche_max]
+	_flottant_images += flott_n
+	_bout_images += bout_n
+	var ligne := ("SEQ %-22s flottant_images=%d flottant_max=%d bout_images=%d bout_max=%d px(demi-res) " % [nom, flott_n, flott_max, bout_n, bout_max]) + "images=%d touchees=%d max=%d px (%.3f %%) moy=%.1f px coeur_max=%d px tache_max=%d px manche_proche_max=%.2f %%" % [n, touchees, maxi, 100.0 * maxi / px, total / float(n), coeur_max, tache_max, manche_proche_max]
 	print(ligne)
 	_bilan.append(ligne)
 	j.velocity = Vector3.ZERO
@@ -493,6 +589,17 @@ func _planche() -> void:
 		(e[4] as Image).save_png(sortie.path_join("pire_%02d_%s_%03d_det.png" % [k + 1, e[1], e[2]]))
 	f.close()
 
+func _planche_f() -> void:
+	if _pires_f.is_empty():
+		return
+	var f := FileAccess.open(sortie.path_join("pires_flottants.txt"), FileAccess.WRITE)
+	for k in _pires_f.size():
+		var e: Array = _pires_f[k]
+		f.store_line("%d  %s #%03d  %d px" % [k + 1, e[1], e[2], e[0]])
+		(e[3] as Image).save_png(sortie.path_join("flottant_%02d_%s_%03d.png" % [k + 1, e[1], e[2]]))
+		(e[4] as Image).save_png(sortie.path_join("flottant_%02d_%s_%03d_det.png" % [k + 1, e[1], e[2]]))
+	f.close()
+
 func _go() -> void:
 	sortie = _arg("sortie", ProjectSettings.globalize_path("user://audit_bras_vide"))
 	_seuil = int(_arg("seuil", "0"))
@@ -515,6 +622,9 @@ func _go() -> void:
 	f.store_string("\n".join(_bilan) + "\n")
 	f.close()
 	print("TOTAL max=%d px (contour compris), coeur_max=%d px, tache_max=%d px, manche_a_moins_de_25cm_max=%.2f %% de l'écran (critère <= 8) sur %d sequences" % [_max_global, _coeur_global, _tache_global, _manche_proche_global, choix.size()])
+	print("TOTAL_FLOTTANT images=%d bout_images=%d (critère 0 : aucune image où un bras finit dans le champ)" % [_flottant_images, _bout_images])
+	_planche_f()
+	print("AUDIT_BRAS_FLOTTANT " + ("OK" if _flottant_images + _bout_images == 0 else "ECHEC"))
 	print("AUDIT_BRAS_VIDE " + ("OK" if _coeur_global <= _seuil else "ECHEC"))
 	quit(0 if _coeur_global <= _seuil else 1)
 

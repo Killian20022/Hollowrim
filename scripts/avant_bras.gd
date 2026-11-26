@@ -249,14 +249,78 @@ static func installer_fondu(racine: Node, sq: Skeleton3D) -> void:
 	f.name = "FonduBras"
 	sq.add_child(f)
 
-## Pose l'opacité de chaque bras sur ses maillages (avant_bras_l/_r, manche_l/_r).
-static func regler_fondu(racine: Node, cam: Camera3D) -> void:
+## RECUL DU VIEWMODEL (chantier combat/bras_corps_1p, 2026-11-26) à la place de l'effacement en trame. Retour utilisateur :
+## « on voit mes bras se décoller à chaque fois que je frappe » : la trame dissolvait le bras qui balaie la vue (contre-attaque)
+## et en laissait des morceaux flottants. Comme les jeux en 1re personne (cadrage du viewmodel), le bras reste PLEIN et c'est
+## le viewmodel entier (bras + buste + arme) qui recule, sans changer le geste : quand un os passe à moins de RECUL_OS de l'œil,
+## le nœud des bras est poussé de la différence, de l'œil vers cet os (lissé : jamais de saut d'une image à l'autre).
+## Coups ordinaires (os à 0,36 m au plus près) : aucun recul.
+const RECUL_OS := 0.34
+const RECUL_MAX := 0.16
+const RECUL_LISSAGE := 30.0   # 1/s (ressort critique vers le recul visé)
+
+static func _point_proche(sq: Skeleton3D, cam: Camera3D, cote: String) -> Vector3:
+	var ids := [sq.find_bone("upperarm_" + cote), sq.find_bone("lowerarm_" + cote), sq.find_bone("hand_" + cote)]
+	if ids.has(-1):
+		return Vector3.INF
+	var p: Array[Vector3] = []
+	for i: int in ids:
+		p.append(sq.global_transform * sq.get_bone_global_pose(i).origin)
+	var o := cam.global_position
+	var meilleur := Vector3.INF
+	var d := INF
+	for k in 11:
+		var t := k / 10.0
+		var q: Vector3 = p[0].lerp(p[1], 0.3 + 1.4 * t) if t < 0.5 else p[1].lerp(p[2], (t - 0.5) * 2.0)
+		if o.distance_to(q) < d:
+			d = o.distance_to(q)
+			meilleur = q
+	return meilleur
+
+## Recul du viewmodel `racine` (repère de son parent) : appelé chaque image par FonduBras (dernier modificateur), sur la pose
+## finale. Le recul visé vient de la pose AVANT recul (os remis dans le repère de base), lissé dans le temps.
+static func reculer(racine: Node3D, cam: Camera3D, dt: float) -> void:
+	var sq: Skeleton3D = racine.find_child("Skeleton3D", true, false)
+	if sq == null or racine.get_parent() == null:
+		return
+	if not racine.has_meta("base_vm"):
+		racine.set_meta("base_vm", racine.transform)
+		racine.set_meta("recul_vm", Vector3.ZERO)
+	var base: Transform3D = racine.get_meta("base_vm")
+	var recul: Vector3 = racine.get_meta("recul_vm")
+	var parent := (racine.get_parent() as Node3D).global_transform
+	var o := cam.global_position
+	var vise := Vector3.ZERO
+	for cote in ["l", "r"]:
+		var q := _point_proche(sq, cam, cote)
+		if q == Vector3.INF:
+			continue
+		q -= parent.basis * recul   # pose sans le recul déjà appliqué
+		var d := o.distance_to(q)
+		sq.set_meta("d_os_" + cote, d)   # distance caméra -> os du bras (audit), hors recul
+		if d < RECUL_OS:
+			var v := parent.basis.inverse() * ((q - o).normalized() * (RECUL_OS - d))
+			if v.length() > vise.length():
+				vise = v
+	vise = vise.limit_length(RECUL_MAX)
+	recul = recul.lerp(vise, 1.0 - exp(-RECUL_LISSAGE * maxf(dt, 0.0)))
+	if recul.length() < 1e-4 and vise == Vector3.ZERO:
+		recul = Vector3.ZERO
+	racine.set_meta("recul_vm", recul)
+	racine.transform = Transform3D(base.basis, base.origin + recul)
+
+## Pose l'opacité de chaque bras sur ses maillages (avant_bras_l/_r, manche_l/_r). Depuis bras_corps_1p : le bras n'est plus
+## effacé (opacité 1 tant qu'il reste au-delà de FONDU_PRES de l'œil, ce que le recul garantit) ; la trame ne sert plus que
+## de garde-fou si un os passait malgré tout tout contre l'œil.
+static func regler_fondu(racine: Node, cam: Camera3D, dt := 1.0 / 60.0) -> void:
 	if racine == null or cam == null:
 		return
 	var sq: Skeleton3D = racine.find_child("Skeleton3D", true, false)
 	if sq == null:
 		return
-	var a := {"l": opacite(sq, cam, "l"), "r": opacite(sq, cam, "r")}
+	if racine is Node3D:
+		reculer(racine, cam, dt)
+	var a := {"l": opacite_garde_fou(sq, cam, "l"), "r": opacite_garde_fou(sq, cam, "r")}
 	for mi: MeshInstance3D in racine.find_children("*", "MeshInstance3D", true, false):
 		if mi.skin == null or mi.get_meta("det_bras", false):
 			continue
@@ -265,3 +329,12 @@ static func regler_fondu(racine: Node, cam: Camera3D) -> void:
 		if c != "" and absf(float(mi.get_meta("fondu_bras", 1.0)) - a[c]) > 0.001:
 			mi.set_meta("fondu_bras", a[c])   # dernière valeur posée (lue sans synchroniser le serveur de rendu)
 			mi.set_instance_shader_parameter("fondu_bras", a[c])
+
+## Garde-fou : opacité 0 seulement si la SURFACE du bras passe à moins de FONDU_PRES (0,12 m) de l'œil, pleine dès 0,16 m
+## (après recul, les os restent à RECUL_OS - au pire RECUL_MAX de manque).
+static func opacite_garde_fou(sq: Skeleton3D, cam: Camera3D, cote: String) -> float:
+	var q := _point_proche(sq, cam, cote)
+	if q == Vector3.INF:
+		return 1.0
+	var d := cam.global_position.distance_to(q) - RAYON_BRAS
+	return clampf((d - FONDU_PRES) / 0.04, 0.0, 1.0)
