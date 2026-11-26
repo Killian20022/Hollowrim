@@ -393,7 +393,7 @@ func _installer_arme() -> void:
 	_milieu_d += GestesLourds.decalage_prise(arme)   # haches, masses, marteaux : manche tenu plus bas (combat/gestes_lourds)
 	PRISE_D = _calculer_prise("r", _milieu_d)
 	_cible_d.transform = PRISE_D.affine_inverse()
-	var variante: Dictionary = _profil().get("tenues", {})
+	var variante: Dictionary = GardesArmes.tenues(_profil().get("tenues", {}), arme)   # gardes de biais, poignet neutre (combat/gardes_toutes_armes)
 	if variante != anim.variante:
 		anim.variante = variante
 		if anim.clip != "":

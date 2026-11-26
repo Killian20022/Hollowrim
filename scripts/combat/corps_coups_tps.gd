@@ -107,6 +107,19 @@ const CLIPS := {
 	"parade_2m": {"src": "gs_block", "im": [0, 15]},
 	"encaisse_2m": {"src": "gs_impact", "im": [0, 20]},
 	"brisee_2m": {"src": "gs_impact", "im": [0, 26]},
+	# --- gardes de TOUTES les armes (combat/gardes_toutes_armes, GardesArmes) : clips FPS g1_* / gl_* / g2_* ; MÊMES captures qu'en
+	# 1re personne (« great sword blocking (2) » tenu, « great sword blocking » pour la parade, « great sword impact » pour le coup
+	# bloqué) : arme levée de biais devant le corps. Avant : « Sword_Block » UAL2 image 8 (lame basse presque horizontale, 72° de la
+	# verticale) et « sword and shield impact » (l'épée retombait pointe en bas au coup bloqué).
+	"g1_garde": {"src": "gs_block_2", "im": [10, 10], "tenue": true},
+	"g1_parade": {"src": "gs_block", "im": [0, 15]},
+	"g1_encaisse": {"src": "gs_impact", "im": [0, 20]},
+	"gl_garde": {"src": "gs_block_2", "im": [10, 10], "tenue": true},
+	"gl_parade": {"src": "gs_block", "im": [0, 15]},
+	"gl_encaisse": {"src": "gs_impact", "im": [0, 20]},
+	"g2_garde": {"src": "gs_block_2", "im": [10, 10], "tenue": true},
+	"g2_parade": {"src": "gs_block", "im": [0, 15]},
+	"g2_encaisse": {"src": "gs_impact", "im": [0, 20]},
 	# --- haches, masses, marteaux (gestes lourds) ---
 	# hache : 1 diagonale, 2 revers, 3 taille verticale ; puissante = grand vertical
 	"h_a": {"src": "slash_1", "im": [6, 15, 17, 23, 34], "retour": 44},
@@ -235,7 +248,8 @@ func _clip_courant() -> String:
 	var reel: String = mains.anim.reel(mains.anim.clip)
 	if not CLIPS.has(reel):
 		return ""
-	if reel in ["garde", "parade", "encaisse"] and bool(mains.call("garde_bouclier")):
+	if (reel in ["garde", "parade", "encaisse"] or reel.begins_with("g1_") or reel.begins_with("gl_") or reel.begins_with("g2_")) \
+			and bool(mains.call("garde_bouclier")):
 		return ""   # au bouclier, l'épée reste au repos (GestesBouclier pare de la main gauche)
 	return reel
 
@@ -443,6 +457,7 @@ func _process_modification() -> void:
 		if _gauche_occupee and _gauche.has(i):
 			w *= poids_bras_gauche_occupe
 		sq.set_bone_pose_rotation(i, sous.slerp(geste, w))
+	_poignet_garde()
 	# bassin : hauteur et décalage de la capture (à l'arrêt seulement)
 	var sous_b := sq.get_bone_pose_position(_i_bassin)
 	var be = _bassin_de(_src, _t_src) if ent else null
@@ -463,6 +478,42 @@ func _process_modification() -> void:
 		# gauche restait à mi-chemin de la poignée pendant les fondus
 		_main_gauche_sur_poignee(_poids)
 	_mesurer()
+
+## GARDES (combat/gardes_toutes_armes) : pendant les clips de défense g1_* / gl_* / g2_*, le poignet droit est verrouillé près du
+## neutre (POIGNET_GARDE_MAX autour de l'axe de l'avant-bras, torsion conservée) : même butée que le poignet verrouillé des gardes
+## de la 1re personne (gestes_gardes.py) ; la capture « great sword blocking (2) » cassait le poignet de 49° (35° après la butée
+## générale de 38° de coups_tps_retarget.gd). L'arme suit alors l'avant-bras de la capture (de biais, 40-55° de la verticale).
+## Aucune pose écrite : une butée sur la rotation capturée, en fondu (entrée / sortie de garde).
+const POIGNET_GARDE_MAX := 12.0
+var _garde_w := 0.0
+var _derniere_garde := false
+
+static func est_garde(clip: String) -> bool:
+	return clip.begins_with("g1_") or clip.begins_with("gl_") or clip.begins_with("g2_")
+
+func _poignet_garde() -> void:
+	# garde quittée (fondu de sortie vers la locomotion, aucun geste entrant) : la butée reste, et s'efface avec le poids du geste
+	if _actif_clip and _clip != "":
+		_derniere_garde = est_garde(_clip)
+	var voulu := 1.0 if _derniere_garde else 0.0
+	_garde_w = lerpf(_garde_w, voulu, 1.0 - exp(-14.0 * maxf(get_process_delta_time(), 1.0 / 120.0)))
+	var w := _garde_w * _poids
+	if w < 0.01:
+		return
+	var im := sq.find_bone("hand_r")
+	if im < 0:
+		return
+	var repos := sq.get_bone_rest(im).basis.get_rotation_quaternion()
+	var q := sq.get_bone_pose_rotation(im)
+	var rel := repos.inverse() * q
+	var v := rel * Vector3.UP
+	var ang := rad_to_deg(Vector3.UP.angle_to(v))
+	if ang <= POIGNET_GARDE_MAX:
+		return
+	var balance := Quaternion(Vector3.UP, v)
+	var torsion := balance.inverse() * rel
+	var borne := (repos * Quaternion.IDENTITY.slerp(balance, POIGNET_GARDE_MAX / ang) * torsion).normalized()
+	sq.set_bone_pose_rotation(im, q.slerp(borne, w))
 
 ## Mesures de la pose FINALE (tests, outils) : hors du modificateur, Skeleton3D rend la pose d'avant les modificateurs.
 var poignet_deg := 0.0       # écart de la main droite à l'axe de l'avant-bras (degrés)
