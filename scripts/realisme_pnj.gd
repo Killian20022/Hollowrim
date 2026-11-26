@@ -92,7 +92,11 @@ static func appliquer(n: Node3D, id: String) -> void:
 							p_a["plastron_laine"] = mi.get_meta("plastron_laine")
 						_repeindre(mi, s, "yeux", p_a, graine, "%s_%s_%d" % [id, nom, s])     # atlas des accessoires : yeux en amande (cartes R_OEIL)
 					elif nom == "accessoires" and s == 1 and tb != null and tb.get_width() == GuerrierTextures.DECOUPES.x and tb.get_height() == GuerrierTextures.DECOUPES.y:
-						_repeindre(mi, s, "decoupes", p, graine, "%s_%s_%d" % [id, nom, s])     # cartes découpées : fourrure en touffes denses
+						var p_d := p
+						if mi.has_meta("fourrure_pnj"):
+							p_d = p.duplicate()
+							p_d["fourrure"] = mi.get_meta("fourrure_pnj")
+						_repeindre(mi, s, "decoupes", p_d, graine, "%s_%s_%d" % [id, nom, s])     # cartes découpées : fourrure en touffes denses
 					elif nom == "accessoires" and s == 1:
 						_regler(mi, s, {"saturation": SAT_ACCESSOIRES, "teinte": FOURRURE})
 					else:
@@ -242,6 +246,8 @@ static func _repeindre(mi: MeshInstance3D, s: int, genre: String, p: Dictionary,
 		m2.set_shader_parameter("teinte", Color(1.0, 1.0, 1.0))
 	elif genre in ["decoupes", "fourrure"]:
 		m2.set_shader_parameter("teinte", Color(1.0, 1.0, 1.0))
+		if genre == "fourrure":
+			m2.set_shader_parameter("decoupe", true)     # ourlet en touffes découpées
 	m2.set_shader_parameter("tex_base", tex)
 	if m2.get_shader_parameter("tex_neige") is Texture2D:
 		m2.set_shader_parameter("tex_neige", tex)

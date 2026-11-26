@@ -10,7 +10,11 @@ static func _h(a: int, b: int, g: int) -> float:
 	return RealismePnj._h(a, b, g)
 
 static func cartes(img: Image, p: Dictionary, g: int) -> void:
-	var R := GuerrierTextures.D_MECHES
+	_cartes(img, p, g, GuerrierTextures.D_MECHES)
+	# deuxième bande (Chasseresse : « feuilles » pointues du col de fourrure ; Guerrier : mèches de cheveux, retirées par AllurePnj)
+	_cartes(img, p, g + 101, Rect2i(GuerrierTextures.D_MECHES.position + Vector2i(0, 32), GuerrierTextures.D_MECHES.size))
+
+static func _cartes(img: Image, p: Dictionary, g: int, R: Rect2i) -> void:
 	if R.end.x > img.get_width() or R.end.y > img.get_height():
 		return
 	# couleur moyenne des mèches d'origine (crème, gris...), ternie
@@ -84,4 +88,10 @@ static func mante(img: Image, col: Color, g: int) -> void:
 			if tf < 0.28:
 				f *= 0.80
 			f += (_h(x, y, g + 24) - 0.5) * 0.08
+			# ourlet (bas de l'image) : pointes de touffes irrégulières découpées (alpha 0 entre elles), au lieu des dents régulières
+			var v := float(y) / H
+			if v > 0.80:
+				var lg := 0.80 + 0.20 * _h(int(xx) / 3, 0, g + 25)
+				if v > lg:
+					a = 0.0
 			img.set_pixel(x, y, Color(clampf(col.r * f, 0, 1), clampf(col.g * f, 0, 1), clampf(col.b * f, 0, 1), a))

@@ -198,17 +198,20 @@ static func batir(sq: Skeleton3D, coiffure: String, poil: Color, femme: bool, g:
 			for k in n:
 				var th := -PI + TAU * (float(k) + _r(g, k, 1) * 0.8) / n
 				var lis := _lisiere(th)
-				var ph0 := lis * (0.92 + 0.06 * _r(g, k, 2))
+				var ph0 := lis * (0.86 + 0.12 * _r(g, k, 2))     # lisière irrégulière
 				if absf(th) > 2.2:
 					ph0 = lis * (0.35 + 0.3 * _r(g, k, 2))   # nuque : les cartes partent plus haut
 				var pts := []
 				if coiffure == "long":
-					# libres : passent sur le crâne vers l'arrière puis retombent derrière (côtés : jusqu'à la mâchoire)
-					var bout := _pt(cr, th, lis + 0.1, 1.06)
+					# libres : peignées vers l'arrière (le devant ne retombe pas sur les yeux), puis retombent derrière et sur les côtés
+					var tb := th
+					if absf(th) < 1.6:
+						tb = signf(th if th != 0.0 else 1.0) * lerpf(1.6, 2.6, 1.0 - absf(th) / 1.6)
+					var bout := _pt(cr, tb, _lisiere(tb) + 0.1, 1.06)
 					var chute := 0.05 + (0.20 if absf(th) > 1.9 else (0.10 if absf(th) > 1.2 else 0.0)) * (0.8 + 0.4 * _r(g, k, 3))
 					for i in 4:
 						var f := float(i) / 3.0
-						pts.append(_pt(cr, th, lerpf(0.25 * lis, lis + 0.1, f), 1.05 + 0.04 * f))
+						pts.append(_pt(cr, lerpf(th, tb, f), lerpf(0.9 * lis if absf(th) < 1.6 else 0.3 * lis, _lisiere(tb) + 0.1, f), 1.06 + 0.04 * sin(f * PI)))
 					pts.append(bout + Vector3(0, -chute * 0.5, 0) + (bout - c).normalized() * Vector3(1, 0, 1) * 0.015)
 					pts.append(bout + Vector3(0, -chute, 0) + (bout - c).normalized() * Vector3(1, 0, 1) * 0.03)
 					var u0 := float(k % 8) / 8.0
@@ -221,17 +224,28 @@ static func batir(sq: Skeleton3D, coiffure: String, poil: Color, femme: bool, g:
 					if absf(th) < 0.7:
 						cible = (points_r[0] + points_r[1]) * 0.5 + Vector3((_r(g, k, 9) - 0.5) * 0.04, 0.0, 0.0)
 				# chemin : de la racine (lisière) vers la cible, collé au crâne (interpolation puis projection sur la calotte)
-				var r0 := _pt(cr, th, ph0, 1.05)
+				var r0 := _pt(cr, th, ph0, 1.04)
 				for i in 6:
 					var f := float(i) / 5.0
 					var q := r0.lerp(cible, f)
 					var d := (q - c)
 					var r: Vector3 = cr["r"]
 					var e := Vector3(d.x / r.x, d.y / r.y, d.z / r.z).length()
-					q = c + d / maxf(e, 0.001) * (1.055 + (0.03 + 0.03 * _r(g, k, 8)) * sin(f * PI))
+					q = c + d / maxf(e, 0.001) * (1.06 + (0.05 + 0.05 * _r(g, k, 8)) * sin(f * PI))     # volume (pas de casque plaqué)
 					pts.append(q)
 				var u0 := float(k % 8) / 8.0
-				b.carte(pts, 0.032 + 0.012 * _r(g, k, 6), dehors, u0, u0 + 0.125, 0.9)
+				b.carte(pts, 0.032 + 0.012 * _r(g, k, 6), dehors, u0, u0 + 0.125, 0.9, 0.92)
+			# mèches folles qui s'échappent aux tempes et sur la nuque (coiffures attachées)
+			if coiffure != "long":
+				for k in 6:
+					var th := (0.9 + 0.5 * _r(g, k, 30)) * (1.0 if k % 2 == 0 else -1.0)
+					if k >= 4:
+						th = PI - 0.4 * (_r(g, k, 31) - 0.5)
+					var r0 := _pt(cr, th, _lisiere(th) - 0.15, 1.06)
+					var lg := 0.07 + 0.07 * _r(g, k, 32)
+					var pts := [r0, r0 + Vector3(0, -lg * 0.5, 0) + (r0 - c).normalized() * 0.012, r0 + Vector3(0, -lg, 0) + (r0 - c).normalized() * 0.02]
+					var u0 := float((k + 3) % 8) / 8.0
+					b.carte(pts, 0.018, dehors_h, u0, u0 + 0.125, 0.8, 0.95)
 			# queue, nattes, chignon
 			match coiffure:
 				"attache":
@@ -350,8 +364,8 @@ static func texture(poil: Color) -> ImageTexture:
 						c = c.lerp(clair, 0.55)          # brin qui accroche la lumière
 					if _h(x + ox, y, 77) > 0.86:
 						c = c.lerp(sombre, 0.35)
-					if f < 0.10:
-						c = c.lerp(sombre, 0.5 * (1.0 - f / 0.10))   # racine dans l'ombre de la chevelure
+					if f < 0.04:
+						c = c.lerp(sombre, 0.35 * (1.0 - f / 0.04))   # racine dans l'ombre de la chevelure
 					c.a = 1.0
 					img.set_pixel(ox + x, y, c)
 		# fond de la colonne (sous les brins) : sombre et opaque près de la racine, pour la calotte

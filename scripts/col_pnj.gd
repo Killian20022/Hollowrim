@@ -44,7 +44,7 @@ static func batir(sq: Skeleton3D, couleur: Color, cuir: bool, femme: bool, g: in
 				var dir := Vector3(sin(a), 0, cos(a))
 				var r_e := Vector2(dir.x * rx, dir.z * rz).length()
 				var r_b: float = (besoin[j] as PackedFloat32Array)[i % nt]
-				var r := maxf(r_e, r_b + ep + 0.006)
+				var r := clampf(r_b + ep + 0.006, r_e, r_e * 1.35)
 				var p := c0 + Vector3(dir.x * r, dy, dir.z * r)
 				var n := Vector3(dir.x, 0.9 - fj * 0.6, dir.z).normalized()
 				if couche == 1:
@@ -53,7 +53,7 @@ static func batir(sq: Skeleton3D, couleur: Color, cuir: bool, femme: bool, g: in
 				v.append(p)
 				nrm.append(n)
 				uv.append(Vector2(float(i) / nt * 4.0, fj))
-				var o := (0.82 + 0.18 * (pli * 0.5 + 0.5)) if couche == 0 else 0.55
+				var o := (0.86 + 0.14 * (pli * 0.5 + 0.5)) if couche == 0 else 0.6
 				if j == 0:
 					o *= 0.85
 				col.append(Color(o, o, o, 1.0))
@@ -69,7 +69,7 @@ static func batir(sq: Skeleton3D, couleur: Color, cuir: bool, femme: bool, g: in
 			for i in nt:
 				var a0 := base + j * (nt + 1) + i
 				var b0 := a0 + nt + 1
-				if couche == 0:
+				if couche == 1:
 					idx.append_array([a0, b0, b0 + 1, a0, b0 + 1, a0 + 1])
 				else:
 					idx.append_array([a0, b0 + 1, b0, a0, a0 + 1, b0 + 1])
@@ -119,7 +119,7 @@ static func _besoins(sq: Skeleton3D, c0: Vector3, prof: Array, nt: int) -> Array
 		for k in mi.mesh.get_surface_count():
 			var v: PackedVector3Array = mi.mesh.surface_get_arrays(k)[Mesh.ARRAY_VERTEX]
 			for q in v:
-				if q.y > c0.y - 0.16 and q.y < c0.y + 0.05 and absf(q.x) < 0.30:
+				if q.y > c0.y - 0.16 and q.y < c0.y + 0.05 and absf(q.x) < 0.17:
 					pts.append(q)
 	var res: Array = []
 	for j in prof.size():

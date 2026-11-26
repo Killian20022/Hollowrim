@@ -264,3 +264,25 @@ nommés et habitants de `PnjNordique` (sauf `eirik` et `garde`, corps de la cryp
 (`EnnemisNordiques`), et le visage seul des gardes maison (`GardeMaison`, armures inchangées). Images précalculées dans
 `assets/pnj/realisme/` (`outils/generer_realisme_pnj.gd`, à relancer avec `VERSION++`). Rendu d'avant : `-- --pnj-realisme-ancien`.
 Test : `outils/test_realisme_pnj.gd` (mêmes maillages / os / clips, visage repeint, reste de l'atlas intact, crypte non touchée).
+
+### 12.1 Passe 2 (relecture « un peu moins Playmobil, pas franchement »)
+
+`AllurePnj` (`scripts/allure_pnj.gd`, table `ALLURES` par id) agit AVANT les peintures (`avant`) et APRÈS (`apres`) :
+- **tenues recombinées** (laine, cape, fourrure, forge, robe, tablier, chasse) à partir des pièces cachées de l'archétype
+  (tunique de laine au lieu de la maille, cape courte, sacoche, tablier, robe, ceintures), couleurs de laine variées (`LAINES`),
+  gonflement le long des normales des pièces posées par-dessus (`gonfle` de ps1_perso) ; **corpulence** (`carrure` : épaules,
+  ventre, taille) en déplaçant les sommets au repos, os et poids inchangés ;
+- **chevelure en cartes** (`ChevelurePnj`, `scripts/chevelure_pnj.gd`) : calotte + cartes découpées (alpha) qui suivent le crâne
+  mesuré sur les sommets pondérés à `Head`, 6 coiffures (court, rasé, chauve, long, attaché, nattes, chignon), lisière irrégulière,
+  mèches folles, texture de brins (`texture(poil)`), barbe retexturée ; `Hair_*` et `Eyebrows` Quaternius cachés ;
+- **col / collet** (`ColPnj`) en laine ou cuir à épaisseur, plis et ourlet, ajusté par secteur aux pièces visibles (|x| < 0,17)
+  au lieu de l'anneau plat `R_ECHARPE` (retiré) ; plastron de maille repeint en laine lacée (`plastron_laine`) ;
+- **fourrure** (`Fourrure`) : cartes `D_MECHES` repeintes en touffes (gardées seulement en tenue fourrure, retirées sinon),
+  mante entière peinte en touffes avec ourlet découpé irrégulier ;
+- **peau** : teint par individu (`VisagePnj.TEINTS` pâle / rosé / hâlé), sans contour (`next_pass` retiré : il traçait des arêtes
+  noires sur le visage), `lampe_desat` (nouvel uniforme de ps1_perso) qui ternit les lampes et torches sur la peau, ombre moins froide ;
+  iris plus sombres avec limbe ; mains : doigts dessinés (`Doigts.traits`) ; capuche et bandeau mats.
+Pièges : la peau des femmes est liée par NOM d'os (`get_bind_bone` = -1 → `Doigts.os_de`) ; retirer des triangles ou déformer :
+mettre `ARRAY_CUSTOM0-3` à null avant `add_surface_from_arrays` ; le **tablier** de l'archétype a ses normales tournées vers le
+corps (noir, et le gonflement le rentrait dans le buste) → `_normales_dehors` ; cacher la mante des femmes laisse l'encolure vide.
+Mesure de la peau par lumière : `outils/planche_pnj_v2.gd` (midi, crépuscule, intérieur à la torche ; ligne `PEAU id lumière h s v`).

@@ -46,7 +46,7 @@ const LAINES := {
 	"brun": Color(0.40, 0.30, 0.21), "lin": Color(0.58, 0.52, 0.42), "gris": Color(0.42, 0.42, 0.41), "vert": Color(0.30, 0.34, 0.24),
 	"bleu": Color(0.26, 0.31, 0.40), "rouge": Color(0.44, 0.21, 0.17), "noir": Color(0.19, 0.18, 0.17), "ocre": Color(0.52, 0.41, 0.24),
 }
-const CUIR := Color(0.33, 0.23, 0.15)
+const CUIR := Color(0.37, 0.29, 0.22)
 const FOURRURES := {"brun": Color(0.40, 0.31, 0.23), "gris": Color(0.50, 0.48, 0.45), "creme": Color(0.66, 0.61, 0.53)}
 
 static func concerne(id: String) -> bool:
@@ -93,12 +93,22 @@ static func avant(n: Node3D, id: String) -> void:
 			var e1 := Vector2(GuerrierTextures.R_ECHARPE.end) / 256.0
 			_retirer(acc, 0, func(_c: Vector3, uv: Vector2) -> bool: return uv.x > e0.x and uv.x < e1.x and uv.y > e0.y and uv.y < e1.y)
 			# plastron gardé (il bouche l'encolure de la tunique) mais repeint en laine de la tunique (RealismePnj)
-			acc.set_meta("plastron_laine", LAINES["lin"] if tenue == "forge" else (LAINES[String(a.get("laine", "brun"))] as Color))
+			if p.has("plastron"):
+				acc.set_meta("plastron_laine", LAINES["lin"] if tenue == "forge" else (LAINES[String(a.get("laine", "brun"))] as Color))
+
+		if acc != null:
+			# cartes de fourrure en pointes (D_MECHES et « feuilles » de la Chasseresse, 2 bandes de l'atlas des découpes) : retirées
+			# sauf avec la tenue de fourrure, où elles sont repeintes en touffes de la couleur de la fourrure
+			var m0 := Vector2(GuerrierTextures.D_MECHES.position) / Vector2(GuerrierTextures.DECOUPES)
 			if tenue != "fourrure":
-				# fourrure des épaules (cartes D_MECHES) : seulement avec la tenue de fourrure
-				var m0 := Vector2(GuerrierTextures.D_MECHES.position) / Vector2(GuerrierTextures.DECOUPES)
-				var m1 := Vector2(GuerrierTextures.D_MECHES.end) / Vector2(GuerrierTextures.DECOUPES)
-				_retirer(acc, 1, func(_c: Vector3, uv: Vector2) -> bool: return uv.x > m0.x - 0.002 and uv.y < m1.y + 0.002)
+				_retirer(acc, 1, func(_c: Vector3, uv: Vector2) -> bool: return uv.x > m0.x - 0.002 and uv.y < 0.502)
+			else:
+				acc.set_meta("fourrure_pnj", FOURRURES[String(a.get("fourrure", "brun"))])
+			# col de fourrure en pointes de l'atlas des accessoires des habitants (texels 160-192 x 128-144, crème rayé) : retiré
+			# pour tous (le collet de laine ou de cuir, la mante en touffes ou la capuche le remplacent)
+			var tb := (acc.get_active_material(0) as ShaderMaterial).get_shader_parameter("tex_base") as Texture2D if acc.get_active_material(0) is ShaderMaterial else null
+			if tb != null and tb.get_width() == 256:
+				_retirer(acc, 0, func(_c: Vector3, uv: Vector2) -> bool: return uv.x > 0.625 and uv.x < 0.75 and uv.y > 0.5 and uv.y < 0.5625)
 		_carrure(sq, a.get("carrure", {}))
 
 ## Après les peintures : chevelure en cartes, barbe, col, réglages de peau et de capuche.
@@ -128,7 +138,7 @@ static func apres(n: Node3D, id: String) -> void:
 	var tenue := String(a.get("tenue", ""))
 	if tenue in ["laine", "cape", "forge"] and not femme:
 		var cuir := tenue in ["cape", "chasse", "forge"]
-		var col: Color = CUIR if cuir else (LAINES[String(a.get("laine", "brun"))] as Color).darkened(0.12)
+		var col: Color = CUIR if cuir else (LAINES[String(a.get("laine", "brun"))] as Color).lightened(0.06)
 		ColPnj.batir(sq, col, cuir, femme, g)
 	# capuche et étoffes de la tête : mates (pas de liseré froid ni de rehaut d'arête qui les faisaient briller comme du plastique)
 	for nom in ["capuche"]:
@@ -203,10 +213,49 @@ static func _montrer(p: Dictionary, nom: String, m: ShaderMaterial) -> void:
 		return
 	mi.visible = true
 	# pièces ajoutées par-dessus la tenue de l'archétype (plus épaisse que le corps Quaternius) : gonflées le long des normales
-	var gonfle := {"tablier": 0.035, "robe": 0.012, "cape_courte": 0.03, "sacoche": 0.02, "ceinture": 0.018}
+	var gonfle := {"tablier": 0.035, "cape_courte": 0.03, "sacoche": 0.02, "ceinture": 0.018}
 	if gonfle.has(nom):
 		m.set_shader_parameter("gonfle", gonfle[nom])
+	if nom == "tablier":
+		_normales_dehors(mi)
 	mi.material_override = m
+
+## Le tablier de l'archétype a ses normales tournées vers le corps (éclairé de l'intérieur : noir ; le gonflement le rentrait
+## dans le buste) : normales retournées si leur moyenne en z s'oppose à la position moyenne en z de la pièce.
+static func _normales_dehors(mi: MeshInstance3D) -> void:
+	if mi.mesh == null or mi.has_meta("normales_dehors"):
+		return
+	var arr0 := mi.mesh.surface_get_arrays(0)
+	var vv: PackedVector3Array = arr0[Mesh.ARRAY_VERTEX]
+	var nn: PackedVector3Array = arr0[Mesh.ARRAY_NORMAL]
+	var sz := 0.0
+	var sn := 0.0
+	for i in vv.size():
+		sz += vv[i].z
+		sn += nn[i].z
+	mi.set_meta("normales_dehors", true)
+	if sz * sn >= 0.0:
+		return
+	var mesh := ArrayMesh.new()
+	var mats: Array = []
+	for k in mi.mesh.get_surface_count():
+		var arr := mi.mesh.surface_get_arrays(k)
+		var nb := 4
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		if arr[Mesh.ARRAY_BONES] != null and v.size() > 0:
+			nb = (arr[Mesh.ARRAY_BONES] as PackedInt32Array).size() / v.size()
+		for kc in [Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3]:
+			arr[kc] = null
+		var n2: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+		for i in n2.size():
+			n2[i] = -n2[i]
+		arr[Mesh.ARRAY_NORMAL] = n2
+		arr[Mesh.ARRAY_TANGENT] = null
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr, [], {}, Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS if nb == 8 else 0)
+		mats.append(mi.get_surface_override_material(k))
+	mi.mesh = mesh
+	for j in mats.size():
+		mi.set_surface_override_material(j, mats[j])
 
 static func _cacher(p: Dictionary, nom: String) -> void:
 	if p.has(nom):
@@ -246,12 +295,11 @@ static func _tenue(sq: Skeleton3D, p: Dictionary, a: Dictionary, tenue: String, 
 		"chasse":
 			_montrer(p, "ceinture", _etoffe("ceinture_cuir_c", Color.WHITE))
 			_montrer(p, "sacoche", _etoffe("bottes_cuir_a", Color.WHITE))
-	if tenue == "fourrure":
-		var f: Color = FOURRURES[String(a.get("fourrure", "brun"))]
-		var mm: MeshInstance3D = p.get("mante")
-		if mm != null:
-			mm.visible = true
-			mm.set_meta("fourrure_pnj", f)     # RealismePnj : mante repeinte entièrement en touffes de cette couleur
+	var mm: MeshInstance3D = p.get("mante")
+	if mm != null and (tenue == "fourrure" or (not homme and mm.visible)):
+		var f: Color = FOURRURES[String(a.get("fourrure", "gris" if not homme else "brun"))]
+		mm.visible = true
+		mm.set_meta("fourrure_pnj", f)     # RealismePnj : mante repeinte entièrement en touffes de cette couleur, ourlet découpé
 
 ## Retire de la surface `s` les triangles dont `retirer(centre, uv moyen)` est vrai ; le nombre de surfaces est gardé (triangle
 ## dégénéré si tout part), les matériaux aussi.
