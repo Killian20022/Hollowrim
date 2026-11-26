@@ -344,6 +344,21 @@ func _tuer_hostile(c: PnjCombat, maniere: String) -> void:
 	print("   %s : ragdoll=%s, bassin %.2f m, au sol après %.2f s, PNJ d'origine visible=%s" % [maniere, str(rd != null and rd.actif), h, t_sol, str(pnj_vu)])
 	_verif(rd != null and rd.actif and t_sol >= 0.0 and t_sol < 2.0, "%s : couché au sol en moins de 2 s (%.2f s, bassin %.2f m)" % [maniere, t_sol, h])
 	_verif(not pnj_vu, "%s : le garde d'origine (caché) ne réapparaît pas debout" % maniere)
+	if _dossier != "" and is_instance_valid(ba):
+		# le joueur se retourne vers le corps, à 4 m : ce que voit le joueur après le coup (planche)
+		var cp := ba.global_position
+		var dv := j.global_position - cp
+		dv.y = 0.0
+		var pj := cp + dv.normalized() * 4.0
+		pj.y = m.hauteur(pj.x, pj.z) + 0.1
+		j.global_position = pj
+		var vv := cp - pj
+		j.rotation.y = atan2(-vv.x, -vv.z)
+		if j.get("tete") is Node3D:
+			(j.tete as Node3D).rotation.x = deg_to_rad(-22.0)
+		_prefixe = "corps_" + maniere
+		_n_img = 0
+		await _attendre(0.8)
 
 func _repulsion_hostile(c: PnjCombat, degage: bool) -> void:
 	_prefixe = "repulsion_hostile" + ("_degage" if degage else "_melee")
