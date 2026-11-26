@@ -144,6 +144,7 @@ func _echantillon(vue: String) -> Dictionary:
 	if vue == "3p":
 		d["poignet_tps"] = corps.coups_tps.poignet_deg
 		d["biais"] = corps.coups_tps.biais_deg
+		d["w"] = corps.coups_tps._garde_w * corps.coups_tps._poids
 	return d
 
 func _remettre() -> void:
@@ -177,12 +178,16 @@ func _mesurer_arme(id: String, vue: String) -> void:
 	var origine := j.global_position + (-j.global_transform.basis.z) * 2.0
 	await _phase(vue, "encaisse", 30, true, ech, func(): mains.defendre(10.0, origine, true))
 	await _phase(vue, "sortie", 30, false, ech)
+	# parade parfaite : garde levée juste avant l'impact, depuis le repos
+	await _remettre()
+	await _phase(vue, "parade", 2, true, ech)
+	await _phase(vue, "parade", 30, true, ech, func(): mains.defendre(10.0, origine))
 	_analyser(id, vue, ech)
 
 func _analyser(id: String, vue: String, ech: Array) -> void:
 	var deux: bool = mains.arme.deux_mains
 	var stats := {}
-	for ph in ["repos", "entree", "tenue", "encaisse", "sortie"]:
+	for ph in ["repos", "entree", "tenue", "encaisse", "sortie", "parade"]:
 		stats[ph] = {"flex": 0.0, "dev": 0.0, "flex_g": 0.0, "dev_g": 0.0, "saut": 0.0, "fa_min": 999.0, "fa_max": 0.0, "incl_min": 999.0,
 			"incl_max": 0.0, "vert_horiz": 0, "ecran": 0.0, "clips": {}}
 	var prec: Dictionary = {}
@@ -195,7 +200,7 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 		if deux:
 			st["flex_g"] = maxf(st["flex_g"], absf(wg.x))
 			st["dev_g"] = maxf(st["dev_g"], absf(wg.y))
-		if not prec.is_empty():
+		if not prec.is_empty() and not (e["phase"] == "parade" and prec["phase"] != "parade"):   # _remettre entre les deux : pas d'image commune
 			var dw: Vector2 = wd - (prec["wd"] as Vector2)
 			st["saut"] = maxf(st["saut"], maxf(absf(dw.x), absf(dw.y)))
 		prec = e
@@ -209,7 +214,7 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 		(st["clips"] as Dictionary)[e["clip"]] = true
 		_lignes.append("%s,%s,%s,%s,%d,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.3f" % [_etiq, id, vue, e["phase"], e["i"], e["clip"], wd.x, wd.y,
 			wg.x, wg.y, e["fa_ar"], e["incl"], e["fa_v"], e["ecran"]])
-	for ph in ["repos", "entree", "tenue", "encaisse", "sortie"]:
+	for ph in ["repos", "entree", "tenue", "encaisse", "sortie", "parade"]:
 		var st: Dictionary = stats[ph]
 		print("GARDE %s %-15s %s %-8s poignet flex %5.1f dev %5.1f%s saut %5.1f | arme/avbras %5.1f-%5.1f | incl %5.1f-%5.1f | vert+horiz %d | ecran %4.1f%% | clips %s" % [
 			_etiq, id, vue, ph, st["flex"], st["dev"], (" (g flex %5.1f dev %5.1f)" % [st["flex_g"], st["dev_g"]]) if deux else "", st["saut"],

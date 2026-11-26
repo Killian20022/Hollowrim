@@ -526,13 +526,22 @@ func _poignet_garde() -> void:
 	if _actif_clip and _clip != "":
 		_derniere_garde = est_garde(_clip)
 	var voulu := 1.0 if (_derniere_garde and gardes_v2) else 0.0
-	_garde_w = lerpf(_garde_w, voulu, 1.0 - exp(-14.0 * maxf(get_process_delta_time(), 1.0 / 120.0)))
+	# entrée rapide, 0,12 s (le fondu vient aussi du poids du geste, _poids : plus lente, la parade levée depuis le repos passait vers une lame
+	# verticale avant que la surcouche n'arrive) ; sortie en douceur
+	var dt := maxf(get_process_delta_time(), 1.0 / 120.0)
+	_garde_w = move_toward(_garde_w, voulu, dt * 8.0) if voulu > _garde_w else lerpf(_garde_w, voulu, 1.0 - exp(-14.0 * dt))
 	var w := _garde_w * _poids
 	if w < 0.01:
 		return
 	var im := sq.find_bone("hand_r")
 	if im < 0:
 		return
+	_borne_poignet(im, w)
+	# biais plein dès 35 % du fondu de la capture : sinon, pendant la montée en garde, le bras capturé lève déjà l'arme quand la
+	# surcouche n'est encore qu'à moitié : la lame passait par la verticale au-dessus de la tête (relecture du 2026-11-26)
+	_biais_garde(_garde_w * clampf(_poids / 0.35, 0.0, 1.0))
+
+func _borne_poignet(im: int, w: float) -> void:
 	var repos := sq.get_bone_rest(im).basis.get_rotation_quaternion()
 	var q := sq.get_bone_pose_rotation(im)
 	var rel := repos.inverse() * q
@@ -544,7 +553,6 @@ func _poignet_garde() -> void:
 	var torsion := balance.inverse() * rel
 	var borne := (repos * Quaternion.IDENTITY.slerp(balance, POIGNET_GARDE_MAX / ang) * torsion).normalized()
 	sq.set_bone_pose_rotation(im, q.slerp(borne, w))
-	_biais_garde(w)
 
 ## Garde v2 : arme de BIAIS. Buste redressé, la capture tient l'arme presque verticale à côté de la tête ; comme le « cadrage » des
 ## gardes de la 1re personne, le bras droit ENTIER tourne rigidement autour de l'épaule (axe avant du joueur) pour coucher l'arme à
