@@ -23,7 +23,7 @@ class_name GestesLourds
 
 ## Décalage du poing le long du manche (m, repère du modèle) : manche tenu PLUS BAS que le repère « prise » (une main) ;
 ## le grand marteau garde sa prise (la main gauche descend vers le bout du manche : ecart_mains du catalogue).
-const PRISE := {"hache": -0.07, "masse": -0.08, "marteau": -0.08, "grand_marteau": 0.14,
+const PRISE := {"hache": -0.07, "masse": -0.08, "marteau": -0.08, "grand_marteau": 0.08,
 	"masse_ancien": -0.08, "marteau_ancien": -0.08, "grand_marteau_ancien": 0.0}
 
 const PROFILS := {

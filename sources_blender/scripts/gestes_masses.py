@@ -100,17 +100,19 @@ MARQUEURS_M = {
 POIGNET_GM = ((-28, 4), (-22, -2))
 INCL_TENUE_GM = (int(OPT.get("incl_gm", "-22")), 32)
 LIM_MX_GM = dict(torsion=(-85, 85), flexion=(-55, 55), inclinaison=(-24, 18))
-S2 = dict(ref=0, decalage=(0.0, 0.08, -0.12), echelle_epaule=0.6, poignet=POIGNET_GM, lim_mx=LIM_MX_GM)
+# décalage de l'épaule vers l'avant (-0,25 m) : à l'armé, le bout du long manche passait à 33 cm de l'œil (gros plan brun en vue
+# joueur) ; à -0,25 et amplitude 0,45 : 39 cm, la tête sort encore par le haut de l'écran à l'armé
+S2 = dict(ref=0, decalage=(0.0, 0.0, -0.25), echelle_epaule=0.6, poignet=POIGNET_GM, lim_mx=LIM_MX_GM)
 CLIPS_GM = {
-    "gm_a6": dict(S2, source="gs_slash_2", centre=26, amplitude=0.55, cadrage=(0, 30, 25),
+    "gm_a6": dict(S2, source="gs_slash_2", centre=26, amplitude=0.45, cadrage=(0, 30, 25),
                  temps=[(10, 0.0), (16, 0.12), (18, 0.20), (21, 0.24), (27.5, 0.36), (28.5, 0.43), (29.5, 0.52), (29.5, 0.70)],
                  fondu=(0.20, 0.45), plein=(0.20, 0.50), arc=(0.24, 0.36, 0.85), creux=0.05),
-    "gm_b6": dict(S2, source="gs_slash", centre=20, amplitude=0.55, cadrage=(0, 35, -10),
+    "gm_b6": dict(S2, source="gs_slash", centre=20, amplitude=0.45, cadrage=(0, 35, -10),
                  temps=[(8, 0.0), (13, 0.12), (15.5, 0.20), (16.5, 0.24), (22, 0.36), (23, 0.43), (24, 0.52), (24, 0.70)],
                  fondu=(0.20, 0.45), plein=(0.20, 0.50), arc=(0.24, 0.36, 0.85), creux=0.05),
-    "charge_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.55, cadrage=(0, 25, 10),
+    "charge_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.45, cadrage=(0, 25, 10),
                       temps=[(14, 0.0), (23, 0.38), (25.5, 0.70)], fondu=(0.38, 0.70), plein=(0.38, 0.70)),
-    "lourd_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.55, cadrage=(0, 25, 10),
+    "lourd_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.45, cadrage=(0, 25, 10),
                      temps=[(25.5, 0.0), (27, 0.08), (35.5, 0.22), (36.5, 0.30), (38, 0.40), (38, 0.60)],
                      fondu=(0.0, 0.40), plein=(0.0, 0.46), arc=(0.08, 0.22, 0.85), creux=0.07),
 }
@@ -121,7 +123,7 @@ MARQUEURS_GM = {
     "lourd_gm6": {"arme": 0.07, "frappe": 0.08, "fin_frappe": 0.22, "suivi": 0.30, "fin": 0.60},
 }
 
-_essai = OPT.get("essai", "")   # --essai=<fichier.json> : réglages sans modifier ce fichier
+_essai = OPT.get("essai_masses", "")   # --essai_masses=<fichier.json> : réglages sans modifier ce fichier
 for _n, _r in (json.load(open(_essai, encoding="utf-8")) if _essai else {}).items():
     _m = _r.pop("marqueurs", None)
     _t = CLIPS_M if _n in CLIPS_M else CLIPS_GM
@@ -143,19 +145,23 @@ def tete_ecran(ns, longueur=0.55):
 def mesurer(ns, nom, act, longueur, mq, freq=60):
     """Tête de l'arme à l'écran (dans le cadre ? arc continu ?) et pires sauts de rotation des os par image."""
     ns["A"].animation_data.action = act
-    pts, rot = [], []
+    pts, rot, pom = [], [], []
     prec = None
     t = 0.0
     while t <= longueur + 1e-6:
         f = t * ns["FPS"]
         ns["scene"].frame_set(int(math.floor(f)), subframe=f - math.floor(f))
         pts.append((t, tete_ecran(ns)[1]))
+        W = ns["CAM_DE_B"] @ ns["A"].pose.bones["hand_r"].matrix @ ns["PRISE_D"]
+        from mathutils import Vector
+        pom.append(-(W @ Vector((0, ns["MILIEU_POIGNEE"] - float(OPT.get("bout", "0.35")), 0))).z)
         q = {b: ns["A"].pose.bones[b].matrix.to_quaternion() for b in ("upperarm_r", "lowerarm_r", "hand_r")}
         if prec is not None:
             rot.append(max(min(a, 360.0 - a) for a in (math.degrees(q[b].rotation_difference(prec[b]).angle) for b in q)))
         prec = q
         t += 1.0 / freq
     vis = sum(1 for _, e in pts if abs(e[0]) < 1.0 and abs(e[1]) < 1.0)
+    print("MASSES %-10s bout du manche (35 cm sous le poing) : profondeur min %.2f m" % (nom, min(pom)))
     # retour en arrière pendant la frappe : la tête recule sur sa propre trajectoire (produit scalaire de pas successifs < 0)
     arr = 0
     if "frappe" in mq:
