@@ -7,7 +7,7 @@ class_name GestesDefense
 const GESTES := {
 	# contre-attaque après une parade parfaite : la lame part de la garde, monte à gauche et fend en grande diagonale
 	# jusqu'en bas à droite, plus ample et plus rapide qu'un coup léger (préparation courte : l'épée est déjà levée)
-	"contre": {"clip": "contre", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.08, 0.8], "force": 1.4, "tassement": 0.6},
+	"contre": {"clip": "coup_a6", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.08, 0.8], "force": 1.4, "tassement": 0.6},
 	# finisher de taille (décapitation) : élan à droite, coupe HORIZONTALE qui traverse le centre de l'écran — là où la
 	# caméra verrouillée a mis le cou de la cible — et finit à gauche
 	"finisher_taille": {"clip": "finisher_taille"},
