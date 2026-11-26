@@ -15,7 +15,7 @@ class_name RealismePnj
 static var _ancien := -1
 ## Images précalculées (outils/generer_realisme_pnj.gd, VERSION++ après toute modif des peintures) : rien n'est repeint au lancement.
 const DOSSIER := "res://assets/pnj/realisme"
-const VERSION := 3
+const VERSION := 7
 static var enregistrer := false
 static var chrono := false
 
@@ -115,6 +115,9 @@ static func appliquer(n: Node3D, id: String) -> void:
 				genre_s = "fourrure"
 				p_s = p.duplicate()
 				p_s["fourrure"] = mi.get_meta("fourrure_pnj")
+			elif nom == "tunique" and mi.has_meta("corsage_pnj"):
+				p_s = p.duplicate()
+				p_s["corsage"] = mi.get_meta("corsage_pnj")     # passe v2 : corsage de laine (CorsagePnj) peint avant l'usure
 			elif nom == "peau":
 				p_s = p.duplicate()
 				p_s["doigts"] = Doigts.traits(mi, s)
@@ -223,6 +226,8 @@ static func _repeindre(mi: MeshInstance3D, s: int, genre: String, p: Dictionary,
 				"cheveux", "barbe":
 					_meches(img, graine, genre == "barbe")
 				_:
+					if p.has("corsage") and img.get_width() == 256 and img.get_height() == 128:
+						CorsagePnj.peindre(img, p["corsage"], graine)
 					_usure(img, genre, p, graine)
 			pret = GuerrierTextures.mips_pixel(img) if genre != "peau" else _mips(img)
 			if enregistrer:
