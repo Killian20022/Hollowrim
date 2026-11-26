@@ -23,10 +23,10 @@ const ALLURES := {
 	"hab_chasseur_a":    {"coiffure": "court", "cheveux": "roux", "barbe": true, "tenue": "fourrure", "laine": "brun", "fourrure": "gris", "carrure": {"epaules": 0.05}},
 	"hab_chasseur_b":    {"coiffure": "attache", "cheveux": "brun_fonce", "barbe": true, "tenue": "laine", "laine": "vert", "carrure": {"taille": -0.03}},
 	"chef":              {"coiffure": "chignon", "cheveux": "gris", "tenue": "fourrure", "laine": "rouge", "fourrure": "gris", "carrure": {"epaules": 0.02}},
-	"chasseuse":         {"coiffure": "nattes", "cheveux": "auburn", "tenue": "chasse", "laine": "brun", "carrure": {}},
-	"hab_paysanne_a":    {"coiffure": "nattes", "cheveux": "chatain_clair", "tenue": "robe", "laine": "bleu", "carrure": {"ventre": 0.03, "taille": 0.03}},
+	"chasseuse":         {"fourrure": "fauve", "coiffure": "nattes", "cheveux": "auburn", "tenue": "chasse", "laine": "brun", "carrure": {}},
+	"hab_paysanne_a":    {"fourrure": "creme", "coiffure": "nattes", "cheveux": "chatain_clair", "tenue": "robe", "laine": "bleu", "carrure": {"ventre": 0.03, "taille": 0.03}},
 	"hab_paysanne_b":    {"coiffure": "chignon", "cheveux": "blanc", "tenue": "robe", "laine": "gris", "carrure": {"ventre": 0.05, "epaules": -0.03}},
-	"hab_paysanne_c":    {"coiffure": "attache", "cheveux": "brun_fonce", "tenue": "tablier", "laine": "rouge", "carrure": {"taille": -0.03}},
+	"hab_paysanne_c":    {"fourrure": "brun", "coiffure": "attache", "cheveux": "brun_fonce", "tenue": "tablier", "laine": "rouge", "carrure": {"taille": -0.03}},
 	"hab_chasseresse_a": {"coiffure": "attache", "cheveux": "chatain", "tenue": "chasse", "laine": "vert", "carrure": {}},
 	"hab_chasseresse_b": {"coiffure": "nattes", "cheveux": "roux", "tenue": "fourrure", "laine": "brun", "fourrure": "brun", "carrure": {"epaules": 0.02}},
 	"volva":             {"tenue": "mage"},
@@ -47,7 +47,7 @@ const LAINES := {
 	"bleu": Color(0.26, 0.31, 0.40), "rouge": Color(0.44, 0.21, 0.17), "noir": Color(0.19, 0.18, 0.17), "ocre": Color(0.52, 0.41, 0.24),
 }
 const CUIR := Color(0.37, 0.29, 0.22)
-const FOURRURES := {"brun": Color(0.40, 0.31, 0.23), "gris": Color(0.50, 0.48, 0.45), "creme": Color(0.66, 0.61, 0.53)}
+const FOURRURES := {"brun": Color(0.40, 0.31, 0.23), "gris": Color(0.50, 0.48, 0.45), "creme": Color(0.66, 0.61, 0.53), "fauve": Color(0.48, 0.37, 0.26)}
 
 static func concerne(id: String) -> bool:
 	return ALLURES.has(id) and RealismePnj.concerne(id)
