@@ -124,10 +124,13 @@ func _tester() -> void:
 
 # ------------------------------------------------------------------ garde tué
 
+var _pose_degagee := Transform3D()
+
 func _mort(g: Node3D) -> void:
 	_prefixe = "mort"
 	_n_img = 0
 	_devant(g, 1.8)
+	_pose_degagee = j.global_transform      # devant le garde de la porte : vue dégagée (sert à la répulsion sur hostile)
 	await _attendre(0.3)
 	var mod: Node3D = g.modele
 	var ba := _bassin(mod)
@@ -347,20 +350,22 @@ func _repulsion_hostile(c: PnjCombat, degage: bool) -> void:
 	_n_img = 0
 	c.set_physics_process(false)
 	if degage:
-		var p := _coin_desert()
-		j.global_position = p
+		# là où se tenait le joueur au meurtre (vue dégagée), le garde 3 m devant lui
+		j.global_transform = _pose_degagee
 		j.velocity = Vector3.ZERO
-		var q := p + Vector3(0, 0, -3.0)
+		var av := -_pose_degagee.basis.z
+		av.y = 0.0
+		var q := _pose_degagee.origin + av.normalized() * 3.0
 		q.y = m.hauteur(q.x, q.z) + 0.02
 		c.global_position = q
-		c.rotation.y = 0.0
+		c.look_at(Vector3(_pose_degagee.origin.x, q.y, _pose_degagee.origin.z), Vector3.UP, true)
 		await _attendre(0.05)
-		print("   dégagé : joueur %s, garde voulu %s, garde réel %s (valide=%s, process=%s)" % [str(p.snappedf(0.1)), str(q.snappedf(0.1)), str(c.global_position.snappedf(0.1)), str(is_instance_valid(c)), str(c.is_physics_processing())])
+		print("   dégagé : joueur %s, garde %s" % [str(j.global_position.snappedf(0.1)), str(c.global_position.snappedf(0.1))])
 	_devant(c, 3.0)
 	await _attendre(0.6)
 	var ba := _bassin(c.modele)
 	var p0 := ba.global_position
-	var oeil: Vector3 = j.camera.global_position
+	var oeil: Vector3 = j.global_position + Vector3.UP * 1.6     # la caméra suit le joueur téléporté avec retard
 	var qr := PhysicsRayQueryParameters3D.create(oeil, Elements._centre(c), 1)
 	qr.exclude = [j.get_rid(), c.get_rid()]
 	var hr := j.get_world_3d().direct_space_state.intersect_ray(qr)
