@@ -116,7 +116,7 @@ func _tester() -> void:
 		_verif(a.deux_mains and a.profil == "deux_mains", "%s : arme à deux mains, profil « deux_mains »" % id)
 		_verif(mains.equipement.main_gauche.categorie == DonneesArme.Categorie.VIDE and not mains.porte_torche.visible,
 			"%s : main gauche libérée, torche rangée et cachée" % id)
-		_verif(mains.anim.reel("repos") == "repos_2m" and mains.anim.reel("garde") == "garde_2m",
+		_verif(mains.anim.reel("repos") == "repos_2m" and mains.anim.reel("garde") in ["garde_2m", "g2_garde", "gg_garde"],
 			"%s : tenues remplacées (repos → %s, garde → %s)" % [id, mains.anim.reel("repos"), mains.anim.reel("garde")])
 		print("   centre du poing droit le long de la lame : %.3f m (repère du modèle)" % mains._milieu_d)
 		# 2. prise à deux mains dans chaque pose clé
@@ -170,7 +170,7 @@ func _tester() -> void:
 		await _images(30)
 		var garde_clip: String = mains.anim.reel(mains.anim.clip)
 		var rb: Dictionary = mains.defendre(30.0, j.global_position + j.global_transform.basis * Vector3(0, 1.2, -1.5))
-		_verif(garde_clip == "garde_2m" and String(rb.get("issue", "")) == "bloque" and float(rb.get("degats", 99.0)) <= 30.0 * 0.15,
+		_verif(garde_clip in ["garde_2m", "g2_garde", "gg_garde"] and String(rb.get("issue", "")) == "bloque" and float(rb.get("degats", 99.0)) <= 30.0 * 0.15,
 			"%s : blocage à deux mains (%s) : %s, %.1f / 30 passent" % [id, garde_clip, rb.get("issue", "?"), float(rb.get("degats", -1.0))])
 		await _images(30)
 	print("ECHECS : %d  (%d vérifications)" % [0 if _ok else 1, _n])

@@ -107,19 +107,20 @@ const CLIPS := {
 	"parade_2m": {"src": "gs_block", "im": [0, 15]},
 	"encaisse_2m": {"src": "gs_impact", "im": [0, 20]},
 	"brisee_2m": {"src": "gs_impact", "im": [0, 26]},
-	# --- gardes de TOUTES les armes (combat/gardes_toutes_armes, GardesArmes) : clips FPS g1_* / gl_* / g2_* ; MÊMES captures qu'en
-	# 1re personne (« great sword blocking (2) » tenu, « great sword blocking » pour la parade, « great sword impact » pour le coup
-	# bloqué) : arme levée de biais devant le corps. Avant : « Sword_Block » UAL2 image 8 (lame basse presque horizontale, 72° de la
-	# verticale) et « sword and shield impact » (l'épée retombait pointe en bas au coup bloqué).
-	"g1_garde": {"src": "gs_block_2", "im": [10, 10], "tenue": true},
-	"g1_parade": {"src": "gs_block", "im": [0, 15]},
-	"g1_encaisse": {"src": "gs_impact", "im": [0, 20]},
-	"gl_garde": {"src": "gs_block_2", "im": [10, 10], "tenue": true},
-	"gl_parade": {"src": "gs_block", "im": [0, 15]},
-	"gl_encaisse": {"src": "gs_impact", "im": [0, 20]},
+	# --- gardes de TOUTES les armes (combat/gardes_toutes_armes, GardesArmes) : clips FPS g1_* / gl_* / g2_* ; en 3e personne, les
+	# anciennes captures (--tps-gardes-anciennes) ; par défaut CLIPS_GARDES_V2 et les surcouches de garde (voir plus bas).
+	"g1_garde": {"src": "q_Sword_Block", "im": [8, 8], "tenue": true},
+	"g1_parade": {"src": "q_Sword_Block", "im": [4, 14]},
+	"g1_encaisse": {"src": "ss_impact", "im": [0, 14]},
+	"gl_garde": {"src": "q_Sword_Block", "im": [8, 8], "tenue": true},
+	"gl_parade": {"src": "q_Sword_Block", "im": [4, 14]},
+	"gl_encaisse": {"src": "ss_impact", "im": [0, 14]},
 	"g2_garde": {"src": "gs_block_2", "im": [10, 10], "tenue": true},
 	"g2_parade": {"src": "gs_block", "im": [0, 15]},
 	"g2_encaisse": {"src": "gs_impact", "im": [0, 20]},
+	"gg_garde": {"src": "gs_block_2", "im": [10, 10], "tenue": true},
+	"gg_parade": {"src": "gs_block", "im": [0, 15]},
+	"gg_encaisse": {"src": "gs_impact", "im": [0, 20]},
 	# --- haches, masses, marteaux (gestes lourds) ---
 	# hache : 1 diagonale, 2 revers, 3 taille verticale ; puissante = grand vertical
 	"h_a": {"src": "slash_1", "im": [6, 15, 17, 23, 34], "retour": 44},
@@ -138,12 +139,32 @@ const CLIPS := {
 	"charge_gm": {"src": "gs_slash_2", "im": [8, 21, 22]},
 	"lourd_gm": {"src": "gs_slash_2", "im": [22, 22, 23, 31, 45]},
 }
+## Gardes v2 en 3e personne (défaut ; --tps-gardes-anciennes : les anciennes) : captures de la 1re personne (« great sword
+## blocking (2) » tenu, « great sword impact » pour le coup bloqué ; parade = la fin de la montée de « great sword blocking »,
+## images 9 -> 15, comme en 1re personne : partir de l'image 0, mains basses, faisait sauter la pose), buste à demi-poids et
+## jambes à la locomotion (la capture est campée bas), bras gauche à sa couche pour les armes à une main, poignet borné à 12°,
+## arme couchée à 45° par rotation rigide du bras autour de l'épaule (_biais_garde).
+static var gardes_v2 := not ("--tps-gardes-anciennes" in OS.get_cmdline_user_args())
+const CLIPS_GARDES_V2 := {
+	"g1_garde": {"src": "gs_block_2", "im": [10, 10], "tenue": true}, "g1_parade": {"src": "gs_block", "im": [9, 15]},
+	"g1_encaisse": {"src": "gs_impact", "im": [0, 20]}, "gl_garde": {"src": "gs_block_2", "im": [10, 10], "tenue": true},
+	"gl_parade": {"src": "gs_block", "im": [9, 15]}, "gl_encaisse": {"src": "gs_impact", "im": [0, 20]},
+	"g2_parade": {"src": "gs_block", "im": [9, 15]}, "gg_parade": {"src": "gs_block", "im": [9, 15]},
+}
+
+## Spécification de capture d'un clip FPS (CLIPS, ou l'essai v2 des gardes).
+static func spec_capture(clip: String) -> Dictionary:
+	if gardes_v2 and CLIPS_GARDES_V2.has(clip):
+		return CLIPS_GARDES_V2[clip]
+	return CLIPS.get(clip, {})
+
 const OS_BAS := ["pelvis", "thigh_l", "calf_l", "foot_l", "ball_l", "ball_leaf_l", "thigh_r", "calf_r", "foot_r", "ball_r", "ball_leaf_r"]
 
 var corps: Node3D            # corps_joueur.gd (joueur, mains)
 var sq: Skeleton3D
 var _pistes := {}            # src -> {os: piste de rotation} ; « _bassin » : piste de position
 var _os: Array[int] = []
+var _buste := {}             # spine_01..03 (garde v2 : demi-poids)
 var _bas := {}               # os -> true (bassin et jambes)
 var _i_bassin := -1
 var _clip := ""              # clip FPS suivi (geste « entrant », synchronisé sur les bras)
@@ -199,6 +220,8 @@ func _installer(squelette: Skeleton3D) -> void:
 			_os.append(i)
 		if sq.get_bone_name(i) in OS_BAS:
 			_bas[i] = true
+		if sq.get_bone_name(i) in ["spine_01", "spine_02", "spine_03"]:
+			_buste[i] = true
 	var ic := sq.find_bone("clavicle_l")
 	for i in sq.get_bone_count():
 		var k := i
@@ -248,7 +271,7 @@ func _clip_courant() -> String:
 	var reel: String = mains.anim.reel(mains.anim.clip)
 	if not CLIPS.has(reel):
 		return ""
-	if (reel in ["garde", "parade", "encaisse"] or reel.begins_with("g1_") or reel.begins_with("gl_") or reel.begins_with("g2_")) \
+	if (reel in ["garde", "parade", "encaisse"] or reel.begins_with("g1_") or reel.begins_with("gl_") or reel.begins_with("g2_") or reel.begins_with("gg_")) \
 			and bool(mains.call("garde_bouclier")):
 		return ""   # au bouclier, l'épée reste au repos (GestesBouclier pare de la main gauche)
 	return reel
@@ -314,7 +337,7 @@ func _quitter() -> void:
 	if not _sor.is_empty() and _b < 0.999:
 		_sor = {"pose": _derniere.duplicate(), "bassin": _bassin_dernier}
 	else:
-		_sor = {"src": _src, "t": _t_src, "taux": maxf(_vitesse, 0.3), "fin": maxf(_fin_geste(CLIPS[_clip]), _t_src), "j": _j}
+		_sor = {"src": _src, "t": _t_src, "taux": maxf(_vitesse, 0.3), "fin": maxf(_fin_geste(spec_capture(_clip)), _t_src), "j": _j}
 	_actif_clip = false
 	_clip = ""
 
@@ -346,8 +369,8 @@ func _process(dt: float) -> void:
 	var anim: AnimateurBras = mains.anim
 	var clip := _clip_courant()
 	if clip != "":
-		var spec: Dictionary = CLIPS[clip]
-		var cible := temps_capture(spec, anim.marqueurs(anim.clip), anim.t, anim.longueur(anim.clip))
+		var sp: Dictionary = CorpsCoupsTps.spec_capture(clip)
+		var cible := temps_capture(sp, anim.marqueurs(anim.clip), anim.t, anim.longueur(anim.clip))
 		# nouveau geste (autre clip, ou le même relancé : son temps repart en arrière)
 		if clip != _clip or cible < _cible_prec - 0.1:
 			var depuis_geste := _poids_lin > 0.01 and (_actif_clip or not _sor.is_empty())
@@ -357,7 +380,7 @@ func _process(dt: float) -> void:
 			_b = 0.0 if not _sor.is_empty() else 1.0
 			_t_b = 0.0
 			_clip = clip
-			_src = String(spec["src"])
+			_src = String(sp["src"])
 			_t_src = cible
 			_t_debut = cible
 			_vitesse = 0.0
@@ -374,7 +397,7 @@ func _process(dt: float) -> void:
 			var taux := maxf(0.0, _vitesse + SUIVI_GAIN * (cible - _t_src))
 			_t_src = minf(_t_src + taux * dt, maxf(cible, _t_src) + 1.0 / 30.0)
 			_cible_prec = cible
-		var im_e: Array = spec["im"]
+		var im_e: Array = sp["im"]
 		var ph := _phase_armee(im_e)
 		# deux mains : entrée brève (pendant un fondu, la main gauche est entre la tenue de CorpsMainsTps et la poignée de la capture)
 		_poids_lin = minf(1.0, maxf(_poids_lin + dt / (FONDU_DEUX_MAINS if _deux_mains() else FONDU), ph))
@@ -388,7 +411,7 @@ func _process(dt: float) -> void:
 		if not _sor.is_empty():
 			# fondu en courbe douce ; il est fini au plus tard à la frappe du nouveau geste (la frappe se lit entière)
 			_t_b += dt
-			_b = _douce(maxf(_t_b / FONDU_COUP, _phase_armee(CLIPS[_clip]["im"])))
+			_b = _douce(maxf(_t_b / FONDU_COUP, _phase_armee(spec_capture(_clip)["im"])))
 			if _b >= 0.999:
 				_b = 1.0
 				_sor = {}
@@ -408,6 +431,8 @@ func _process(dt: float) -> void:
 	# jambes : à l'arrêt elles suivent la capture, en marche elles gardent la locomotion
 	var v := Vector2(joueur.velocity.x, joueur.velocity.z).length()
 	var but_jambes := 1.0 - smoothstep(0.4, 1.4, v) if joueur.is_on_floor() else 0.0
+	if gardes_v2 and _actif_clip and est_garde(_clip):
+		but_jambes = 0.0   # garde v2 : la capture « great sword » est campée bas ; les jambes gardent la locomotion (buste droit)
 	_poids_jambes = move_toward(_poids_jambes, but_jambes, dt * 4.0)
 
 ## Rotation de l'os `i` dans le geste entrant / quitté (null si la capture n'a pas cet os).
@@ -428,7 +453,10 @@ func _bassin_de(src: String, t: float) -> Variant:
 func _process_modification() -> void:
 	if sq == null or (_poids <= 0.0 and not _actif_clip):
 		return
-	var _gauche_occupee: bool = not _deux_mains() and _main_gauche_occupee()
+	var _gauche_occupee: bool = not _deux_mains() and (_main_gauche_occupee() or (gardes_v2 and _actif_clip and est_garde(_clip)))
+	# garde v2, arme à une main : la capture tient l'arme à DEUX mains ; le bras gauche garde sa couche (CorpsMainsTps), et le buste
+	# ne prend que la moitié de la flexion de la capture (pas de dos voûté)
+	var buste_garde := 0.5 if (gardes_v2 and _actif_clip and est_garde(_clip)) else 1.0
 	var ent := _actif_clip and _src != ""
 	var sor := not _sor.is_empty()
 	var sor_src: String = _sor.get("src", "")
@@ -454,6 +482,8 @@ func _process_modification() -> void:
 			continue
 		_derniere[i] = geste
 		var w := _poids * (_poids_jambes if _bas.has(i) else 1.0)
+		if buste_garde < 1.0 and _buste.has(i):
+			w *= buste_garde
 		if _gauche_occupee and _gauche.has(i):
 			w *= poids_bras_gauche_occupe
 		sq.set_bone_pose_rotation(i, sous.slerp(geste, w))
@@ -489,13 +519,13 @@ var _garde_w := 0.0
 var _derniere_garde := false
 
 static func est_garde(clip: String) -> bool:
-	return clip.begins_with("g1_") or clip.begins_with("gl_") or clip.begins_with("g2_")
+	return clip.begins_with("g1_") or clip.begins_with("gl_") or clip.begins_with("g2_") or clip.begins_with("gg_")
 
 func _poignet_garde() -> void:
 	# garde quittée (fondu de sortie vers la locomotion, aucun geste entrant) : la butée reste, et s'efface avec le poids du geste
 	if _actif_clip and _clip != "":
 		_derniere_garde = est_garde(_clip)
-	var voulu := 1.0 if _derniere_garde else 0.0
+	var voulu := 1.0 if (_derniere_garde and gardes_v2) else 0.0
 	_garde_w = lerpf(_garde_w, voulu, 1.0 - exp(-14.0 * maxf(get_process_delta_time(), 1.0 / 120.0)))
 	var w := _garde_w * _poids
 	if w < 0.01:
@@ -514,6 +544,38 @@ func _poignet_garde() -> void:
 	var torsion := balance.inverse() * rel
 	var borne := (repos * Quaternion.IDENTITY.slerp(balance, POIGNET_GARDE_MAX / ang) * torsion).normalized()
 	sq.set_bone_pose_rotation(im, q.slerp(borne, w))
+	_biais_garde(w)
+
+## Garde v2 : arme de BIAIS. Buste redressé, la capture tient l'arme presque verticale à côté de la tête ; comme le « cadrage » des
+## gardes de la 1re personne, le bras droit ENTIER tourne rigidement autour de l'épaule (axe avant du joueur) pour coucher l'arme à
+## BIAIS_GARDE° de la verticale, tête / pointe vers la droite du joueur (même côté qu'en 1re personne). Poignet et coude intacts.
+const BIAIS_GARDE := 45.0
+
+func _biais_garde(w: float) -> void:
+	var m := modele_arme()
+	var iu := sq.find_bone("upperarm_r")
+	var im := sq.find_bone("hand_r")
+	if m == null or iu < 0 or im < 0:
+		return
+	var inv := sq.global_transform.basis.orthonormalized().inverse()
+	var j: Node3D = corps.joueur
+	var avant := (inv * -j.global_basis.z).normalized()
+	var droite := (inv * j.global_basis.x).normalized()
+	var haut := (inv * Vector3.UP).normalized()
+	var pm := PiedsAuSol.pose_globale(sq, im)
+	var lame := (pm.basis.orthonormalized() * _prise_arme().basis.y).normalized()
+	var a := atan2(lame.dot(droite), lame.dot(haut))   # angle signé dans le plan frontal (+ : pointe à droite)
+	var delta := clampf(deg_to_rad(BIAIS_GARDE) - a, deg_to_rad(-70.0), deg_to_rad(70.0)) * w
+	# rotation d'axe -avant (+ = vers la droite vu de derrière) autour de l'épaule, appliquée à la pose globale du bras
+	var R := Basis(avant, delta)
+	var pu := PiedsAuSol.pose_globale(sq, iu)
+	var parent := PiedsAuSol.pose_globale(sq, sq.get_bone_parent(iu))
+	var nb := R * pu.basis
+	sq.set_bone_pose_rotation(iu, (parent.basis.orthonormalized().inverse() * nb.orthonormalized()).get_rotation_quaternion())
+	var lame2 := (PiedsAuSol.pose_globale(sq, im).basis.orthonormalized() * _prise_arme().basis.y).normalized()
+	biais_deg = rad_to_deg(atan2(lame2.dot(droite), lame2.dot(haut)))
+
+var biais_deg := 0.0   # angle signé de l'arme dans le plan frontal après _biais_garde (+ : pointe à droite du joueur)
 
 ## Mesures de la pose FINALE (tests, outils) : hors du modificateur, Skeleton3D rend la pose d'avant les modificateurs.
 var poignet_deg := 0.0       # écart de la main droite à l'axe de l'avant-bras (degrés)

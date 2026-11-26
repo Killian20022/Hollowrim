@@ -7,7 +7,8 @@ class_name GardesArmes
 ## blocking (2) » tenu, « great sword impact » pour le coup bloqué, « great sword blocking » pour la parade) retargetées comme
 ## les coups v6, POIGNET NEUTRE verrouillé, arme de BIAIS (40-50° de la verticale) par rotation rigide du bras entier.
 ##   g1 : épées, sabres, dagues, épées longues ; gl : haches, masses, marteaux à une main ; g2 : toute arme à deux mains
-##   (claymore, hybrides, grand marteau : la main gauche reste en IK sur le manche, mains._poser_deux_mains).
+##   (claymore, hybrides : la main gauche reste en IK sur le manche, mains._poser_deux_mains) ; gg : grand marteau (bras plus loin,
+##   manche plus couché : sa tête restait hors cadre).
 ## Garde brisée et bouclier (GestesBouclier, bras gauche) : inchangés. mains._installer_arme fusionne ces tenues par-dessus celles
 ## du profil (ProfilsAnimation / GestesLourds « tenues »).
 
@@ -18,6 +19,7 @@ const FAMILLES := {
 	"g1": {"garde": "g1_garde", "encaisse": "g1_encaisse", "parade": "g1_parade"},
 	"gl": {"garde": "gl_garde", "encaisse": "gl_encaisse", "parade": "gl_parade"},
 	"g2": {"garde": "g2_garde", "encaisse": "g2_encaisse", "parade": "g2_parade"},
+	"gg": {"garde": "gg_garde", "encaisse": "gg_encaisse", "parade": "gg_parade"},
 }
 
 ## Famille de garde de l'arme (« » : pas d'arme tenue à la main droite — main vide, sort, bouclier — : tenues inchangées).
@@ -25,7 +27,7 @@ static func famille(arme: DonneesArme) -> String:
 	if arme == null or anciennes or arme.modele == "" or arme.famille == "bouclier":
 		return ""
 	if arme.deux_mains:
-		return "g2"
+		return "gg" if arme.profil == "grand_marteau" else "g2"
 	if GestesLourds.est_lourd(arme.profil):
 		return "gl"
 	return "g1"

@@ -143,6 +143,7 @@ func _echantillon(vue: String) -> Dictionary:
 		d["ecran"] = maxf(0.0, (mx.x - mn.x) * (mx.y - mn.y)) / 4.0
 	if vue == "3p":
 		d["poignet_tps"] = corps.coups_tps.poignet_deg
+		d["biais"] = corps.coups_tps.biais_deg
 	return d
 
 func _remettre() -> void:
@@ -215,6 +216,8 @@ func _analyser(id: String, vue: String, ech: Array) -> void:
 			st["fa_min"], st["fa_max"], st["incl_min"], st["incl_max"], st["vert_horiz"], st["ecran"] * 100.0, str(st["clips"].keys())])
 	var t: Dictionary = stats["tenue"]
 	var n := "%s %s" % [id, vue]
+	if vue == "3p":
+		print("GARDE %s %s 3p biais signé (tenue, dernière image) %.1f" % [_etiq, id, float((ech.filter(func(x): return x["phase"] == "tenue")[-1] as Dictionary).get("biais", 0.0))])
 	_verif(t["dev"] <= 25.0 and t["flex"] <= 35.0, "%s garde : poignet neutre (flex %.0f <= 35, dev %.0f <= 25)" % [n, t["flex"], t["dev"]])
 	if deux:
 		_verif(t["dev_g"] <= 25.0 and t["flex_g"] <= 60.0, "%s garde : poignet gauche (flex %.0f <= 60, dev %.0f <= 25)" % [n, t["flex_g"], t["dev_g"]])

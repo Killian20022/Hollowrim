@@ -195,10 +195,10 @@ func _tester() -> void:
 	await _reset()
 	mains.entrees.forcer_garde(1.0)
 	await _avancer(0.5)
-	_verif(ct._clip == "garde" and ct.pilote() and corps.anim.current_animation != "Sword_Attack", "garde tenue : pose de blocage capturée")
+	_verif((ct._clip == "garde" or CorpsCoupsTps.est_garde(ct._clip)) and ct.pilote() and corps.anim.current_animation != "Sword_Attack", "garde tenue : pose de blocage capturée")
 	mains.encaisser()
 	await _avancer(0.1)
-	_verif(_vus.has("garde"), "garde vue (%s)" % [_vus])
+	_verif(_vus.has("garde") or _vus.any(func(c): return CorpsCoupsTps.est_garde(c)), "garde vue (%s)" % [_vus])   # gardes par famille (GardesArmes)
 	mains.entrees.forcer_garde(0.0)
 	await _avancer(0.8)
 
