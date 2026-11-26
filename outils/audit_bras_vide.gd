@@ -35,7 +35,11 @@ var _seuil := 0
 var _coeur_img := 0
 var _tache_img := 0
 var _tache_global := 0
+var _manche_proche_img := 0.0
+var _manche_proche_global := 0.0
 var _coeur_global := 0
+var _pos0 := Vector3.ZERO
+var _lacet0 := 0.0
 var _lut := PackedInt32Array()   # bleu (0-255, sRVB) -> indice de matière (0 = inconnue)
 
 func _init() -> void:
@@ -57,7 +61,9 @@ uniform float code = 0.0;
 uniform bool carte = false;
 void fragment() {
 	// vert du dos : position le long du bras (UV.y de la manche, 0 = épaule, 3,2 = coude) pour situer un défaut
-	ALBEDO = FRONT_FACING ? vec3(0.0, 1.0, code) : (carte ? vec3(1.0, 1.0, code) : vec3(1.0, clamp(UV.y / 3.2, 0.0, 1.0) * 0.05, code));
+	// rouge faible sur la face avant : bras à moins de 0,25 m de l'œil (« objet géant près de l'œil »)
+	float proche = length(VERTEX) < 0.25 ? 0.12 : 0.0;
+	ALBEDO = FRONT_FACING ? vec3(proche, 1.0, code) : (carte ? vec3(1.0, 1.0, code) : vec3(1.0, clamp(UV.y / 1.6, 0.0, 1.0) * 0.05, code));
 }
 """
 	return sh
@@ -97,7 +103,7 @@ func _installer_copies() -> void:
 				continue
 			# les armes / torche / arc (tenus par BoneAttachment3D, sans peau) ne sont pas le bras : copies NOIRES, qui
 			# cachent le bras là où l'arme le cache à l'écran (comme le fond, elles ne comptent pas)
-			var occultant := mi.skin == null
+			var occultant := mi.skin == null and _arg("armes") == ""   # --armes : les armes sont contrôlées aussi (code « ? »)
 			var c := mi.duplicate() as MeshInstance3D
 			c.set_meta("det_bras", true)
 			c.layers = CALQUE_DET
@@ -146,6 +152,9 @@ func _monter() -> void:
 		m.eq.apprendre_tout()
 	if j.touche.is_connected(m._sur_touche):
 		j.touche.disconnect(m._sur_touche)
+	# monde : pose de départ gardée (et tournée de --lacet degrés) ; chaque séquence y revient
+	_pos0 = j.global_position
+	_lacet0 = j.rotation.y + deg_to_rad(float(_arg("lacet", "0")))
 	var cip := root.get_node_or_null("CompteurIps")
 	if cip != null:
 		cip.visible = false
@@ -206,12 +215,21 @@ func _image(seq: String, n: int, garder_images: bool) -> int:
 	var h := det.get_height()
 	var rouges := 0
 	var cartes := 0
+	var proches := 0
+	var proches_manche := 0
+	var aire_manche := 0
 	var pos_manche := 0.0
 	var par := {}
 	var donnees := det.get_data()
 	for i in range(0, donnees.size(), 3):
 		var r := donnees[i]
 		var g := donnees[i + 1]
+		if g > 150 and r < 135 and _lut[donnees[i + 2]] == MATS.find("tunique") + 1:
+			aire_manche += 1
+		if g > 150 and r > 55 and r < 135:
+			proches += 1
+			if _lut[donnees[i + 2]] == MATS.find("tunique") + 1:
+				proches_manche += 1
 		if r > 150 and g > 150:
 			cartes += 1
 		elif r > 150 and g < 90:
@@ -256,7 +274,7 @@ func _image(seq: String, n: int, garder_images: bool) -> int:
 		detail += " %s=%d" % [k, par[k]]
 	if _arg("trace-near") != "":
 		print("NEAR ", root.get_viewport().get_camera_3d().near)
-	print("IMAGE %s %03d rouge=%d px (%.3f %%) coeur=%d tache=%d%s cartes_decor=%d etat=%s" % [seq, n, rouges, pct, coeur, tache, detail, cartes, _etat()])
+	print("IMAGE %s %03d rouge=%d px (%.3f %%) coeur=%d tache=%d%s cartes_decor=%d proche25cm=%.2f%% manche_proche=%.2f%% manche_aire=%.2f%% etat=%s" % [seq, n, rouges, pct, coeur, tache, detail, cartes, 100.0 * proches / float(w * h), 100.0 * proches_manche / float(w * h), 100.0 * aire_manche / float(w * h), _etat()])
 	if rouges > 0 or garder_images:
 		var norm := root.get_viewport().get_texture().get_image()
 		norm.convert(Image.FORMAT_RGB8)
@@ -271,6 +289,7 @@ func _image(seq: String, n: int, garder_images: bool) -> int:
 				_pires.resize(24)
 	_coeur_img = coeur
 	_tache_img = tache
+	_manche_proche_img = 100.0 * proches_manche / float(w * h)
 	return rouges
 
 func _etat() -> String:
@@ -284,6 +303,10 @@ func _etat() -> String:
 func _replacer() -> void:
 	if s.has_method("placer_joueur"):
 		s.placer_joueur(Vector3(0, 0, 1.6), 0.0)
+	else:
+		j.global_position = _pos0
+		j.rotation.y = _lacet0
+		j.tete.rotation.x = 0.0
 	j.velocity = Vector3.ZERO
 	j.vie = j.vie_max
 	j.mana = 9999.0
@@ -312,6 +335,7 @@ func _sequence(nom: String, droite: Variant, gauche: Variant, actions: Dictionar
 	var touchees := 0
 	var coeur_max := 0
 	var tache_max := 0
+	var manche_proche_max := 0.0
 	var garder := _arg("images") != ""
 	for i in n:
 		if actions.has(i):
@@ -363,6 +387,7 @@ func _sequence(nom: String, droite: Variant, gauche: Variant, actions: Dictionar
 		var r := await _image(nom, i, garder)
 		coeur_max = maxi_i(coeur_max, _coeur_img)
 		tache_max = maxi_i(tache_max, _tache_img)
+		manche_proche_max = maxf(manche_proche_max, _manche_proche_img)
 		total += r
 		maxi = maxi if maxi > r else r
 		if r > 0:
@@ -370,8 +395,9 @@ func _sequence(nom: String, droite: Variant, gauche: Variant, actions: Dictionar
 	_max_global = maxi if maxi > _max_global else _max_global
 	_coeur_global = maxi_i(_coeur_global, coeur_max)
 	_tache_global = maxi_i(_tache_global, tache_max)
+	_manche_proche_global = maxf(_manche_proche_global, manche_proche_max)
 	var px := float(dv.size.x * dv.size.y)
-	var ligne := "SEQ %-22s images=%d touchees=%d max=%d px (%.3f %%) moy=%.1f px coeur_max=%d px tache_max=%d px" % [nom, n, touchees, maxi, 100.0 * maxi / px, total / float(n), coeur_max, tache_max]
+	var ligne := "SEQ %-22s images=%d touchees=%d max=%d px (%.3f %%) moy=%.1f px coeur_max=%d px tache_max=%d px manche_proche_max=%.2f %%" % [nom, n, touchees, maxi, 100.0 * maxi / px, total / float(n), coeur_max, tache_max, manche_proche_max]
 	print(ligne)
 	_bilan.append(ligne)
 	j.velocity = Vector3.ZERO
@@ -468,7 +494,7 @@ func _go() -> void:
 	var f := FileAccess.open(sortie.path_join("bilan.txt"), FileAccess.WRITE)
 	f.store_string("\n".join(_bilan) + "\n")
 	f.close()
-	print("TOTAL max=%d px (contour compris), coeur_max=%d px, tache_max=%d px sur %d sequences" % [_max_global, _coeur_global, _tache_global, choix.size()])
+	print("TOTAL max=%d px (contour compris), coeur_max=%d px, tache_max=%d px, manche_a_moins_de_25cm_max=%.2f %% de l'écran (critère <= 8) sur %d sequences" % [_max_global, _coeur_global, _tache_global, _manche_proche_global, choix.size()])
 	print("AUDIT_BRAS_VIDE " + ("OK" if _coeur_global <= _seuil else "ECHEC"))
 	quit(0 if _coeur_global <= _seuil else 1)
 

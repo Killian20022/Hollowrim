@@ -33,15 +33,21 @@ ANCIENS = ("manches", "peau_bras")
 # l'humérus. Rayons de l'ancienne manche de mailles : 0,09-0,12 (épaule, biceps), ~0,09 au coude ; brassard : 0,070 de
 # |x| 0,468 à 0,52, puis 0,066.
 DOME = 0.075          # sommet du dôme d'épaule (côté corps, sous la clavicule : derrière la caméra, hors champ)
+# Passe 2 (2026-11-26) : rayons ANATOMIQUES (bras + maille + gambison : 7-8 cm), plus les 11 cm de l'ancienne manche
+# ample : bras tendu vers l'avant, le haut de la manche vu par l'épaule couvrait un quart de l'écran (« boule »).
+# Deux ANNEAUX de manche (bourrelet de 4 mm, |x| 0,26 et 0,36 : plis de la maille sur le gambison) donnent du volume ;
+# le revers finit en OURLET roulé (plus de bout coupé net) qui se rabat sur le brassard.
 PROFIL = [
-    (0.080, 0.045), (0.090, 0.072), (0.105, 0.092), (0.130, 0.104), (0.170, 0.110), (0.220, 0.110),
-    (0.270, 0.106), (0.320, 0.101), (0.370, 0.095), (0.410, 0.089), (0.440, 0.084), (0.460, 0.080),
-    (0.474, 0.077), (0.486, 0.075),
+    (0.080, 0.036), (0.090, 0.056), (0.105, 0.070), (0.130, 0.078), (0.170, 0.080), (0.215, 0.078),
+    (0.248, 0.076), (0.256, 0.080), (0.264, 0.076), (0.310, 0.074),
+    (0.348, 0.073), (0.356, 0.077), (0.364, 0.073), (0.410, 0.073), (0.440, 0.075), (0.460, 0.077),
+    (0.472, 0.0785), (0.480, 0.0785), (0.486, 0.0765),
 ]
-FOND = [(0.488, 0.062), (0.491, 0.040), (0.493, 0.0)]   # fond du revers, à l'intérieur du brassard (r < 0,070) : fermé
+FOND = [(0.4895, 0.0725), (0.4915, 0.066), (0.4930, 0.045), (0.4940, 0.0)]   # ourlet roulé puis fond, dans le brassard
+ANNEAUX = (0.256, 0.356)   # sommets des bourrelets (couleur plus claire), creux de part et d'autre plus sombres
 N = 14                 # côtés autour du bras (PS1 : peu de côtés, le shader fait le reste)
 UV_TOURS = 1.0         # répétitions de la texture de mailles autour du bras (matière : x2)
-UV_LONG = 3.2          # répétitions le long du bras (matière : x1)
+UV_LONG = 1.6          # répétitions le long du bras (matière : x1) ; passe 2 : 3,2 -> 1,6, même densité que le tour (moins de fourmillement)
 EPAULE = Vector((0.212, 0.065, 1.455))
 COUDE = Vector((0.463, 0.073, 1.456))
 
@@ -136,7 +142,7 @@ def manche(nom, droite):
             for i in range(N):
                 ang = 2 * math.pi * i / N
                 # mailles un peu inégales (bosses de 4 mm au plus) : pas un tuyau parfait
-                rr = r * (1.0 + (h(i, j) - 0.5) * 0.06) if 1 <= j <= len(PROFIL) - 3 else r
+                rr = r * (1.0 + (h(i, j) - 0.5) * 0.06) if 1 <= j <= len(PROFIL) - 5 and all(abs(x - xa) > 0.012 for xa in ANNEAUX) else r
                 # section légèrement aplatie d'avant en arrière, comme un bras (y = profondeur, z = hauteur)
                 a.append(bm.verts.new((c.x * s, c.y + math.cos(ang) * rr * 0.92, c.z + math.sin(ang) * rr)))
         anneaux.append(a)
@@ -159,7 +165,15 @@ def manche(nom, droite):
 
     def occ(x):
         # creux sombres : sous l'aisselle/dans le dôme et sous le revers (occlusion douce, comme les ab_*)
-        return 0.62 + 0.18 * smooth(0.08, 0.14, x) - 0.12 * smooth(0.47, 0.488, x)
+        # passe 2 : plus de bande sombre au revers (il était assombri de 0,12) ; l'ourlet est un peu plus clair (relief)
+        o = 0.64 + 0.16 * smooth(0.08, 0.14, x) + 0.06 * smooth(0.47, 0.48, x) * (1.0 - smooth(0.488, 0.493, x))
+        for xa in ANNEAUX:
+            d = abs(x - xa)
+            if d < 0.002:
+                o += 0.08
+            elif d < 0.012:
+                o -= 0.07
+        return min(o, 0.86)
 
     # dôme d'épaule : triangles du sommet au 1er anneau (normales vers l'extérieur = vers -x pour le bras gauche)
     a0 = anneaux[0]
@@ -369,6 +383,43 @@ def fermer_avant_bras(o):
         for g, w in acc.items():
             gi = o.vertex_groups[g].index
             vc[dl][gi] = w
+    # 2a. REVERS du gant : la bande séparée (96 faces + son fond) qui couvre le bout du brassard suivait la main à 80-100 %
+    # côté doigts. L'arc ramène la main à 1/1,3 de sa taille (pas le brassard) : le revers se pinçait en cône et l'on
+    # voyait son intérieur (croissant au poignet de la main d'arc). Il suit maintenant le brassard (twist_02) à 85 %,
+    # fondu vers la main au bord côté doigts. La MAIN elle-même n'est pas touchée (essai : la paume repondérée se déchirait).
+    ib2 = o.vertex_groups["lowerarm_twist_02" + ("_l" if s > 0 else "_r")].index
+    gant = [f for f in bm.faces if f.material_index == ig]
+    vus_g = set()
+    revers = []
+    for f0 in gant:
+        if f0 in vus_g:
+            continue
+        comp = []
+        pile = [f0]
+        while pile:
+            f = pile.pop()
+            if f in vus_g:
+                continue
+            vus_g.add(f)
+            comp.append(f)
+            for e in f.edges:
+                for g in e.link_faces:
+                    if g not in vus_g and g.material_index == ig:
+                        pile.append(g)
+        if len(comp) < 600:
+            revers += comp
+    vrev = {v for f in revers for v in f.verts}
+    for v in vrev:
+        x = abs(v.co.x)
+        k = 0.85 * (1.0 - smooth(0.712, 0.726, x))
+        w = dict(v[dl])
+        tot = {gi: ww * (1.0 - k) for gi, ww in w.items()}
+        tot[ib2] = tot.get(ib2, 0.0) + k
+        v[dl].clear()
+        for gi, ww in tot.items():
+            if ww > 1e-3:
+                v[dl][gi] = ww
+    print("REVERS", o.name, len(revers), "faces", len(vrev), "sommets")
     # 2b. FOND DU BRASSARD au poignet : un disque de cuir sombre (16 côtés, r 0,0505 = intérieur des derniers tours
     # tressés, |x| 0,712) tourné vers la main, rigide avec le brassard. L'arc ramène la main à sa taille source (1/1,3) :
     # le revers du gant ne recouvre plus le bout du brassard, et l'avant-bras d'arc vu depuis la main montrait le tube vide
@@ -402,7 +453,7 @@ def fermer_avant_bras(o):
     # 2c. TAMPON DE POIGNET : un petit volume fermé de cuir (|x| 0,690 -> 0,726, r 0,046 -> 0,030), rigide avec le
     # brassard, dans le poignet du gant. Main à sa taille d'origine : il est dedans. Arc (main ramenée à 1/1,3) : il bouche
     # le croissant qui s'ouvrait entre le dos de la main et le bout du brassard (on y voyait l'intérieur du revers).
-    prof = [(0.690, 0.046), (0.700, 0.045), (0.710, 0.040), (0.718, 0.034), (0.724, 0.026)]
+    prof = [(0.690, 0.046), (0.700, 0.0475), (0.710, 0.0485), (0.714, 0.044), (0.718, 0.033), (0.722, 0.024)]   # passe 2 : jusqu'au bord des tours tressés (arc)
     anneaux = []
     for xx, rr in prof:
         c0 = axe_av(xx)
