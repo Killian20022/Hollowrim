@@ -259,6 +259,11 @@ func _ready() -> void:
 	if DisplayServer.get_name() != "headless" and not _arguments().has("sans-opti-runes"):
 		SonsMagie._n()   # opti saccades : nœud des sons de magie (20 lecteurs 3D) créé au chargement, pas au 1er sort
 	EffetsSol.preparer_couche(self)   # opti saccades : couche de neige (variante de shader, 36 tuiles) sous l'écran de chargement
+	# bugs/pnj_popin (2026-11-26) : aucun villageois ne doit rester « à naître » quand le joueur prend la main ; sinon il naissait en jeu
+	# seulement HORS de la vue (_naissances_differees) : rue vide devant soi, puis tout le village présent après un demi-tour.
+	while not _pnj_differes.is_empty():
+		_naissance_au_chargement()
+		await _souffle()
 	Chrono.total()
 	pret = true
 	if joueur != null and joueur.mains != null and joueur.mains.get("magie") != null and joueur.mains.magie.get("eq") != null:
@@ -870,7 +875,7 @@ func _villageois() -> void:
 ## pour le brouillard, ou hors du champ de la caméra) : jamais d'apparition à l'écran ; au bout de DELAI_PNJ_MAX s tout naît quand même.
 ## Un par image au plus, au rythme d'un toutes les 0,15 s (naissances espacées). La sauvegarde et le chargement de partie les voient
 ## (`_tous_les_villageois`).
-const DELAI_PNJ_MAX := 25.0
+const DELAI_PNJ_MAX := 1.5     # bugs/pnj_popin : était 25 s (rue vide jusqu'au demi-tour) ; filet seulement, la liste est vide à `pret`
 var _pnj_differes: Array[CharacterBody3D] = []
 var _pnj_pause := 0.0
 var _pnj_attente := 0.0
