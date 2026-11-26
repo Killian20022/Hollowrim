@@ -121,6 +121,9 @@ var v2 := false                 # le module en cours est en style v2 : pilier, a
 var module_id := ""             # identifiant du module en cours (étiquette des emplacements d'eau)
 var saillie_cb := Callable()    # (point local, normale) -> décalage : les objets accrochés au mur avancent devant les panneaux de maçonnerie
 var nb_bannieres := 0           # bannières posées (le kit v2 n'en ajoute pas dans une salle qui en a déjà)
+## Zones sans nappe de brume au sol : [Vector3 (repère de la racine), rayon] (corps du compagnon mort : la brume additive à 0,12-0,22 m
+## voilait d'un gris laiteux tout ce qui gît au sol sous elle, « main fantôme »). Les tirages de rng_deco restent les mêmes.
+var sans_brume: Array = []
 var occupations: Array = []     # [point local, demi-largeur] : objets plaqués au mur (râteliers, étagères, panneaux d'os) que les panneaux v2 évitent
 var est_crypte := false   # vrai pour la crypte elle-même (pas pour GrotteDecor, qui hérite de cette classe)
 ## RNG des détails ajoutés par la refonte matière (givre, glaçons, niches, lustres…) : séparé de `rng` pour ne pas déplacer
@@ -1507,7 +1510,15 @@ func brume(centre: Vector3, ext: Vector2, nombre := 5) -> void:
 	for k in nombre:
 		var p := centre + Vector3(rng_deco.randf_range(-ext.x, ext.x), 0.12 + 0.1 * rng_deco.randf(), rng_deco.randf_range(-ext.y, ext.y))
 		var w := rng_deco.randf_range(2.6, 4.6)
-		carte("brume", p, Vector3.UP, w, w * rng_deco.randf_range(0.6, 1.0))
+		var h := w * rng_deco.randf_range(0.6, 1.0)
+		var pw := xf * p
+		var libre := true
+		for z: Array in sans_brume:
+			var c: Vector3 = z[0]
+			if Vector2(pw.x - c.x, pw.z - c.z).length() < w * 0.5 + float(z[1]) and absf(pw.y - c.y) < 1.5:
+				libre = false
+		if libre:
+			carte("brume", p, Vector3.UP, w, h)
 
 ## Lustre de fer à bougies pendu à une chaîne (lot L8 : module « lustre_l8_6 », ObjLuminaires) ; une lumière courte si demandé.
 func lustre(plafond: Vector3, chute := 1.2, rayon := 0.55, avec_lumiere := true) -> void:
@@ -1759,6 +1770,37 @@ func crane(pos: Vector3, lacet := 0.0) -> void:
 
 func os_tas(pos: Vector3, n := 4, rayon := 0.4) -> void:
 	ObjPetitMobilier.os_tas(self, pos, n, rayon)      # props/lot4 : os épars et crâne anatomique maison gardés (q_crane, q_os_tas : lisent comme une boule / une bête)
+
+## Ombres de contact sous les crânes (vrai pendant la pose d'un récit qui les veut : salle du compagnon mort). Sans ombre portée sous la
+## torche, un crâne debout sur sa mâchoire semblait flotter au-dessus du dallage (retour 2026-11-26). Aucun tirage : rien ne bouge.
+var ombre_cranes := false
+static var _tex_ombre: ImageTexture
+func ombre_sol(pos: Vector3, taille: float) -> void:
+	if muet or racine == null:
+		return
+	if _tex_ombre == null:
+		var n := 16
+		var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
+		for y in n:
+			for x in n:
+				var dd := Vector2(x + 0.5 - n * 0.5, y + 0.5 - n * 0.5).length() / (n * 0.5)
+				img.set_pixel(x, y, Color(0, 0, 0, 0.5 if dd < 0.45 else (0.3 if dd < 0.7 else (0.13 if dd < 0.95 else 0.0))))
+		_tex_ombre = ImageTexture.create_from_image(img)
+	var mi := MeshInstance3D.new()
+	mi.name = "OmbreCrane"
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(taille, taille * 1.2)
+	mi.mesh = pm
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = _tex_ombre
+	m.albedo_color = Color(0, 0, 0)
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = xf * pos + Vector3(0, 0.005, 0)
+	racine.add_child(mi)
 
 # ------------------------------------------------------------------ C7 : ossuaire en relief (panneaux d'os)
 ## Les panneaux d'os (DonjonKit.panneau_os) n'étaient qu'une texture de crânes peints (ossuaire.res) : à 1-3 m, « papier peint ».

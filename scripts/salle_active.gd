@@ -158,7 +158,7 @@ func _classer_pas(budget_us: int) -> void:
 		rects.append([id, (s["rect"] as Rect2).grow(0.3), float(s["y0"]), float(s["y1"])])
 	while not _a_classer.is_empty():
 		var n: GeometryInstance3D = _a_classer.pop_back()
-		if not is_instance_valid(n) or not n.is_inside_tree() or _est_exclu(n):
+		if not is_instance_valid(n) or not n.is_inside_tree() or _est_exclu(n) or _dans_personnage(n):
 			continue
 		var bb: AABB = (inv * n.global_transform) * n.get_aabb()
 		var rn := Rect2(bb.position.x, bb.position.z, bb.size.x, bb.size.z)
@@ -174,6 +174,17 @@ func _classer_pas(budget_us: int) -> void:
 				n.visible = _voulu(n)
 		if budget_us > 0 and Time.get_ticks_usec() - debut > budget_us:
 			return
+
+## Maillage d'un PERSONNAGE (sous un Skeleton3D : corps de décor comme le compagnon mort de la crypte) : il gère lui-même la visibilité
+## de ses pièces (vêtements cachés sous l'armure, coiffes, capes de rechange) ; les remettre visibles au classement (n.visible = voulu)
+## habillait le corps de TOUTES ses pièces à la fois (robe, capuche, cape, haillons… « skin dégueulasse »). Jamais caché par salle.
+func _dans_personnage(n: Node) -> bool:
+	var p := n.get_parent()
+	while p != null and p != repere:
+		if p is Skeleton3D:
+			return true
+		p = p.get_parent()
+	return false
 
 func _est_exclu(n: Node) -> bool:
 	for e in _exclus:
