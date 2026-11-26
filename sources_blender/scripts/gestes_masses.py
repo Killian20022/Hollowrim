@@ -56,8 +56,13 @@ RACCORD_M = 1.0
 REPOS_M6 = dict(L["REPOS_M"], nom="repos_m6")
 
 
+# butées de la TENUE (inclinaison) : poignet presque droit, le manche reste dans la prise naturelle du poing (critère du brief :
+# angle manche / avant-bras 70-110°) ; mesuré : à -24 (butée des coups) le manche tombait à 50-69° de l'avant-bras
+INCL_TENUE = (int(OPT.get("incl_min", "-10")), 18)
+
+
 def _poignet_autour(k, f, r):
-    return ((max(f - 17, -50), min(f + 19, 50)), (max(r - 2, -24), min(r + 14, 18)))
+    return ((max(f - 17, -50), min(f + 19, 50)), (max(r - 6, -24), min(r + 10, 18)))
 
 
 S = dict(ref=0, decalage=(0.0, 0.06, -0.15), echelle_epaule=0.7)
@@ -78,21 +83,22 @@ CLIPS_M = {
     "charge_ms": dict(S, source="vertical", centre=23, amplitude=0.45, cadrage=(30, -37, 0),
                       temps=[(2, 0.0), (19, 0.34), (21, 0.62)], fondu=(0.34, 0.62), plein=(0.34, 0.62)),
     "lourd_ms": dict(S, source="vertical", centre=23, amplitude=0.45, cadrage=(30, -37, 0),
-                     temps=[(21, 0.0), (21.5, 0.06), (26.5, 0.22), (27.5, 0.32), (29, 0.48), (29, 0.96)],
-                     fondu=(0.0, 0.48), plein=(0.0, 0.55), arc=(0.06, 0.22, 0.85), creux=0.06),
+                     temps=[(21, 0.0), (21.5, 0.06), (26.5, 0.22), (27.5, 0.30), (29, 0.40), (29, 0.68)],
+                     fondu=(0.0, 0.40), plein=(0.0, 0.46), arc=(0.06, 0.22, 0.85), creux=0.06),
 }
 MARQUEURS_M = {
     "ms_a": {"arme": 0.22, "frappe": 0.26, "fin_frappe": 0.40, "suivi": 0.48, "fin": 0.80},
     "ms_b": {"arme": 0.22, "frappe": 0.26, "fin_frappe": 0.40, "suivi": 0.48, "fin": 0.80},
     "ms_c": {"arme": 0.24, "frappe": 0.28, "fin_frappe": 0.42, "suivi": 0.50, "fin": 0.84},
     "charge_ms": {"arme": 0.34, "fin": 0.62},
-    "lourd_ms": {"arme": 0.05, "frappe": 0.06, "fin_frappe": 0.22, "suivi": 0.32, "fin": 0.96},
+    "lourd_ms": {"arme": 0.05, "frappe": 0.06, "fin_frappe": 0.22, "suivi": 0.30, "fin": 0.68},
 }
 
 # ---------------------------------------------------------------------------------------------------------------------------
 # DEUX MAINS : réglages repris de la claymore v6 (gestes_2mains.py : tenue repos_2m, poignet verrouillé POIGNET_2M, LIM_MX_2M) ;
 # le grand marteau partage ses tenues (repos_2m, garde_2m...) : bord des clips = repos_2m exacte.
-POIGNET_GM = ((-28, 4), (-24, -6))
+POIGNET_GM = ((-28, 4), (-22, -2))
+INCL_TENUE_GM = (int(OPT.get("incl_gm", "-22")), 32)
 LIM_MX_GM = dict(torsion=(-85, 85), flexion=(-55, 55), inclinaison=(-24, 18))
 S2 = dict(ref=0, decalage=(0.0, 0.08, -0.12), echelle_epaule=0.6, poignet=POIGNET_GM, lim_mx=LIM_MX_GM)
 CLIPS_GM = {
@@ -169,7 +175,7 @@ def creer_une_main(nom):
     garde_repos, garde_lim, garde_raccord = NS["REPOS"], dict(NS["LIM_MX"]), NS["RACCORD_MX"]
     garde_lt, garde_li = NS["LIM_TORSION_L"], NS["LIM_INCL_L"]
     try:
-        NS["LIM_INCL_L"] = (-24, 18)   # la tenue de bord, résolue dans les mêmes butées anatomiques que les coups
+        NS["LIM_INCL_L"] = INCL_TENUE   # la tenue de bord, résolue dans des butées anatomiques serrées
         NS["PREC"][0] = None
         NS["poser"](dict(REPOS_M6))
         k, f, r = NS["PREC"][0][:3]
@@ -205,7 +211,7 @@ def main():
     actions = {}
     if not clips:   # tenue de repos des masses / marteaux (bord exact des clips), poignet dans les mêmes butées
         garde_li = NS["LIM_INCL_L"]
-        NS["LIM_INCL_L"] = (-24, 18)
+        NS["LIM_INCL_L"] = INCL_TENUE
         NS["PREC"][0] = None
         act = NS["creer_action"]("repos_m6", [G.cle(REPOS_M6, 0.0), G.cle(REPOS_M6, 0.5)])
         NS["LIM_INCL_L"] = garde_li
@@ -218,11 +224,51 @@ def main():
         D = _charger("gestes_2mains.py")
         N2 = D["NS"]
         D["_preparer_mx_2m"]()
-        print("TENUE repos_2m", N2["REPOS"].get("k"), N2["REPOS"].get("f"), N2["REPOS"].get("r"))
+        # tenue propre au grand marteau (repos_gm6) : la tenue repos_2m de la claymore (inclinaison cubitale -44°, mesurée) re-résolue
+        # dans les butées du critère (|inclinaison| <= 25°) ; même poing, même manche visé, poignet anatomique
+        REPOS_GM6 = dict(D["REPOS_2M"], nom="repos_gm6")
+        _orig = D["_poser"]
+
+        def _tenue_gm6(cote="r"):
+            garde = N2["LIM_INCL_L"], N2["LIM_INCL"]
+            N2["LIM_INCL_L"] = N2["LIM_INCL"] = INCL_TENUE_GM
+            try:
+                N2["PREC"][0] = None
+                return _orig(dict(REPOS_GM6), cote)
+            finally:
+                N2["LIM_INCL_L"], N2["LIM_INCL"] = garde
+
+        def _poser_gm(c, cote="r"):
+            if c.get("tenue_exacte"):
+                return _tenue_gm6(cote)
+            return D["_poser_suivi"](c, cote)
+        N2["poser"] = _poser_gm
+        _tenue_gm6()
+        k, f, r = N2["PREC"][0][:3]
+        N2["REPOS"] = dict(REPOS_GM6, k=k, f=f, r=r, tenue_exacte=True)
+        print("TENUE repos_gm6 k %d f %d r %d" % (k, f, r))
+        if not clips:
+            act = N2["bpy"].data.actions.new("repos_gm6")
+            act.use_fake_user = True
+            N2["A"].animation_data.action = act
+            _tenue_gm6()
+            for t_ in (0.0, 0.5):
+                for nb in N2["OS_ANIMES"]:
+                    pb = N2["A"].pose.bones[nb]
+                    pb.rotation_quaternion = pb.matrix_basis.to_quaternion()
+                    pb.keyframe_insert("rotation_quaternion", frame=t_ * N2["FPS"], group=nb)
+                    if nb == "clavicle_r":
+                        pb.location = pb.matrix_basis.to_translation()
+                        pb.keyframe_insert("location", frame=t_ * N2["FPS"], group=nb)
+            actions["repos_gm6"] = (act, 0.5)
         for nom in noms_gm:
             spec = dict(CLIPS_GM[nom])
+            spec["poignet"] = _poignet_autour(k, f, r)   # verrou autour de la tenue repos_gm6
             N2["LIM_MX"].update(spec.get("lim_mx", LIM_MX_GM))
+            garde_r = N2["RACCORD_MX"]
+            N2["RACCORD_MX"] = RACCORD_M
             actions[nom] = N2["creer_action_mixamo"](nom, spec)
+            N2["RACCORD_MX"] = garde_r
             mesurer(N2, nom, actions[nom][0], actions[nom][1], MARQUEURS_GM[nom])
     mq = dict(MARQUEURS_M)
     mq.update(MARQUEURS_GM)

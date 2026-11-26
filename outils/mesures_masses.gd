@@ -255,14 +255,37 @@ func _analyser(nom: String, ech: Array) -> void:
 		var anticip := float(m.get("frappe", 0.0)) / v
 		var frappe := (float(m.get("fin_frappe", 0.0)) - float(m.get("frappe", 0.0))) / v
 		var retour := (float(m.get("fin", 0.0)) - float(m.get("fin_frappe", 0.0))) / v
-		print("MASSES_CRITERES %s %s %s : poignet D |dev| %.0f (<=25) |flex| %.0f (<=60) saut %.1f (<=12) | G |dev| %.0f |flex| %.0f saut %.1f | manche/avant-bras %.0f..%.0f | tete visible %d/%d | anticipation %.2f s frappe %.2f s retour %.2f s" % [
-			etiq, nom, c, wd, wf, wvar, ld, lf, lvar, axe_min, axe_max, vis, tot, anticip, frappe, retour])
+		print("MASSES_CRITERES %s %s %s %s : poignet D |dev| %.0f (<=25) |flex| %.0f (<=60) saut %.1f (<=12) | G |dev| %.0f |flex| %.0f saut %.1f | manche/avant-bras %.0f..%.0f | tete visible %d/%d | anticipation %.2f s frappe %.2f s retour %.2f s" % [
+			_id, etiq, nom, c, wd, wf, wvar, ld, lf, lvar, axe_min, axe_max, vis, tot, anticip, frappe, retour])
 		_csv.append("%s;%s;%s;%s;%.1f;%.1f;%.1f;%.1f;%.1f;%.1f;%.0f;%.0f;%d;%d;%.2f;%.2f;%.2f;%.0f;%.0f" % [
-			_arg("arme", "masse_cloutee"), etiq, nom, c, wd, wf, wvar, ld, lf, lvar, axe_min, axe_max, vis, tot, anticip, frappe, retour,
+			_id, etiq, nom, c, wd, wf, wvar, ld, lf, lvar, axe_min, axe_max, vis, tot, anticip, frappe, retour,
 			100.0 * (xr.y - xr.x) / 480.0, 100.0 * (yr.y - yr.x) / 270.0])
 		if _arg("detail") != "":
 			print("MASSES_DETAIL %s %s : %s" % [nom, c, " ".join(lignes)])
 	print("MASSES %s %-9s raccords : saut max %.1f px | camera rotation max %.2f deg, variation max %.2f deg/img" % [etiq, nom, sauts, cam_max, cam_var])
+
+var _id := ""
+
+func _mesurer_arme(id: String) -> void:
+	mains.equipement.equiper("droite", CatalogueArmes.donnees(id) if CatalogueArmes.connu(id) else load("res://data/armes/%s.tres" % id))
+	await _images(60)
+	if _att.is_empty():
+		_attaches()
+	await _images(2)
+	_fil_signe = _cote_fil()
+	var p := ProfilsAnimation.profil(mains.arme.profil)
+	print("MASSES %s arme %s profil %s combo %s lourd %s (anciennes %s)" % [etiq, id, mains.arme.profil, str(p["combo"]), p["lourd"], str(GestesLourds.masses_anciennes)])
+	var seqs := _arg("seq", "combo,puissant").split(",")
+	if "combo" in seqs:
+		var e := await _sequence("combo", [[0.0, 0.05], [0.8, 0.05], [1.6, 0.05], [2.4, 0.05]])
+		_analyser("combo", e)
+	if "rapide" in seqs:
+		var e := await _sequence("rapide", [[0.0, 0.05], [0.45, 0.05], [0.9, 0.05], [1.35, 0.05]])
+		_analyser("rapide", e)
+	if "puissant" in seqs:
+		var e := await _sequence("puissant", [[0.0, 0.9]])
+		_analyser("puissant", e)
+
 
 func _go() -> void:
 	etiq = _arg("etiquette", "avant" if GestesLourds.masses_anciennes else "apres")
@@ -280,24 +303,9 @@ func _go() -> void:
 	for i in 10:
 		await physics_frame
 	mains.pas_manuel = true
-	var id := _arg("arme", "masse_cloutee")
-	mains.equipement.equiper("droite", CatalogueArmes.donnees(id) if CatalogueArmes.connu(id) else load("res://data/armes/%s.tres" % id))
-	await _images(60)
-	_attaches()
-	await _images(2)
-	_fil_signe = _cote_fil()
-	var p := ProfilsAnimation.profil(mains.arme.profil)
-	print("MASSES %s arme %s profil %s combo %s lourd %s (anciennes %s)" % [etiq, id, mains.arme.profil, str(p["combo"]), p["lourd"], str(GestesLourds.masses_anciennes)])
-	var seqs := _arg("seq", "combo,puissant").split(",")
-	if "combo" in seqs:
-		var e := await _sequence("combo", [[0.0, 0.05], [0.8, 0.05], [1.6, 0.05], [2.4, 0.05]])
-		_analyser("combo", e)
-	if "rapide" in seqs:
-		var e := await _sequence("rapide", [[0.0, 0.05], [0.45, 0.05], [0.9, 0.05], [1.35, 0.05]])
-		_analyser("rapide", e)
-	if "puissant" in seqs:
-		var e := await _sequence("puissant", [[0.0, 0.9]])
-		_analyser("puissant", e)
+	for id in _arg("armes", _arg("arme", "masse_cloutee")).split(","):
+		_id = id
+		await _mesurer_arme(id)
 	print("MASSES %s echantillons du trace compares : %d" % [etiq, _n_trace])
 	var chemin := _arg("csv")
 	if chemin != "":

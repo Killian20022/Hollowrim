@@ -72,42 +72,43 @@ func _go() -> void:
 		j.basculer_vue(true)
 		j.camera_tp.recaler()
 	await _attendre(0.4)
-	mains.equipement.equiper("droite", CatalogueArmes.donnees(_arg("arme", "masse_cloutee")))
-	var nom_arme: String = mains.arme.nom
-	await _attendre(1.0)
-	var titre := _arg("titre", "AVANT (poses ecrites)" if GestesLourds.masses_anciennes else "APRES (captures)")
-	mains.combat.forcer(EtatCombat.REPOS)
-	mains._combo = 0
-	mains._depuis_coup = 9.0
-	var p := ProfilsAnimation.profil(mains.arme.profil)
-	print("FILM profil %s combo %s" % [mains.arme.profil, str(p["combo"])])
-	_texte("%s - %s : repos" % [nom_arme, titre])
-	await _attendre(0.8)
-	for k in 4:
-		mains.entrees.appuyer()
-		await _attendre(0.05)
-		_texte("%s - %s : coup %d (%s)" % [nom_arme, titre, k + 1, mains._clip])
-		mains.entrees.relacher()
-		await _attendre(0.85)
-		print("FILM clic %d -> clip %s" % [k + 1, mains._clip])
-	var t := 0.0
-	while t < 3.0 and not mains.combat.calme():
-		await _attendre(DT)
-		t += DT
-	_texte("%s - %s : repos" % [nom_arme, titre])
-	await _attendre(0.8)
-	if _arg("sans-puissant") == "":
-		_texte("%s - %s : coup puissant (maintenu)" % [nom_arme, titre])
-		mains._depuis_coup = 9.0
+	for id in _arg("armes", _arg("arme", "masse_cloutee")).split(","):
+		mains.equipement.equiper("droite", CatalogueArmes.donnees(id))
+		var nom_arme: String = mains.arme.nom
+		await _attendre(1.0)
+		var titre := _arg("titre", "AVANT (poses ecrites)" if GestesLourds.masses_anciennes else "APRES (captures)")
+		mains.combat.forcer(EtatCombat.REPOS)
 		mains._combo = 0
-		mains.entrees.appuyer()
-		await _attendre(0.9)
-		mains.entrees.relacher()
-		t = 0.0
-		while t < 3.0 and not (t > 0.3 and mains.combat.calme()):
+		mains._depuis_coup = 9.0
+		var p := ProfilsAnimation.profil(mains.arme.profil)
+		print("FILM profil %s combo %s" % [mains.arme.profil, str(p["combo"])])
+		_texte("%s - %s : repos" % [nom_arme, titre])
+		await _attendre(0.8)
+		for k in 4:
+			mains.entrees.appuyer()
+			await _attendre(0.05)
+			_texte("%s - %s : coup %d (%s)" % [nom_arme, titre, k + 1, mains._clip])
+			mains.entrees.relacher()
+			await _attendre(0.85)
+			print("FILM clic %d -> clip %s" % [k + 1, mains._clip])
+		var t := 0.0
+		while t < 3.0 and not mains.combat.calme():
 			await _attendre(DT)
 			t += DT
 		_texte("%s - %s : repos" % [nom_arme, titre])
 		await _attendre(0.8)
+		if _arg("sans-puissant") == "":
+			_texte("%s - %s : coup puissant (maintenu)" % [nom_arme, titre])
+			mains._depuis_coup = 9.0
+			mains._combo = 0
+			mains.entrees.appuyer()
+			await _attendre(0.9)
+			mains.entrees.relacher()
+			t = 0.0
+			while t < 3.0 and not (t > 0.3 and mains.combat.calme()):
+				await _attendre(DT)
+				t += DT
+			_texte("%s - %s : repos" % [nom_arme, titre])
+			await _attendre(0.8)
 	print("FIN_FILM_MASSES")
 	quit(0)
