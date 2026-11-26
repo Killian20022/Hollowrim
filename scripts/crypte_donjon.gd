@@ -903,7 +903,7 @@ func _x_barricade(_m: Dictionary) -> void:
 	var y := BAS
 	# barricade de l'intérieur contre la porte, brèche à l'est ; les compagnons d'Eirik sont morts ici
 	d.barricade(_l(-14.0, -49.1, y), PI, 3.0, 1.3, -0.9)      # tonneau et table renversée côté salle (ils entraient dans le mur) ; même brèche
-	d.os_tas(_l(-16.0, -53.0, y), 5, 0.6)
+	d.os_tas(_l(-17.1, -54.1, y), 5, 0.6)      # écarté du point de fouille : le corps du compagnon y gît (un crâne tombait sur son torse)
 	# « Corps d'un compagnon » (interaction note_compagnon_2) : il lui fallait un corps. Pieds 0,6 m devant l'interaction : allongé sur le
 	# dos (Death01), son torse est sous le point de fouille
 	_compagnon_mort(pos_compagnon(), LACET_COMPAGNON)
@@ -943,7 +943,7 @@ func _compagnon_mort(pos: Vector3, lacet: float) -> void:
 		c.tree_entered.connect(_affaler.bind(c), CONNECT_ONE_SHOT | CONNECT_DEFERRED)
 	# sang séché sous le torse (il tombe sur le dos, le torse ~0,7 à 1,3 m derrière les pieds) et à son flanc
 	var dos := Basis(Vector3.UP, lacet) * Vector3(0, 0, -1)
-	_sang_seche(pos + dos * 0.95 + Vector3(0, 0.012, 0), 0.85, lacet, 0)
+	_sang_seche(pos + dos * 0.95 + Basis(Vector3.UP, lacet) * Vector3(-0.25, 0, 0) + Vector3(0, 0.012, 0), 1.2, lacet, 0)
 	_sang_seche(pos + Basis(Vector3.UP, lacet) * Vector3(0.55, 0, -0.5) + Vector3(0, 0.014, 0), 0.45, lacet + 1.1, 1)
 	# torche éteinte échappée de sa main droite (après la chute : main droite vers (-0,38 ; -0,99) du repère du corps) : manche de bois
 	# fin, tête charbonnée vers l'extérieur (d.boite est en repère du module : lw)
