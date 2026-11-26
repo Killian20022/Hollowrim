@@ -22,12 +22,16 @@ const LOURDS := preload("res://assets/animations/bras_lourds.tres")
 ## Masses, marteaux, grand marteau PAR CAPTURES (branche combat/coups_masses_marteaux) : bibliothèque À PART
 ## (sources_blender/scripts/gestes_masses.py → bras_masses.tres), préfixe « masse/ » ; mêmes os, même repère, mêmes marqueurs.
 const MASSES := preload("res://assets/animations/bras_masses.tres")
+## Gardes et blocages de TOUTES les armes (branche combat/gardes_toutes_armes) : bibliothèque À PART (sources_blender/scripts/
+## gestes_gardes.py → bras_gardes.tres), préfixe « garde/ » ; captures de blocage retargetées, poignet neutre (GardesArmes).
+const GARDES := preload("res://assets/animations/bras_gardes.tres")
 const OS_ANIMES := ["clavicle_r", "upperarm_r", "lowerarm_r", "hand_r"]
 const PREFIXE := "epee/"
 const PREFIXE_FIN := "fin/"
 const PREFIXE_DEUX := "deux/"
 const PREFIXE_LOURD := "lourd/"
 const PREFIXE_MASSE := "masse/"
+const PREFIXE_GARDE := "garde/"
 ## Clips remplacés selon l'arme (profil « tenues » de ProfilsAnimation : « repos » → « repos_2m »…). Le nom LOGIQUE reste celui
 ## demandé (clip, comparaisons de mains.gd inchangées) ; seul le clip joué / mesuré change.
 var variante := {}
@@ -55,6 +59,7 @@ func installer(bras: Node3D, squelette: Skeleton3D) -> void:
 	ap.add_animation_library("deux", DEUX_MAINS)
 	ap.add_animation_library("lourd", LOURDS)
 	ap.add_animation_library("masse", MASSES)
+	ap.add_animation_library("garde", GARDES)
 	var i := sq.find_bone("hand_r")
 	while i >= 0:
 		_chaine.push_front(i)
@@ -65,6 +70,7 @@ func installer(bras: Node3D, squelette: Skeleton3D) -> void:
 	noms.append_array(DEUX_MAINS.get_animation_list())
 	noms.append_array(LOURDS.get_animation_list())
 	noms.append_array(MASSES.get_animation_list())
+	noms.append_array(GARDES.get_animation_list())
 	for nom in noms:
 		var a := _anim(nom)
 		var p := {}
@@ -97,11 +103,14 @@ func _anim(nom: StringName) -> Animation:
 		return LOURDS.get_animation(r)
 	if MASSES.has_animation(r):
 		return MASSES.get_animation(r)
+	if GARDES.has_animation(r):
+		return GARDES.get_animation(r)
 	return FINISHERS.get_animation(r)
 
 func existe(nom: String) -> bool:
 	var r := reel(nom)
-	return BIBLIOTHEQUE.has_animation(r) or DEUX_MAINS.has_animation(r) or LOURDS.has_animation(r) or MASSES.has_animation(r) or FINISHERS.has_animation(r)
+	return BIBLIOTHEQUE.has_animation(r) or DEUX_MAINS.has_animation(r) or LOURDS.has_animation(r) or MASSES.has_animation(r) \
+		or GARDES.has_animation(r) or FINISHERS.has_animation(r)
 
 func _prefixe(r: String) -> String:
 	if BIBLIOTHEQUE.has_animation(r):
@@ -110,6 +119,8 @@ func _prefixe(r: String) -> String:
 		return PREFIXE_LOURD
 	if MASSES.has_animation(r):
 		return PREFIXE_MASSE
+	if GARDES.has_animation(r):
+		return PREFIXE_GARDE
 	return PREFIXE_DEUX if DEUX_MAINS.has_animation(r) else PREFIXE_FIN
 
 func longueur(nom: String) -> float:

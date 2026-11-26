@@ -601,7 +601,9 @@ class CoucheBras extends SkeletonModifier3D:
 ## coude) et la main (le reste, autour du poignet) : pas de poignet cassé. La main gauche suit (CibleSurArme passe après).
 class RedresseDeuxMains extends SkeletonModifier3D:
 	const AVANT_DEG := 14.0
-	const DROITE_DEG := 12.0
+	const DROITE_DEG := 12.0      # grand marteau : inchangé (repos validé, agent masses/marteaux)
+	const AVANT_DEG_LAME := 24.0  # passe 5 : lame un peu en avant et vers la droite : >= 20 cm du visage, hors du buste
+	const DROITE_DEG_LAME := 50.0 # passe 4 (gardes) : claymore / hybrides, lame par le côté (≈ 50° de la verticale), plus devant le visage
 	const PART := 0.95            # part de l'écart corrigée (la tenue garde un peu de son naturel)
 	const PART_AVANT_BRAS := 0.5
 	var tps: Node
@@ -615,7 +617,12 @@ class RedresseDeuxMains extends SkeletonModifier3D:
 		var arme: Node3D = tps.get("_arme_d")
 		var voulu := 0.0
 		var pc: float = tps._poids_coup()
-		if arme != null and is_instance_valid(arme) and tps.categorie("droite") == "arme_deux_mains" and not tps.joueur.mort and pc < 0.001:
+		var lourd: bool = tps.joueur.mains != null and tps.joueur.mains.arme != null and tps.joueur.mains.arme.profil == "grand_marteau"
+		# passe 4 : en garde (claymore, hybrides), le redressement latéral s'efface AVEC le fondu du geste (1 - pc), pas d'un coup : sinon la
+		# lame repassait par la verticale devant le visage entre le repos incliné et la garde
+		var ct = tps.corps.get("coups_tps") if tps.get("corps") != null else null
+		var en_garde: bool = (not lourd) and ct != null and is_instance_valid(ct) and bool(ct.get("_derniere_garde"))
+		if arme != null and is_instance_valid(arme) and tps.categorie("droite") == "arme_deux_mains" and not tps.joueur.mort and (pc < 0.001 or en_garde):
 			voulu = 1.0
 		# dès qu'un coup commence (CorpsCoupsTps, passé AVANT ce modificateur, pose alors lui-même la main gauche sur la poignée), le
 		# redressement s'efface vite (sinon la poignée bougerait sous la main gauche posée) ; il revient en douceur après le coup
@@ -632,18 +639,22 @@ class RedresseDeuxMains extends SkeletonModifier3D:
 		var haut := (inv * Vector3.UP).normalized()
 		var avant := (inv * -j.global_basis.z).normalized()
 		var droite := (inv * j.global_basis.x).normalized()
-		var cible := (haut * cos(deg_to_rad(AVANT_DEG)) + avant * sin(deg_to_rad(AVANT_DEG)) + droite * sin(deg_to_rad(DROITE_DEG))).normalized()
+		var cote := DROITE_DEG if lourd else DROITE_DEG_LAME
+		var av_deg := AVANT_DEG if lourd else AVANT_DEG_LAME
+		var cible := (haut * cos(deg_to_rad(av_deg)) + avant * sin(deg_to_rad(av_deg)) + droite * sin(deg_to_rad(cote))).normalized()
 		var pm := PiedsAuSol.pose_globale(s, im)
 		var lame := (pm.basis * arme.transform.basis.y).normalized()
 		var axe := lame.cross(cible)
 		if axe.length() < 1e-4:
 			return
 		var angle := lame.angle_to(cible) * PART * w
-		var q := Quaternion(axe.normalized(), angle * PART_AVANT_BRAS)
+		# claymore / hybrides : toute la rotation par l'avant-bras (rotation rigide autour du coude : le poignet ne bouge pas)
+		var part_ab := PART_AVANT_BRAS if lourd else 1.0
+		var q := Quaternion(axe.normalized(), angle * part_ab)
 		var pa := PiedsAuSol.pose_globale(s, ia)
 		PiedsAuSol.poser_globale(s, ia, Transform3D(Basis(q) * pa.basis, pa.origin))
 		pm = PiedsAuSol.pose_globale(s, im)
-		var q2 := Quaternion(axe.normalized(), angle * (1.0 - PART_AVANT_BRAS))
+		var q2 := Quaternion(axe.normalized(), angle * (1.0 - part_ab))
 		PiedsAuSol.poser_globale(s, im, Transform3D(Basis(q2) * pm.basis, pm.origin))
 
 ## Juste avant l'IK de la main gauche : recale _cible_g sur la pose de hand_r de CETTE image (dans _process, la poignée du corps est
