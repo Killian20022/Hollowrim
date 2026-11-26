@@ -980,7 +980,14 @@ func _installer_corps() -> void:
 	if _sq_corps == null or _sq_corps.find_bone("hand_l") < 0 or _sq_corps.find_bone("index_01_l") < 0:
 		_sq_corps = null
 		return
+	for c in _coudes_corps:
+		if is_instance_valid(c):
+			c.queue_free()
 	_coudes_corps.clear()
+	# cibles de l'ancien corps (changement d'apparence) : la prise de la nouvelle main les remplace
+	for n: Node in _tp.repere_poignee.get_children() + _pivot_corps_d.get_children():
+		n.get_parent().remove_child(n)
+		n.queue_free()
 	for i in 2:
 		var c := Node3D.new()
 		add_child(c)
@@ -993,14 +1000,17 @@ func _installer_corps() -> void:
 		_sq_corps.skeleton_updated.connect(_sur_squelette_corps)
 
 ## Os de la main gauche du corps (après l'IK et le poignet) contre la prise voulue sur la poignée (tests, films).
+## Mesuré AVANT de tourner le repère de la prise pour l'image suivante (comme _sur_squelette en 1re personne) : la main contre la
+## cible que l'IK a réellement visée dans cette image.
 func _sur_squelette_corps() -> void:
-	if _sq_corps != null and is_instance_valid(_sq_corps) and actif and joueur.troisieme:
-		_poing_g_naturel(_sq_corps, _tp)   # comme en 1re personne : le poing suit l'avant-bras, serré sur la poignée
-	if not mesure or _sq_corps == null or not is_instance_valid(_sq_corps):
+	if _sq_corps == null or not is_instance_valid(_sq_corps):
 		return
-	var h: Transform3D = _sq_corps.global_transform * _sq_corps.get_bone_global_pose(_sq_corps.find_bone("hand_l"))
-	var cgp: Transform3D = (_tp.repere_poignee.get_child(0) as Node3D).global_transform
-	prise_g_tps = Vector2(h.origin.distance_to(cgp.origin), h.basis.orthonormalized().get_rotation_quaternion().angle_to(cgp.basis.orthonormalized().get_rotation_quaternion()))
+	if mesure and _tp.repere_poignee.get_child_count() > 0:
+		var h: Transform3D = _sq_corps.global_transform * _sq_corps.get_bone_global_pose(_sq_corps.find_bone("hand_l"))
+		var cgp: Transform3D = (_tp.repere_poignee.get_child(0) as Node3D).global_transform
+		prise_g_tps = Vector2(h.origin.distance_to(cgp.origin), h.basis.orthonormalized().get_rotation_quaternion().angle_to(cgp.basis.orthonormalized().get_rotation_quaternion()))
+	if actif and joueur.troisieme:
+		_poing_g_naturel(_sq_corps, _tp)   # comme en 1re personne : le poing suit l'avant-bras, serré sur la poignée
 
 func _os_monde(nom: String) -> Vector3:
 	var i := _sq_corps.find_bone(nom)
@@ -1009,6 +1019,8 @@ func _os_monde(nom: String) -> Vector3:
 ## Troisième personne : l'arc tenu par le corps. En visée : bras gauche tendu vers la cible depuis l'épaule, encoche à la joue droite ;
 ## au repos : arc tenu bas de la main gauche, pointe vers l'avant, la main droite libre (animation).
 func _placer_tp() -> void:
+	if not _ik_corps.is_empty() and not is_instance_valid(_sq_corps):
+		_installer_corps()   # corps refait (definir_apparence : homme <-> femme) arc en main : IK reposée sur le nouveau squelette
 	var u := tension if etat == BANDE else 0.0
 	var b_j: Basis = joueur.global_transform.basis
 	var cam := _camera_visee()
@@ -1033,6 +1045,16 @@ func _placer_tp() -> void:
 	var z1 := float(ArcModele.infos().get("encoche_pleine_z", 0.595))
 	var a_max := clampf((joue.distance_to(appui_v) - z0) / (z1 - z0), 0.3, 1.0)
 	var uu := u * a_max
+	if ok:
+		# allonge du bras du CORPS (homme, femme : bras plus courts que l'ancien héros) : l'arc recule le long de la flèche (ligne de
+		# tir et ancrage inchangés) tant que le poignet visé est hors de portée de l'IK ; sinon le poing restait 2 à 5 cm à côté
+		# de la poignée, bras tendu dans le vide (levée, descente, visée de la femme).
+		var s_v := _recul_portee(appui_v, dir_v, 0.0, _tp.encoche_pour(uu).z, epaule)
+		appui_v -= dir_v * s_v
+		a_max = clampf((joue.distance_to(appui_v) - z0) / (z1 - z0), 0.3, 1.0)
+		uu = u * a_max
+		appui = appui_r.lerp(appui_v, l)
+		appui -= dir * _recul_portee(appui, dir, lerpf(0.5, 0.0, l), _tp.encoche_pour(uu).z, epaule)
 	_tp.global_transform = pose_arc(appui, dir, lerpf(0.5, 0.0, l), _tp.encoche_pour(uu).z)   # arc vertical en visée
 	_tp.fleche_libre = null
 	_tp.regler(uu, _encochee and etat == BANDE)
@@ -1054,6 +1076,26 @@ func _placer_tp() -> void:
 			var hanche := _tp.global_transform.affine_inverse() * (joueur.global_position + b_j * Vector3(0.28, 0.95, 0.05))
 			var pos := n0.lerp(arriere, smoothstep(0.0, 0.35, ph_tp)) if ph_tp < 0.35 else arriere.lerp(hanche, smoothstep(0.35, 1.0, ph_tp))
 			_pivot_corps_d.transform = Transform3D(_tp.repere_encoche.basis, pos)
+
+## Fraction de l'allonge du bras (épaule -> poignet, longueurs au repos) que le poignet visé ne dépasse pas : bras presque tendu.
+const ALLONGE_MAX_TPS := 0.97
+
+## Recul (m, le long de `dir`) de l'arc posé en `appui` pour que la cible du poignet gauche (prise sur la poignée) reste à
+## ALLONGE_MAX_TPS de l'allonge du bras du corps depuis l'épaule ; 0 si elle est déjà à portée.
+func _recul_portee(appui: Vector3, dir: Vector3, incl: float, z_enc: float, epaule: Vector3) -> float:
+	var cg := _tp.repere_poignee.get_child(_tp.repere_poignee.get_child_count() - 1) as Node3D
+	var ia := _sq_corps.find_bone("lowerarm_l")
+	var ih := _sq_corps.find_bone("hand_l")
+	var lmax := (_sq_corps.get_bone_rest(ia).origin.length() + _sq_corps.get_bone_rest(ih).origin.length()) * ALLONGE_MAX_TPS
+	lmax *= _sq_corps.global_transform.basis.get_scale().x
+	var c := pose_arc(appui, dir, incl, z_enc) * _tp.repere_poignee.transform * cg.transform
+	var v := c.origin - epaule
+	if v.length() <= lmax:
+		return 0.0
+	var d := dir.normalized()
+	var vd := v.dot(d)
+	var disc := vd * vd - v.length_squared() + lmax * lmax
+	return vd - sqrt(disc) if disc >= 0.0 else vd
 
 # ------------------------------------------------------------------ tir
 

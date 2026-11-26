@@ -365,7 +365,11 @@ func _tester() -> void:
 	arc.relacher()
 	await _sim(0.8)
 	_verif(arc.tirs > 0 and arc.dernier_tir.get("tension", 0.0) > 0.9, "troisième personne : flèche partie")
-	await _cycle_tps()
+	# prise 3e personne sur les DEUX corps du joueur (bras de l'homme et de la femme plus courts que l'ancien héros)
+	for ap in ["homme", "femme"]:
+		j.corps.definir_apparence(ap)
+		await _sim(0.3)
+		await _cycle_tps(ap)
 	j.basculer_vue(false)
 	# rangement
 	arc.ranger()
@@ -375,7 +379,7 @@ func _tester() -> void:
 
 ## 3e personne : la main gauche serre la poignée à TOUTES les phases (repos, levée, tension, tir, relâche, rechargement), à l'arrêt
 ## puis en marche/course (le corps animé bouge sous l'IK). Le pire écart (m, rad) de toutes les images.
-func _cycle_tps() -> void:
+func _cycle_tps(ap := "") -> void:
 	arc.mesure = true
 	for allure in ["arrêt", "course"]:
 		var pire := Vector2.ZERO
@@ -398,8 +402,8 @@ func _cycle_tps() -> void:
 				pire.x = e.x
 				ou = "image %d, levée %.2f, état %d" % [k, arc._levee, arc.etat]
 			pire.y = maxf(pire.y, e.y)
-		print("TPS %s pire ecart %.1f mm %.1f deg (%s)" % [allure, pire.x * 1000.0, rad_to_deg(pire.y), ou])
-		_verif(pire.x < (0.012 if allure == "arrêt" else 0.02) and pire.y < deg_to_rad(15.0), "3e personne (%s) : la main gauche serre la poignée à toutes les phases (pire : %.1f mm, %.1f°, %s)" % [allure, pire.x * 1000.0, rad_to_deg(pire.y), ou])
+		print("TPS %s %s pire ecart %.1f mm %.1f deg (%s)" % [ap, allure, pire.x * 1000.0, rad_to_deg(pire.y), ou])
+		_verif(pire.x < (0.012 if allure == "arrêt" else 0.02) and pire.y < deg_to_rad(15.0), "3e personne %s (%s) : la main gauche serre la poignée à toutes les phases (pire : %.1f mm, %.1f°, %s)" % [ap, allure, pire.x * 1000.0, rad_to_deg(pire.y), ou])
 		j.velocity = Vector3.ZERO
 		await _sim(1.0)
 
