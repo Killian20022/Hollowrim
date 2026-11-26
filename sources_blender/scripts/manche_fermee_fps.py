@@ -249,14 +249,8 @@ nouv_l = manche("manche_l", False)
 nouv_r = manche("manche_r", True)
 for n in ANCIENS:
     bpy.data.objects.remove(objs[n])
-# un seul maillage « manches » (nom lu par les tests de torsion), deux bras
-bpy.ops.object.select_all(action='DESELECT')
-nouv_l.select_set(True)
-nouv_r.select_set(True)
-bpy.context.view_layer.objects.active = nouv_l
-bpy.ops.object.join()
-nouv_l.name = "manches"
-nouv_l.data.name = "manches"
+# passe 2 : une manche PAR BRAS (manche_l / manche_r) : le fondu près de l'œil (AvantBras.regler_fondu) est réglé
+# par bras, comme avant_bras_l / avant_bras_r
 
 
 # --- avant-bras : bouts de gant fermés, petites pièces de fer remises à l'endroit (aucun sommet déplacé)

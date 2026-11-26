@@ -27,6 +27,7 @@ var sortie := ""
 var dv: SubViewport
 var dcam: Camera3D
 var _copies: Array[MeshInstance3D] = []
+var _sources := {}   # copie de détection -> maillage du jeu (pour recopier son fondu)
 var _mat_det := {}
 var _pires: Array = []      # [rouge, seq, n, image normale, image détection]
 var _bilan: PackedStringArray = []
@@ -59,7 +60,13 @@ func _shader_det() -> Shader:
 render_mode unshaded, cull_disabled, fog_disabled, shadows_disabled, depth_draw_opaque;
 uniform float code = 0.0;
 uniform bool carte = false;
+const float TRAME_OEIL[16] = float[16](0.0, 8.0, 2.0, 10.0, 12.0, 4.0, 14.0, 6.0, 3.0, 11.0, 1.0, 9.0, 15.0, 7.0, 13.0, 5.0);
+instance uniform float fondu_bras = 1.0;   // même fondu en trame que le bras du jeu (AvantBras.regler_fondu), recopié
 void fragment() {
+	ivec2 q_oeil = ivec2(FRAGCOORD.xy) % 4;
+	if (fondu_bras < 0.999 && fondu_bras < (TRAME_OEIL[q_oeil.y * 4 + q_oeil.x] + 0.5) / 16.0) {
+		discard;
+	}
 	// vert du dos : position le long du bras (UV.y de la manche, 0 = épaule, 3,2 = coude) pour situer un défaut
 	// rouge faible sur la face avant : bras à moins de 0,25 m de l'œil (« objet géant près de l'œil »)
 	float proche = length(VERTEX) < 0.25 ? 0.12 : 0.0;
@@ -118,6 +125,7 @@ func _installer_copies() -> void:
 			c.skeleton = mi.skeleton
 			c.skin = mi.skin
 			_copies.append(c)
+			_sources[c] = mi
 
 func _faire_lut() -> void:
 	_lut.resize(256)
@@ -198,6 +206,13 @@ func _suivre_camera() -> void:
 	dcam.far = c.far
 	dcam.keep_aspect = c.keep_aspect
 	# la caméra du jeu ne voit jamais les copies de détection
+	for c2: MeshInstance3D in _copies:
+		if is_instance_valid(c2) and _sources.has(c2) and is_instance_valid(_sources[c2]) and c2.mesh.get_surface_count() > 0 \
+				and (c2.get_surface_override_material(0) as ShaderMaterial).shader.code.contains("fondu_bras"):
+			var a := float((_sources[c2] as MeshInstance3D).get_meta("fondu_bras", 1.0))
+			if absf(float(c2.get_meta("fondu_bras", 1.0)) - a) > 0.001:
+				c2.set_meta("fondu_bras", a)
+				c2.set_instance_shader_parameter("fondu_bras", a)
 	for cam: Camera3D in s.find_children("*", "Camera3D", true, false):
 		cam.cull_mask &= ~CALQUE_DET
 		if _arg("near") != "":   # essai : plan proche imposé à toutes les caméras du jeu
@@ -274,6 +289,11 @@ func _image(seq: String, n: int, garder_images: bool) -> int:
 		detail += " %s=%d" % [k, par[k]]
 	if _arg("trace-near") != "":
 		print("NEAR ", root.get_viewport().get_camera_3d().near)
+	var fondu_min := 1.0
+	for c2 in _sources:
+		if is_instance_valid(_sources[c2]):
+			fondu_min = minf(fondu_min, float((_sources[c2] as MeshInstance3D).get_meta("fondu_bras", 1.0)))
+	detail += " fondu=%.2f d_os=%.2f/%.2f" % [fondu_min, float(mains._sq.get_meta("d_os_l", 9.0)), float(mains._sq.get_meta("d_os_r", 9.0))]
 	print("IMAGE %s %03d rouge=%d px (%.3f %%) coeur=%d tache=%d%s cartes_decor=%d proche25cm=%.2f%% manche_proche=%.2f%% manche_aire=%.2f%% etat=%s" % [seq, n, rouges, pct, coeur, tache, detail, cartes, 100.0 * proches / float(w * h), 100.0 * proches_manche / float(w * h), 100.0 * aire_manche / float(w * h), _etat()])
 	if rouges > 0 or garder_images:
 		var norm := root.get_viewport().get_texture().get_image()
