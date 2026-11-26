@@ -62,6 +62,11 @@ var _t := 0.0
 var _i := 1                     # point visé
 var _sens := 1
 var _vit := 0.0
+## Collisions (bugs/collisions_acteurs) : évitement par la capsule (EvitementActeur.Pilote), vitesse RÉELLE du dernier
+## move_and_slide (l'animation de marche la suit), jamais replacé d'un coup sous les yeux d'un joueur.
+var _pilote := EvitementActeur.Pilote.new()
+var _v_reel := 0.0
+var _sur_place := 0.0
 var _avance := false
 var _bloque := 0.0
 var _halte := 0.0
@@ -312,13 +317,16 @@ func _physics_process(dt: float) -> void:
 				_ecart_t += dt
 				var d: Vector3 = (route[0] as Vector3) - global_position
 				d.y = 0.0
+				if d.length() >= ARRIVEE and _ecart_t > 40.0 and (EvitementActeur.vu(self, global_position) or EvitementActeur.vu(self, route[0])):
+					_ecart_t = 30.0          # coincé mais vu d'un joueur : pas de saut à travers le décor, il réessaie (autre côté)
+					_pilote.changer_cote()
 				if d.length() < ARRIVEE or _ecart_t > 40.0:
 					if d.length() >= ARRIVEE:
-						global_position = route[0] + Vector3(0, 0.05, 0)   # coincé : il reprend sa place
+						global_position = route[0] + Vector3(0, 0.05, 0)   # coincé HORS DE VUE : il reprend sa place
 					etat = POSTE
 					_jouer("Idle", 0.3)
 				else:
-					dir_cap = d.normalized()
+					dir_cap = _pilote.corriger(self, d.normalized(), dt) if lod == 0 else d.normalized()
 					vise = dir_cap
 			ECART:
 				_ecart_t += dt
@@ -346,15 +354,18 @@ func _physics_process(dt: float) -> void:
 	_images_idle += 1
 	if velocity != Vector3.ZERO or not is_on_floor() or (_images_idle + get_instance_id()) & 3 == 0:
 		_glisser(dt)      # perf : à l'arrêt sur le sol, move_and_slide ne sert qu'une image sur 4
+	else:
+		_v_reel = 0.0
+	_sur_place = clampf(_sur_place + (dt if _vit > 0.3 and _v_reel < 0.15 * _vit else -2.0 * dt), 0.0, 1.0)
 	var pas := global_position - _pos_prec
 	pas.y = 0.0
 	parcouru += pas.length()
 	_pos_prec = global_position
 	if etat == MARCHE or etat == ECART or etat == RETOUR:
-		if _vit > 0.1:
+		if _vit > 0.1 and _sur_place < 0.35:
 			_jouer("Walk", 0.3)
 			anim.speed_scale = clampf(_vit / REF_MARCHE, 0.5, 1.6)
-		elif not _avance:
+		elif not _avance or _sur_place >= 0.35:
 			_jouer("Idle", 0.3)
 	_regard_tete(dist)
 	if cj != joueur and joueur != null and is_instance_valid(joueur):
@@ -369,8 +380,10 @@ func _glisser(dt: float) -> void:
 		velocity *= k
 		move_and_slide()
 		velocity /= k
+		_v_reel = EvitementActeur.vitesse_reelle(self) / k
 	else:
 		move_and_slide()
+		_v_reel = EvitementActeur.vitesse_reelle(self)
 
 ## Le joueur arrive en face (devant lui, à moins de DIST_CEDER) : il faut lui laisser le passage (escaliers, ruelles).
 func _doit_ceder(vers: Vector3, dist: float) -> bool:
@@ -438,8 +451,7 @@ func _vers_point(dt: float) -> Vector3:
 	var p: Vector3 = route[_i]
 	var d := p - global_position
 	d.y = 0.0
-	var reelle := Vector2(velocity.x, velocity.z).length()
-	_bloque = _bloque + dt if (_t > 1.0 and _avance and reelle < 0.15) else 0.0
+	_bloque = _bloque + dt if (_t > 1.0 and _avance and _v_reel < 0.15) else 0.0
 	if d.length() < ARRIVEE:
 		_t = 0.0
 		_point_suivant()
@@ -454,7 +466,7 @@ func _vers_point(dt: float) -> Vector3:
 			print_verbose("Garde %s coincé vers (%.1f ; %.1f)" % [name, p.x, p.z])
 		_point_suivant()
 		return Vector3.ZERO
-	return d.normalized()
+	return _pilote.corriger(self, d.normalized(), dt) if lod == 0 else d.normalized()
 
 ## Vrai si ce qui l'arrête est un corps vivant (joueur, villageois, autre garde) : il attend son tour, ce n'est pas un blocage.
 func _gene_par_un_corps() -> bool:

@@ -58,6 +58,8 @@ var _t_sans_coup := 999.0     # durée depuis le dernier coup reçu
 var _anim := ""
 var _var := 1.0
 var _vit := 0.0
+var _v_reel := 0.0             # vitesse horizontale vraiment parcourue au dernier move_and_slide (EvitementActeur)
+var _sur_place := 0.0          # s à vouloir avancer sans avancer : repos au lieu de la course sur place
 var _recul := Vector3.ZERO
 var _mailles: Array[MeshInstance3D] = []
 var _pieds: PiedsAuSol
@@ -232,36 +234,45 @@ func _bouger(dt: float, dir: Vector3, vitesse: float, loco: String, face: Vector
 		ecart = angle_difference(rotation.y, cible)
 		var pas := ecart * (1.0 - exp(-8.0 * dt))
 		rotation.y += clampf(pas, -vitesse_rot * dt, vitesse_rot * dt)
+	if loco != "":
+		_sur_place = clampf(_sur_place + (dt if _vit > 0.4 and _v_reel < 0.15 * _vit else -2.0 * dt), 0.0, 1.0)
+	var bute := loco != "" and _sur_place > 0.35      # il pousse contre un obstacle sans avancer : au repos, l'évitement cherche encore
 	if libre and loco != "":
 		_vit = move_toward(_vit, vitesse, ACCEL * dt)
 		var avant := global_transform.basis.z
 		var f := dir.dot(Vector3(avant.x, 0, avant.z).normalized())
-		_jouer(loco)
+		_jouer(repos if bute and repos != "" else ("Idle" if bute else loco))
 		var ref := REF_COURSE if loco == "Jog_Fwd" else (REF_SPRINT if loco == "Sprint" else REF_MARCHE)
-		var s := clampf(_vit / ref, 0.4, 1.6)
-		anim.speed_scale = s * (-1.0 if f < -0.3 else 1.0) * (0.85 if absf(f) < 0.3 else 1.0)
+		var s := clampf(maxf(_v_reel, _vit * 0.5) / ref, 0.4, 1.6)
+		if not bute:
+			anim.speed_scale = s * (-1.0 if f < -0.3 else 1.0) * (0.85 if absf(f) < 0.3 else 1.0)
 	else:
 		var aligne := 1.0 if face != Vector3.ZERO and loco == "" else clampf(1.0 - (absf(angle_difference(rotation.y, atan2(dir.x, dir.z))) - 0.3) / 1.0, 0.0, 1.0)
 		if loco != "" and aligne >= 0.25:
 			_vit = move_toward(_vit, vitesse * aligne, ACCEL * dt)
-			_jouer(loco)
-			var ref := REF_COURSE if loco == "Jog_Fwd" else (REF_SPRINT if loco == "Sprint" else REF_MARCHE)
-			anim.speed_scale = clampf(_vit / ref, 0.4, 1.6)
+			if bute:
+				_jouer(repos if repos != "" else "Idle")
+			else:
+				_jouer(loco)
+				var ref := REF_COURSE if loco == "Jog_Fwd" else (REF_SPRINT if loco == "Sprint" else REF_MARCHE)
+				anim.speed_scale = clampf(maxf(_v_reel, _vit * 0.5) / ref, 0.4, 1.6)
 		else:
 			_vit = 0.0
 			if loco != "" or repos != "":
 				_jouer(repos if repos != "" else "Idle")
 	_recul = _recul.lerp(Vector3.ZERO, 1.0 - exp(-6.0 * dt))
 	var fv := Statuts.facteur_vitesse(self)   # magie : gel (docs/MAGIE.md)
-	if fv < 1.0 and loco != "" and _vit > 0.01:   # la marche vient d'être réglée : jamais cumulé d'une image à l'autre
+	if fv < 1.0 and loco != "" and _vit > 0.01 and not bute:   # la marche vient d'être réglée : jamais cumulé d'une image à l'autre
 		anim.speed_scale *= fv
 	velocity.x = dir.x * _vit * fv + _recul.x
 	velocity.z = dir.z * _vit * fv + _recul.z
 	if absf(velocity.x) + absf(velocity.z) < 0.01 and velocity.y > -0.01 and is_on_floor() and _immo < IMMO_PERIODE:
 		_immo += dt
+		_v_reel = 0.0
 		return
 	_immo = 0.0
 	move_and_slide()
+	_v_reel = EvitementActeur.vitesse_reelle(self)
 
 func _jouer(nom: String, fondu := 0.15, forcer := false) -> void:
 	if _anim == nom and not forcer:
@@ -310,9 +321,11 @@ func _voit(dt: float) -> bool:
 	return _los
 
 ## Rayon horizontal à hauteur de genou : libre si rien (hors lui, le joueur et les autres ennemis) ne le coupe.
+## Sans `de` : sonde d'évitement = capsule du corps balayée (EvitementActeur.libre ; un rayon au genou passait entre deux obstacles
+## plus serrés que le corps : bugs/collisions_acteurs). Avec `de` : rayon (place libre pour un sort, mage_nordique_ia).
 func _libre(d: Vector3, longueur: float, de := Vector3.INF) -> bool:
 	if de == Vector3.INF:
-		de = global_position + Vector3(0, 0.55, 0)
+		return EvitementActeur.libre(self, d, longueur)
 	var q := PhysicsRayQueryParameters3D.create(de, de + d * longueur)
 	var ex: Array[RID] = [get_rid()]
 	if joueur != null:
