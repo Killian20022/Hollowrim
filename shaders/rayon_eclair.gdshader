@@ -47,12 +47,12 @@ void fragment() {
 		float ray = (1.0 - smoothstep(0.002, 0.007 + 0.004 * h11(cell + 11.0), lat)) * step(fin, r) * step(r, tete) * step(0.25, h11(cell + 3.0));
 		ray *= 1.0 - smoothstep(0.5, 1.0, k);
 		vec3 c = vec3(0.0);
-		c += filet * 2.0 * fl;
-		c += mix(bord * 1.6, filet * 2.4, 0.5) * o1 * 1.5;
+		c += mix(bord, filet, 0.5) * 1.6 * fl;   // v5 : moins blanc
+		c += mix(bord * 1.5, filet * 1.6, 0.35) * o1 * 1.3;
 		c += bord * 1.6 * o2;
-		c += mix(bord, filet, 0.6) * 2.0 * ray;
+		c += mix(bord, filet, 0.4) * 1.6 * ray;
 		float fondu = 1.0 - smoothstep(0.78, 1.0, r);
-		ALBEDO = c * fondu * force;
+		ALBEDO = c * fondu * force * 0.7;   // v5b : pic du déclenchement atténué de 30 %
 		ALPHA = 0.0;
 	} while (false);
 }

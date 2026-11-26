@@ -42,8 +42,10 @@ const IMPACT_D := 1.5
 const DECALAGE_DEPART := 0.5
 ## Palettes : cœur sombre + liseré lumineux. noir, fume, bord, filet (faisceau), accent (cercle/impact), lumiere, rune, coeur_rune, fumee[4], braise[4].
 const PALETTES := [
-	{"nom": "magenta_nocturne", "noir": "#05010c", "fume": "#3a0b5c", "bord": "#c622a8", "filet": "#ffc4f2", "accent": "#e23cc4", "lumiere": "#a02cd8",
-		"rune": "#e89cff", "coeur_rune": "#fff0ff", "fumee": ["#3a0a5a", "#5a1a86", "#9a44cc", "#d98cf0"], "braise": ["#07030c", "#a02ab8", "#ff8ae8", "#fff0fb"]},
+	# v5 : « violet du néant » : cœur aubergine (#1a0826 → #3a1050), gaine violette saturée, liseré lavande (moins de blanc et de rose
+	#   que v4 : bord #c622a8, filet #ffc4f2, accent #e23cc4) ; fumée et braises dans la même gamme que le noyau tenu en main.
+	{"nom": "violet_neant", "noir": "#1a0826", "fume": "#3a1050", "bord": "#8a2ed6", "filet": "#c8a2ff", "accent": "#a040e0", "lumiere": "#8a2ed6",
+		"rune": "#c890ff", "coeur_rune": "#f0e4ff", "fumee": ["#24093a", "#3a1050", "#7a2cc0", "#b884f0"], "braise": ["#1a0826", "#8a2ed6", "#c08cff", "#efe0ff"]},
 	{"nom": "indigo_aurore", "noir": "#030615", "fume": "#16124a", "bord": "#5a46ff", "filet": "#b8f4ff", "accent": "#54d8ff", "lumiere": "#4a52ff",
 		"rune": "#9fd8ff", "coeur_rune": "#f0fcff", "fumee": ["#101060", "#2c2a98", "#4a60d8", "#9ac0ff"], "braise": ["#03050f", "#3a3ad0", "#78e4ff", "#f0fdff"]},
 	{"nom": "pourpre_braise", "noir": "#0a0108", "fume": "#4a0a38", "bord": "#d02468", "filet": "#ffd6b8", "accent": "#ff7a4a", "lumiere": "#c42a6a",
@@ -72,8 +74,8 @@ const VIE_TENUE := 0.3
 ## Le nœud s'éteint seul s'il n'est plus nourri (main coupée sans arrêt explicite).
 const OUBLI := 0.25
 ## Rayon du faisceau (m) loin de la main (× largeur du sort) et à la sortie de la paume ; distance d'ouverture.
-const RAYON_LOIN := 0.4
-const RAYON_MAIN := 0.045
+const RAYON_LOIN := 0.2   # v5b : s'affine au loin (~3 % de l'écran) ; v4 : 0,4
+const RAYON_MAIN := 0.075   # v5b : corps épais à la main (~5-6 % de l'écran), v4 : 0,045
 const OUVERTURE := 7.0
 ## Tache d'ombre : côté du quad (m ; la flaque en couvre ~25 à 80 %) à l'impact, croissance pendant qu'on tient le même point, taches laissées en balayant.
 const TACHE := 1.9
@@ -230,8 +232,8 @@ func _ready() -> void:
 	_halo.set_shader_parameter("graine", _graine)
 	_halo.set_shader_parameter("ouverture", OUVERTURE)
 	_halo.set_shader_parameter("bord", Color(pl["bord"]))
-	_halo.set_shader_parameter("force_halo", 0.85)
-	_halo.render_priority = 1
+	_halo.set_shader_parameter("force_halo", 0.3)   # v5 : halo plus discret, la gaine porte la couleur
+	_halo.render_priority = 1   # après la matière du faisceau (priorité 0) : la lueur n'est pas assombrie
 	_mat.next_pass = _halo
 	_faisceau = _mi(RayonNeant._tube(), _mat, 50.0)
 	# v3d : lignes de vitesse autour du rayon (un second tube, coque plus large ; aucun traitement CPU par trait)
@@ -250,7 +252,8 @@ func _ready() -> void:
 		var t := _mi(_quad(), m, 2.0)
 		t.visible = false
 		_laissees.append({"mi": t, "mat": m, "t": -1.0})
-	_fumee = NoyauEcole.Bouffees.new(NB_FUMEE, RayonNeant._mat_bouffee(1, pl["fumee"], 0.9, 0.55))   # v4 : volutes ADDITIVES (violet lumineux), jamais sombres
+	# v5 : volutes de MATIÈRE (mélange, aubergine → violet) qui s'échappent du rayon ; v4 : additives, sans corps
+	_fumee = NoyauEcole.Bouffees.new(NB_FUMEE, RayonNeant._mat_bouffee(0, pl["fumee"], 0.9, 1.0))
 	_braises = NoyauEcole.Bouffees.new(NB_BRAISES, RayonNeant._mat_bouffee(1, pl["braise"], 0.7, 1.25))
 	for b: NoyauEcole.Bouffees in [_fumee, _braises]:
 		b.mi.custom_aabb = AABB(Vector3(-200, -50, -200), Vector3(400, 100, 400))
@@ -706,7 +709,7 @@ func _maj_bouffees(dt: float, cb: Basis) -> void:
 			b.v = (b.v as Vector3) * exp(-dt * 0.9)
 			b.p = (b.p as Vector3) + (b.v as Vector3) * dt
 			var s := float(b.s) * lerpf(0.6, 1.6, p)
-			var al := smoothstep(0.0, 0.15, p) * (1.0 - smoothstep(0.45, 1.0, p)) * 0.72
+			var al := smoothstep(0.0, 0.15, p) * (1.0 - smoothstep(0.45, 1.0, p)) * 0.5   # v5 : matière (mélange) légère
 			lot_f.append([b.p, cb.scaled(Vector3(s, s, 1.0)), Color(1, 1, 1, al), Color(float(b.h), 0.3 + 0.6 * p, 0.0, 0.0)])
 		else:
 			b.v = (b.v as Vector3) + Vector3(0, -3.5, 0) * dt

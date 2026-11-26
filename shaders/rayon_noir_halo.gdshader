@@ -22,7 +22,7 @@ uniform float onde_vit = 2.2;
 uniform float eclat = 1.0;
 uniform float force_halo = 0.5;
 
-const float GROS = 3.2;
+const float GROS = 2.2;   // v5b : halo resserré (3,2 dessinait deux grands croissants plats au bout)
 
 varying float v_s;
 varying float v_u;
@@ -40,7 +40,8 @@ float vague(float s) {
 float rayon_en(float s) {
 	float ond = 1.0 + onde * vague(s) * smoothstep(0.0, 0.8, s);
 	float evase = 1.0 + 0.12 * smoothstep(longueur - 0.25, longueur, s);
-	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * (1.0 + 1.8 * smoothstep(5.0, 40.0, s)) * rk() * ond * evase;
+	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * (1.0 + 1.8 * smoothstep(5.0, 40.0, s)) * rk() * ond * evase
+		* mix(0.6, 1.0, smoothstep(0.0, 0.35, s));   // v5b : il sort du cercle déjà épais (raccord avec l'orbe), pointe courte
 }
 
 void vertex() {
@@ -76,6 +77,28 @@ void fragment() {
 		rho = length(D * sc - (v_a + ax * tc));
 	} else {
 		rho = length(v_a - ax * dot(v_a, ax));
+	}
+	// v5 : vue presque DANS L'AXE (1re personne) : le point de l'axe le plus proche du rayon de vue tombe souvent hors du faisceau
+	// (au-delà du bout) et la distance y était fausse : le rayon se lisait comme un anneau à la main puis un entonnoir au bout, sans
+	// corps entre les deux. On garde la plus petite distance RELATIVE (distance / rayon local) sur l'abscisse la plus proche (bornée)
+	// et sur quelques abscisses en progression géométrique (le faisceau s'évase) : le corps est continu de la main à la cible.
+	{
+		float tb = clamp(tc, 0.0, longueur);
+		vec3 pb = v_a + ax * tb;
+		float prb = dot(pb, D);
+		float bx = (prb > 0.0 ? length(pb - D * prb) : 1.0e3) / max(rayon_en(tb), 0.001);
+		for (int i = 0; i < 7; i++) {
+			float ti = min(0.3 * pow(2.0, float(i)), longueur);
+			vec3 pi = v_a + ax * ti;
+			float pri = dot(pi, D);
+			float xi = (pri > 0.0 ? length(pi - D * pri) : 1.0e3) / max(rayon_en(ti), 0.001);
+			if (xi < bx) {
+				bx = xi;
+				tb = ti;
+			}
+		}
+		tc = tb;
+		rho = bx * max(rayon_en(tb), 0.001);
 	}
 	float u_c = clamp(tc / longueur, 0.0, 1.0);
 	if (k < 0.03 || u_c > tete || v_u < 0.003) {

@@ -39,8 +39,8 @@ void fragment() {
 		float ligne = 1.0 - smoothstep(larg * 0.4, larg, lat);
 		float cache = smoothstep(0.1, 0.3, r);    // centre dégagé
 		float b = tr * ligne * on * cache;
-		vec3 c = mix(bord * 1.5, filet * 3.0, smoothstep(0.55, 1.0, u));
-		ALBEDO = c * b * force * (0.7 + 1.1 * elan);
+		vec3 c = mix(bord * 1.4, mix(bord, filet, 0.4) * 2.0, smoothstep(0.55, 1.0, u));   // v5 : stries violettes, têtes moins blanches (v4 : filet × 3)
+		ALBEDO = c * b * force * (0.7 + 0.56 * elan);   // v5b : pic -30 % (1,8 -> 1,26), la retombée garde la vitesse lumière
 		ALPHA = 0.0;
 	} while (false);
 }
