@@ -1094,7 +1094,7 @@ func _apres_chute(c: Node3D, rd: Ragdoll) -> void:
 		var sb: Node3D = (load(BOUCLIER_SOL) as PackedScene).instantiate()
 		sb.name = "BouclierCompagnon"
 		BouclierNordique.habiller(sb)
-		# vieux bouclier du compagnon : peinture ternie par la poussière et le givre (le rouge vif du bouclier du joueur criait
+		# vieux bouclier du compagnon, tombé sur sa face : bois terni par la poussière et le givre (le rouge vif du bouclier du joueur criait
 		# sous la torche), mêmes textures maison
 		for mi: MeshInstance3D in sb.find_children("*", "MeshInstance3D", true, false):
 			for k in mi.mesh.get_surface_count():
@@ -1102,7 +1102,7 @@ func _apres_chute(c: Node3D, rd: Ragdoll) -> void:
 				if m0 is ShaderMaterial:
 					var m1 := (m0 as ShaderMaterial).duplicate() as ShaderMaterial
 					var te: Variant = m1.get_shader_parameter("teinte")
-					m1.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(0.62, 0.6, 0.6))
+					m1.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(0.42, 0.40, 0.40))
 					m1.set_shader_parameter("saturation", 0.5)
 					Palette.suivre(m1)
 					Palette._appliquer(m1, Palette._ps1_actif)
