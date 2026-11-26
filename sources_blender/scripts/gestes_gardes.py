@@ -71,7 +71,7 @@ G1 = _tenue("gs_block_2", 0, cadrage=(-25, 2, -18), decalage=(0.14, 0.02, -0.24)
 GL = _tenue("gs_block_2", 0, cadrage=(-20, 5, -22), decalage=(0.12, 0.02, -0.14))
 # passe 2 (2026-11-26) : bras relevé (épaule +0,12 m) pour que la main GAUCHE, posée par IK sur le manche sous la droite
 # (mains._poser_deux_mains, écart du catalogue), reste dans le cadre : poing droit à y -0,3 écran, poing gauche à y -0,6 / -0,9
-G2 = _tenue("gs_block_2", 0, cadrage=(-8, 2, -18), decalage=(0.12, 0.04, -0.50))   # passe 3 : plus loin (bras gauche compris <= 35 %)
+G2 = _tenue("gs_block_2", 0, cadrage=(-8, 2, -18), decalage=(0.12, 0.11, -0.58))   # passe 4 : plus haut (+0,07) et plus loin (-0,08) : deux mains espacées lisibles, rien coupé en bas
 # grand marteau (manche ~1,2 m, poing près du bout) : avec G2, tête hors cadre et manche au centre de l'écran (relecture
 # 2026-11-26) -> bras plus loin de l'œil (épaule avancée de 0,32 m) et manche plus couché (53°), tête dans le coin haut droit
 # passe 3 : bras plus loin et plus bas (épaule avancée de 0,42 m) : garde moins envahissante, bras compris

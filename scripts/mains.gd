@@ -1579,7 +1579,7 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 			_parade_eclat = 0.22
 			_encaisse = 0.0
 			anim.jouer("parade", fondu)
-			_au_contact(montee * 0.8, func():
+			_au_contact(montee, func():
 				var p := _point_contact()
 				RetourImpact.son(self, "parade_parfaite", p, 2.0)
 				GerbePixels.emettre(self, p, _vers_attaquant(p, origine), "etincelles", 2.2)
@@ -1589,7 +1589,7 @@ func defendre(degats: float, origine: Vector3, sans_parade := false) -> Dictiona
 		"bloque":
 			_encaisse = DUREE_ENCAISSE
 			anim.jouer("encaisse", fondu)
-			_au_contact(montee * 0.8, func():
+			_au_contact(montee, func():
 				var p := _point_contact()
 				RetourImpact.son(self, "metal_blocage", p, 0.0)
 				GerbePixels.emettre(self, p, _vers_attaquant(p, origine), "etincelles", 1.1)
