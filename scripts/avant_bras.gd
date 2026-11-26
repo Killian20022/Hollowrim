@@ -258,6 +258,9 @@ static func installer_fondu(racine: Node, sq: Skeleton3D) -> void:
 const RECUL_OS := 0.34
 const RECUL_MAX := 0.16
 const RECUL_LISSAGE := 30.0   # 1/s (ressort critique vers le recul visé)
+const RAYON_EPAULE := 0.085  # rayon de la manche autour du bout de la rotule
+const BOUT_ROTULE := 0.045   # bout du dôme d'épaule de la manche, en deçà de la tête de l'humérus (buste_fps.py)
+const CADRAGE_MAX := 0.20
 
 static func _point_proche(sq: Skeleton3D, cam: Camera3D, cote: String) -> Vector3:
 	var ids := [sq.find_bone("upperarm_" + cote), sq.find_bone("lowerarm_" + cote), sq.find_bone("hand_" + cote)]
@@ -303,6 +306,28 @@ static func reculer(racine: Node3D, cam: Camera3D, dt: float) -> void:
 			if v.length() > vise.length():
 				vise = v
 	vise = vise.limit_length(RECUL_MAX)
+	# CADRAGE DES ÉPAULES : le bout de la rotule de chaque manche (rayon RAYON_EPAULE) reste HORS
+	# du champ, sous le bord bas de l'écran : le bras sort toujours par le bas, on ne voit jamais où il finit (Mordhau,
+	# Chivalry 2). Un clip qui avance l'épaule (estoc, revers) fait descendre le viewmodel entier d'autant, le geste est intact.
+	var cam_inv := cam.global_transform.affine_inverse()
+	var t := tan(deg_to_rad(cam.fov) * 0.5)
+	var bas := 0.0
+	for cote in ["l", "r"]:
+		var i := sq.find_bone("upperarm_" + cote)
+		if i < 0:
+			continue
+		# point visé : le BOUT de la rotule de manche (4-5 cm en deçà de l'épaule, à l'opposé du coude), pas toute l'épaule :
+		# essai « épaule entière hors champ » : le viewmodel descendait de 20-30 cm, main et coup sortaient de l'écran
+		var ep := sq.global_transform * sq.get_bone_global_pose(i).origin
+		var co := sq.global_transform * sq.get_bone_global_pose(sq.find_bone("lowerarm_" + cote)).origin
+		var e := cam_inv * (ep - (co - ep).normalized() * BOUT_ROTULE)
+		e -= cam_inv.basis * (parent.basis * recul)   # sans le décalage déjà appliqué
+		var devant := -e.z
+		if devant <= 0.0:
+			continue
+		# bord bas : e.y + R·sqrt(1+t²) <= -t·devant  (l'épaule entière sous le plan du bord bas)
+		bas = maxf(bas, e.y + t * devant + RAYON_EPAULE * sqrt(1.0 + t * t))
+	vise.y -= minf(bas, CADRAGE_MAX)
 	recul = recul.lerp(vise, 1.0 - exp(-RECUL_LISSAGE * maxf(dt, 0.0)))
 	if recul.length() < 1e-4 and vise == Vector3.ZERO:
 		recul = Vector3.ZERO
@@ -318,9 +343,13 @@ static func regler_fondu(racine: Node, cam: Camera3D, dt := 1.0 / 60.0) -> void:
 	var sq: Skeleton3D = racine.find_child("Skeleton3D", true, false)
 	if sq == null:
 		return
-	if racine is Node3D:
+	# bras des mains (épée, sorts, bouclier) : recul + cadrage, bras jamais effacés ; bras de l'arc (arc v3 validé, mis à
+	# l'échelle par arc_joueur.gd) : ancien fondu en trame inchangé
+	var vm := racine is Node3D and racine.get_parent() != null and racine.get_parent().get_script() != null \
+			and String(racine.get_parent().get_script().resource_path).ends_with("scripts/mains.gd")
+	if vm:
 		reculer(racine, cam, dt)
-	var a := {"l": opacite_garde_fou(sq, cam, "l"), "r": opacite_garde_fou(sq, cam, "r")}
+	var a := {"l": opacite_garde_fou(sq, cam, "l"), "r": opacite_garde_fou(sq, cam, "r")} if vm else {"l": opacite(sq, cam, "l"), "r": opacite(sq, cam, "r")}
 	for mi: MeshInstance3D in racine.find_children("*", "MeshInstance3D", true, false):
 		if mi.skin == null or mi.get_meta("det_bras", false):
 			continue

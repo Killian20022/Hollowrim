@@ -153,9 +153,12 @@ for v in me.vertices:
     w["spine_02"] = k2
     w["spine_03"] = 1.0 - k2
     # épaule : la clavicule porte le haut de l'épaule (trapèze -> acromion)
-    kc = smooth(0.05, 0.15, ax) * smooth(1.33, 1.46, z)
-    # deltoïde et aisselle : l'humérus soulève l'épaule avec le bras (rotule comme le dôme des manches)
-    ku = 0.55 * smooth(0.17, 0.25, ax) * smooth(1.34, 1.45, z)
+    # passe 3 : buste RIGIDE (colonne + cou). Essai passe 1-2 : l'épaule pesée sur la clavicule (pivot près du cou) se repliait
+    # quand le bras balaie à gauche (clavicule tirée vers l'avant) : faces arrière du buste visibles dans la manche (4 700 px).
+    kc = 0.0
+    # passe 2 : AUCUN poids d'humérus (essai : le deltoïde tiré par le bras qui balaie se repliait sur lui-même, faces
+    # arrière visibles dans la manche) ; l'épaule suit la clavicule, la rotule de la manche tourne DANS le buste
+    ku = 0.0
     kn = 0.6 * smooth(1.55, 1.585, z) * (1.0 - smooth(0.03, 0.10, ax))
     reste = max(0.0, 1.0 - kc - kn)
     w = {g: q * reste for g, q in w.items()}
@@ -163,6 +166,16 @@ for v in me.vertices:
     w["upperarm" + cote] = kc * ku + (ku * 0.4 if kc < 0.2 else 0.0)
     w["neck_01"] = kn
     poser(v, w)
+# --- DÔME D'ÉPAULE DES MANCHES raccourci : il entrait de 14 cm vers le cou (|x| 0,075 pour une épaule à 0,212) ; rigide
+# avec l'humérus, ce bout pivotait autour de l'épaule et sortait derrière, bas-droite de l'écran, quand le bras balaie
+# (« épaule coupée » dans le champ, audit « bout »). Les sommets en deçà de |x| 0,17 sont ramenés vers 0,17 (x 0,3) : la
+# rotule ne dépasse plus que de 4 cm vers l'intérieur et tourne dans l'épaule du buste. UV, poids, couleurs inchangés.
+for nom in ("manche_l", "manche_r"):
+    mo = bpy.data.objects[nom]
+    for v in mo.data.vertices:
+        ax = abs(v.co.x)
+        if ax < 0.17:
+            v.co.x = math.copysign(0.17 - (0.17 - ax) * 0.3, v.co.x)
 mod = o.modifiers.new("Armature", 'ARMATURE')
 mod.object = arm
 tris = sum(len(p.vertices) - 2 for p in me.polygons)
