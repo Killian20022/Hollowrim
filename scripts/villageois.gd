@@ -380,7 +380,7 @@ func fin_conversation() -> void:
 	_en_conversation = false
 	_activite()
 
-func _jouer(nom: String, fondu := 0.2) -> void:
+func _jouer(nom: String, fondu := 0.2, _forcer := false) -> void:   # 3e argument : appel des sorts de l'esprit (sorts_esprit.gd)
 	if anim == null or _anim == nom or not anim.has_animation(nom):
 		return
 	_anim = nom

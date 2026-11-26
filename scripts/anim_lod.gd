@@ -79,6 +79,18 @@ static func _poids(it: Dictionary, w: float) -> void:
 		if is_instance_valid(c):
 			(c as SkeletonModifier3D).influence = w
 
+## PNJ disparu (mort, libéré) : son squelette, s'il survit (corps repris par un PnjCombat, cadavre), repart en mode normal.
+static func _rendre_squelette(it: Dictionary) -> void:
+	var sk: Variant = it["sk"]
+	if sk != null and is_instance_valid(sk):
+		(sk as Skeleton3D).modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_IDLE
+	var a: Variant = it["a"]
+	if a != null and is_instance_valid(a):
+		(a as AnimationPlayer).callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_IDLE
+	for c in it["mods"]:
+		if is_instance_valid(c):
+			(c as SkeletonModifier3D).influence = 1.0
+
 ## Avance le squelette en mode manuel (modificateurs) du temps cumulé.
 static func _avancer(it: Dictionary, acc: float) -> void:
 	var a: AnimationPlayer = it["a"]
@@ -107,8 +119,12 @@ func _process(dt: float) -> void:
 		var n: Node3D = it["n"] as Node3D if is_instance_valid(it["n"]) else null
 		var a: AnimationPlayer = it["a"] as AnimationPlayer if is_instance_valid(it["a"]) else null
 		if n == null or a == null:
+			_rendre_squelette(it)
 			_items.remove_at(i)
 			continue
+		var rem: Variant = n.get("remplace")
+		if rem is Node3D and is_instance_valid(rem):
+			n = rem as Node3D     # PNJ du village en combat (crime.gd) : son PnjCombat porte le corps (position, process)
 		if evaluer and cam != null:
 			var v := n.global_position - cp
 			var d := v.length()

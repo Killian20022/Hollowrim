@@ -226,10 +226,24 @@ static func cibles_dans(p: Vector3, rayon: float) -> Array:
 				continue
 			if e.get("est_mort") == true:
 				continue
+			if est_remplace(e):
+				continue   # PNJ du village en sommeil (crime.gd) : caché, son combattant PnjCombat porte son corps et sa vie
 			if _centre(e).distance_to(p) <= rayon + 0.4:
 				res.append(e)
 	res.sort_custom(func(a, b): return _centre(a).distance_squared_to(p) < _centre(b).distance_squared_to(p))
 	return res
+
+## Vrai pour un PNJ du village (garde_village, villageois) dont un PnjCombat a pris le corps (Crime) : nœud caché, sans collision,
+## process coupé. Les sorts de zone ne doivent ni le frapper ni le projeter (la Répulsion faisait voler ce nœud invisible, qui
+## heurtait son propre combattant, au lieu du garde qu'on voit).
+static func est_remplace(e: Node) -> bool:
+	var r: Variant = e.get("remplace")
+	return r is Node and is_instance_valid(r)
+
+## Le corps visible d'une cible : son combattant PnjCombat s'il a pris le corps du PNJ, sinon elle-même.
+static func corps_visible(e: Node) -> Node:
+	var r: Variant = e.get("remplace")
+	return r if r is Node and is_instance_valid(r) else e
 
 static func _centre(e: Node) -> Vector3:
 	if e.has_method("point_impact"):
