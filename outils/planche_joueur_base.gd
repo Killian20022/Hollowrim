@@ -22,6 +22,7 @@ var sortie := ""
 var heure := 13.0
 var sexes := ["homme", "femme"]
 var familles := ["aucune", "fer"]
+var famille_mains := "aucune"     # --mains : armure portée pendant les gros plans des mains
 var film := false
 var mode_mains := false
 var mode_dos_jeu := false
@@ -48,6 +49,8 @@ func _go() -> void:
 			sexes = Array(a.substr(8).split(","))
 		elif a.begins_with("--familles="):
 			familles = Array(a.substr(11).split(","))
+		elif a.begins_with("--mains-famille="):
+			famille_mains = a.substr(16)
 		elif a == "--film":
 			film = true
 		elif a == "--mains":
@@ -170,11 +173,30 @@ func _planches() -> void:
 		await _attendre(0.15)
 		await _capture("%s_%s_main" % [s, hn], "%s - main droite (epee)" % s)
 
+## Repère monde de la fusée du poing `c` (origine au centre du poing, Y le long de la fusée).
+func _fusee(c: String) -> Transform3D:
+	var sq: Skeleton3D = j.corps.modele.find_child("Skeleton3D", true, false)
+	var acc := sq.get_node_or_null("MainTps_" + ("gauche" if c == "l" else "droite")) as Node3D
+	var t: Transform3D = sq.get_meta("prise_" + c, Transform3D())
+	if c == "r":
+		t = t * Transform3D(Basis(), Vector3(0, JoueurBase.POING_ARME, 0))
+	return acc.global_transform * t
+
+## Caméra dans l'axe de la fusée, côté pommeau (on regarde le poing par le bout de la poignée : doigts autour, ou pas).
+func _placer_axe(c: String, dist: float) -> void:
+	var f := _fusee(c)
+	var y := f.basis.y.normalized()
+	cam.global_position = f.origin - y * dist     # côté pommeau / bas du manche (la lame, la flamme partent de l'autre côté)
+	var haut := f.basis.z.normalized() if absf(y.dot(Vector3.UP)) > 0.9 else Vector3.UP
+	cam.look_at(f.origin, haut)
+
 ## Centre du poing `c` ("l" | "r") dans le monde (JoueurBase.prise, sinon l'os de la main).
 func _poing(c: String) -> Vector3:
 	var sq: Skeleton3D = j.corps.modele.find_child("Skeleton3D", true, false)
 	var i := sq.find_bone("hand_" + c)
-	var g := sq.global_transform * sq.get_bone_global_pose(i)
+	# pose FINALE de la main (après les modificateurs : IK, coups, arc) : celle de l'accroche de CorpsMainsTps
+	var acc := sq.get_node_or_null("MainTps_" + ("gauche" if c == "l" else "droite")) as Node3D
+	var g := acc.global_transform if acc != null else sq.global_transform * sq.get_bone_global_pose(i)
 	if sq.has_meta("prise_" + c):
 		var t: Transform3D = sq.get_meta("prise_" + c)
 		return g * (t * Vector3(0, JoueurBase.POING_ARME if c == "r" else 0.0, 0))
@@ -190,7 +212,7 @@ func _mains_v3() -> void:
 	var hn := "nuit" if heure >= 19.0 or heure < 6.0 else "jour"
 	for s: String in sexes:
 		j.definir_apparence(s)
-		_equiper("aucune")
+		_equiper(famille_mains)
 		j.mains.magie.equiper("droite", "epee")
 		j.mains.magie.equiper("gauche", "torche")
 		await _attendre(1.0)
@@ -220,6 +242,10 @@ func _mains_v3() -> void:
 				await _attendre(0.4)
 			var lent := Engine.time_scale
 			Engine.time_scale = 0.0001 if etat in ["coup", "course"] else 1.0    # image figée pendant les trois prises de vue
+			for c_: String in ["r", "l"]:
+				_placer_axe(c_, 0.42)
+				await process_frame
+				await _capture("%s_%s_v3_main_%s_%s_axe" % [s, hn, etat, c_], "%s - %s - main %s, dans l'axe de la poignee" % [s, etat, "droite" if c_ == "r" else "gauche"])
 			for v: Array in [["r", -55.0, 0.05], ["r", 125.0, 0.12], ["l", 60.0, 0.05]]:
 				var cible := _poing(v[0])
 				_placer(v[1], 0.55, 0.0, v[2], cible)
@@ -234,13 +260,23 @@ func _mains_v3() -> void:
 				j.velocity = Vector3.ZERO
 		# autres objets tenus : bouclier, sort, arc (poing gauche)
 		for g: Array in [["bouclier", "droite", "epee", "gauche", "bouclier"], ["sort", "droite", "epee", "gauche", "boule_feu"], ["arc", "droite", "arc_chasseur", "gauche", ""]]:
-			j.mains.magie.equiper(g[1], g[2])
-			j.mains.magie.equiper(g[3], g[4])
+			if g[0] == "arc":
+				j.inventaire.ajouter("arc_chasseur", 1)
+				j.inventaire.ajouter("fleche", 20)
+				j.arc.equiper()
+			else:
+				j.mains.magie.equiper(g[1], g[2])
+				j.mains.magie.equiper(g[3], g[4])
 			await _attendre(1.2)
+			_placer_axe("l", 0.45)
+			await process_frame
+			await _capture("%s_%s_v3_main_%s_l_axe" % [s, hn, g[0]], "%s - %s (main gauche, dans l'axe)" % [s, g[0]])
 			for v: Array in [["l", 60.0, 0.05], ["l", -120.0, 0.1]]:
 				_placer(v[1], 0.6, 0.0, v[2], _poing(v[0]))
 				await process_frame
 				await _capture("%s_%s_v3_main_%s_%s_%d" % [s, hn, g[0], v[0], int(v[1])], "%s - %s (main gauche)" % [s, g[0]])
+		if j.arc.actif:
+			j.arc.ranger()
 		j.mains.magie.equiper("droite", "epee")
 		j.mains.magie.equiper("gauche", "torche")
 

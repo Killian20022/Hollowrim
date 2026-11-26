@@ -38,6 +38,7 @@ var poing := {"l": 0.0, "r": 0.0}
 var forcer_poings := {}      # tests / captures : {"l": 1.0} impose une main
 var _peau: MeshInstance3D
 var _formes := {}
+var _mesh_formes: Mesh
 var _coups: Node = null
 var _bassin := -1
 var _jambes := {}          # côté -> [cuisse, mollet, pied, orteil]
@@ -74,19 +75,20 @@ func _cibles_poings() -> Dictionary:
 	return r
 
 func _poings(dt: float) -> void:
-	if _peau == null:
+	if _peau == null or not is_instance_valid(_peau) or _peau.mesh != _mesh_formes:
 		var sq := get_skeleton()
 		_peau = sq.find_child("peau", false, false) as MeshInstance3D if sq != null else null
 		if _peau == null or _peau.mesh == null:
 			_peau = null
 			return
+		_mesh_formes = _peau.mesh          # le maillage peut être remplacé (ré-import, apparence) : on relit les formes
 		for c: String in ["l", "r"]:
 			_formes[c] = _peau.find_blend_shape_by_name("poing_" + c)
 	var cibles := _cibles_poings()
 	for c: String in ["l", "r"]:
 		poing[c] = move_toward(float(poing[c]), float(cibles[c]), VITESSE_POING * dt) if dt > 0.0 else float(cibles[c])
 		var k: int = _formes.get(c, -1)
-		if k >= 0:
+		if k >= 0 and k < _peau.get_blend_shape_count():
 			_peau.set_blend_shape_value(k, poing[c])
 
 func _cible() -> float:

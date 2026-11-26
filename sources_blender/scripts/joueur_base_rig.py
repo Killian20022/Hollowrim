@@ -133,6 +133,14 @@ for s, sg in (("l", 1), ("r", -1)):
     MES[s]["jambe_x"] = (abs(float(x[cuisse].mean())) + abs(float(x[botte].mean()))) / 2.0
     log("mesures %s : poignet %s bout %s épaule %s jambe x %.3f" % (s, tuple(round(v, 3) for v in poignet), tuple(round(v, 3) for v in bout),
                                                               tuple(round(v, 3) for v in epaule), MES[s]["jambe_x"]))
+# garde-fou (passe 3) : une manche classée « peau » allonge la main d'un côté (femme, main gauche : 0,223 m contre 0,167) ; les deux
+# mains ont la même longueur : la plus longue est ramenée à la plus courte, poignet replacé sur la même ligne bout -> poignet
+_lm = {s_: (MES[s_]["poignet"] - MES[s_]["bout"]).length for s_ in ("l", "r")}
+_court = min(_lm, key=_lm.get); _long = "r" if _court == "l" else "l"
+if _lm[_long] > 1.15 * _lm[_court]:
+    d_ = (MES[_long]["poignet"] - MES[_long]["bout"]).normalized()
+    MES[_long]["poignet"] = MES[_long]["bout"] + d_ * _lm[_court]
+    log("poignet %s recalé : main %.3f -> %.3f m (comme la main %s)" % (_long, _lm[_long], _lm[_court], _court))
 LQ = {"up": 0.251, "lo": 0.243, "main": 0.244}       # longueurs des humains (bras, avant-bras, poignet -> bout du majeur)
 for s, sg in (("l", 1), ("r", -1)):
     m = MES[s]
@@ -338,7 +346,70 @@ arm.name = "Armature"
 # jouet »). Leur longueur est déjà juste (0,75-0,77 de l'avant-bras) : on resserre seulement autour de l'axe poignet -> main, en T,
 # chaque sommet au prorata de son poids de main (le poignet se raccorde en douceur). --main_largeur=<facteur>.
 # facteurs par côté (mesurés au contrôle : la main gauche et la droite de la source ne réagissent pas pareil, pouce plus écarté)
-MAIN_L = {s: float(arg("main_largeur_" + s, arg("main_largeur", {"homme": {"l": "0.91", "r": "0.84"}, "femme": {"l": "0.74", "r": "0.73"}}[SEXE][s])))
+# main droite de la femme (passe 3) : elle sort de Tripo hérissée d'éclats (faces repliées aux doigts et dans la paume, visibles même
+# main ouverte, et qui pointent hors du poing ; un lissage fond les doigts, une projection garde les replis). Sa main gauche est
+# propre : la main droite est REMPLACÉE par une copie miroir de la gauche (x -> -x, recalée au poignet et sur l'axe de la main, en T,
+# faces retournées, poids _l -> _r, UV et classe de la gauche). Coupe au plan du poignet ; la copie part 15 mm plus tôt et son bord
+# rentre de 4 % dans l'ancien poignet (recouvrement caché, pas de jour). --main_miroir=<l|r|aucune>.
+MIROIR = arg("main_miroir", {"homme": "aucune", "femme": "r"}[SEXE])
+if MIROIR in ("l", "r"):
+    src_ = "l" if MIROIR == "r" else "r"
+    gnom = {g.index: g.name for g in corps.vertex_groups}
+    gidx = {g.name: g.index for g in corps.vertex_groups}
+    def _de_main(nom, s):
+        return nom == "hand_" + s or (nom.startswith(DOIGTS) and nom.endswith("_" + s))
+    bm = bmesh.new(); bm.from_mesh(mb)
+    bm.verts.ensure_lookup_table(); bm.faces.ensure_lookup_table()
+    dl = bm.verts.layers.deform.active
+    cl = bm.faces.layers.int.new("cl_")
+    for f in bm.faces:
+        f[cl] = int(fcl[f.index])
+    def _w(v, s):
+        return min(1.0, sum(w for g, w in v[dl].items() if _de_main(gnom[g], s)))
+    wS = {v: _w(v, src_) for v in bm.verts}
+    wD = {v: _w(v, MIROIR) for v in bm.verts}
+    oS = arm.matrix_world @ arm.data.bones["hand_" + src_].head_local
+    oD = arm.matrix_world @ arm.data.bones["hand_" + MIROIR].head_local
+    def _moy(ws):
+        c_ = [v.co for v in bm.verts if ws[v] > 0.9]
+        return sum(c_, Vector()) / len(c_)
+    axS = (_moy(wS) - oS).normalized(); axD = (_moy(wD) - oD).normalized()
+    axSm = Vector((-axS.x, axS.y, axS.z))
+    R_ = axSm.rotation_difference(axD).to_matrix()
+    # coupe GÉOMÉTRIQUE (les poids de la main droite d'origine sont faux par endroits : des faces de doigts à poids faible restaient
+    # et flottaient en éclats autour du poing) : on retire tout ce qui passe le plan du poignet (tête de l'os de la main) près de l'axe,
+    # on copie ce qui passe 15 mm avant le même plan côté gauche (recouvrement).
+    def _t(f, o_, ax_):
+        c_ = f.calc_center_median() - o_
+        t_ = c_.dot(ax_)
+        return t_, (c_ - t_ * ax_).length
+    anciennes = [f for f in bm.faces if _t(f, oD, axD)[0] > 0.0 and _t(f, oD, axD)[1] < 0.09]
+    modeles = [f for f in bm.faces if _t(f, oS, axS)[0] > -0.015 and _t(f, oS, axS)[1] < 0.09]
+    d_ = bmesh.ops.duplicate(bm, geom=modeles)
+    nv_ = [g for g in d_["geom"] if isinstance(g, bmesh.types.BMVert)]
+    nf_ = [g for g in d_["geom"] if isinstance(g, bmesh.types.BMFace)]
+    for v in nv_:
+        q = v.co - oS
+        q = R_ @ Vector((-q.x, q.y, q.z))
+        if (v.co - oS).dot(axS) < 0.004:                # bande du poignet : rentrée dans l'ancien poignet
+            par_ = q.dot(axD) * axD
+            q = par_ + (q - par_) * 0.96
+        v.co = oD + q
+        poids = dict(v[dl].items()); v[dl].clear()
+        for g, w in poids.items():
+            n_ = gnom[g]
+            n2 = n_[:-2] + "_" + MIROIR if n_.endswith("_" + src_) else n_
+            v[dl][gidx.get(n2, g)] = w
+    bmesh.ops.reverse_faces(bm, faces=nf_)
+    bmesh.ops.delete(bm, geom=anciennes, context="FACES_ONLY")
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+    bm.faces.ensure_lookup_table()
+    fcl = np.array([f[cl] for f in bm.faces], dtype=int)
+    bm.faces.layers.int.remove(cl)
+    bm.to_mesh(mb); bm.free(); mb.update()
+    log("main %s remplacée par le miroir de la main %s : %d faces retirées, %d faces copiées" % (MIROIR, src_, len(anciennes), len(nf_)))
+
+MAIN_L = {s: float(arg("main_largeur_" + s, arg("main_largeur", {"homme": {"l": "0.91", "r": "0.78"}, "femme": {"l": "0.60", "r": "0.61"}}[SEXE][s])))
           for s in ("l", "r")}
 if MAIN_L["l"] != 1.0 or MAIN_L["r"] != 1.0:
     gi = {g.name: g.index for g in corps.vertex_groups}
@@ -376,7 +447,11 @@ if MAIN_L["l"] != 1.0 or MAIN_L["r"] != 1.0:
 #   (cintrage à rayon constant depuis les jointures), le pouce rabattu sur les doigts.
 # Godot ferme le poing qui tient quelque chose (PostureJoueur) et pose l'objet sur l'axe de la fusée : centre et axes écrits, en
 # coordonnées du modèle Godot, dans assets/modeles/joueur/joueur_<sexe>_poings.gd (JoueurBase.prise).
-POIGNEE = float(arg("poignee", "0.016"))
+# rayon de la fusée par main : la droite tient l'épée (fusée ~16 mm), la gauche la torche (manche 21-24 mm, lanière 27 mm), la poignée
+# du bouclier et l'arc : avec 16 mm à gauche, les doigts de la femme traversaient le manche de la torche et ressortaient en éclats
+# (femme 19 mm : sa main, plus petite, n'entoure plus rien au-delà ; homme 23 mm).
+POIGNEES = {"l": float(arg("poignee_l", {"homme": "0.023", "femme": "0.019"}[SEXE])), "r": float(arg("poignee_r", arg("poignee", "0.016")))}
+POIGNEE = POIGNEES["r"]
 JOINT = float(arg("joint", "0.55"))
 def v3(b, bout=False):
     bb = arm.data.bones[b]
@@ -389,6 +464,7 @@ PO = {}
 Pm = coords(mb)
 CO = {}
 for s in ("l", "r"):
+    POIGNEE = POIGNEES[s]
     sg = 1.0 if s == "l" else -1.0
     w = np.zeros(len(Pm))
     for v in mb.vertices:
@@ -517,13 +593,13 @@ for s in ("l", "r"):
     k_.data.foreach_set("co", CO[s].ravel())
 def gv(t):
     return "Vector3(%.5f, %.5f, %.5f)" % t
-with open(os.path.join(BASE, "assets", "modeles", "joueur", "joueur_%s_poings.gd" % SEXE), "w", encoding="utf-8") as fp:
+with open(os.path.join(os.path.dirname(OUT), "joueur_%s_poings.gd" % SEXE), "w", encoding="utf-8") as fp:   # à côté du glb
     fp.write("## Généré par sources_blender/scripts/joueur_base_rig.py (poings) : ne pas modifier à la main.\n")
     fp.write("## Par main, repère du MODÈLE Godot au repos : centre de la fusée, son axe (du petit doigt vers le pouce), direction des doigts.\n")
     fp.write("const POINGS := {\n")
     for c_ in ("l", "r"):
         fp.write('\t"%s": {"centre": %s, "axe": %s, "doigts": %s},\n' % (c_, gv(PO[c_]["centre"]), gv(PO[c_]["axe"]), gv(PO[c_]["doigts"])))
-    fp.write("}\nconst RAYON_POIGNEE := %.4f\n" % POIGNEE)
+    fp.write("}\nconst RAYON_POIGNEE := {\"l\": %.4f, \"r\": %.4f}\n" % (POIGNEES["l"], POIGNEES["r"]))
 
 # normales lissées sur le corps entier, gardées (normales personnalisées) avant la découpe en pièces : pas de couture d'éclairage
 mb = corps.data
