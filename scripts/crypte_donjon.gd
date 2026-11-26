@@ -71,6 +71,7 @@ const ACCENTS := {
 }
 
 func construire() -> void:
+	d.sans_brume.append([pos_compagnon() + Basis(Vector3.UP, LACET_COMPAGNON) * Vector3(0, 0, -0.8), 1.2])     # corps du compagnon mort
 	for m: Dictionary in plan():
 		m.merge(ACCENTS.get(m["id"], {}), false)
 		module(m)
@@ -905,7 +906,7 @@ func _x_barricade(_m: Dictionary) -> void:
 	d.os_tas(_l(-16.0, -53.0, y), 5, 0.6)
 	# « Corps d'un compagnon » (interaction note_compagnon_2) : il lui fallait un corps. Pieds 0,6 m devant l'interaction : allongé sur le
 	# dos (Death01), son torse est sous le point de fouille
-	_compagnon_mort(Vector3(-16.0, y + 0.02, -53.0) + Basis(Vector3.UP, 0.9) * Vector3(0, 0, 0.6), 0.9)
+	_compagnon_mort(pos_compagnon(), LACET_COMPAGNON)
 	d.os_tas(_l(-12.6, -54.2, y), 4, 0.5)
 	d.os_tas(_l(-15.0, -51.4, y), 4, 0.5)
 	d.sac_dechire(_l(-16.8, -52.2, y), 0.5)
@@ -918,10 +919,15 @@ func _x_barricade(_m: Dictionary) -> void:
 	d.tonneau(_l(-11.2, -54.8, y), 0.8)
 
 ## Compagnon d'Eirik mort (pos dans le repère de la crypte, pas du module : le nœud est posé sous la racine) : un aventurier en
-## armure de fer MAISON (GardeMaison : corps du Gardien + pièces d'armure du jeu, sans livrée ni arme : son épée est au sol), figé
-## allongé sur la dernière image du clip capturé Death01 par draugr.gd figer_pose_allongee (comme les dépouilles des ennemis : bâti hors
-## de l'arbre, la pose est rejouée à l'entrée dans l'arbre, sinon il restait DEBOUT bras en croix, pose de repos). Autour : sang
-## séché sous le torse, torche éteinte tombée de sa main. Retour arrière : `--compagnon-ancien` (Guerrier d'origine, PnjNordique).
+## armure de fer MAISON (GardeMaison : corps du Gardien + pièces d'armure du jeu, sans livrée ni arme : son épée est au sol). Pose :
+## d'abord la dernière image du clip capturé Death01 (draugr.gd figer_pose_allongee : bâti hors de l'arbre, la pose est rejouée à
+## l'entrée dans l'arbre, sinon il restait DEBOUT bras en croix, pose de repos), puis _affaler (chute finie par le ragdoll, figé).
+## Autour : sang séché sous le torse, torche éteinte tombée de sa main, pas de nappe de brume sur lui (CrypteDecor.sans_brume).
+## Retour arrière : `--compagnon-ancien` (Guerrier d'origine, PnjNordique) ; `--compagnon-sans-ragdoll` (Death01 seul).
+const LACET_COMPAGNON := 0.9
+## Pieds du compagnon (repère de la crypte) : 0,6 m devant le point de fouille (-16 ; -53), son torse est dessous.
+static func pos_compagnon() -> Vector3:
+	return Vector3(-16.0, BAS + 0.02, -53.0) + Basis(Vector3.UP, LACET_COMPAGNON) * Vector3(0, 0, 0.6)
 const COMPAGNON := {"role": "epee", "ensemble": "fer", "tabard": "", "arme": "", "bouclier": "", "poil": 2, "peau": 1}
 func _compagnon_mort(pos: Vector3, lacet: float) -> void:
 	var ancien := OS.get_cmdline_user_args().has("--compagnon-ancien") or not GardeMaison.actif()
@@ -933,15 +939,40 @@ func _compagnon_mort(pos: Vector3, lacet: float) -> void:
 	(load("res://scripts/draugr.gd") as GDScript).call("figer_pose_allongee", c)      # draugr.gd sans class_name (comme Butin)
 	if ancien or d.muet:
 		return
-	# sang séché sous le torse (Death01 : il tombe sur le dos, le torse ~0,9 m derrière les pieds) et à son flanc
+	if not OS.get_cmdline_user_args().has("--compagnon-sans-ragdoll"):
+		c.tree_entered.connect(_affaler.bind(c), CONNECT_ONE_SHOT | CONNECT_DEFERRED)
+	# sang séché sous le torse (il tombe sur le dos, le torse ~0,7 à 1,3 m derrière les pieds) et à son flanc
 	var dos := Basis(Vector3.UP, lacet) * Vector3(0, 0, -1)
-	_sang_seche(pos + dos * 0.85 + Vector3(0, 0.012, 0), 0.95, lacet, 0)
-	_sang_seche(pos + dos * 0.2 + Basis(Vector3.UP, lacet) * Vector3(0.45, 0, 0) + Vector3(0, 0.014, 0), 0.5, lacet + 1.1, 1)
-	# torche éteinte tombée près de sa main droite : manche de bois, tête charbonnée (d.boite est en repère du module : lw)
-	var t := pos + Basis(Vector3.UP, lacet) * Vector3(-0.75, 0, -0.55)
-	var lt := lacet + 0.6
-	d.boite("bois", lw(t + Vector3(0, 0.03, 0)), Vector3(0.05, 0.05, 0.62), lw_lacet(lt))
-	d.boite("noir", lw(t + Basis(Vector3.UP, lt) * Vector3(0, 0, 0.36) + Vector3(0, 0.045, 0)), Vector3(0.085, 0.085, 0.15), lw_lacet(lt))
+	_sang_seche(pos + dos * 0.95 + Vector3(0, 0.012, 0), 0.85, lacet, 0)
+	_sang_seche(pos + Basis(Vector3.UP, lacet) * Vector3(0.55, 0, -0.5) + Vector3(0, 0.014, 0), 0.45, lacet + 1.1, 1)
+	# torche éteinte échappée de sa main droite (après la chute : main droite vers (-0,38 ; -0,99) du repère du corps) : manche de bois
+	# fin, tête charbonnée vers l'extérieur (d.boite est en repère du module : lw)
+	var t := pos + Basis(Vector3.UP, lacet) * Vector3(-0.72, 0, -1.0)
+	var lt := lacet - 1.85      # tête vers -X du corps (son côté droit), un peu vers sa tête
+	d.boite("bois", lw(t + Vector3(0, 0.02, 0)), Vector3(0.035, 0.035, 0.55), lw_lacet(lt))
+	d.boite("noir", lw(t + Basis(Vector3.UP, lt) * Vector3(0, 0, 0.31) + Vector3(0, 0.045, 0)), Vector3(0.095, 0.09, 0.17), lw_lacet(lt))
+
+## Death01 seul finit en étoile, bras levés (« une croix couchée ») : le corps repart de l'image où il bascule (CHUTE_COMPAGNON de la
+## durée du clip capturé) et la PHYSIQUE (Ragdoll, comme les morts au combat) finit la chute, poussé un peu vers son flanc gauche :
+## bras et jambes retombent chacun à sa façon, puis tout est figé (corps statiques) ~2 à 7 s après l'entrée dans l'arbre.
+const CHUTE_COMPAGNON := 0.37
+func _affaler(c: Node3D) -> void:
+	if not is_instance_valid(c) or not c.is_inside_tree():
+		return
+	var ap := c.get_node_or_null("Animations") as AnimationPlayer
+	var sq := c.find_child("Skeleton3D", true, false) as Skeleton3D
+	if ap == null or sq == null or not ap.has_animation("Death01"):
+		return
+	ap.play("Death01")
+	ap.seek(ap.get_animation("Death01").length * CHUTE_COMPAGNON, true)
+	ap.pause()
+	sq.force_update_all_bone_transforms()
+	var rd := Ragdoll.equiper(c) as Ragdoll
+	if rd == null:
+		return
+	rd.endormir_apres(2.0)
+	var flanc := c.global_basis * Vector3(0.55, 0.0, -0.45)
+	rd.declencher(flanc.normalized() * 22.0, c.global_position + Vector3.UP * 0.4, "spine_03")
 
 ## Tache de sang SÉCHÉ (permanente, contrairement aux traces de combat de Sang qui s'effacent) : plan au ras du sol, texture de flaque
 ## de Sang, brun noirâtre mat, découpe alpha nette (pixels PS1).
@@ -953,7 +984,7 @@ func _sang_seche(p: Vector3, taille: float, lacet: float, variante: int) -> void
 	mi.mesh = pm
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = Sang.texture("flaque", variante)
-	m.albedo_color = Color(0.22, 0.05, 0.035)
+	m.albedo_color = Color(0.11, 0.035, 0.025)      # séché : brun noirâtre, peu saturé (le sang frais des combats est rouge)
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 	m.alpha_scissor_threshold = 0.5
 	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST

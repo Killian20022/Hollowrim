@@ -121,6 +121,9 @@ var v2 := false                 # le module en cours est en style v2 : pilier, a
 var module_id := ""             # identifiant du module en cours (étiquette des emplacements d'eau)
 var saillie_cb := Callable()    # (point local, normale) -> décalage : les objets accrochés au mur avancent devant les panneaux de maçonnerie
 var nb_bannieres := 0           # bannières posées (le kit v2 n'en ajoute pas dans une salle qui en a déjà)
+## Zones sans nappe de brume au sol : [Vector3 (repère de la racine), rayon] (corps du compagnon mort : la brume additive à 0,12-0,22 m
+## voilait d'un gris laiteux tout ce qui gît au sol sous elle, « main fantôme »). Les tirages de rng_deco restent les mêmes.
+var sans_brume: Array = []
 var occupations: Array = []     # [point local, demi-largeur] : objets plaqués au mur (râteliers, étagères, panneaux d'os) que les panneaux v2 évitent
 var est_crypte := false   # vrai pour la crypte elle-même (pas pour GrotteDecor, qui hérite de cette classe)
 ## RNG des détails ajoutés par la refonte matière (givre, glaçons, niches, lustres…) : séparé de `rng` pour ne pas déplacer
@@ -1507,7 +1510,15 @@ func brume(centre: Vector3, ext: Vector2, nombre := 5) -> void:
 	for k in nombre:
 		var p := centre + Vector3(rng_deco.randf_range(-ext.x, ext.x), 0.12 + 0.1 * rng_deco.randf(), rng_deco.randf_range(-ext.y, ext.y))
 		var w := rng_deco.randf_range(2.6, 4.6)
-		carte("brume", p, Vector3.UP, w, w * rng_deco.randf_range(0.6, 1.0))
+		var h := w * rng_deco.randf_range(0.6, 1.0)
+		var pw := xf * p
+		var libre := true
+		for z: Array in sans_brume:
+			var c: Vector3 = z[0]
+			if Vector2(pw.x - c.x, pw.z - c.z).length() < w * 0.5 + float(z[1]) and absf(pw.y - c.y) < 1.5:
+				libre = false
+		if libre:
+			carte("brume", p, Vector3.UP, w, h)
 
 ## Lustre de fer à bougies pendu à une chaîne (lot L8 : module « lustre_l8_6 », ObjLuminaires) ; une lumière courte si demandé.
 func lustre(plafond: Vector3, chute := 1.2, rayon := 0.55, avec_lumiere := true) -> void:
