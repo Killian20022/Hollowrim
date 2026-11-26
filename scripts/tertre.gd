@@ -763,7 +763,16 @@ func _entree() -> void:
 	else:
 		for i in 4:
 			d.boite("dalle0", Vector3(0, 0.15 * (4 - i), 3.4 - i * 0.6), Vector3(3.0, 0.3 * (4 - i), 0.6))
-	d.quad("noir", Vector3(-1.0, 1.2, 3.69), Vector3(1.0, 1.2, 3.69), Vector3(1.0, 3.0, 3.69), Vector3(-1.0, 3.0, 3.69), Vector3(0, 0, -1))
+	# en haut des marches, la porte de la sortie (crypte_trous 2026-11-25 : c'était un rectangle de matière « noir », sans lumière, qui
+	# se lisait comme un trou dans le mur) : planches de bois sombre jointives, deux pentures de fer, un anneau
+	d.quad("mur2", Vector3(-1.0, 1.2, 3.69), Vector3(1.0, 1.2, 3.69), Vector3(1.0, 3.0, 3.69), Vector3(-1.0, 3.0, 3.69), Vector3(0, 0, -1), [], [],
+		[Color(0.3, 0.3, 0.32), Color(0.3, 0.3, 0.32), Color(0.2, 0.2, 0.22), Color(0.2, 0.2, 0.22)])
+	for k in 5:
+		var xp := -0.8 + k * 0.4
+		d.boite("bois", Vector3(xp, 2.1, 3.645), Vector3(0.38, 1.8, 0.07), 0.0, false)
+	for yb: float in [1.65, 2.6]:
+		d.boite("fer", Vector3(0, yb, 3.6), Vector3(1.9, 0.07, 0.025))
+	d.boite("fer", Vector3(0.55, 2.05, 3.595), Vector3(0.12, 0.12, 0.03))
 	d.boite("mur0", Vector3(-1.2, 2.1, 3.62), Vector3(0.4, 1.8, 0.16))
 	d.boite("mur0", Vector3(1.2, 2.1, 3.62), Vector3(0.4, 1.8, 0.16))
 	d.boite("mur0", Vector3(0, 3.1, 3.62), Vector3(2.8, 0.4, 0.16))
@@ -1086,6 +1095,12 @@ func _basculer(vers_dedans: bool) -> void:
 	if vers_dedans:
 		attendre_donjon()
 	dedans = vers_dedans
+	if vers_dedans:
+		# préchauffage du rendu de la crypte encore en cours (lancements sans écran de chargement : outils, --crypte) : il recachait
+		# la crypte l'image suivante (il la montre une image sur deux), le joueur entrait dans le NOIR complet ; on l'arrête ici
+		for p in monde.find_children("*", "PrechauffeRendu", true, false):
+			if (p as PrechauffeRendu).racine == crypte:
+				(p as PrechauffeRendu).annuler()
 	crypte.visible = vers_dedans
 	if vers_dedans:
 		joueur.global_position = crypte.to_global(Vector3(0, 0.1, 0.5))

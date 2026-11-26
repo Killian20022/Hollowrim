@@ -459,6 +459,21 @@ func mat(nom: String) -> Material:
 			s.cull_mode = BaseMaterial3D.CULL_DISABLED
 			s.disable_receive_shadows = true
 			m = s
+		"jour_crypte":
+			var s := StandardMaterial3D.new()        # crypte_trous : fond d'un puits de jour (oculus) : neige tassée sur la grille, lumière froide
+			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			s.albedo_texture = _texture("neige")
+			s.albedo_color = Color(0.34, 0.42, 0.54)
+			s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			s.disable_receive_shadows = true
+			m = s
+		"eau_noire":
+			var s := StandardMaterial3D.new()        # crypte_trous : eau dormante d'un bassin (la matière « noir », sans lumière, en faisait un trou)
+			s.albedo_color = Color(0.035, 0.07, 0.1)
+			s.roughness = 0.12
+			s.metallic_specular = 0.9
+			s.disable_receive_shadows = true
+			m = s
 		"flaque", "flaque_bord", "flaque_reflet":
 			var s := StandardMaterial3D.new()        # PLACEHOLDER de l'eau (crypte v2) : l'eau stylisée viendra du système d'eau (branche eau/prototype)
 			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -2016,8 +2031,24 @@ func flaque_froide(pos: Vector3, diametre := 3.0) -> void:
 
 func oculus(pos: Vector3, cote := 1.6) -> void:
 	j0("oculus")
-	# trou carré au plafond : fond noir, cadre de pierre en saillie
-	quad("noir", pos + Vector3(-cote * 0.5, -0.01, -cote * 0.5), pos + Vector3(cote * 0.5, -0.01, -cote * 0.5), pos + Vector3(cote * 0.5, -0.01, cote * 0.5), pos + Vector3(-cote * 0.5, -0.01, cote * 0.5), Vector3.DOWN)
+	# trou carré au plafond, cadre de pierre en saillie. Crypte_trous (2026-11-25) : le fond était un carré de matière « noir » au ras de
+	# la voûte, un trou dans le néant vu du dessous ; c'est maintenant un PUITS de jour : quatre parois de pierre qui montent (plus
+	# sombres en haut), une grille de fer et, au fond, la neige tassée sur la grille qui laisse passer une lumière froide (le rai).
+	var hp := 1.1
+	var dc := cote * 0.5
+	var c_bas := Color(0.62, 0.62, 0.66)
+	var c_haut := Color(0.3, 0.32, 0.38)
+	for k in 4:
+		var u := Vector3(1, 0, 0).rotated(Vector3.UP, k * PI * 0.5)
+		var w := Vector3(0, 0, 1).rotated(Vector3.UP, k * PI * 0.5)
+		var a := pos + u * dc - w * dc
+		var b := pos + u * dc + w * dc
+		quad("mur1", a + Vector3(0, -0.01, 0), b + Vector3(0, -0.01, 0), b + Vector3(0, hp, 0), a + Vector3(0, hp, 0), -u, [], [], [c_bas, c_bas, c_haut, c_haut])
+	quad("jour_crypte", pos + Vector3(-dc, hp, -dc), pos + Vector3(dc, hp, -dc), pos + Vector3(dc, hp, dc), pos + Vector3(-dc, hp, dc), Vector3.DOWN)
+	for k in 3:      # grille : trois barreaux dans chaque sens, sous la neige
+		var o := (float(k) - 1.0) * cote * 0.3
+		boite("fer", pos + Vector3(o, hp - 0.16, 0), Vector3(0.05, 0.05, cote))
+		boite("fer", pos + Vector3(0, hp - 0.22, o), Vector3(cote, 0.05, 0.05))
 	for s in [-1.0, 1.0]:
 		boite("mur1", pos + Vector3(s * (cote * 0.5 + 0.12), -0.08, 0), Vector3(0.24, 0.16, cote + 0.48))
 		boite("mur1", pos + Vector3(0, -0.08, s * (cote * 0.5 + 0.12)), Vector3(cote, 0.16, 0.24))

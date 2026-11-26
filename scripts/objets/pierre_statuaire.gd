@@ -146,7 +146,7 @@ static func bassin(dcr: CrypteDecor, centre: Vector3, w: float, p: float, h := 0
 		dcr.solide(centre + Vector3(0, h * 0.5, (p * 0.5 - e * 0.5)), Vector3(w, h, e))
 		dcr.solide(centre + Vector3(-(w * 0.5 - e * 0.5), h * 0.5, 0), Vector3(e, h, p - 2.0 * e))
 		dcr.solide(centre + Vector3(w * 0.5 - e * 0.5, h * 0.5, 0), Vector3(e, h, p - 2.0 * e))
-		dcr.quad("noir", centre + Vector3(-w * 0.5 + e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, p * 0.5 - e), centre + Vector3(-w * 0.5 + e, h - 0.12, p * 0.5 - e), Vector3.UP)
+		dcr.quad("eau_noire", centre + Vector3(-w * 0.5 + e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, p * 0.5 - e), centre + Vector3(-w * 0.5 + e, h - 0.12, p * 0.5 - e), Vector3.UP)
 		dcr.solide(centre + Vector3(0, h * 0.5, 0), Vector3(w - 0.2, h, p - 0.2))
 		dcr.j1()
 		return
@@ -157,7 +157,7 @@ static func bassin(dcr: CrypteDecor, centre: Vector3, w: float, p: float, h := 0
 	for sg in [-1.0, 1.0]:
 		dcr.boite("mur0", centre + Vector3(0, h + 0.03, sg * (p * 0.5 - 0.03)), Vector3(w + 0.1, 0.06, 0.1))
 		dcr.boite("mur0", centre + Vector3(sg * (w * 0.5 - 0.03), h + 0.03, 0), Vector3(0.1, 0.06, p + 0.1))
-	dcr.quad("noir", centre + Vector3(-w * 0.5 + e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, p * 0.5 - e), centre + Vector3(-w * 0.5 + e, h - 0.12, p * 0.5 - e), Vector3.UP)
+	dcr.quad("eau_noire", centre + Vector3(-w * 0.5 + e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, -p * 0.5 + e), centre + Vector3(w * 0.5 - e, h - 0.12, p * 0.5 - e), centre + Vector3(-w * 0.5 + e, h - 0.12, p * 0.5 - e), Vector3.UP)
 	dcr.solide(centre + Vector3(0, h * 0.5, 0), Vector3(w - 0.2, h, p - 0.2))
 	dcr.j1()
 

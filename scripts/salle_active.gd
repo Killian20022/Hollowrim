@@ -238,6 +238,41 @@ func _calculer_actives(id: String) -> Dictionary:
 					a[w] = true
 	return a
 
+## Salles dont le DÉCOR reste dessiné depuis `id` (crypte_trous, 2026-11-25) : l'ensemble actif de `_calculer_actives`, plus les salles
+## à au plus PROF_DECOR portes dont le rectangle est à moins de PORTEE_DECOR m de celui de `id`. Avant, une salle vue par l'enfilade
+## de deux portes (s2 -> quartiers -> armurerie, prep -> herse -> rituelle…) n'était pas dessinée : un rectangle de VIDE (le fond, couleur
+## de brume) dans l'embrasure, à 10-20 m, là où la brume ne cache encore rien. La simulation (ennemis gelés) garde l'ensemble actif.
+const PROF_DECOR := 3
+const PORTEE_DECOR := 26.0
+
+func _calculer_visibles(id: String) -> Dictionary:
+	var a := _calculer_actives(id)
+	if id == "" or not salles.has(id):
+		return a
+	var r0: Rect2 = salles[id]["rect"]
+	if r0.size == Vector2.ZERO:      # grotte (salles en points) : inchangé
+		return a
+	var front: Array = [id]
+	var vus := {id: true}
+	for k in PROF_DECOR:
+		var suite: Array = []
+		for s: String in front:
+			for v: String in salles[s]["voisins"]:
+				if vus.has(v) or not salles.has(v):
+					continue
+				vus[v] = true
+				suite.append(v)
+				var r: Rect2 = salles[v]["rect"]
+				if r.size != Vector2.ZERO and _dist_rects(r0, r) <= PORTEE_DECOR:
+					a[v] = true
+		front = suite
+	return a
+
+static func _dist_rects(a: Rect2, b: Rect2) -> float:
+	var dx := maxf(maxf(a.position.x - b.end.x, b.position.x - a.end.x), 0.0)
+	var dz := maxf(maxf(a.position.y - b.end.y, b.position.y - a.end.y), 0.0)
+	return sqrt(dx * dx + dz * dz)
+
 func est_active(id: String) -> bool:
 	return id == "" or actives.has(id)
 
@@ -291,7 +326,7 @@ func rafraichir(dedans := true) -> void:
 		actives = local.duplicate()
 		for sid: String in autres:
 			actives.merge(_calculer_actives(sid))
-		_appliquer_decor(local if dedans else _calculer_actives(""))
+		_appliquer_decor(_calculer_visibles(id) if dedans else _calculer_actives(""))
 	if geler_ennemis:
 		_ennemis()
 

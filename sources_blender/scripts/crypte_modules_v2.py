@@ -1376,7 +1376,8 @@ def sarcophage_pille(nom, graine):
         M.boite((ep, hc, W - 2 * ep), Vector((sx * (L * 0.5 - ep * 0.5), y0 + hc * 0.5, 0)), bev=0.02, jit=0.006, ton=0.68)
         for sz in (-1, 1):      # pilastres d'angle
             M.boite((0.16, hc, 0.16), Vector((sx * (L * 0.5 - 0.07), y0 + hc * 0.5, sz * (W * 0.5 - 0.07))), bev=0.025, jit=0.006, ton=rg.uniform(0.9, 1.0))
-    M.boite((L - 2 * ep, 0.02, W - 2 * ep), Vector((0, y0 + 0.15, 0)), "noir", bev=0.0, jit=0.0, ton=1.0)      # fond (ombre)
+    # fond : pierre sombre (crypte_trous 2026-11-25 : la matière « noir », sans lumière, faisait de la cuve ouverte un trou noir)
+    M.boite((L - 2 * ep, 0.02, W - 2 * ep), Vector((0, y0 + 0.15, 0)), bev=0.0, jit=0.0, ton=0.24)
     for k in range(5):      # gravats et os brisés au fond
         M.boite((rg.uniform(0.08, 0.18), 0.06, rg.uniform(0.06, 0.14)), Vector((rg.uniform(-0.8, 0.8), y0 + 0.18, rg.uniform(-0.22, 0.22))), yaw=rg.uniform(0, 3), bev=0.012, jit=0.01, ton=rg.uniform(0.5, 0.7))
     # panneaux de la face avant (cadres + croix)
@@ -2232,8 +2233,9 @@ def _niche(M, cx, y0, w=0.62, h=0.82, fleche=0.26):
         ym = y0 + h * rg.uniform(0.42, 0.58)
         _mur_bloc(M, xa, xb, y0, ym - 0.015, zj, rg.uniform(0.66, 0.84), ch_s=0.025)
         _mur_bloc(M, xa, xb, ym + 0.015, y1, zj, rg.uniform(0.66, 0.84), ch_s=0.025)
-    # fond de la niche : plus noir que les joints, à 0,16 m derrière la face des jambages (devant les pierres du décor, <= 0,09 m)
-    M.boite((w + 0.02, h + fleche, 0.01), Vector((cx, y0 + (h + fleche) * 0.5, 0.11)), bev=0.0, jit=0.0, ton=0.06)
+    # fond de la niche, à 0,16 m derrière la face des jambages (devant les pierres du décor, <= 0,09 m). Crypte_trous (2026-11-25) :
+    # ton 0,06 -> 0,26 : au noir, la niche se lisait comme un TROU dans le mur (« espaces de vide ») ; pierre sombre que la torche éclaire
+    M.boite((w + 0.02, h + fleche, 0.01), Vector((cx, y0 + (h + fleche) * 0.5, 0.11)), bev=0.0, jit=0.0, ton=0.26)
     # claveaux en mitre (arc brisé), clé au sommet
     yt = y1 + fleche
     e = 0.15

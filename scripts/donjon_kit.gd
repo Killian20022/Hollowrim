@@ -937,13 +937,18 @@ func niche_os(m: Dictionary, c: String, a: float, y: float, lw_ := 0.95) -> void
 	var y0 := y + 0.62
 	var ys := y + 1.55
 	var f := clampf(lw_ * 0.58, 0.55, 1.0)
-	# fond noir (profondeur simulée), puis jambages et arc brisé en saillie
+	# fond de la niche (profondeur simulée), puis jambages et arc brisé en saillie. Crypte_trous (2026-11-25) : le fond était la matière
+	# « noir » (sans lumière, presque noire) : la niche se lisait comme un TROU dans le mur, même torche à la main. Pierre ombrée à la
+	# place (sombre en haut, sous l'arc : la profondeur reste lisible) que la torche et les appliques éclairent.
 	var b0: Vector3 = P.call(-lw_ * 0.5, y0, 0.012)
 	var b1: Vector3 = P.call(lw_ * 0.5, y0, 0.012)
 	var t1: Vector3 = P.call(lw_ * 0.5, ys, 0.012)
 	var t0: Vector3 = P.call(-lw_ * 0.5, ys, 0.012)
-	d.quad("noir", b0, b1, t1, t0, v)
-	d.quad("noir", t0, t1, P.call(0.0, ys + f, 0.012), P.call(0.0, ys + f, 0.012), v)
+	var c_bas := Color(0.42, 0.42, 0.45)
+	var c_haut := Color(0.24, 0.24, 0.27)
+	var c_cle := Color(0.16, 0.16, 0.19)
+	d.quad("mur2", b0, b1, t1, t0, v, [], [], [c_bas, c_bas, c_haut, c_haut])
+	d.quad("mur2", t0, t1, P.call(0.0, ys + f, 0.012), P.call(0.0, ys + f, 0.012), v, [], [], [c_haut, c_haut, c_cle, c_cle])
 	var dimj := Vector3(0.2, ys - y0 + 0.1, 0.16) if horiz else Vector3(0.16, ys - y0 + 0.1, 0.2)
 	for sx: float in [-1.0, 1.0]:
 		d.boite("mur1", P.call(sx * (lw_ * 0.5 + 0.1), (y0 + ys) * 0.5 - 0.05, 0.08), dimj)
@@ -1282,6 +1287,8 @@ func _escalier(m: Dictionary) -> void:
 	modules[m["id"]]["ouv"] = ouv
 	modules[m["id"]]["escalier"] = true
 
+const PIED_ESC := 0.38      # pied des parois de l'escalier sous la pente (crypte_trous : une marche fait 0,25 m)
+
 ## Escalier droit entre z_haut (y_haut) et z_bas (y_bas), largeur x0..x1 (repère local) ; plafond parallèle à 3 m ; marches de 0,25 m.
 func escalier(x0: float, x1: float, z_haut: float, z_bas: float, y_haut: float, y_bas: float, mur := "mur1") -> void:
 	var sens := signf(z_bas - z_haut)
@@ -1315,8 +1322,12 @@ func escalier(x0: float, x1: float, z_haut: float, z_bas: float, y_haut: float, 
 		var cb := Color(0.8, 0.8, 0.85, ab)
 		var haut_a := Color(0.5, 0.5, 0.55, aa)
 		var haut_b := Color(0.5, 0.5, 0.55, ab)
-		d.quad(mur, Vector3(xa, ya, za), Vector3(xa, yb, zb), Vector3(xa, yb + 3.0, zb), Vector3(xa, ya + 3.0, za), Vector3(1, 0, 0), [], [], [ca, cb, haut_b, haut_a])
-		d.quad(mur, Vector3(xb, ya, za), Vector3(xb, yb, zb), Vector3(xb, yb + 3.0, zb), Vector3(xb, ya + 3.0, za), Vector3(-1, 0, 0), [], [], [ca, cb, haut_b, haut_a])
+		# crypte_trous (2026-11-25) : le pied des parois suivait la PENTE, les marches sont en DEGRÉS sous elle : un triangle de vide
+		# (jusqu'à une contremarche, 0,25 m) entre chaque marche et chaque paroi. Le pied descend d'une marche et demie sous la pente.
+		var yap: float = ya - PIED_ESC
+		var ybp: float = yb - PIED_ESC
+		d.quad(mur, Vector3(xa, yap, za), Vector3(xa, ybp, zb), Vector3(xa, yb + 3.0, zb), Vector3(xa, ya + 3.0, za), Vector3(1, 0, 0), [], [], [ca, cb, haut_b, haut_a])
+		d.quad(mur, Vector3(xb, yap, za), Vector3(xb, ybp, zb), Vector3(xb, yb + 3.0, zb), Vector3(xb, ya + 3.0, za), Vector3(-1, 0, 0), [], [], [ca, cb, haut_b, haut_a])
 		d.quad("voute", Vector3(xa, ya + 3.0, za), Vector3(xb, ya + 3.0, za), Vector3(xb, yb + 3.0, zb), Vector3(xa, yb + 3.0, zb), Vector3(0, -1, 0), [], [], [Color(0.6, 0.6, 0.65, aa), Color(0.6, 0.6, 0.65, aa), Color(0.6, 0.6, 0.65, ab), Color(0.6, 0.6, 0.65, ab)])
 	var k := 2.0
 	while k < longueur - 1.0:
