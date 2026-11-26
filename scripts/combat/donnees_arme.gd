@@ -21,6 +21,9 @@ enum Categorie { VIDE, EPEE, TORCHE, BOUCLIER, SORT }
 ## Deux mains : rotation de la main gauche autour de la fusée (degrés) et pôle de son coude (repère caméra).
 @export var rotation_main_gauche := 0.0
 @export var coude_gauche_2m := Vector3(-0.35, -1.0, 0.15)
+## Deux mains : inclinaison radiale / cubitale max du poignet GAUCHE (degrés, orienteur de poignet ; combat/coups_masses_marteaux,
+## critère 2026-11-26 : poignet gauche ≤ 25° de déviation, il était à 33-60° avec la borne générique de 35°).
+@export var deviation_poignet_g_2m := 0.0
 
 @export_group("Modèle")
 ## Chemin du modèle (.glb ou .tscn). Vide : pas de modèle (main vide) ou objet construit par le code (torche).

@@ -23,7 +23,8 @@ class_name GestesLourds
 
 ## Décalage du poing le long du manche (m, repère du modèle) : manche tenu PLUS BAS que le repère « prise » (une main) ;
 ## le grand marteau garde sa prise (la main gauche descend vers le bout du manche : ecart_mains du catalogue).
-const PRISE := {"hache": -0.07, "masse": -0.08, "marteau": -0.08, "grand_marteau": 0.0}
+const PRISE := {"hache": -0.07, "masse": -0.08, "marteau": -0.08, "grand_marteau": 0.08,
+	"masse_ancien": -0.08, "marteau_ancien": -0.08, "grand_marteau_ancien": 0.0}
 
 const PROFILS := {
 	# HACHES : tailles courtes et cassantes, plutôt en diagonale descendante ; à l'impact la tête mord (arrêt net) puis le
@@ -49,7 +50,7 @@ const PROFILS := {
 	},
 	# MASSE à une main : écrasements lourds, poids en tête (armé lent, chute rapide, arrêt sourd, secousse modérée).
 	# Combo : 1 crochet droite → gauche, 2 revers gauche → droite, 3 écrasement du haut vers le bas.
-	"masse": {
+	"masse_ancien": {
 		"combo": ["m_crochet", "m_revers", "m_haut"],
 		"lourd": "m_lourd",
 		"lourds": {},
@@ -74,7 +75,7 @@ const PROFILS := {
 	},
 	# MARTEAU DE GUERRE à une main : mêmes trajectoires que la masse (poids en tête), l'écrasement vertical ouvre le combo
 	# (bec et tête d'acier : coup du haut d'abord), impacts un peu plus lourds.
-	"marteau": {
+	"marteau_ancien": {
 		"combo": ["mt_haut", "mt_crochet", "mt_revers"],
 		"lourd": "mt_lourd",
 		"lourds": {},
@@ -98,7 +99,7 @@ const PROFILS := {
 	},
 	# GRAND MARTEAU à deux mains (famille marteau, deux_mains = true) : grands coups verticaux tête → sol, très lents, fort
 	# impact (combo : le même grand vertical, relevé entre deux coups). Garde, parade, encaisse, garde brisée et course : celles de la famille « deux_mains » (bras_2mains.tres).
-	"grand_marteau": {
+	"grand_marteau_ancien": {
 		"combo": ["gm_vertical", "gm_vertical", "gm_vertical"],
 		"lourd": "gm_lourd",
 		"lourds": {},
@@ -111,14 +112,91 @@ const PROFILS := {
 				"mordant": [0.13, 0.035], "secousse": 0.7, "suivi": 0.0, "trainee": [0.78, 1.0]},
 		},
 	},
+	# =====================================================================================================================
+	# MASSES ET MARTEAUX PAR CAPTURES (branche combat/coups_masses_marteaux, 2026-11-26 ; « les coups sont pourris, le poignet
+	# et les bras ne suivent pas le mouvement ») : clips de bras_masses.tres (sources_blender/scripts/gestes_masses.py), captures
+	# Mixamo RETARGETÉES comme les coups d'épée v6 (anim_bras_epee.creer_action_mixamo), AUCUNE pose écrite. Les profils d'avant
+	# (poses écrites) restent sous « *_ancien » (interrupteur --masses-anciennes). Mêmes mécaniques : mordant, secousse, traînée
+	# sur la tête, prise basse.
+	# MASSE à une main (masse cloutée, gourdin) : 1 crochet droite -> gauche (« Stable Sword Outward Slash »), 2 revers gauche ->
+	# droite (« Stable Sword Inward Slash »), 3 écrasement par-dessus l'épaule (« Standing Melee Attack Downward ») ;
+	# puissante = le même écrasement, armé tenu pendant la charge.
+	"masse": {
+		"combo": ["ms_crochet", "ms_revers", "ms_haut"],
+		"lourd": "ms_lourd",
+		"lourds": {},
+		"tenues": {"repos": "repos_m6"},
+		"gestes": {
+			"ms_crochet": {"clip": "ms_a", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.08, 1.0], "force": 1.0, "elan": 0.35,
+				"mordant": [0.06, 0.02], "secousse": 0.32, "suivi": 0.0, "trainee": [0.72, 1.0]},
+			"ms_revers": {"clip": "ms_b", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.08, 1.0], "force": 1.0, "elan": 0.35,
+				"mordant": [0.06, 0.02], "secousse": 0.32, "suivi": 0.0, "trainee": [0.72, 1.0]},
+			"ms_haut": {"clip": "ms_c", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.1, 0.9], "force": 1.25, "tassement": 0.9, "elan": 0.45,
+				"mordant": [0.08, 0.025], "secousse": 0.4, "suivi": 0.0, "trainee": [0.72, 1.0]},
+			"horizontale": {"clip": "ms_a", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.08, 1.0], "force": 1.0, "elan": 0.35,
+				"mordant": [0.06, 0.02], "secousse": 0.32, "suivi": 0.0, "trainee": [0.72, 1.0]},
+			"horizontale_gd": {"clip": "ms_b", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.08, 1.0], "force": 1.0, "elan": 0.35,
+				"mordant": [0.06, 0.02], "secousse": 0.32, "suivi": 0.0, "trainee": [0.72, 1.0]},
+			"verticale_l": {"clip": "ms_c", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.1, 0.9], "force": 1.25, "tassement": 0.9, "elan": 0.45,
+				"mordant": [0.08, 0.025], "secousse": 0.4, "suivi": 0.0, "trainee": [0.72, 1.0]},
+			"ms_lourd": {"clip": "lourd_ms", "charge": "charge_ms", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.1, 0.8], "force": 1.0, "tassement": 1.1, "elan": 0.55,
+				"mordant": [0.1, 0.03], "secousse": 0.5, "suivi": 0.0, "trainee": [0.72, 1.0]},
+		},
+	},
+	# MARTEAU DE GUERRE à une main : mêmes captures, l'écrasement ouvre le combo, impacts un peu plus lourds.
+	"marteau": {
+		"combo": ["mts_haut", "mts_crochet", "mts_revers"],
+		"lourd": "mts_lourd",
+		"lourds": {},
+		"tenues": {"repos": "repos_m6"},
+		"gestes": {
+			"mts_haut": {"clip": "ms_c", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.1, 1.0], "force": 1.1, "tassement": 1.0, "elan": 0.45,
+				"mordant": [0.09, 0.025], "secousse": 0.42, "suivi": 0.0, "trainee": [0.75, 1.0]},
+			"mts_crochet": {"clip": "ms_a", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.08, 1.0], "force": 1.0, "elan": 0.35,
+				"mordant": [0.07, 0.02], "secousse": 0.35, "suivi": 0.0, "trainee": [0.75, 1.0]},
+			"mts_revers": {"clip": "ms_b", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.08, 0.9], "force": 1.15, "elan": 0.35,
+				"mordant": [0.07, 0.02], "secousse": 0.35, "suivi": 0.0, "trainee": [0.75, 1.0]},
+			"horizontale": {"clip": "ms_a", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.08, 1.0], "force": 1.0, "elan": 0.35,
+				"mordant": [0.07, 0.02], "secousse": 0.35, "suivi": 0.0, "trainee": [0.75, 1.0]},
+			"horizontale_gd": {"clip": "ms_b", "fenetre": [0.0, 1.0], "cotes": [-1, 1], "enchainement": [0.08, 1.0], "force": 1.0, "elan": 0.35,
+				"mordant": [0.07, 0.02], "secousse": 0.35, "suivi": 0.0, "trainee": [0.75, 1.0]},
+			"verticale_l": {"clip": "ms_c", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.1, 1.0], "force": 1.1, "tassement": 1.0, "elan": 0.45,
+				"mordant": [0.09, 0.025], "secousse": 0.42, "suivi": 0.0, "trainee": [0.75, 1.0]},
+			"mts_lourd": {"clip": "lourd_ms", "charge": "charge_ms", "fenetre": [0.0, 1.0], "cotes": [1, 0], "enchainement": [0.1, 0.8], "force": 1.0, "tassement": 1.2, "elan": 0.55,
+				"mordant": [0.11, 0.03], "secousse": 0.55, "suivi": 0.0, "trainee": [0.75, 1.0]},
+		},
+	},
+	# GRAND MARTEAU à deux mains (famille marteau, deux_mains = true) : captures « Great Sword Pack » (vraies prises à deux mains,
+	# buste entier) : 1 grand vertical (« great sword slash (2) »), 2 diagonale (« great sword slash ») ; puissante = « great sword
+	# jump attack » (armé haut tenu, tout le corps retombe). Tenues de la famille « deux_mains » (bord des clips = repos_2m exacte).
+	"grand_marteau": {
+		"combo": ["gms_vertical", "gms_diag"],
+		"lourd": "gms_lourd",
+		"lourds": {},
+		"tenues": {"repos": "repos_gm6", "sprint": "sprint_2m", "garde": "garde_2m", "encaisse": "encaisse_2m",
+			"parade": "parade_2m", "garde_brisee": "brisee_2m"},
+		"gestes": {
+			"gms_vertical": {"clip": "gm_a6", "fenetre": [0.0, 1.0], "cotes": [0, 0], "enchainement": [0.15, 0.85], "force": 1.15, "tassement": 1.3, "elan": 0.55,
+				"mordant": [0.1, 0.03], "secousse": 0.55, "suivi": 0.0, "trainee": [0.78, 1.0]},
+			"gms_diag": {"clip": "gm_b6", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.15, 0.85], "force": 1.1, "tassement": 1.1, "elan": 0.5,
+				"mordant": [0.1, 0.03], "secousse": 0.5, "suivi": 0.0, "trainee": [0.78, 1.0]},
+			"gms_lourd": {"clip": "lourd_gm6", "charge": "charge_gm6", "fenetre": [0.0, 1.0], "cotes": [0, 0], "enchainement": [0.15, 0.8], "force": 1.0, "tassement": 1.5, "elan": 0.7,
+				"mordant": [0.13, 0.035], "secousse": 0.7, "suivi": 0.0, "trainee": [0.78, 1.0]},
+		},
+	},
 }
+
+## Masses / marteaux : `--masses-anciennes` rend les profils d'avant (poses écrites, comparaison A/B).
+static var masses_anciennes := OS.get_cmdline_user_args().has("--masses-anciennes")
 
 ## Profil de gestes d'une arme du catalogue : `gestes` (champ explicite de l'entrée, ex. "hache"), sinon la famille ;
 ## "" = garder le profil de la famille (épées, dagues, boucliers : inchangés).
 static func profil_pour(famille: String, gestes: String, deux_mains: bool) -> String:
 	var g := gestes if gestes != "" else famille
 	if g == "marteau" and deux_mains:
-		return "grand_marteau"
+		g = "grand_marteau"
+	if masses_anciennes and g in ["masse", "marteau", "grand_marteau"]:
+		g += "_ancien"
 	return g if PROFILS.has(g) else ""
 
 static func est_lourd(nom_profil: String) -> bool:

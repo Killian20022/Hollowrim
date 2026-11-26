@@ -226,7 +226,7 @@ func _tester() -> void:
 	_verif(finals.max() < 0.08, "claymore : main gauche restée sur la poignée de l'arme affichée pendant tout le coup (pose finale)")
 
 	# 5. hache, masse
-	for cas: Array in [["hache_guerre", "h_a"], ["masse_cloutee", "m_a"]]:
+	for cas: Array in [["hache_guerre", "h_a"], ["masse_cloutee", "ms_a"], ["marteau_guerre", "ms_c"], ["grand_marteau", "gm_a6"]]:
 		await _equiper(cas[0])
 		await _reset()
 		await _clic()

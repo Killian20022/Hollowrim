@@ -18,6 +18,11 @@ var flexion_max := deg_to_rad(55.0)
 ## fixe : POIGNET RIGIDE, l'épée prolonge l'avant-bras.
 var angle_min := -1.0
 var angle_max := -1.0
+## Vitesse max de la rotation locale de la main (rad/s ; 0 = libre). Deux mains (combat/coups_masses_marteaux) : le poignet
+## gauche ne claque pas d'une image à l'autre quand la fusée balaie vite (critère : saut ≤ 12°/image).
+var vitesse_max := 0.0
+var _prec := Quaternion()
+var _prec_ok := false
 
 func _globale(sq: Skeleton3D, i: int) -> Transform3D:
 	var t := Transform3D()
@@ -26,7 +31,7 @@ func _globale(sq: Skeleton3D, i: int) -> Transform3D:
 		i = sq.get_bone_parent(i)
 	return t
 
-func _process_modification_with_delta(_dt: float) -> void:
+func _process_modification_with_delta(dt: float) -> void:
 	var sq := get_skeleton()
 	if sq == null or cible == null or not is_instance_valid(cible):
 		return
@@ -57,4 +62,12 @@ func _process_modification_with_delta(_dt: float) -> void:
 	var angle := neutre.signed_angle_to(voulu, a)
 	var x := neutre.rotated(a, clampf(angle, -flexion_max, flexion_max))
 	var repere := Basis(x, a, x.cross(a)) * prise.basis.orthonormalized().inverse()
-	sq.set_bone_pose_rotation(i, (parent.basis.orthonormalized().inverse() * repere.orthonormalized()).get_rotation_quaternion())
+	var q := (parent.basis.orthonormalized().inverse() * repere.orthonormalized()).get_rotation_quaternion()
+	if vitesse_max > 0.0 and _prec_ok:
+		var ang := _prec.angle_to(q)
+		var pas := vitesse_max * (dt if dt > 0.0 else 1.0 / 60.0)
+		if ang > pas:
+			q = _prec.slerp(q, pas / ang)
+	_prec = q
+	_prec_ok = true
+	sq.set_bone_pose_rotation(i, q)

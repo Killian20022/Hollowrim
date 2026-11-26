@@ -124,6 +124,18 @@ const CLIPS := {
 	"gm_a": {"src": "gs_slash_2", "im": [8, 18, 23, 31, 40]},
 	"charge_gm": {"src": "gs_slash_2", "im": [8, 21, 22]},
 	"lourd_gm": {"src": "gs_slash_2", "im": [22, 22, 23, 31, 45]},
+	# masses / marteaux PAR CAPTURES (combat/coups_masses_marteaux, bras_masses.tres, gestes_masses.py) : le corps joue la MÊME
+	# capture et la même plage que le clip FPS (images calées sur ses marqueurs) ; le grand marteau puissant (FPS : « great sword
+	# jump attack », absente de corps_coups_tps.res) joue au corps le grand vertical de la claymore
+	"ms_a": {"src": "slash_1", "im": [10, 16, 17, 21, 34], "retour": 44},
+	"ms_b": {"src": "interieur", "im": [24, 31, 33, 39, 50], "retour": 62},
+	"ms_c": {"src": "vertical", "im": [10, 19, 21, 27, 45], "retour": 60},
+	"charge_ms": {"src": "vertical", "im": [1, 19, 21]},
+	"lourd_ms": {"src": "vertical", "im": [21, 21, 22, 27, 45], "retour": 60},
+	"gm_a6": {"src": "gs_slash_2", "im": [8, 18, 21, 28, 40]},
+	"gm_b6": {"src": "gs_slash", "im": [4, 15, 17, 23, 38]},
+	"charge_gm6": {"src": "gs_slash_2", "im": [8, 21, 22]},
+	"lourd_gm6": {"src": "gs_slash_2", "im": [22, 22, 23, 31, 45]},
 }
 const OS_BAS := ["pelvis", "thigh_l", "calf_l", "foot_l", "ball_l", "ball_leaf_l", "thigh_r", "calf_r", "foot_r", "ball_r", "ball_leaf_r"]
 
