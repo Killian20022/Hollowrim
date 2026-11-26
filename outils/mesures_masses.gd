@@ -276,6 +276,8 @@ func _mesurer_arme(id_variante: String) -> void:
 		donnees.ecart_mains = float(parts[1])
 		if parts.size() > 2:
 			donnees.rotation_main_gauche = float(parts[2])
+		if parts.size() > 3:
+			donnees.deviation_poignet_g_2m = float(parts[3])
 		print("MASSES variante %s : ecart %.2f rotation gauche %.0f fusee_bas %.2f" % [id_variante, donnees.ecart_mains, donnees.rotation_main_gauche, donnees.fusee_bas])
 	mains.equipement.equiper("droite", donnees)
 	await _images(60)

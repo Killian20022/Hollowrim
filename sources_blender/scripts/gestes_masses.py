@@ -70,12 +70,15 @@ def _poignet_autour(k, f, r):
 S = dict(ref=0, decalage=(0.0, 0.06, -0.30), echelle_epaule=0.7)
 CLIPS_M = {
     # crochet droite -> gauche : « outward slash », la main part à droite à hauteur d'épaule, traverse devant le buste
-    "ms_a": dict(S, source="revers", centre=25, amplitude=0.5, cadrage=(0, 30, -15),
+    # cadrage passe 2 (tête lisible à l'impact 9/9, mesurée par _tete_lisible) : bras tourné de 25° vers la gauche, relevé de 20°
+    "ms_a": dict(S, source="revers", centre=25, amplitude=0.5, cadrage=(25, 20, -15),
                  temps=[(14, 0.0), (19, 0.12), (22.5, 0.22), (23.5, 0.26), (27.5, 0.40), (28.5, 0.48), (30, 0.60), (30, 0.80)],
                  fondu=(0.22, 0.50), plein=(0.22, 0.56), arc=(0.26, 0.40, 0.85), creux=0.04),
     # revers gauche -> droite : « inward slash », armé sur l'épaule gauche, la tête balaie vers la droite
-    "ms_b": dict(S, source="interieur", centre=35, amplitude=0.45, decalage=(0.05, 0.06, -0.40), cadrage=(0, 30, 15),
-                 temps=[(24, 0.0), (29, 0.12), (31.5, 0.22), (32.5, 0.26), (38.5, 0.40), (39.5, 0.48), (41, 0.60), (41, 0.80)],
+    # passe 2 : bras relevé de 60° et tourné de 15° vers la droite, frappe lue à partir de l'image 33,4 (la tête montait encore de
+    # sous le cadre aux images 32,5-33) : tête lisible à l'impact 9/9
+    "ms_b": dict(S, source="interieur", centre=35, amplitude=0.45, decalage=(0.05, 0.06, -0.40), cadrage=(-15, 60, 15),
+                 temps=[(24, 0.0), (29, 0.12), (32.2, 0.22), (33.4, 0.26), (38.6, 0.40), (39.8, 0.48), (41, 0.60), (41, 0.80)],
                  fondu=(0.22, 0.50), plein=(0.22, 0.56), arc=(0.26, 0.40, 0.85), creux=0.04),
     # écrasement par-dessus l'épaule droite : « Standing Melee Attack Downward » (cadrage du coup puissant de l'épée v6)
     "ms_c": dict(S, source="vertical", centre=23, amplitude=0.45, cadrage=(30, -37, 0),
@@ -112,9 +115,9 @@ CLIPS_GM = {
     "gm_b6": dict(S2, source="gs_slash", centre=20, amplitude=0.45, cadrage=(0, 35, -10),
                  temps=[(8, 0.0), (13, 0.12), (15.5, 0.20), (16.5, 0.24), (22, 0.36), (23, 0.43), (24, 0.52), (24, 0.70)],
                  fondu=(0.20, 0.45), plein=(0.20, 0.50), arc=(0.24, 0.36, 0.85), creux=0.05),
-    "charge_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.45, cadrage=(0, 25, 10),
+    "charge_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.45, cadrage=(0, -10, 10),
                       temps=[(14, 0.0), (23, 0.38), (25.5, 0.70)], fondu=(0.38, 0.70), plein=(0.38, 0.70)),
-    "lourd_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.45, cadrage=(0, 25, 10),
+    "lourd_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.45, cadrage=(0, -10, 10),
                      temps=[(25.5, 0.0), (27, 0.08), (35.5, 0.22), (36.5, 0.30), (38, 0.40), (38, 0.60)],
                      fondu=(0.0, 0.40), plein=(0.0, 0.46), arc=(0.08, 0.22, 0.85), creux=0.07),
 }
@@ -144,10 +147,36 @@ def tete_ecran(ns, longueur=0.55):
     return e(p), e(t)
 
 
+def _tete_lisible(ns):
+    """Tête de l'arme dans le champ (marge 5 %), à plus de 15 cm de l'œil, et pas cachée par le poing ni l'avant-bras
+    (projetée à moins de 0,16 écran du segment poing-coude ET plus loin qu'eux)."""
+    from mathutils import Vector
+    C = ns["CAM_DE_B"]
+    W = C @ ns["A"].pose.bones["hand_r"].matrix @ ns["PRISE_D"]
+    tete = W @ Vector((0, ns["MILIEU_POIGNEE"] + 0.5, 0))
+    poing = W @ Vector((0, ns["MILIEU_POIGNEE"], 0))
+    coude = C @ ns["A"].pose.bones["lowerarm_r"].head
+    tv = G.TAN_V
+    e = lambda v: Vector((v.x / max(-v.z, 1e-3) / (tv * 16 / 9), v.y / max(-v.z, 1e-3) / tv))
+    et = e(tete)
+    if "detail" in OPT:
+        print("DET tete (%.2f,%.2f) z %.2f poing (%.2f,%.2f) z %.2f" % (et.x, et.y, -tete.z, e(poing).x, e(poing).y, -poing.z))
+    if -tete.z < 0.15:
+        return False
+    if abs(et.x) > 0.95 or abs(et.y) > 0.95:
+        return False
+    a, b = e(poing), e(coude) if -coude.z > 0.05 else e(poing)
+    ab = b - a
+    u = max(0.0, min(1.0, (et - a).dot(ab) / max(ab.length_squared, 1e-9)))
+    d = (a + ab * u - et).length
+    prof_bras = min(-poing.z, -coude.z)
+    return not (d < 0.16 and -tete.z > prof_bras)
+
+
 def mesurer(ns, nom, act, longueur, mq, freq=60):
     """Tête de l'arme à l'écran (dans le cadre ? arc continu ?) et pires sauts de rotation des os par image."""
     ns["A"].animation_data.action = act
-    pts, rot, pom, tz = [], [], [], []
+    pts, rot, pom, tz, imp = [], [], [], [], []
     prec = None
     t = 0.0
     while t <= longueur + 1e-6:
@@ -157,6 +186,7 @@ def mesurer(ns, nom, act, longueur, mq, freq=60):
         W = ns["CAM_DE_B"] @ ns["A"].pose.bones["hand_r"].matrix @ ns["PRISE_D"]
         from mathutils import Vector
         pom.append(-(W @ Vector((0, ns["MILIEU_POIGNEE"] - float(OPT.get("bout", "0.35")), 0))).z)
+        imp.append((t, _tete_lisible(ns)))
         tz.append(min(-(W @ Vector((0, ns["MILIEU_POIGNEE"] + l, 0))).z for l in (0.3, 0.45, 0.6)))
         q = {b: ns["A"].pose.bones[b].matrix.to_quaternion() for b in ("upperarm_r", "lowerarm_r", "hand_r")}
         if prec is not None:
@@ -164,6 +194,10 @@ def mesurer(ns, nom, act, longueur, mq, freq=60):
         prec = q
         t += 1.0 / freq
     vis = sum(1 for _, e in pts if abs(e[0]) < 1.0 and abs(e[1]) < 1.0)
+    if "frappe" in mq:
+        okf = sum(1 for (tt, ok) in imp if mq["frappe"] - 1e-6 <= tt <= mq["fin_frappe"] + 1e-6 and ok)
+        nf = sum(1 for (tt, ok) in imp if mq["frappe"] - 1e-6 <= tt <= mq["fin_frappe"] + 1e-6)
+        print("MASSES %-10s IMPACT tete lisible %d/%d" % (nom, okf, nf))
     print("MASSES %-10s bout du manche (35 cm sous le poing) : profondeur min %.2f m | tete profondeur min %.2f m" % (nom, min(pom), min(tz)))
     # retour en arrière pendant la frappe : la tête recule sur sa propre trajectoire (produit scalaire de pas successifs < 0)
     arr = 0
