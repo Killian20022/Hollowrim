@@ -27,13 +27,14 @@ static func peindre(img: Image, p: Dictionary, graine: int) -> void:
 	var rougeur := float(p.get("rougeur", 0.5))
 	var barbe := float(p.get("barbe", 0.0)) if sexe == "h" else 0.0
 	var f_age := 1.0 + 0.25 * age
+	var f_orb := 0.72 if sexe == "f" else 1.0     # orbites moins creusées chez les femmes (sinon effet « maquillage charbonneux »)
 	# ---- grain de peau et marbrures (tout le visage)
 	_grain(graine)
 	for s in [-1.0, 1.0]:
 		# orbites : creux sous l'arcade, coin interne profond, paupière supérieure
-		_tache(s * 1.0, -0.12, 0.85, 0.55, -0.20 * f_age)
-		_tache(s * 0.55, 0.02, 0.28, 0.30, -0.18)
-		_tache(s * 1.05, -0.42, 0.70, 0.14, -0.12)
+		_tache(s * 1.0, -0.12, 0.85, 0.55, -0.16 * f_age * f_orb)
+		_tache(s * 0.55, 0.02, 0.28, 0.30, -0.14 * f_orb)
+		_tache(s * 1.05, -0.42, 0.70, 0.14, -0.08 * f_orb)
 		# arcade sourcilière éclairée
 		_tache(s * 0.95, -0.80, 0.85, 0.22, 0.11)
 		# poches sous les yeux (âge)

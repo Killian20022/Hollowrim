@@ -15,7 +15,7 @@ class_name RealismePnj
 static var _ancien := -1
 ## Images précalculées (outils/generer_realisme_pnj.gd, VERSION++ après toute modif des peintures) : rien n'est repeint au lancement.
 const DOSSIER := "res://assets/pnj/realisme"
-const VERSION := 1
+const VERSION := 2
 static var enregistrer := false
 static var chrono := false
 
@@ -85,6 +85,8 @@ static func appliquer(n: Node3D, id: String) -> void:
 					var tb := (mi.get_active_material(s) as ShaderMaterial).get_shader_parameter("tex_base") as Texture2D if mi.get_active_material(s) is ShaderMaterial else null
 					if nom == "accessoires" and s == 0 and tb != null and tb.get_width() >= 256:
 						_repeindre(mi, s, "yeux", p, graine, "%s_%s_%d" % [id, nom, s])     # atlas des accessoires : yeux en amande (cartes R_OEIL)
+					elif nom == "accessoires" and s == 1:
+						_regler(mi, s, {"saturation": SAT_ACCESSOIRES, "teinte": FOURRURE})     # cartes découpées : fourrure, mèches (moins blanc plastique)
 					else:
 						_regler(mi, s, {"saturation": SAT_ACCESSOIRES})     # pièces modelées (tresses, ceintures, plastron) : un peu ternies
 			continue
@@ -102,8 +104,10 @@ static func appliquer(n: Node3D, id: String) -> void:
 
 ## Saturation (uniforme `saturation` du shader ps1_perso, multipliée) par genre de pièce : peau moins orangée « poupée », cheveux
 ## moins vifs (roux orange vif, blond paille), étoffes et cuirs passés.
-const SAT := {"peau": 0.78, "cheveux": 0.62, "barbe": 0.66, "etoffe": 0.80, "yeux": 0.82}
+const SAT := {"peau": 0.78, "cheveux": 0.62, "barbe": 0.66, "etoffe": 0.70, "yeux": 0.82}
 const SAT_ACCESSOIRES := 0.82
+## Fourrures et mèches découpées (surface 1 des accessoires) : gris-brun un peu plus sombre (le blanc pur faisait « plastique » au soleil).
+const FOURRURE := Color(0.84, 0.82, 0.80)
 ## Cheveux légèrement assombris (les aplats clairs font « casque » au soleil).
 const VAL_CHEVEUX := 0.86
 

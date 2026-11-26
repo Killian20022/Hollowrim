@@ -69,6 +69,7 @@ TESTS=(
 	"test_villageois|--nouvelle"
 	"test_pnj_village|--nouvelle"
 	"test_habitants_pnj|--nouvelle"   # retours exe 6 : 10 habitants en variantes PnjNordique (os, clips, peau, apparences distinctes)
+	"test_realisme_pnj|--sans-cache-persos"   # pnj/realisme_v1 : visages peints, étoffes usées, mêmes maillages / os / clips, crypte non touchée
 	"test_gardes_village|--nouvelle --paisible"
 	"test_gardes_maison|--nouvelle"   # gardes en armure maison (pnj/gardes_armures_maison) : ensembles de data/gardes.json, armes, variété, démembrement, butin
 	"test_vie|--nouvelle --paisible"   # lot vie_pnj : planning jour/nuit, rentrée, sommeil, fuite, répliques, sauvegarde `vie`
