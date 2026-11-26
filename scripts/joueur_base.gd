@@ -19,6 +19,8 @@ const MODELES := {
 const BASSIN_HUMAINS := 0.949
 ## Teinte de peau des bras à la 1re personne (moyenne de la peau de l'atlas, voir teinte_peau()).
 static var _scenes := {}
+## --posture-clip : sans la correction de posture des jambes (le clip tel quel, pour comparer)
+static var sans_posture := OS.get_cmdline_user_args().has("--posture-clip")
 static var _peau := {}
 
 static func valide(sexe: String) -> String:
@@ -47,6 +49,8 @@ static func creer(sexe := DEFAUT) -> Node3D:
 	racine.add_child(ap)
 	ap.root_node = NodePath("..")
 	ap.add_animation_library("", Humain.bibliotheque())
+	if not sans_posture:
+		PostureJoueur.equiper(sq, ap)     # repos accroupis des clips humains redressés (jambes seules), voir posture_joueur.gd
 	racine.set_meta("apparence", sexe)
 	return racine
 

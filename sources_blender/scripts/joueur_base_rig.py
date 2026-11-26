@@ -13,6 +13,37 @@ H = HAUTEUR
 for p in mb.polygons:
     p.use_smooth = True
 
+# ---------------------------------------------------------------------------------------------------- 3 bis. fissures (passe 2)
+# La décimation laisse quelques arêtes non-manifold (une arête à 3 faces, une fente de 2 arêtes ouvertes : homme 1, femme 4). On retire
+# les faces autour, on rebouche (triangles) ; les UV des faces neuves reprennent celles d'une face voisine au même sommet.
+def reparer_fissures(me):
+    bm = bmesh.new(); bm.from_mesh(me)
+    la = bm.loops.layers.uv.active
+    neuves = []
+    for _ in range(4):
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0005)
+        mauvais = {v for e in bm.edges if not e.is_manifold for v in e.verts}
+        if not mauvais:
+            break
+        faces = {f for v in mauvais for f in v.link_faces}
+        bmesh.ops.delete(bm, geom=list(faces), context="FACES_ONLY")
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context="VERTS")
+        r = bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary], sides=40)
+        t = bmesh.ops.triangulate(bm, faces=r["faces"])
+        neuves += t["faces"]
+    neuves = [f for f in neuves if f.is_valid]
+    for f in neuves:
+        f.smooth = True
+        for l in f.loops:
+            autre = next((l2 for f2 in l.vert.link_faces if f2 not in neuves for l2 in f2.loops if l2.vert == l.vert), None)
+            if autre is not None:
+                l[la].uv = autre[la].uv.copy()
+    ouv = sum(1 for e in bm.edges if not e.is_manifold)
+    bm.to_mesh(me); bm.free()
+    return len(neuves), ouv
+n_f, n_o = reparer_fissures(mb)
+log("fissures : %d faces de rebouchage, arêtes non-manifold restantes %d, %d tris" % (n_f, n_o, len(mb.polygons)))
+
 # ---------------------------------------------------------------------------------------------------- 4. classes
 Pb = coords(mb)
 nv = len(Pb)
@@ -301,6 +332,38 @@ bpy.ops.object.mode_set(mode="POSE")
 bpy.ops.pose.armature_apply()
 bpy.ops.object.mode_set(mode="OBJECT")
 arm.name = "Armature"
+
+# ---------------------------------------------------------------------------------------------------- mains affinées (passe 2)
+# Les mains de la source sont larges et épaisses (largeur main / avant-bras : homme 0,90, femme 1,03 ; cible 0,75-0,80 : « ça fait
+# jouet »). Leur longueur est déjà juste (0,75-0,77 de l'avant-bras) : on resserre seulement autour de l'axe poignet -> main, en T,
+# chaque sommet au prorata de son poids de main (le poignet se raccorde en douceur). --main_largeur=<facteur>.
+# facteurs par côté (mesurés au contrôle : la main gauche et la droite de la source ne réagissent pas pareil, pouce plus écarté)
+MAIN_L = {s: float(arg("main_largeur_" + s, arg("main_largeur", {"homme": {"l": "0.91", "r": "0.84"}, "femme": {"l": "0.74", "r": "0.73"}}[SEXE][s])))
+          for s in ("l", "r")}
+if MAIN_L["l"] != 1.0 or MAIN_L["r"] != 1.0:
+    gi = {g.name: g.index for g in corps.vertex_groups}
+    Pm = coords(mb)
+    for s in ("l", "r"):
+        b_ = arm.data.bones["hand_" + s]
+        w = np.zeros(len(Pm))
+        for v in mb.vertices:
+            for g in v.groups:
+                n_ = corps.vertex_groups[g.group].name
+                if n_ == "hand_" + s or (n_.startswith(DOIGTS) and n_.endswith("_" + s)):
+                    w[v.index] += g.weight
+        w = np.clip(w, 0.0, 1.0)
+        o_ = np.array(arm.matrix_world @ b_.head_local)
+        coeur = w > 0.9
+        ax = Pm[coeur].mean(0) - o_
+        ax /= np.linalg.norm(ax)
+        d = Pm - o_
+        par_ = (d @ ax)[:, None] * ax
+        perp = d - par_
+        f_ = 1.0 - (1.0 - MAIN_L[s]) * w[:, None]
+        Pm = np.where((w > 0)[:, None], o_ + par_ + perp * f_, Pm)
+        log("main %s : %d sommets resserrés x%.2f autour de l'axe du poignet" % (s, int((w > 0).sum()), MAIN_L[s]))
+    mb.vertices.foreach_set("co", Pm.ravel())
+    mb.update()
 
 # normales lissées sur le corps entier, gardées (normales personnalisées) avant la découpe en pièces : pas de couture d'éclairage
 mb = corps.data
