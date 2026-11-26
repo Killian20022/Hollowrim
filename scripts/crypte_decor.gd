@@ -1211,10 +1211,18 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 			# en relief (7,5 cm plus bas), sinon une fente de vide au pied des passages sans seuil (portes secrètes, crypte_trous)
 			var mc2: float = (c[0] + c[1]) * 0.5
 			boite(sol, Vector3(mc2, y - 0.045, fixe_mur) if horizontal else Vector3(fixe_mur, y - 0.045, mc2), Vector3(c[1] - c[0], 0.09, 0.6) if horizontal else Vector3(0.6, 0.09, c[1] - c[0]), 0.0, true)
-			if horizontal:
-				quad("voute", Vector3(c[0], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur + 0.3), Vector3(c[0], y + ho, fixe_mur + 0.3), Vector3.DOWN)
-			else:
-				quad("voute", Vector3(fixe_mur - 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[1]), Vector3(fixe_mur - 0.3, y + ho, c[1]), Vector3.DOWN)
+			# dessous du linteau, coupé aux MÊMES abscisses que le pan au-dessus de l'embrasure (plan_v : _coupes(c0, c1, [0.7])) : leur arête
+			# commune (y + ho, face du mur) a les mêmes sommets des deux côtés. Avant, ce quad n'avait que ses deux coins et le bas du pan
+			# deux sommets de plus (jonction en T) : l'accroche PS1 ouvrait une fissure d'un pixel le long du haut de l'embrasure (porte
+			# secrète des quartiers une fois le mur fragile cassé : 2 vues de l'audit, ~130 px ; crypte_trous v2).
+			var cl := _coupes(c[0], c[1], [0.7])
+			for ic in cl.size() - 1:
+				var u0: float = cl[ic]
+				var u1: float = cl[ic + 1]
+				if horizontal:
+					quad("voute", Vector3(u0, y + ho, fixe_mur - 0.3), Vector3(u1, y + ho, fixe_mur - 0.3), Vector3(u1, y + ho, fixe_mur + 0.3), Vector3(u0, y + ho, fixe_mur + 0.3), Vector3.DOWN)
+				else:
+					quad("voute", Vector3(fixe_mur - 0.3, y + ho, u0), Vector3(fixe_mur + 0.3, y + ho, u0), Vector3(fixe_mur + 0.3, y + ho, u1), Vector3(fixe_mur - 0.3, y + ho, u1), Vector3.DOWN)
 			# cadre de porte épais : deux jambages et un linteau en saillie sur le mur
 			if not c[2]:
 				_cadre(horizontal, plan, signe, c[0], c[1], ho, y)
