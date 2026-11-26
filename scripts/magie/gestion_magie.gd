@@ -3478,7 +3478,9 @@ func _maj_statuts() -> void:
 
 ## Pose la couche additive magie_voile sur les maillages de `n` (seulement ceux sans material_overlay) ; renvoie
 ## [[maillage, ancien overlay]] pour la retirer.
-func _voiler(n: Node3D, motif: int, couleur: Color, coeur: Color, force: float, axe: Vector3, fond := 0.0) -> Array:
+## `coupe_pt` (repère de `n`, enchantement d'arme) : la couche ne couvre que ce qui est au-delà de ce point le long de `axe`
+## (la lame), jamais la poignée tenue dans le poing.
+func _voiler(n: Node3D, motif: int, couleur: Color, coeur: Color, force: float, axe: Vector3, fond := 0.0, coupe_pt := Vector3.INF) -> Array:
 	var res: Array = []
 	var liste := n.find_children("*", "MeshInstance3D", true, false)
 	if n is MeshInstance3D:
@@ -3501,6 +3503,10 @@ func _voiler(n: Node3D, motif: int, couleur: Color, coeur: Color, force: float, 
 		m.set_shader_parameter("gonfle", 0.006 / maxf(echelle, 0.0001))
 		var axe_local := (mi.global_basis.inverse() * (n.global_basis * axe)).normalized()
 		m.set_shader_parameter("axe", axe_local)
+		if coupe_pt != Vector3.INF:
+			var p_loc := mi.global_transform.affine_inverse() * (n.global_transform * coupe_pt)
+			m.set_shader_parameter("coupe_on", true)
+			m.set_shader_parameter("coupe", p_loc.dot(axe_local))
 		mi.material_overlay = m
 		res.append(mi)
 		if res.size() >= 24:
@@ -3572,7 +3578,8 @@ func enchant_arme(arme: Node3D, ecole: String, actif: bool) -> void:
 	var voile: Array = {"feu": [1, "#ec6a1f", "#fff0a8", 0.75], "glace": [2, "#5f9fe8", "#e8f6ff", 0.6], "electricite": [3, "#7a7af0", "#f0f2ff", 0.8], "tenebres": [4, "#7a2ad0", "#d08aff", 0.6], "soin": [0, "#b8d060", "#fff4c0", 0.5], "protection": [0, "#7ab0d8", "#eaf8ff", 0.5]}[ecole]
 	if ecole == "electricite" and not foudre_v1:
 		voile[3] = 0.4   # FOUDRE v2 : voile de la lame plus discret, les arcs structurés font l'effet
-	e.voiles = _voiler(arme, voile[0], Color(voile[1]), Color(voile[2]), voile[3], e.axe, 0.4)
+	# voile sur la LAME seule (3/4 du côté opposé à la poignée) : la poignée est dans le poing des mains 1P / du corps 3P
+	e.voiles = _voiler(arme, voile[0], Color(voile[1]), Color(voile[2]), voile[3], e.axe, 0.4, centre - (e.axe as Vector3) * ext[axe_i])
 	if ecole == "electricite":
 		e.eclair = eclair(null, "electricite", 1.0, -1.0, 0.06, _gen_lame_arcs.bind(e))
 	_enchants[id] = e

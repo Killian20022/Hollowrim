@@ -16,6 +16,10 @@ uniform int motif = 0;
 uniform float cases = 64.0;     // cases du motif par mètre (repère de l'objet)
 uniform vec3 axe = vec3(0.0, 1.0, 0.0);
 uniform float fond = 0.0;       // teinte additive de fond sur tout le modèle (gel bleuté, lame enchantée)
+// Enchantement d'arme (bugs/mains_glace) : la couche s'arrête à la naissance de la lame (dot(p_obj, axe) < coupe) ; sans
+// cela la poignée gonflée et sa teinte de fond traversaient le poing fermé : main « blanche » 30 s (enchantement de glace).
+uniform bool coupe_on = false;
+uniform float coupe = 0.0;
 
 varying vec3 p_obj;
 varying vec3 n_vue;
@@ -37,6 +41,9 @@ void vertex() {
 }
 
 void fragment() {
+	if (coupe_on && dot(p_obj, axe) < coupe) {
+		discard;
+	}
 	float bord = 1.0 - abs(normalize(n_vue).z);
 	float a = step(0.55, bord) * 0.5 + step(0.8, bord) * 0.5;
 	vec3 q = floor(p_obj * cases);
