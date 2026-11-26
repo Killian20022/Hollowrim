@@ -99,8 +99,9 @@ func _tester() -> void:
 			var nom := String(mi.skin.get_bind_name(k))
 			if nom.begins_with("lowerarm_twist_"):
 				peaux[mi.name] = true
-	# avant-bras « runes » (avant_bras_runes.py) : un maillage par bras (gant, brassard, fourrure) + haut de manche et de peau
-	for n in ["peau_bras", "manches", "avant_bras_l", "avant_bras_r"]:
+	# avant-bras « runes » (avant_bras_runes.py) : un maillage par bras (gant, brassard, fourrure) + manches fermées
+	# (manche_fermee_fps.py, 2026-11-25 : elles remplacent les anciens bouts ouverts « manches » + « peau_bras »)
+	for n in ["manches", "avant_bras_l", "avant_bras_r"]:
 		_verif(peaux.has(n), "%s : poids sur les os de torsion" % n)
 	# --- clips des coups
 	var tb := TorsionAvantBras.new()
