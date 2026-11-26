@@ -325,6 +325,9 @@ var vue_3 := true
 var _portees := {}            # emplacement -> MeshInstance3D posé sur le squelette
 var _originaux := {}          # MeshInstance3D du héros -> Mesh d'origine
 var _cheveux_visibles := {}   # MeshInstance3D -> visibilité d'origine
+## MeshInstance3D -> material_override d'origine (null pour le héros) : le corps du Gardien (gardes en armure maison, compagnon mort de
+## la crypte) porte ses matières en material_override ; les remettre à null laissait la cotte/jupe de mailles BLANCHE (sans matière).
+var _mats_originaux := {}
 var _fps_origine := {}        # [MeshInstance3D, surface] -> matériau d'origine
 var _fps_id := ""
 static var _mats := {}        # chemin du glb -> {nom_matière: ShaderMaterial}
@@ -393,6 +396,7 @@ func installer(sq: Skeleton3D, eq: EquipementCorps) -> void:
 	equipement = eq
 	_portees.clear()
 	_originaux.clear()
+	_mats_originaux.clear()
 	_cheveux_visibles.clear()
 	if equipement != null and not equipement.change.is_connected(_sur_change):
 		equipement.change.connect(_sur_change)
@@ -841,7 +845,9 @@ func _masquer() -> void:
 		if not _originaux.has(mi):
 			_originaux[mi] = mi.mesh
 		if nom in ["tunique", "brassards", "accessoires", "mante", "pantalon"]:
-			mi.material_override = _doublure_cotte() if base_de(porte("torse")) in TORSES_COTTE_TEINTE else null
+			if not _mats_originaux.has(mi):
+				_mats_originaux[mi] = mi.material_override
+			mi.material_override = _doublure_cotte() if base_de(porte("torse")) in TORSES_COTTE_TEINTE else _mats_originaux[mi]
 		elif nom == "peau":
 			mi.material_overlay = _doublure_bras() if base_de(porte("torse")) in TORSES_COTTE_TEINTE else null
 		var orig: Mesh = _originaux[mi]

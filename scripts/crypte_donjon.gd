@@ -903,7 +903,9 @@ func _x_barricade(_m: Dictionary) -> void:
 	# barricade de l'intérieur contre la porte, brèche à l'est ; les compagnons d'Eirik sont morts ici
 	d.barricade(_l(-14.0, -49.1, y), PI, 3.0, 1.3, -0.9)      # tonneau et table renversée côté salle (ils entraient dans le mur) ; même brèche
 	d.os_tas(_l(-16.0, -53.0, y), 5, 0.6)
-	_compagnon_mort(Vector3(-16.0, y + 0.02, -53.0), 0.9)      # « Corps d'un compagnon » (interaction note_compagnon_2) : il lui fallait un corps
+	# « Corps d'un compagnon » (interaction note_compagnon_2) : il lui fallait un corps. Pieds 0,6 m devant l'interaction : allongé sur le
+	# dos (Death01), son torse est sous le point de fouille
+	_compagnon_mort(Vector3(-16.0, y + 0.02, -53.0) + Basis(Vector3.UP, 0.9) * Vector3(0, 0, 0.6), 0.9)
 	d.os_tas(_l(-12.6, -54.2, y), 4, 0.5)
 	d.os_tas(_l(-15.0, -51.4, y), 4, 0.5)
 	d.sac_dechire(_l(-16.8, -52.2, y), 0.5)
@@ -915,18 +917,52 @@ func _x_barricade(_m: Dictionary) -> void:
 	d.etagere_renversee(_l(-16.6, -50.4, y), PI * 0.5, 1.4)
 	d.tonneau(_l(-11.2, -54.8, y), 0.8)
 
-## Compagnon d'Eirik mort (pos dans le repère de la crypte, pas du module : le nœud est posé sous la racine) : personnage allongé (dernière image de Death01, comme le corps d'Eirik dans l'alcôve).
+## Compagnon d'Eirik mort (pos dans le repère de la crypte, pas du module : le nœud est posé sous la racine) : un aventurier en
+## armure de fer MAISON (GardeMaison : corps du Gardien + pièces d'armure du jeu, sans livrée ni arme : son épée est au sol), figé
+## allongé sur la dernière image du clip capturé Death01 par draugr.gd figer_pose_allongee (comme les dépouilles des ennemis : bâti hors
+## de l'arbre, la pose est rejouée à l'entrée dans l'arbre, sinon il restait DEBOUT bras en croix, pose de repos). Autour : sang
+## séché sous le torse, torche éteinte tombée de sa main. Retour arrière : `--compagnon-ancien` (Guerrier d'origine, PnjNordique).
+const COMPAGNON := {"role": "epee", "ensemble": "fer", "tabard": "", "arme": "", "bouclier": "", "poil": 2, "peau": 1}
 func _compagnon_mort(pos: Vector3, lacet: float) -> void:
-	var c: Node3D = PnjNordique.creer("garde")      # même fabrique que le corps d'Eirik (tertre.gd) : tenue complète, pièces visibles
+	var ancien := OS.get_cmdline_user_args().has("--compagnon-ancien") or not GardeMaison.actif()
+	var c: Node3D = PnjNordique.creer("garde") if ancien else GardeMaison.creer(COMPAGNON)
 	c.name = "CorpsCompagnon"
 	c.position = pos
 	c.rotation.y = lacet
 	d.racine.add_child(c)
-	var ap := c.get_node_or_null("Animations") as AnimationPlayer
-	if ap != null and ap.has_animation("Death01"):
-		ap.play("Death01")
-		ap.seek(ap.get_animation("Death01").length - 0.05, true)
-		ap.pause()
+	(load("res://scripts/draugr.gd") as GDScript).call("figer_pose_allongee", c)      # draugr.gd sans class_name (comme Butin)
+	if ancien or d.muet:
+		return
+	# sang séché sous le torse (Death01 : il tombe sur le dos, le torse ~0,9 m derrière les pieds) et à son flanc
+	var dos := Basis(Vector3.UP, lacet) * Vector3(0, 0, -1)
+	_sang_seche(pos + dos * 0.85 + Vector3(0, 0.012, 0), 0.95, lacet, 0)
+	_sang_seche(pos + dos * 0.2 + Basis(Vector3.UP, lacet) * Vector3(0.45, 0, 0) + Vector3(0, 0.014, 0), 0.5, lacet + 1.1, 1)
+	# torche éteinte tombée près de sa main droite : manche de bois, tête charbonnée (d.boite est en repère du module : lw)
+	var t := pos + Basis(Vector3.UP, lacet) * Vector3(-0.75, 0, -0.55)
+	var lt := lacet + 0.6
+	d.boite("bois", lw(t + Vector3(0, 0.03, 0)), Vector3(0.05, 0.05, 0.62), lw_lacet(lt))
+	d.boite("noir", lw(t + Basis(Vector3.UP, lt) * Vector3(0, 0, 0.36) + Vector3(0, 0.045, 0)), Vector3(0.085, 0.085, 0.15), lw_lacet(lt))
+
+## Tache de sang SÉCHÉ (permanente, contrairement aux traces de combat de Sang qui s'effacent) : plan au ras du sol, texture de flaque
+## de Sang, brun noirâtre mat, découpe alpha nette (pixels PS1).
+func _sang_seche(p: Vector3, taille: float, lacet: float, variante: int) -> void:
+	var mi := MeshInstance3D.new()
+	mi.name = "SangSeche_%d" % variante
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(taille, taille * 0.8)
+	mi.mesh = pm
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = Sang.texture("flaque", variante)
+	m.albedo_color = Color(0.22, 0.05, 0.035)
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	m.roughness = 0.95
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.position = p
+	mi.rotation.y = lacet
+	d.racine.add_child(mi)
 
 func _x_piege_lb2w(_m: Dictionary) -> void:
 	_indice_dalle(-25.0, -43.0, BAS, PI * 0.5, Vector3(-25.0, BAS + 1.1, -44.3))
