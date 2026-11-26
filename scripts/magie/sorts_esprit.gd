@@ -903,9 +903,22 @@ func repulsion(s: DonneesSort, charge: float, paume: Node3D, oeil: Vector3, avan
 			if est_chef(e):
 				vit *= 0.25
 			_frapper(e, dg * k, ce, dir, lerpf(18.0, s.stagger, n) * k, s)
-			if vivant(e):
-				projeter(e, dir * vit + Vector3.UP * vit * lerpf(0.3, 0.42, n), s)
-			(res["ennemis"] as Array).append(e)
+			# PNJ du village : le coup peut le faire prendre les armes (Crime : PnjCombat prend son corps, le PNJ d'origine est caché) ;
+			# c'est le corps VISIBLE (le combattant) qui doit voler, pas le nœud mis en sommeil
+			if n >= 0.34 and "remplace" in e and not Elements.est_remplace(e):
+				# une onde qui l'envoie voler n'est pas une bousculade : un PNJ du village encore calme (le 1er coup n'est qu'un
+				# avertissement) prend les armes tout de suite, et c'est son combattant, avec sa vie et son ragdoll, qui vole
+				var cr := Crime.trouver(e)
+				if cr != null and cr.combattant_de(e) == null:
+					cr.signaler_agression(e)
+			var vis := Elements.corps_visible(e) as CharacterBody3D
+			if vis == null or (vis != e and (res["ennemis"] as Array).has(vis)):
+				continue
+			if vis != e:
+				vit = force * k * clampf(1.0 / sqrt(maxf(puissance(vis), 0.1)), 0.3, 1.15)
+			if vivant(vis):
+				projeter(vis, dir * vit + Vector3.UP * vit * lerpf(0.3, 0.42, n), s)
+			(res["ennemis"] as Array).append(vis)
 	for o in _objets(oeil, portee + 0.5):
 		var oc := Telekinesie.centre(o)
 		var d2 := oc - oeil

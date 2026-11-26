@@ -1126,7 +1126,40 @@ func _ronde_monde() -> void:
 	for n in get_tree().get_nodes_in_group("villageois"):
 		if morts.has(cle_pnj(n)) and n.get("remplace") == null:
 			oublier(n)
+			if n.get("marionnette") == true and (n as Node3D).is_visible_in_tree():
+				_cadavre_invite(n as Node3D)
 			n.queue_free()
+
+## Coop, chez l'invité : le PNJ tué chez l'hôte (son PnjCombat n'existe que là-bas) restait DEBOUT, figé dans la dernière pose
+## reçue, puis disparaissait. Son corps tombe ici en ragdoll et reste au sol (même cadavre que chez l'hôte, à la pose près).
+func _cadavre_invite(n: Node3D) -> void:
+	var mod: Node3D = n.get("modele")
+	var parent := n.get_parent() as Node3D
+	if mod == null or not is_instance_valid(mod) or parent == null:
+		return
+	var xf := mod.global_transform
+	for k in ["_pieds", "_tete"]:
+		var o: Variant = n.get(k)
+		if o is Node and is_instance_valid(o):
+			if o is SkeletonModifier3D:
+				(o as SkeletonModifier3D).active = false
+			elif (o as Node).get("actif") != null:
+				(o as Node).set("actif", false)
+	var a: Variant = n.get("anim")
+	if a is AnimationPlayer:
+		(a as AnimationPlayer).pause()
+	mod.get_parent().remove_child(mod)
+	parent.add_child(mod)
+	mod.global_transform = xf
+	var rd := Ragdoll.equiper(mod) as Ragdoll
+	if rd == null:
+		return
+	if joueur != null:
+		rd.ignorer(joueur)
+	rd.endormir_apres(4.0)
+	var arriere := mod.global_transform.basis.z
+	arriere.y = 0.0
+	rd.declencher(-arriere.normalized() * 110.0 + Vector3.UP * 15.0, mod.global_position + Vector3.UP * 1.15, "spine_03")
 
 ## La ronde du joueur courant (même corps que l'ancienne _ronde, par joueur).
 func _ronde() -> void:
