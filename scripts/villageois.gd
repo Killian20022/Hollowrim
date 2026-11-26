@@ -113,6 +113,12 @@ var _invite := false
 var _var := 1.0  # variation personnelle de rythme (animations de repos)
 var _marche := MARCHE  # vitesse de marche personnelle
 var _vit := 0.0  # vitesse de marche actuelle
+## Collisions (bugs/collisions_acteurs) : évitement par la capsule (EvitementActeur.Pilote), vitesse RÉELLE du dernier
+## move_and_slide (l'animation de marche la suit), attente au repos quand il est coincé sous les yeux d'un joueur.
+var _pilote := EvitementActeur.Pilote.new()
+var _v_reel := 0.0
+var _sur_place := 0.0
+var _attente := 0.0
 var _avance := false
 var _tete: SuiviTete
 var _delai_variete := 12.0
@@ -657,21 +663,26 @@ func _physics_process(dt: float) -> void:
 		return      # il vient d'entrer (coucher() coupe le process, donc retire le corps de l'espace) : plus de move_and_slide dans cette image
 	if _assis != "":
 		velocity = Vector3.ZERO     # assis sur le banc (ou en train de s'asseoir / se lever) : immobile, sans collision propre
+		_v_reel = 0.0
 	elif velocity == Vector3.ZERO and is_on_floor() and (_images_physique + get_instance_id()) & 3 != 0:
+		_v_reel = 0.0
 		pass     # perf : à l'arrêt sur le sol, move_and_slide ne sert qu'une image sur 4 (rien ne le pousse, il retomberait en ≤ 4 images)
 	else:
 		_glisser(dt)
+	_sur_place = clampf(_sur_place + (dt if _vit > 0.3 and _v_reel < 0.15 * _vit else -2.0 * dt), 0.0, 1.0)
 
-	if cap != Vector3.ZERO:  # en déplacement : Walk si ça avance, Idle si demi-tour
+	if cap == Vector3.ZERO and etat in [ALLER, RETOUR, RENTRE] and _anim in ["Walk", "Jog_Fwd"]:
+		_jouer("Idle", 0.3)      # il s'arrête (attente, demi-tour) : plus de marche sur place
+	if cap != Vector3.ZERO:  # en déplacement : Walk si ça avance, Idle si demi-tour ou s'il bute (vitesse réelle nulle)
 		if etat in [ALLER, RETOUR, RENTRE]:
-			if _vit > 0.1:
+			if _vit > 0.1 and _sur_place < 0.35:
 				if _vite and anim.has_animation("Jog_Fwd"):
 					_jouer("Jog_Fwd", 0.2)
 					anim.speed_scale = clampf(_vit / REF_COURSE, 0.6, 1.5)
 				else:
 					_jouer("Walk", 0.3)
 					anim.speed_scale = clampf(_vit / REF_MARCHE, 0.5, 1.6)
-			elif not _avance:
+			elif not _avance or _sur_place >= 0.35:
 				_jouer("Idle", 0.3)
 	_regard_tete(dist)
 	if cj != joueur and joueur != null and is_instance_valid(joueur):
@@ -686,8 +697,10 @@ func _glisser(dt: float) -> void:
 		velocity *= k
 		move_and_slide()
 		velocity /= k
+		_v_reel = EvitementActeur.vitesse_reelle(self) / k
 	else:
 		move_and_slide()
+		_v_reel = EvitementActeur.vitesse_reelle(self)
 
 ## Conversation : alterne Idle_Talking (2,5 à 5 s) et Idle (1 à 2,5 s).
 func _parole(dt: float) -> void:
@@ -793,8 +806,7 @@ func _cible_index() -> int:
 func _vers_point(p: Vector3, dt: float) -> Vector3:
 	var d := p - global_position
 	d.y = 0.0
-	var vitesse_reelle := Vector2(velocity.x, velocity.z).length()
-	_bloque = _bloque + dt if (_t > 1.0 and _avance and vitesse_reelle < 0.2) else 0.0
+	_bloque = _bloque + dt if (_t > 1.0 and _avance and _v_reel < 0.2) else 0.0
 	if d.length() < 0.25 or _bloque > 2.0 or _t > 40.0:
 		_bloque = 0.0
 		if etat == ALLER:
@@ -810,7 +822,7 @@ func _vers_point(p: Vector3, dt: float) -> Vector3:
 			_cible = 1 + randi() % maxi(points.size() - 1, 1)
 			_activite()
 		return Vector3.ZERO
-	return d.normalized()
+	return _pilote.corriger(self, d.normalized(), dt) if lod == 0 else d.normalized()
 
 ## Tête : suit le joueur en deçà de DIST_TETE (ou pendant la conversation), sinon un éventuel
 ## regard autour ; sinon revient droit devant.
@@ -948,8 +960,10 @@ func _vers_but(dt: float) -> Vector3:
 	var p: Vector3 = _route[0]
 	var d := p - global_position
 	d.y = 0.0
-	var vitesse_reelle := Vector2(velocity.x, velocity.z).length()
-	_bloque = _bloque + dt if (_t > 1.0 and _avance and vitesse_reelle < 0.2) else 0.0
+	if _attente > 0.0:          # coincé sous les yeux d'un joueur : il attend au repos, puis réessaie par l'autre côté
+		_attente -= dt
+		return Vector3.ZERO
+	_bloque = _bloque + dt if (_t > 1.0 and _avance and _v_reel < 0.2) else 0.0
 	# lot sommeil : pietine sans approcher (il glisse contre un autre corps, ou tourne sur place) : coincé aussi
 	_prog_t += dt
 	var pietine := false
@@ -964,13 +978,19 @@ func _vers_but(dt: float) -> Vector3:
 		_bloque = 0.0
 		_prog_t = 0.0
 		_prog_d = INF
+		if coince and (EvitementActeur.vu(self, global_position) or EvitementActeur.vu(self, p)):
+			# vu par un joueur : jamais de saut à travers le décor ; repos 1,5 s puis nouvel essai de l'autre côté
+			_pilote.changer_cote()
+			_attente = 1.5
+			_t = minf(_t, 90.0)
+			return Vector3.ZERO
 		if coince:
-			global_position = Vector3(p.x, global_position.y + 0.05, p.z)   # coincé : il se pose au point visé plutôt que de rester planté
+			global_position = Vector3(p.x, global_position.y + 0.05, p.z)   # coincé HORS DE VUE : il se pose au point visé
 		_route.pop_front()
 		if dernier:
 			_arrive()
 		return Vector3.ZERO
-	return d.normalized()
+	return _pilote.corriger(self, d.normalized(), dt) if lod == 0 else d.normalized()
 
 func _arrive() -> void:
 	_portes_route.clear()

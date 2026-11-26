@@ -177,6 +177,8 @@ var _recul := Vector3.ZERO
 var _mailles: Array[MeshInstance3D] = []
 var _var := 1.0  # petite variation de rythme propre à chaque draugr
 var _vit := 0.0
+var _v_reel := 0.0             # vitesse horizontale vraiment parcourue au dernier move_and_slide (EvitementActeur)
+var _sur_place := 0.0          # s pendant lesquelles il veut avancer sans avancer : il passe au repos (plus de course sur place)
 var _pieds: PiedsAuSol  # pieds posés sur le terrain (coupé tant qu'il dort ou se relève allongé)
 var _ragdoll: Ragdoll  # corps physique à la mort
 var _gele := false             # gelé par SalleActive (hors salle active) : process coupé et caché
@@ -899,9 +901,14 @@ func _physics_process(dt: float) -> void:
 	var aligne := clampf(1.0 - (absf(ecart) - 0.3) / 1.0, 0.0, 1.0)
 	if loco != "" and aligne >= 0.25:
 		_vit = move_toward(_vit, vitesse * aligne, ACCEL * dt)
-		_jouer(loco)
-		var ref := REF_MARCHE_ZOMBIE if _clip(loco) == "Zombie_Marche" else (REF_COURSE if loco == "Jog_Fwd" else REF_MARCHE)
-		anim.speed_scale = clampf(_vit / ref, 0.4, 1.5)
+		# il pousse contre un obstacle sans avancer (vitesse RÉELLE) : au repos face à sa cible, l'évitement continue de chercher
+		_sur_place = clampf(_sur_place + (dt if _vit > 0.4 and _v_reel < 0.15 * _vit else -2.0 * dt), 0.0, 1.0)
+		if _sur_place > 0.35:
+			_jouer("Sword_Idle")
+		else:
+			_jouer(loco)
+			var ref := REF_MARCHE_ZOMBIE if _clip(loco) == "Zombie_Marche" else (REF_COURSE if loco == "Jog_Fwd" else REF_MARCHE)
+			anim.speed_scale = clampf(maxf(_v_reel, _vit * 0.5) / ref, 0.4, 1.5)
 	else:
 		_vit = 0.0
 		vitesse = 0.0
@@ -925,9 +932,11 @@ func _physics_process(dt: float) -> void:
 	# toutes les IMMO_PERIODE s pour revérifier le sol, et tout de suite dès qu'il bouge, tombe ou est repoussé.
 	if absf(velocity.x) + absf(velocity.z) < 0.01 and velocity.y > -0.01 and is_on_floor() and _immo < IMMO_PERIODE:
 		_immo += dt
+		_v_reel = 0.0
 		return
 	_immo = 0.0
 	move_and_slide()
+	_v_reel = EvitementActeur.vitesse_reelle(self)
 
 ## Furtivité : met à jour la jauge de repérage ; vrai quand elle est pleine. Seul le joueur est soumis à la jauge (un rival, faction
 ## hostile, est repéré tout de suite dans le rayon DETECTION, comme avant).
@@ -1107,17 +1116,10 @@ func _souffler() -> void:
 		joueur.recevoir_coup(degats * 0.9, global_position)
 
 ## Rayon horizontal de 1,3 m à hauteur de genou : libre si rien (hors lui, le joueur et les autres ennemis) ne le coupe.
+## Sonde d'évitement : la capsule du corps balayée (EvitementActeur.libre), plus un rayon à hauteur de genou qui passait entre deux
+## obstacles plus serrés que lui (bugs/collisions_acteurs).
 func _libre(d: Vector3, longueur: float) -> bool:
-	var de := global_position + Vector3(0, 0.55, 0)
-	var q := PhysicsRayQueryParameters3D.create(de, de + d * longueur)
-	var ex: Array[RID] = [get_rid()]
-	if joueur != null:
-		ex.append(joueur.get_rid())
-	for e in get_tree().get_nodes_in_group("ennemis"):
-		if e is CollisionObject3D and e != self:
-			ex.append((e as CollisionObject3D).get_rid())
-	q.exclude = ex
-	return get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+	return EvitementActeur.libre(self, d, longueur)
 
 ## Direction voulue corrigée pour longer les obstacles : trois rayons (droit, ±35°, ±70°, ±110°), côté mémorisé pour ne pas
 ## hésiter ; si le bandit n'avance plus (coincé dans un angle), détour forcé d'une demi-seconde du côté opposé.
