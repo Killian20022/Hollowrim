@@ -52,7 +52,7 @@ void fragment() {
 		c += bord * 1.6 * o2;
 		c += mix(bord, filet, 0.4) * 1.6 * ray;
 		float fondu = 1.0 - smoothstep(0.78, 1.0, r);
-		ALBEDO = c * fondu * force;
+		ALBEDO = c * fondu * force * 0.7;   // v5b : pic du déclenchement atténué de 30 %
 		ALPHA = 0.0;
 	} while (false);
 }

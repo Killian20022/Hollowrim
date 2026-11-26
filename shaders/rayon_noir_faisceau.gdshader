@@ -59,7 +59,7 @@ float rayon_en(float s) {
 	float ond = 1.0 + onde * vague(s) * smoothstep(0.0, 0.8, s);
 	float evase = 1.0 + 0.12 * smoothstep(longueur - 0.25, longueur, s);   // à peine évasé en touchant
 	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * (1.0 + 1.8 * smoothstep(5.0, 40.0, s)) * rk() * ond * evase
-		* mix(0.3, 1.0, smoothstep(0.0, 0.7, s));   // v5 : il JAILLIT en pointe du centre du cercle (plus de bout arrondi)
+		* mix(0.6, 1.0, smoothstep(0.0, 0.35, s));   // v5b : il sort du cercle déjà épais (raccord avec l'orbe), pointe courte
 }
 
 void vertex() {

@@ -72,7 +72,7 @@ void fragment() {
 		float al_v = clamp(b * bout * k * 0.95 * pc * (1.0 + 0.6 * elan), 0.0, 1.0);
 		// v5 : un peu de matière violette sous chaque trait (mélange, opacité 0,3 × trait) : violet aussi sur un ciel clair, pas blanc
 		float am_v = al_v * 0.3;
-		ALBEDO = bord * 0.8 * am_v + c * force * (1.0 + 1.4 * elan) * al_v;
+		ALBEDO = bord * 0.8 * am_v + c * force * (1.0 + 0.68 * elan) * al_v;   // v5b : pic -30 % (2,4 -> 1,68)
 		ALPHA = am_v;
 	} while (false);
 }

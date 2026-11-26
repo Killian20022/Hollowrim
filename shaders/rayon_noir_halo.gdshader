@@ -22,7 +22,7 @@ uniform float onde_vit = 2.2;
 uniform float eclat = 1.0;
 uniform float force_halo = 0.5;
 
-const float GROS = 3.2;
+const float GROS = 2.2;   // v5b : halo resserré (3,2 dessinait deux grands croissants plats au bout)
 
 varying float v_s;
 varying float v_u;
@@ -41,7 +41,7 @@ float rayon_en(float s) {
 	float ond = 1.0 + onde * vague(s) * smoothstep(0.0, 0.8, s);
 	float evase = 1.0 + 0.12 * smoothstep(longueur - 0.25, longueur, s);
 	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * (1.0 + 1.8 * smoothstep(5.0, 40.0, s)) * rk() * ond * evase
-		* mix(0.3, 1.0, smoothstep(0.0, 0.7, s));   // v5 : il JAILLIT en pointe du centre du cercle (plus de bout arrondi)
+		* mix(0.6, 1.0, smoothstep(0.0, 0.35, s));   // v5b : il sort du cercle déjà épais (raccord avec l'orbe), pointe courte
 }
 
 void vertex() {
