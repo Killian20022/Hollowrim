@@ -462,6 +462,21 @@ func mat(nom: String) -> Material:
 			s.cull_mode = BaseMaterial3D.CULL_DISABLED
 			s.disable_receive_shadows = true
 			m = s
+		"jour_crypte":
+			var s := StandardMaterial3D.new()        # crypte_trous : fond d'un puits de jour (oculus) : neige tassée sur la grille, lumière froide
+			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			s.albedo_texture = _texture("neige")
+			s.albedo_color = Color(0.34, 0.42, 0.54)
+			s.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+			s.disable_receive_shadows = true
+			m = s
+		"eau_noire":
+			var s := StandardMaterial3D.new()        # crypte_trous : eau dormante d'un bassin (la matière « noir », sans lumière, en faisait un trou)
+			s.albedo_color = Color(0.035, 0.07, 0.1)
+			s.roughness = 0.12
+			s.metallic_specular = 0.9
+			s.disable_receive_shadows = true
+			m = s
 		"flaque", "flaque_bord", "flaque_reflet":
 			var s := StandardMaterial3D.new()        # PLACEHOLDER de l'eau (crypte v2) : l'eau stylisée viendra du système d'eau (branche eau/prototype)
 			s.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -994,11 +1009,26 @@ func plan_h(nom: String, x0: float, x1: float, z0: float, z1: float, y: float, v
 
 ## Mur vertical ; `axe` "x" : le mur s'étend le long de X à z = fixe (normale ±Z) ; "z" : le long de Z à x = fixe.
 ## Coins (extrémités du pan) et haut du mur assombris (sommets) ; le pied l'est par le shader.
-func plan_v(nom: String, axe: String, fixe: float, a0: float, a1: float, y0: float, y1: float, signe: float) -> void:
+## `ext` (crypte_trous, 2026-11-25) : [bas, haut, début, fin] — le pan déborde de ces longueurs au-delà de ses arêtes partagées (sous le
+## sol, au-dessus de la voûte, derrière le mur d'angle), là où il ne se voit pas : la jonction sol/mur, voûte/mur ou mur/mur n'est plus
+## une arête bord à bord (fissure d'un pixel, fond de joint du dallage en relief 7,5 cm sous le pied du mur) mais un recouvrement.
+## Teintes calculées sur le pan d'origine.
+## `grille` (crypte_trous) : coupes horizontales sur la grille absolue de PAS_ARETE m (plus `en_plus`) au lieu des marges : deux pans qui
+## partagent une arête verticale (mur / jambage, mur / linteau, les deux faces d'une même embrasure vues des deux salles) y ont les MÊMES
+## sommets ; sans cela, un sommet de l'un tombait au milieu d'une arête de l'autre (jonction en T) et l'accroche PS1 des sommets ouvrait
+## une fissure d'un pixel sur le fond.
+func plan_v(nom: String, axe: String, fixe: float, a0: float, a1: float, y0: float, y1: float, signe: float, ext: Array = [], grille := false, en_plus: Array = []) -> void:
 	if a1 - a0 < 0.01 or y1 - y0 < 0.01:
 		return
 	var s := _coupes(a0, a1, [0.7])
-	var ys := _coupes(y0, y1, [0.8])
+	var ys := grille_y(y0, y1, en_plus) if grille else _coupes(y0, y1, [0.8])
+	var sg := s.duplicate()
+	var ysg := ys.duplicate()
+	if ext.size() == 4:
+		ysg[0] = ys[0] - float(ext[0])
+		ysg[ysg.size() - 1] = ys[ys.size() - 1] + float(ext[1])
+		sg[0] = s[0] - float(ext[2])
+		sg[sg.size() - 1] = s[s.size() - 1] + float(ext[3])
 	var col := func(a: float, y: float) -> Color:
 		var f := _ao(minf(a - a0, a1 - a), 0.7, 0.55) * _ao(y1 - y, 0.8, 0.5)
 		if y0 > 0.5:     # dessous d'un linteau : l'angle avec le mur est sombre aussi
@@ -1006,13 +1036,35 @@ func plan_v(nom: String, axe: String, fixe: float, a0: float, a1: float, y0: flo
 		return f
 	for i in s.size() - 1:
 		for j in ys.size() - 1:
-			var ya: float = ys[j]
-			var yb: float = ys[j + 1]
-			var cc := [col.call(s[i], ya), col.call(s[i + 1], ya), col.call(s[i + 1], yb), col.call(s[i], yb)]
+			var cc := [col.call(s[i], ys[j]), col.call(s[i + 1], ys[j]), col.call(s[i + 1], ys[j + 1]), col.call(s[i], ys[j + 1])]
+			var ya: float = ysg[j]
+			var yb: float = ysg[j + 1]
+			var sa: float = sg[i]
+			var sb: float = sg[i + 1]
 			if axe == "x":
-				quad(nom, Vector3(s[i], ya, fixe), Vector3(s[i + 1], ya, fixe), Vector3(s[i + 1], yb, fixe), Vector3(s[i], yb, fixe), Vector3(0, 0, signe), [], [], cc)
+				quad(nom, Vector3(sa, ya, fixe), Vector3(sb, ya, fixe), Vector3(sb, yb, fixe), Vector3(sa, yb, fixe), Vector3(0, 0, signe), [], [], cc)
 			else:
-				quad(nom, Vector3(fixe, ya, s[i]), Vector3(fixe, ya, s[i + 1]), Vector3(fixe, yb, s[i + 1]), Vector3(fixe, yb, s[i]), Vector3(signe, 0, 0), [], [], cc)
+				quad(nom, Vector3(fixe, ya, sa), Vector3(fixe, ya, sb), Vector3(fixe, yb, sb), Vector3(fixe, yb, sa), Vector3(signe, 0, 0), [], [], cc)
+
+const PAS_ARETE := 0.5
+
+## y0, les multiples de PAS_ARETE strictement entre y0 et y1 (à plus de 2 cm), `en_plus` et y1, triés.
+static func grille_y(y0: float, y1: float, en_plus: Array = []) -> Array:
+	var l := [y0, y1]
+	var k := int(floor(y0 / PAS_ARETE)) + 1
+	while k * PAS_ARETE < y1 - 0.02:
+		if k * PAS_ARETE > y0 + 0.02:
+			l.append(k * PAS_ARETE)
+		k += 1
+	for v: float in en_plus:
+		if v > y0 + 0.02 and v < y1 - 0.02:
+			l.append(v)
+	l.sort()
+	var r := [l[0]]
+	for i in range(1, l.size()):
+		if l[i] - r[r.size() - 1] > 0.01:
+			r.append(l[i])
+	return r
 
 func _pas(a: float, b: float, pas := 4.0) -> Array:
 	var n := maxi(1, int(ceil((b - a) / pas - 0.001)))
@@ -1110,14 +1162,15 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 					if cb < m[1]:
 						nouveaux.append([cb, m[1]])
 			libres = nouveaux
-		for m in libres:
-			plan_v(_var_mur(mur, idx), "x" if horizontal else "z", plan, m[0], m[1], y, y + h, signe)
+		for m in libres:      # recouvrement sous le sol, au-dessus de la voûte et derrière les murs d'angle (pas aux embrasures)
+			plan_v(_var_mur(mur, idx), "x" if horizontal else "z", plan, m[0], m[1], y, y + h, signe,
+				[0.16, 0.1, 0.1 if absf(m[0] - a0) < 0.01 else 0.0, 0.1 if absf(m[1] - a1) < 0.01 else 0.0], true, [y + ho])
 			idx += 1
 		var axe := "x" if horizontal else "z"
 		var fixe_mur: float = plan - signe * 0.3      # axe du mur (le plan visible est à 0,3 m vers l'intérieur)
 		for c in clairs:
 			if h > 3.0:
-				plan_v(_var_mur(mur, idx), axe, plan, c[0], c[1], y + 3.0, y + h, signe)
+				plan_v(_var_mur(mur, idx), axe, plan, c[0], c[1], y + 3.0, y + h, signe, [0.0, 0.1, 0.0, 0.0], true)
 				idx += 1
 			# embrasure : jambages, seuil et dessous de linteau (une seule fois par ouverture)
 			var w0 := xf * (Vector3(c[0], y, fixe_mur) if horizontal else Vector3(fixe_mur, y, c[0]))      # clé en repère de la crypte : deux modules voisins partagent l'embrasure
@@ -1127,10 +1180,21 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 			_fait[cle] = true
 			for e in ([] if deja else [c[0], c[1]]):
 				var sg: float = 1.0 if e == c[0] else -1.0   # normale vers le passage
-				if horizontal:
-					quad(mur, Vector3(e, y, fixe_mur - 0.3), Vector3(e, y, fixe_mur + 0.3), Vector3(e, y + ho, fixe_mur + 0.3), Vector3(e, y + ho, fixe_mur - 0.3), Vector3(sg, 0, 0))
-				else:
-					quad(mur, Vector3(fixe_mur - 0.3, y, e), Vector3(fixe_mur + 0.3, y, e), Vector3(fixe_mur + 0.3, y + ho, e), Vector3(fixe_mur - 0.3, y + ho, e), Vector3(0, 0, sg))
+				# jambage : recouvre le sol et le dessous de linteau (comme les pans) ; coupé sur la même grille que les pans des deux salles,
+				# ses arêtes verticales sont celles des murs (mêmes sommets : pas de jonction en T, crypte_trous). Faces : `plan` (cette salle)
+				# et plan - 0,6 signe (l'autre salle), exactement.
+				var yjs := grille_y(y, y + ho)
+				yjs[0] = y - 0.16
+				yjs.append(y + ho + 0.1)
+				var q0: float = minf(plan, plan - signe * 0.6)
+				var q1: float = maxf(plan, plan - signe * 0.6)
+				for jy in yjs.size() - 1:
+					var ya: float = yjs[jy]
+					var yb: float = yjs[jy + 1]
+					if horizontal:
+						quad(mur, Vector3(e, ya, q0), Vector3(e, ya, q1), Vector3(e, yb, q1), Vector3(e, yb, q0), Vector3(sg, 0, 0))
+					else:
+						quad(mur, Vector3(q0, ya, e), Vector3(q1, ya, e), Vector3(q1, yb, e), Vector3(q0, yb, e), Vector3(0, 0, sg))
 			if deja:
 				if not c[2]:
 					_cadre(horizontal, plan, signe, c[0], c[1], ho, y)
@@ -1143,11 +1207,13 @@ func salle(x0: float, x1: float, z0: float, z1: float, h: float, ouvertures: Arr
 					var q := fixe_mur + sp * 0.47
 					boite("mur0", Vector3(mc, y + 0.022, q) if horizontal else Vector3(q, y + 0.022, mc), Vector3(lw - 0.1, 0.045, 0.32) if horizontal else Vector3(0.32, 0.045, lw - 0.1), 0.0, true)
 					givre_dessus(Vector3(mc + sp * lw * 0.3, y + 0.045, q) if horizontal else Vector3(q, y + 0.045, mc + sp * lw * 0.3), Vector2(0.5, 0.2) if horizontal else Vector2(0.2, 0.5), 0.0)
+			# sol du passage : dalle de 9 cm (et non un plan) — ses deux flancs sont les contremarches au-dessus du fond de joint du dallage
+			# en relief (7,5 cm plus bas), sinon une fente de vide au pied des passages sans seuil (portes secrètes, crypte_trous)
+			var mc2: float = (c[0] + c[1]) * 0.5
+			boite(sol, Vector3(mc2, y - 0.045, fixe_mur) if horizontal else Vector3(fixe_mur, y - 0.045, mc2), Vector3(c[1] - c[0], 0.09, 0.6) if horizontal else Vector3(0.6, 0.09, c[1] - c[0]), 0.0, true)
 			if horizontal:
-				quad(sol, Vector3(c[0], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur - 0.3), Vector3(c[1], y, fixe_mur + 0.3), Vector3(c[0], y, fixe_mur + 0.3), Vector3.UP)
 				quad("voute", Vector3(c[0], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur - 0.3), Vector3(c[1], y + ho, fixe_mur + 0.3), Vector3(c[0], y + ho, fixe_mur + 0.3), Vector3.DOWN)
 			else:
-				quad(sol, Vector3(fixe_mur - 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[0]), Vector3(fixe_mur + 0.3, y, c[1]), Vector3(fixe_mur - 0.3, y, c[1]), Vector3.UP)
 				quad("voute", Vector3(fixe_mur - 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[0]), Vector3(fixe_mur + 0.3, y + ho, c[1]), Vector3(fixe_mur - 0.3, y + ho, c[1]), Vector3.DOWN)
 			# cadre de porte épais : deux jambages et un linteau en saillie sur le mur
 			if not c[2]:
@@ -2058,8 +2124,24 @@ func flaque_froide(pos: Vector3, diametre := 3.0) -> void:
 
 func oculus(pos: Vector3, cote := 1.6) -> void:
 	j0("oculus")
-	# trou carré au plafond : fond noir, cadre de pierre en saillie
-	quad("noir", pos + Vector3(-cote * 0.5, -0.01, -cote * 0.5), pos + Vector3(cote * 0.5, -0.01, -cote * 0.5), pos + Vector3(cote * 0.5, -0.01, cote * 0.5), pos + Vector3(-cote * 0.5, -0.01, cote * 0.5), Vector3.DOWN)
+	# trou carré au plafond, cadre de pierre en saillie. Crypte_trous (2026-11-25) : le fond était un carré de matière « noir » au ras de
+	# la voûte, un trou dans le néant vu du dessous ; c'est maintenant un PUITS de jour : quatre parois de pierre qui montent (plus
+	# sombres en haut), une grille de fer et, au fond, la neige tassée sur la grille qui laisse passer une lumière froide (le rai).
+	var hp := 1.1
+	var dc := cote * 0.5
+	var c_bas := Color(0.62, 0.62, 0.66)
+	var c_haut := Color(0.3, 0.32, 0.38)
+	for k in 4:
+		var u := Vector3(1, 0, 0).rotated(Vector3.UP, k * PI * 0.5)
+		var w := Vector3(0, 0, 1).rotated(Vector3.UP, k * PI * 0.5)
+		var a := pos + u * dc - w * dc
+		var b := pos + u * dc + w * dc
+		quad("mur1", a + Vector3(0, -0.01, 0), b + Vector3(0, -0.01, 0), b + Vector3(0, hp, 0), a + Vector3(0, hp, 0), -u, [], [], [c_bas, c_bas, c_haut, c_haut])
+	quad("jour_crypte", pos + Vector3(-dc, hp, -dc), pos + Vector3(dc, hp, -dc), pos + Vector3(dc, hp, dc), pos + Vector3(-dc, hp, dc), Vector3.DOWN)
+	for k in 3:      # grille : trois barreaux dans chaque sens, sous la neige
+		var o := (float(k) - 1.0) * cote * 0.3
+		boite("fer", pos + Vector3(o, hp - 0.16, 0), Vector3(0.05, 0.05, cote))
+		boite("fer", pos + Vector3(0, hp - 0.22, o), Vector3(cote, 0.05, 0.05))
 	for s in [-1.0, 1.0]:
 		boite("mur1", pos + Vector3(s * (cote * 0.5 + 0.12), -0.08, 0), Vector3(0.24, 0.16, cote + 0.48))
 		boite("mur1", pos + Vector3(0, -0.08, s * (cote * 0.5 + 0.12)), Vector3(cote, 0.16, 0.24))
