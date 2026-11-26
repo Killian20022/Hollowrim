@@ -54,7 +54,7 @@ void fragment() {
 		float cell = floor(th);
 		float loc = fract(th);
 		float h1 = h11(cell), h2 = h11(cell + 17.0), h3 = h11(cell + 41.0), h4 = h11(cell + 73.0), h5 = h11(cell + 97.0);
-		float dens = mix(0.95, 0.55, smoothstep(0.0, 0.85, v_u)) + 0.3 * elan;
+		float dens = mix(0.6, 0.35, smoothstep(0.0, 0.85, v_u)) + 0.5 * elan;   // v5 : moins de traits pendant la tenue (v4 : 0,95 → 0,55), la gerbe du déclenchement reste
 		float rare = step(0.88, h5);                  // quelques traits très longs et très rapides (hyperespace)
 		float vit = mix(70.0 + 90.0 * h2, 220.0 + 80.0 * h2, rare) * (1.0 + 0.8 * elan);
 		float per = mix(22.0 + 25.0 * h3, 70.0 + 30.0 * h3, rare);
@@ -66,7 +66,7 @@ void fragment() {
 		float lig = 1.0 - smoothstep(0.0, 0.07 + 0.06 * h4, abs(loc - 0.5) - 0.07);
 		float tete_l = smoothstep(0.7, 0.97, tail);
 		float b = pow(clamp(tail, 0.0, 1.0), 1.8) * (1.0 - smoothstep(0.985, 1.0, q)) * on * lig;
-		vec3 c = mix(bord * 1.1, mix(bord, filet, 0.6) * 1.5, tete_l);   // v5 : traits violets, têtes lavande (v4 : magenta 1,7 / blanc-rose 3,4)
+		vec3 c = mix(bord * 1.0, mix(bord, filet, 0.35) * 1.4, tete_l);   // v5 : traits violets, têtes lavande (v4 : magenta 1,7 / blanc-rose 3,4)
 		float bout = smoothstep(0.0, 0.5 / max(longueur, 0.5), v_u) * (1.0 - smoothstep(0.96, 1.0, v_u / max(tete, 0.01)));
 		float pc = smoothstep(0.08, 0.4, length(VERTEX));              // v3f : pas de traits collés à l'œil
 		float al_v = clamp(b * bout * k * 0.95 * pc * (1.0 + 0.6 * elan), 0.0, 1.0);

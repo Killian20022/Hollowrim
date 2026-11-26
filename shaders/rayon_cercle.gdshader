@@ -85,11 +85,11 @@ void fragment() {
 	vec3 c = col;
 	float aa = al;
 	float lisere = max(a1, max(a2 * 0.8, grad * 0.8));
-	vec3 cl = mix(bord, filet, a1 * 0.45) * (0.95 + 0.3 * sin(t * 3.0));   // v5 : moins blanc
+	vec3 cl = mix(bord, filet, a1 * 0.3) * (0.75 + 0.25 * sin(t * 3.0));   // v5 : cercle plus sombre et discret   // v5 : moins blanc
 	c = mix(c, cl, lisere); aa = max(aa, lisere * 0.95);
 	c = mix(c, accent * 1.6, pointille * 0.9); aa = max(aa, pointille * 0.85);
 	c = mix(c, bord * 0.9, lisere_c); aa = max(aa, lisere_c * 0.6);
-	vec3 cr = mix(bord * 1.2, filet * 1.7, lum);
+	vec3 cr = mix(bord * 1.1, filet * 1.3, lum);
 	c = mix(c, cr, runes * (0.45 + 0.55 * lum)); aa = max(aa, runes * (0.55 + 0.45 * lum));
 	c = mix(c, accent * 1.8, hexa * 0.8); aa = max(aa, hexa * 0.75);
 	c = mix(c, filet * 1.6, noyau); aa = max(aa, noyau * 0.9);

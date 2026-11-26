@@ -180,7 +180,7 @@ void fragment() {
 		// impulsions qui filent vers la cible (au centre du cœur, discrètes)
 		gl += bord * 0.35 * puls * coeur * (1.0 - smoothstep(0.0, s0 * 0.6, x));
 		// éclats : quelques points vifs qui filent (pointes de brillance LOCALISÉES)
-		float ecl = step(0.86, mbruit(vec2(tc * 5.0 - TIME * 22.0, v_th * 3.0 + graine * 5.0))) * step(0.5, vol);
+		float ecl = step(0.8, mbruit(vec2(tc * 5.0 - TIME * 22.0, v_th * 3.0 + graine * 5.0))) * step(0.45, vol);   // points étoilés (comme l'orbe tenu)
 		gl += filet * 0.9 * ecl * coeur;
 		// filaments clairs torsadés dans le corps (2, sens opposés), fins
 		for (int h2 = 0; h2 < 2; h2++) {
@@ -193,7 +193,7 @@ void fragment() {
 		if (x >= s0) {
 			float t = (x - s0) / (e2 - s0);
 			gl += bord * (0.75 - 0.45 * t + 0.4 * puls) * eclat * sc;
-			gl += mix(bord, filet, 0.3) * 0.45 * (1.0 - smoothstep(0.0, 0.05, x - s0)) * eclat * sc;   // liseré fin contre le cœur
+			gl += mix(bord, filet, 0.3) * 0.8 * (1.0 - smoothstep(0.0, 0.06, x - s0)) * eclat * sc;   // liseré net contre le cœur   // liseré fin contre le cœur
 		}
 	} else if (x < e2 + 0.04) {
 		// liseré extérieur, fin
