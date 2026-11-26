@@ -1086,7 +1086,7 @@ func _apres_chute(c: Node3D, rd: Ragdoll) -> void:
 		var lame: Vector3 = ep[1]
 		var b := Basis(lame.cross(Vector3.UP), lame, Vector3.UP).rotated(lame, 0.12)      # sur le plat, un peu calée par la garde
 		_poser_au_sol(racine, e, ep[0], b, sol)
-	# bouclier : posé face en l'air à côté du torse, du côté libre (rayon ~0,36 m)
+	# bouclier : posé à côté du torse, retourné, du côté libre (rayon ~0,36 m)
 	var bo: Array = chercher.call(torse, -cote_sang, 0.75, 1.0, 0.36, 0.1, 0.0, true)
 	if bo.is_empty():
 		bo = chercher.call(torse, cote_sang, 0.85, 1.1, 0.36, 0.1, 0.0, true)
@@ -1094,21 +1094,10 @@ func _apres_chute(c: Node3D, rd: Ragdoll) -> void:
 		var sb: Node3D = (load(BOUCLIER_SOL) as PackedScene).instantiate()
 		sb.name = "BouclierCompagnon"
 		BouclierNordique.habiller(sb)
-		# vieux bouclier du compagnon, face peinte en l'air : peinture assombrie et un peu ternie par la poussière et le givre (le rouge vif du bouclier du joueur criait
-		# sous la torche), mêmes textures maison
-		for mi: MeshInstance3D in sb.find_children("*", "MeshInstance3D", true, false):
-			for k in mi.mesh.get_surface_count():
-				var m0 := mi.get_surface_override_material(k)
-				if m0 is ShaderMaterial:
-					var m1 := (m0 as ShaderMaterial).duplicate() as ShaderMaterial
-					var te: Variant = m1.get_shader_parameter("teinte")
-					m1.set_shader_parameter("teinte", (te if te is Color else Color.WHITE) * Color(0.36, 0.33, 0.32))
-					m1.set_shader_parameter("saturation", 0.85)
-					Palette.suivre(m1)
-					Palette._appliquer(m1, Palette._ps1_actif)
-					mi.set_surface_override_material(k, m1)
 		var h: Vector3 = bo[1]
-		_poser_au_sol(racine, sb, bo[0], Basis(Vector3.UP, h, Vector3.UP.cross(h)).rotated(h, 0.1), sol)
+		# tombé sur sa face : le dos de planches brutes en l'air (la face peinte rouge vif criait sous la torche ; teintée, elle
+		# lisait comme une assiette claire)
+		_poser_au_sol(racine, sb, bo[0], Basis(Vector3.DOWN, h, Vector3.DOWN.cross(h)).rotated(h, 0.1), sol)
 
 ## Range `n` sous `racine`, orienté (monde) par `b`, centré en `q` et posé : le bas de ses maillages au niveau du sol.
 func _poser_au_sol(racine: Node3D, n: Node3D, q: Vector3, b: Basis, sol: float) -> void:
