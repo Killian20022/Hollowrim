@@ -241,6 +241,10 @@ func declencher(impulsion: Vector3, point: Vector3, os_touche := "", vitesse := 
 	if actif or simulateur == null:
 		return
 	actif = true
+	# AnimLod gèle hors champ / au loin le squelette des PNJ (modificateurs en mode MANUEL). Un garde du village passé en combat
+	# (PnjCombat) restait inscrit sous son PNJ d'origine caché : gelé là où il avait pris les armes, puis jamais rendu à la mort,
+	# le simulateur du ragdoll ne tournait pas et le corps restait DEBOUT dans sa dernière pose animée.
+	squelette.modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_IDLE
 	if _veille:
 		_veille = false
 		for pb: PhysicalBone3D in os.values():

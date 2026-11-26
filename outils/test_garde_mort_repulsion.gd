@@ -108,8 +108,10 @@ func _tester() -> void:
 	_verif(gs.size() >= 2, "au moins deux gardes à pied")
 	if gs.size() >= 2 and cr != null:
 		if _seul() != "repulsion":
-			await _mort(gs[0])
-		if _seul() != "mort":
+			await _mort(gs[0])      # meurtre vu : toute la garde prend les armes
+		if _seul() in ["", "hostiles"]:
+			await _hostiles()
+		if _seul() == "repulsion":
 			var autre: Node3D = gs[1]
 			for g in gs:          # le plus loin du premier (pas de garde déjà en alerte à côté)
 				if is_instance_valid(g) and is_instance_valid(gs[0]) and (g as Node3D).global_position.distance_to(gs[0].global_position) > autre.global_position.distance_to(gs[0].global_position):
@@ -234,3 +236,163 @@ func _diag(mod: Node3D) -> void:
 			continue
 		var sq := mi.get_node_or_null(mi.skeleton) if mi.skeleton != NodePath("") else null
 		print("     maillage %s (parent %s) : skin=%s squelette=%s y=%.2f" % [mi.name, mi.get_parent().name, str(mi.skin != null), (sq.name if sq else "-"), mi.global_position.y])
+
+# ------------------------------------------------------------------ gardes HOSTILES tués en combat (épée, finisher, arc), répulsion
+
+func _combattants_hostiles() -> Array:
+	var l: Array = []
+	for c in cr.combattants:
+		if is_instance_valid(c) and not c.est_mort and c.mode == "hostile" and c.est_garde:
+			l.append(c)
+	l.sort_custom(func(a, b): return (a as Node3D).global_position.distance_to(j.global_position) < (b as Node3D).global_position.distance_to(j.global_position))
+	return l
+
+func _hostiles() -> void:
+	await _attendre(1.0)
+	var hs := _combattants_hostiles()
+	print("   gardes hostiles après le meurtre : ", hs.size())
+	_verif(hs.size() >= 4, "au moins 4 gardes hostiles (%d)" % hs.size())
+	# arc_loin : flèche sur un garde à 14 m DANS LE DOS du joueur (AnimLod gèle hors champ le squelette ; le cas où le corps restait debout)
+	var manieres := ["epee", "finisher", "arc", "arc_loin"]
+	for i in mini(4, hs.size()):
+		hs = _combattants_hostiles()
+		if hs.is_empty():
+			break
+		await _tuer_hostile(hs[0], manieres[i])
+	hs = _combattants_hostiles()
+	if not hs.is_empty():
+		await _repulsion_hostile(hs[0], false)    # dans la mêlée (au village, entouré de gardes) : informatif
+	hs = _combattants_hostiles()
+	if not hs.is_empty():
+		await _repulsion_hostile(hs[0], true)     # en terrain dégagé : critère chiffré
+
+## Point dégagé à ~95 m du centre du village, loin de tout PNJ (test_crime).
+func _coin_desert() -> Vector3:
+	for k in 60:
+		var a := TAU * k / 60.0
+		var p := Vector3(44.0 + cos(a) * 95.0, 0.0, 40.0 + sin(a) * 95.0)
+		p.y = m.hauteur(p.x, p.z) + 0.1
+		var ok := true
+		for n: Node3D in cr.pnj_actifs():
+			if n.global_position.distance_to(p) < 30.0:
+				ok = false
+				break
+		if ok:
+			return p
+	return Vector3(44.0, m.hauteur(44.0, 160.0) + 0.1, 160.0)
+
+func _tuer_hostile(c: PnjCombat, maniere: String) -> void:
+	_prefixe = "hostile_" + maniere
+	_n_img = 0
+	var pnj: Node3D = c.pnj
+	_devant(c, 2.0)
+	if maniere == "arc_loin":
+		c.set_physics_process(false)          # il ne court plus sur le joueur
+		var av := (j.global_position - c.global_position)
+		av.y = 0.0
+		av = av.normalized()
+		var p := c.global_position + av * 14.0
+		p.y = m.hauteur(p.x, p.z) + 0.1
+		j.global_position = p
+		j.rotation.y = atan2(-av.x, -av.z)    # le joueur regarde AU LOIN, le garde dans son dos
+		await _attendre(0.6)                  # AnimLod réévalue (0,1 s)
+	await _attendre(0.1)
+	var ba := _bassin(c.modele)
+	var n := 0
+	var r := ""
+	while not c.est_mort and n < 40:
+		var dos := c.global_position + c.global_transform.basis.z * -1.6   # dans le dos (un garde de face pare)
+		match maniere:
+			"epee":
+				r = String(DegatsCombat.appliquer(c, 26.0, dos, false, {"attaquant": j, "attaque": "legere", "arme": "epee"}))
+			"finisher":
+				c.vie = minf(c.vie, c.vie_max * 0.12)
+				var cat := c.finisher_possible(j)
+				print("   finisher possible : « %s »" % cat)
+				r = String(c.subir_finisher(cat if cat != "" else "etourdi", {"origine": j.global_position}))
+			"arc", "arc_loin":
+				r = String(DegatsCombat.appliquer(c, 30.0, dos, false, {"attaquant": j, "attaque": "legere", "arme": "arc", "type": "percant"}))
+		n += 1
+		await _attendre(0.25)
+	_verif(c.est_mort, "garde hostile tué (%s, %d coups, %s)" % [maniere, n, r])
+	var t := 0.0
+	var t_sol := -1.0
+	var h := 99.0
+	var pnj_vu := false
+	while t < 2.5:
+		await _attendre(DT)
+		t += DT
+		if is_instance_valid(ba):
+			h = ba.global_position.y - float(m.hauteur(ba.global_position.x, ba.global_position.z))
+			if t_sol < 0.0 and h < 0.4:
+				t_sol = t
+		if is_instance_valid(pnj) and pnj.is_inside_tree() and pnj.is_visible_in_tree():
+			pnj_vu = true
+	var rd: Ragdoll = c._ragdoll if is_instance_valid(c) else null
+	if is_instance_valid(c) and is_instance_valid(ba):
+		var sq: Skeleton3D = c.modele.find_child("Skeleton3D", true, false)
+		var tete := (sq.global_transform * sq.get_bone_global_pose(sq.find_bone("Head")).origin)
+		var ro: Variant = c.combat.reaction_os if c.combat != null else null
+		var mods := sq.get_children().filter(func(x): return x is SkeletonModifier3D).map(func(x): return "%s:%s" % [x.name, str(x.active)])
+		print("     tête %.2f m au-dessus du bassin ; anim « %s » ; reaction_os actif=%s ; fige=%s ; modificateurs %s" % [tete.y - ba.global_position.y,
+			c.anim.current_animation, str(ro != null and is_instance_valid(ro) and ro.active), str(rd != null and rd.est_fige()), str(mods)])
+		print("     bassin (%.2f, %.2f, %.2f) sol %.2f ; sous le bassin : %s" % [ba.global_position.x, ba.global_position.y, ba.global_position.z,
+			m.hauteur(ba.global_position.x, ba.global_position.z), str(_sous(ba.global_position, c))])
+	print("   %s : ragdoll=%s, bassin %.2f m, au sol après %.2f s, PNJ d'origine visible=%s" % [maniere, str(rd != null and rd.actif), h, t_sol, str(pnj_vu)])
+	_verif(rd != null and rd.actif and t_sol >= 0.0 and t_sol < 2.0, "%s : couché au sol en moins de 2 s (%.2f s, bassin %.2f m)" % [maniere, t_sol, h])
+	_verif(not pnj_vu, "%s : le garde d'origine (caché) ne réapparaît pas debout" % maniere)
+
+func _repulsion_hostile(c: PnjCombat, degage: bool) -> void:
+	_prefixe = "repulsion_hostile" + ("_degage" if degage else "_melee")
+	_n_img = 0
+	c.set_physics_process(false)
+	if degage:
+		var p := _coin_desert()
+		j.global_position = p
+		j.velocity = Vector3.ZERO
+		var q := p + Vector3(0, 0, -3.0)
+		q.y = m.hauteur(q.x, q.z) + 0.02
+		c.global_position = q
+		c.rotation.y = 0.0
+		await _attendre(0.05)
+		print("   dégagé : joueur %s, garde voulu %s, garde réel %s (valide=%s, process=%s)" % [str(p.snappedf(0.1)), str(q.snappedf(0.1)), str(c.global_position.snappedf(0.1)), str(is_instance_valid(c)), str(c.is_physics_processing())])
+	_devant(c, 3.0)
+	await _attendre(0.6)
+	var ba := _bassin(c.modele)
+	var p0 := ba.global_position
+	var oeil: Vector3 = j.camera.global_position
+	var qr := PhysicsRayQueryParameters3D.create(oeil, Elements._centre(c), 1)
+	qr.exclude = [j.get_rid(), c.get_rid()]
+	var hr := j.get_world_3d().direct_space_state.intersect_ray(qr)
+	print("   œil %s (joueur %s) ; obstacle : %s" % [str(oeil.snappedf(0.01)), str(j.global_position.snappedf(0.01)),
+		"aucun" if hr.is_empty() else "%s (%s) en %s" % [(hr["collider"] as Node).name, (hr["collider"] as Node).get_class(), str((hr["position"] as Vector3).snappedf(0.01))]])
+	var ce := Elements._centre(c)
+	var d := ce - oeil
+	print("   cible %s : distance %.2f, dy %.2f, dans cibles=%s, groupes ennemis=%s cibles_combat=%s, sans mur=%s" % [c.name, Vector3(d.x, 0, d.z).length(), d.y,
+		str(es._cibles(oeil, 14.0).has(c)), str(c.is_in_group("ennemis")), str(c.is_in_group("cibles_combat")), str(es._sans_mur(oeil, ce, c))])
+	c.set_physics_process(true)
+	var res := es.repulsion(es._sort("repulsion"), 1.0, null, oeil, d.normalized())
+	var dm := 0.0
+	var ym := 0.0
+	var t := 0.0
+	while t < 3.0:
+		await _attendre(DT)
+		t += DT
+		if is_instance_valid(ba):
+			dm = maxf(dm, Vector2(ba.global_position.x - p0.x, ba.global_position.z - p0.z).length())
+			ym = maxf(ym, ba.global_position.y - p0.y)
+	for x in es.journal.slice(-10):
+		print("   ES %.2f %s" % [x[0], x[1]])
+	print("   répulsion sur garde hostile : touchés %d, projeté %.2f m, bassin +%.2f m" % [(res["ennemis"] as Array).size(), dm, ym])
+	if not degage:
+		return
+	_verif(c in res["ennemis"], "répulsion : le garde hostile est touché")
+	_verif(dm >= DEPLACEMENT_MIN and ym >= 0.5, "répulsion pleine charge sur garde hostile (terrain dégagé) : %.2f m (≥ %.1f), +%.2f m" % [dm, DEPLACEMENT_MIN, ym])
+
+func _sous(p: Vector3, c: Node) -> String:
+	var q := PhysicsRayQueryParameters3D.create(p + Vector3.UP * 0.05, p + Vector3.DOWN * 3.0)
+	var r := j.get_world_3d().direct_space_state.intersect_ray(q)
+	if r.is_empty():
+		return "rien"
+	var o: Object = r["collider"]
+	return "%s à %.2f m" % [(o as Node).name if o is Node else str(o), p.y - (r["position"] as Vector3).y]

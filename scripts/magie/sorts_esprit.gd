@@ -208,7 +208,16 @@ func _sans_mur(a: Vector3, b: Vector3, cible: Node = null) -> bool:
 	if cible is CollisionObject3D:
 		ex.append((cible as CollisionObject3D).get_rid())
 	q.exclude = ex
-	var r := joueur.get_world_3d().direct_space_state.intersect_ray(q)
+	var espace := joueur.get_world_3d().direct_space_state
+	var r := espace.intersect_ray(q)
+	# un corps (garde, draugr, PNJ) n'est pas un mur : l'onde passe entre les combattants d'une mêlée (avant, un garde hostile
+	# derrière un autre était « derrière un mur » et l'onde ne le touchait pas)
+	var k := 0
+	while not r.is_empty() and k < 6 and r["collider"] is CharacterBody3D:
+		ex.append((r["collider"] as CollisionObject3D).get_rid())
+		q.exclude = ex
+		r = espace.intersect_ray(q)
+		k += 1
 	return r.is_empty() or (r["position"] as Vector3).distance_to(b) < 0.6
 
 ## Ennemi visé par la lévitation : le plus proche du réticule (aide douce), à portée, visible.
