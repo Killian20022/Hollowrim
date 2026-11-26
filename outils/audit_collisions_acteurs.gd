@@ -40,6 +40,7 @@ var _q_forme := PhysicsShapeQueryParameters3D.new()
 var _capsule := CapsuleShape3D.new()
 var _ips: Array = []
 var _cam: Camera3D
+var _t_saut_heure := -10.0
 var _captures_max := 0
 var _captures: Array = []      # [{p, nom}] à prendre
 var _n_captures := 0
@@ -126,6 +127,7 @@ func _go() -> void:
 	while t_sim < duree:
 		if lieu == "village" and t_sim >= duree * 0.5 and m.cycle.heure < 18.0:
 			m.cycle.heure = 18.6     # soir : chacun rentre chez lui (routes les plus longues du village)
+			_t_saut_heure = t_sim
 		if t_sim >= prochain:
 			prochain = t_sim + saut
 			_deplacer_joueur()
@@ -291,7 +293,8 @@ func _echantillonner() -> void:
 		else:
 			_fin_continu(f, "fantome")
 		# capsule dans le décor
-		if vis and not sans_col and cs.shape is CapsuleShape3D:
+		var assis = a.get("_assis")
+		if vis and not sans_col and cs.shape is CapsuleShape3D and not (assis is String and assis != ""):   # assis : sur le banc, voulu
 			var c0 := cs.shape as CapsuleShape3D
 			_capsule.radius = c0.radius * 0.75
 			_capsule.height = maxf(c0.height - 0.5, _capsule.radius * 2.0 + 0.01)
@@ -480,6 +483,10 @@ func _images() -> void:
 	_cam.current = false
 
 func _noter(f: Dictionary, cat: String, p: Vector3, duree: float, detail: String, grave: bool, t := -1.0) -> void:
+	# placement du chargement (t < 1 s) ou saut d'heure forcé par l'audit (village, soir) : replacement voulu de l'emploi du temps
+	if cat in ["teleport", "teleport_hors_vue"] and (t_sim < 1.0 or absf(t_sim - _t_saut_heure) < 1.0):
+		cat = "saut_heure"
+		grave = false
 	if grave and _cam != null and _n_captures + _captures.size() < _captures_max and cat in ["teleport", "passe_mur", "os_mur", "os_sous_sol"]:
 		_captures.append({"p": p, "nom": "%s %s %s t=%.1f" % [cat, f["classe"], f["ident"], t_sim]})
 	episodes.append({"lieu": lieu, "classe": f["classe"], "ident": f["ident"], "cat": cat, "t": snappedf(t if t >= 0.0 else t_sim, 0.1),
