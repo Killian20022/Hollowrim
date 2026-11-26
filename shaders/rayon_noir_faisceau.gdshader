@@ -1,4 +1,7 @@
 // RAYON NOIR (sort CONTINU des ténèbres, scripts/magie/rayon_noir.gd) : dérivé du faisceau du RAYON DU NÉANT
+// v5 : un CORPS entre les deux extrêmes : cœur violet-aubergine TEXTURÉ (matière à opacité partielle, prémultipliée, comme la fumée
+//   du noyau tenu en main), gaine violette saturée, liseré fin, brillance en filaments et éclats localisés. (v3 : masse noire opaque ;
+//   v4 : tout additif, un fil clair sans corps.)
 // v4 : PLUS AUCUN NOIR. Le faisceau est ADDITIF (blend_premul_alpha, ALPHA = 0 : seule façon d'être additif dans la couche fine de la magie) (il ne peut jamais assombrir le fond) : cœur violet-noir translucide très fin, lumière
 //   magenta/violette dominante, fumée violette lumineuse. (Historique : v3 = cœur noir opaque, fumée sombre.)
 // (shaders/rayon_neant_faisceau.gdshader, même tube englobant de RayonNeant._tube(), même forme calculée par pixel avec la
@@ -30,6 +33,10 @@ uniform float ouverture = 14.0;  // m : distance sur laquelle le rayon s'ouvre
 uniform float graine = 0.0;
 
 const float GROS = 1.45;         // le volume englobant dépasse le rayon de ce facteur (fumée)
+// v5 : opacité de la matière sombre (cœur : de AM_MIN à AM_MAX selon la densité des volutes ; gaine : AM_GAINE)
+const float AM_MIN = 0.62;
+const float AM_MAX = 0.9;
+const float AM_GAINE = 0.6;   // la gaine garde sa couleur violette même sur un ciel clair (l'additif seul y blanchit)
 
 varying float v_s;               // abscisse du fragment en mètres
 varying float v_u;               // 0..1
@@ -51,7 +58,8 @@ float vague(float s) {
 float rayon_en(float s) {
 	float ond = 1.0 + onde * vague(s) * smoothstep(0.0, 0.8, s);
 	float evase = 1.0 + 0.12 * smoothstep(longueur - 0.25, longueur, s);   // à peine évasé en touchant
-	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * (1.0 + 1.8 * smoothstep(5.0, 40.0, s)) * rk() * ond * evase;
+	return mix(rayon_min, rayon_max, smoothstep(0.0, ouverture, s)) * (1.0 + 1.8 * smoothstep(5.0, 40.0, s)) * rk() * ond * evase
+		* mix(0.3, 1.0, smoothstep(0.0, 0.7, s));   // v5 : il JAILLIT en pointe du centre du cercle (plus de bout arrondi)
 }
 
 void vertex() {
@@ -98,12 +106,34 @@ void fragment() {
 	} else {
 		rho = length(v_a - ax * dot(v_a, ax));  // vue dans l'axe : distance de l'œil à l'axe
 	}
+	// v5 : vue presque DANS L'AXE (1re personne) : le point de l'axe le plus proche du rayon de vue tombe souvent hors du faisceau
+	// (au-delà du bout) et la distance y était fausse : le rayon se lisait comme un anneau à la main puis un entonnoir au bout, sans
+	// corps entre les deux. On garde la plus petite distance RELATIVE (distance / rayon local) sur l'abscisse la plus proche (bornée)
+	// et sur quelques abscisses en progression géométrique (le faisceau s'évase) : le corps est continu de la main à la cible.
+	{
+		float tb = clamp(tc, 0.0, longueur);
+		vec3 pb = v_a + ax * tb;
+		float prb = dot(pb, D);
+		float bx = (prb > 0.0 ? length(pb - D * prb) : 1.0e3) / max(rayon_en(tb), 0.001);
+		for (int i = 0; i < 7; i++) {
+			float ti = min(0.3 * pow(2.0, float(i)), longueur);
+			vec3 pi = v_a + ax * ti;
+			float pri = dot(pi, D);
+			float xi = (pri > 0.0 ? length(pi - D * pri) : 1.0e3) / max(rayon_en(ti), 0.001);
+			if (xi < bx) {
+				bx = xi;
+				tb = ti;
+			}
+		}
+		tc = tb;
+		rho = bx * max(rayon_en(tb), 0.001);
+	}
 	float u_c = clamp(tc / longueur, 0.0, 1.0);
 	float rr = max(rayon_en(clamp(tc, 0.0, longueur)), 0.001);
 	float x = rho / rr;                      // 0 sur l'axe, 1 au bord du rayon
 	// bouche du rayon (couvercle de départ, vu dans l'axe depuis la main) : on lit la position sur le couvercle lui-même
 	float bouche = 1.0 - smoothstep(0.0005, 0.004, v_u);
-	x = mix(x, v_rad, bouche);
+	x = mix(x, min(x, v_rad), bouche);   // v5 : le couvercle ne masque plus le corps vu dans l'axe
 	if (x > GROS || u_c > tete) {
 		ALBEDO = vec3(0.0);
 		ALPHA = 0.0;
@@ -117,81 +147,101 @@ void fragment() {
 	float vis = mix(1.0, pres_cam, axial);                             // la vue de côté ne change pas
 	float n = mfbm2(vec2(tc * 0.9 - TIME * 6.0, v_th * 1.3 + graine));
 	float n2 = mbruit(vec2(tc * 3.0 - TIME * 13.0, v_th * 2.0 + graine * 3.0));
-	// frontière du cœur, déchirée par le bruit (l'axe est à x = 0)
-	float s0 = mix(0.16, 0.07, axial) + 0.05 * sin(tc * 2.3 - TIME * 6.0 + graine) * smoothstep(0.0, 1.5, tc) + (n - 0.5) * 0.05;   // v3 : le cœur sombre ondule   // v2 : cœur tendu, bord net (le bruit ne déforme plus la silhouette)
-	float e2 = s0 + 0.13 + 0.45 * axial;   // dans l'axe : ruban lumineux plus large autour du cœur fin
-	// impulsions qui filent vers la cible (rapides, nettes) et scintillement du liseré (24 Hz, par paliers : aucun tramage)
+	// v5 : MATIÈRE. Le rayon a un CORPS (cœur sombre aubergine, texturé et en mouvement) bordé d'une GAINE violette saturée et d'un
+	// liseré fin ; la lumière est portée par des filaments et des éclats LOCALISÉS. Trois parts accumulées :
+	//   cm / am : matière (mélange prémultiplié : ALBEDO += cm * am, ALPHA = am, comme magie_bouffee mode 0) — elle assombrit un peu le
+	//             fond, sans jamais être un aplat (densité variable par paliers, jamais au-delà de AM_MAX) ;
+	//   gl      : lueur additive (ALPHA inchangé).
+	// Même parti que le noyau des ténèbres tenu en main (magie_noyau_ecole, école 3) : corps sombre, bandes violettes qui tournent,
+	// volutes, liseré violet.
+	float s0 = 0.5 + 0.05 * sin(tc * 2.3 - TIME * 6.0 + graine) * smoothstep(0.0, 1.5, tc) + (n - 0.5) * 0.1;   // bord du cœur (ondule)
+	float e2 = s0 + 0.3;                                    // bord extérieur de la gaine
 	float ph = fract((tc - TIME * flux_vit) / flux_pas + graine);
 	float puls = pow(1.0 - smoothstep(0.0, 0.22, min(ph, 1.0 - ph) * 2.0), 2.0);
-	float sc = 0.82 + 0.18 * fract(sin(floor(TIME * 24.0) * 12.9898 + graine) * 43758.5453);
-	float pv = puls;
-	vec3 c = noir;
-	float a = 1.0;
-	if (x < s0) {
-		// v4 : cœur violet-noir TRANSLUCIDE et très fin (additif : il ne peut pas assombrir) ; courants violets et stries qui filent
-		float cour = smoothstep(0.55, 1.0, mbruit(vec2(tc * 1.6 - TIME * 9.0, v_th * 2.5 + graine)));
-		c = mix(fume * 0.9, bord * 0.8, cour);
-		a = 0.55 - 0.15 * axial;
-		float st = 1.0 - smoothstep(0.0, 0.06, abs(fract(v_th / TAU * 3.0 + graine) - 0.5) * 2.0 - 0.9);
-		c = mix(c, bord * 1.6, puls * st * 0.8);
-		c = mix(c, bord * 1.2, axial * 0.45);
-	} else if (x < s0 + 0.05) {
-		c = filet * (1.25 + 1.1 * pv) * eclat * sc;
-	} else if (x < e2) {
-		float t = (x - s0 - 0.05) / (e2 - s0 - 0.05);
-		c = bord * (1.9 - 0.6 * t + 1.2 * pv) * eclat * sc * (1.0 + 0.5 * axial);
+	float sc = 0.85 + 0.15 * fract(sin(floor(TIME * 24.0) * 12.9898 + graine) * 43758.5453);
+	vec3 cm = noir;
+	float am = 0.0;
+	vec3 gl = vec3(0.0);
+	// bandes torsadées (3 filaments) qui défilent vers la cible en tournant, comme les bandes du noyau
+	float tw = v_th / TAU * 3.0 + tc * 0.45 - TIME * 2.6 + (mbruit(vec2(tc * 0.7 - TIME * 3.0, graine)) - 0.5) * 1.2;
+	float bande = 0.5 + 0.5 * sin(tw * TAU);
+	// volutes : bruit fractal qui file le long du tir (densité variable)
+	float vol = mfbm2(vec2(tc * 1.4 - TIME * 7.5, v_th * 1.6 + graine * 2.0));
+	if (x < e2) {
+		// matière du cœur, plus légère dans la gaine ; densité en paliers (aucun tramage)
+		float dens = clamp(0.35 + 0.55 * vol + 0.25 * bande, 0.0, 1.0);
+		float coeur = 1.0 - smoothstep(s0 - 0.12, s0 + 0.04, x);
+		am = mix(AM_GAINE, mix(AM_MIN, AM_MAX, dens), coeur);
+		am = floor(am * 8.0 + 0.5) / 8.0;
+		cm = mix(noir, fume, clamp(bande * 0.6 + vol * 0.5, 0.0, 1.0));
+		cm = mix(cm, bord * 0.85, 1.0 - coeur);             // la gaine : violet saturé
+		// lueur intérieure faible (le cœur se lit violet, pas gris) + bandes claires qui tournent
+		gl += fume * 0.12 * coeur + bord * 0.28 * smoothstep(0.82, 0.97, bande) * coeur * (0.6 + 0.4 * vol);
+		// impulsions qui filent vers la cible (au centre du cœur, discrètes)
+		gl += bord * 0.35 * puls * coeur * (1.0 - smoothstep(0.0, s0 * 0.6, x));
+		// éclats : quelques points vifs qui filent (pointes de brillance LOCALISÉES)
+		float ecl = step(0.86, mbruit(vec2(tc * 5.0 - TIME * 22.0, v_th * 3.0 + graine * 5.0))) * step(0.5, vol);
+		gl += filet * 0.9 * ecl * coeur;
+		// filaments clairs torsadés dans le corps (2, sens opposés), fins
+		for (int h2 = 0; h2 < 2; h2++) {
+			float sens = h2 == 0 ? 1.0 : -1.0;
+			float ph2 = fract(v_th / TAU * 2.0 + tc * 0.55 * sens - TIME * 1.6 + float(h2) * 0.5);
+			float sp = (1.0 - smoothstep(0.0, 0.05, abs(ph2 - 0.5))) * smoothstep(0.12, 0.3, x);
+			gl += mix(bord * 1.1, filet, 0.2) * sp * 0.45;
+		}
+		// gaine : lumière violette saturée, plus vive contre le cœur (rim), qui s'éteint vers l'extérieur
+		if (x >= s0) {
+			float t = (x - s0) / (e2 - s0);
+			gl += bord * (0.75 - 0.45 * t + 0.4 * puls) * eclat * sc;
+			gl += mix(bord, filet, 0.3) * 0.45 * (1.0 - smoothstep(0.0, 0.05, x - s0)) * eclat * sc;   // liseré fin contre le cœur
+		}
+	} else if (x < e2 + 0.04) {
+		// liseré extérieur, fin
+		gl = mix(bord, filet, 0.15) * 0.6 * eclat * sc;
+		am = AM_GAINE * 0.7;
+		cm = bord * 0.7;
 	} else {
-		// fumée déchirée : se dissout vers l'extérieur, par paliers
+		// fumée déchirée autour du rayon : volutes sombres-violettes (matière légère) qui se dissolvent par paliers
 		float t = (x - e2) / max(GROS - e2, 0.1);
-		float f = (1.0 - t) * (0.4 + 0.8 * n) - 0.25;
-		a = floor(clamp(f, 0.0, 1.0) * 4.0 + 0.5) / 4.0 * 0.5;   // v4 : brume violette lumineuse (additive), la silhouette reste le trait
-		c = mix(fume * 1.4, bord * 0.9, n2 * 0.45 + 0.25 * (1.0 - t) + 0.15 * pv);
-		if (a < 0.05) {
+		float f = (1.0 - t) * (0.4 + 0.8 * n) - 0.3;
+		float fa = floor(clamp(f, 0.0, 1.0) * 4.0 + 0.5) / 4.0;
+		if (fa < 0.05) {
 			ALBEDO = vec3(0.0);
 			ALPHA = 0.0;
 			break;   // pas de return dans fragment() (refusé par Godot) : sortie de la boucle à un tour
 		}
-	}
-	// brins de fumée enroulés en hélice (3) : ils filent le long du tir, surtout dans la fumée et au bord
-	for (int h = 0; h < 3; h++) {
-		float fh = float(h);
-		float phh = fract(v_th / TAU * (3.0 + fh) + tc * (0.16 + 0.05 * fh) - TIME * (3.2 + 0.6 * fh) + fh * 0.33);
-		float d = min(phh, 1.0 - phh);
-		float larg = 0.035 + 0.02 * n2;
-		if (d < larg && x > e2 + 0.01) {
-			float vif = 1.0 - d / larg;
-			c = mix(c, bord * 1.5, vif * 0.6);
-			a = max(a, 0.7);
+		am = fa * 0.35;
+		cm = mix(noir, fume, 0.5 + 0.5 * n2);
+		gl = mix(fume, bord * 0.8, n2 * 0.5 + 0.2) * fa * 0.35;
+		// brins de fumée enroulés en hélice (3), liseré violet
+		for (int h = 0; h < 3; h++) {
+			float fh = float(h);
+			float phh = fract(v_th / TAU * (3.0 + fh) + tc * (0.16 + 0.05 * fh) - TIME * (3.2 + 0.6 * fh) + fh * 0.33);
+			float d = min(phh, 1.0 - phh);
+			float larg = 0.035 + 0.02 * n2;
+			if (d < larg) {
+				gl += bord * 0.6 * (1.0 - d / larg);
+			}
 		}
 	}
-	// deux spirales fines et claires (magenta-blanc) qui s'enroulent sur la gaine et filent vers la cible
-	for (int h2 = 0; h2 < 2; h2++) {
-		float sens = h2 == 0 ? 1.0 : -1.0;
-		float ph2 = fract(v_th / TAU * 2.0 + tc * 0.55 * sens - TIME * 1.6 + float(h2) * 0.5);
-		float d2 = abs(ph2 - 0.5);
-		float sp = (1.0 - smoothstep(0.0, 0.06, d2)) * smoothstep(s0 + 0.04, s0 + 0.12, x) * (1.0 - smoothstep(s0 + 0.2, s0 + 0.5, x));
-		c = mix(c, filet * 1.8, sp * 0.7);
-		a = max(a, sp * 0.9);
-	}
-	// stries lumineuses fines qui défilent vite le long du rayon (tirets, vitesses différentes par strie)
+	// stries fines qui défilent vite le long du rayon (tirets) : violettes, quelques têtes claires
 	float cs = floor(v_th / TAU * 10.0);
 	float lg = 1.0 - smoothstep(0.04, 0.14, abs(fract(v_th / TAU * 10.0) - 0.5));
 	float tir = smoothstep(0.62, 0.92, fract(tc * 0.32 - TIME * (6.0 + 2.0 * mod(cs, 3.0)) + cs * 0.37));
-	float zs = smoothstep(0.08, 0.2, x) * (1.0 - smoothstep(s0 + 0.35, GROS, x));
-	c = mix(c, filet * 1.7, tir * lg * zs * 0.85);
-	a = max(a, tir * lg * zs * 0.9);
-	// intensité variable : plus vive et plus fine près de la main, qui s'apaise en s'évasant, et un battement lent
+	float zs = smoothstep(s0 - 0.1, s0 + 0.05, x) * (1.0 - smoothstep(e2, GROS, x));
+	gl += mix(bord * 1.1, filet, 0.35 * tir) * tir * lg * zs * 0.6;
+	// plus vif près de la main, battement lent
 	float pres = exp(-tc / 2.8);
-	c *= 1.0 + (0.9 * pres + 0.25 * sin(tc * 0.9 - TIME * 4.0 + graine)) * step(s0 - 0.02, x);
-	// sortie du cercle : la source est plus claire ; le front s'amincit en pointe
+	gl *= 1.0 + 0.5 * pres + 0.2 * sin(tc * 0.9 - TIME * 4.0 + graine);
+	// sortie du cercle : la source est plus claire au tout début (allumage)
 	float sortie = (1.0 - smoothstep(0.0, 0.02, v_u)) * step(s0, x);
-	c = mix(c, filet * 2.4, sortie * 0.8 * (1.0 - smoothstep(0.1, 0.22, vie)));
+	gl += filet * 1.4 * sortie * (1.0 - smoothstep(0.1, 0.22, vie));
 	float tete_fade = smoothstep(0.0, 0.05, tete - u_c);
 	float fin_fade = 1.0 - smoothstep(0.96, 1.0, u_c);
-	c *= 1.0 + 0.4 * axial * step(s0 - 0.02, x);                     // liseré et lignes plus vifs dans l'axe
-	// ADDITIF « magie » (comme magie_part_add) : prémultiplié, SANS opacité. blend_add / blend_mix écrivaient une opacité dans la couche
-	// fine (SubViewport) : tout fragment du volume non dessiné ou sombre devenait un aplat NOIR opaque autour du sort (le « pâté » en jeu).
-	ALBEDO = c * clamp(a * tete_fade * fin_fade * mix(0.5, 1.0, k) * vis, 0.0, 1.0);
-	ALPHA = 0.0;
+	float m = clamp(tete_fade * fin_fade * mix(0.5, 1.0, k) * vis, 0.0, 1.0);
+	am = clamp(am * m, 0.0, AM_MAX);
+	// prémultiplié : matière (cm * am, opacité am) + lumière additive (gl, sans opacité)
+	ALBEDO = cm * am + gl * m;
+	ALPHA = am;
 } while (false);
 }

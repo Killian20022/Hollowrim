@@ -66,11 +66,13 @@ void fragment() {
 		float lig = 1.0 - smoothstep(0.0, 0.07 + 0.06 * h4, abs(loc - 0.5) - 0.07);
 		float tete_l = smoothstep(0.7, 0.97, tail);
 		float b = pow(clamp(tail, 0.0, 1.0), 1.8) * (1.0 - smoothstep(0.985, 1.0, q)) * on * lig;
-		vec3 c = mix(bord * 1.7, vec3(1.0, 0.95, 1.0) * 3.4, tete_l);
+		vec3 c = mix(bord * 1.1, mix(bord, filet, 0.6) * 1.5, tete_l);   // v5 : traits violets, têtes lavande (v4 : magenta 1,7 / blanc-rose 3,4)
 		float bout = smoothstep(0.0, 0.5 / max(longueur, 0.5), v_u) * (1.0 - smoothstep(0.96, 1.0, v_u / max(tete, 0.01)));
 		float pc = smoothstep(0.08, 0.4, length(VERTEX));              // v3f : pas de traits collés à l'œil
 		float al_v = clamp(b * bout * k * 0.95 * pc * (1.0 + 0.6 * elan), 0.0, 1.0);
-		ALBEDO = c * force * (1.0 + 1.4 * elan) * al_v;   // additif prémultiplié (couche fine : aucune opacité)
-		ALPHA = 0.0;
+		// v5 : un peu de matière violette sous chaque trait (mélange, opacité 0,3 × trait) : violet aussi sur un ciel clair, pas blanc
+		float am_v = al_v * 0.3;
+		ALBEDO = bord * 0.8 * am_v + c * force * (1.0 + 1.4 * elan) * al_v;
+		ALPHA = am_v;
 	} while (false);
 }

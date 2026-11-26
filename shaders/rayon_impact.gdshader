@@ -29,7 +29,7 @@ void fragment() {
 			float ph = fract(t * 0.9 + float(i) / 3.0);
 			float rr = 0.12 + 0.82 * ph;
 			float w = trait(abs(r - rr), 0.035 + 0.05 * ph) * (1.0 - ph) * (1.0 - ph);
-			c = mix(c, mix(accent, filet, 1.0 - ph) * 2.0, w);
+			c = mix(c, mix(accent, filet, 1.0 - ph) * 1.5, w);
 			a = max(a, w * 0.9);
 		}
 		// étincelles rayonnantes (traits qui s'allongent depuis le centre, tournent)
@@ -39,14 +39,14 @@ void fragment() {
 		float lon = 0.18 + 0.5 * h11(cell + floor(t * 6.0));
 		float vive = step(0.35, h11(cell * 1.7 + floor(t * 6.0)));
 		float ray = trait(abs(fa) * r * 0.45, 0.012) * step(0.14, r) * step(r, 0.14 + lon) * vive;
-		c = mix(c, filet * 2.2, ray); a = max(a, ray * 0.85);
+		c = mix(c, filet * 1.5, ray)   /* v5 : moins blanc */; a = max(a, ray * 0.85);
 		// anneau de runes pointillé
 		float dots = fract((ang - t * 0.7) / TAU * 20.0);
 		float ann = trait(abs(r - 0.62), 0.03) * step(dots, 0.35);
 		c = mix(c, accent * 1.6, ann * 0.8); a = max(a, ann * 0.7);
 		// noyau clair
 		float noy = (1.0 - smoothstep(0.04, 0.2, r)) * (0.8 + 0.2 * sin(t * 18.0));
-		c = mix(c, filet * 3.0, noy); a = max(a, noy);
+		c = mix(c, filet * 2.0, noy); a = max(a, noy);
 		ALBEDO = c * clamp(a * ouv * (1.0 - smoothstep(0.85, 1.0, r)), 0.0, 1.0);   // v4 : additif prémultiplié (couche fine)
 		ALPHA = 0.0;
 	}
