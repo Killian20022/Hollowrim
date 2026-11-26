@@ -179,6 +179,12 @@ func _film() -> void:
 	await _appui("avant", 2.6)
 	Input.action_release("course")
 	await _attendre(0.6)
+	# retour dans la clairière (dégagée) pour le combat et la chute : rien entre la caméra et le corps
+	j.global_position = Vector3(3.0, m.hauteur(3.0, 3.0) + 0.05, 3.0)
+	j.rotation.y = deg_to_rad(200.0)
+	j.velocity = Vector3.ZERO
+	j.camera_tp.recaler()
+	await _attendre(0.4)
 	j.camera_tp.set("_orbite", deg_to_rad(110.0))
 	l.text = "%s - combo d'epee 1-2-3-4" % s
 	await _attendre(0.5)
