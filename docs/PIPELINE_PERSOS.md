@@ -243,3 +243,24 @@ Puis l'ajouter à `TESTS` dans `outils/tous_les_tests.sh` (`"test_<archetype>|--
   sombres et larges = aplat. Normales de chevelure, racine fine et claire (elle sort de la chevelure).
 - **Casque** : `Humain.creer` cache `Hair_Long` sous un casque ; les mèches détachées (tempes, nuque) restent et sortent
   du casque, la barbe reste.
+
+---
+
+## 12. Passe « réalisme » des PNJ maison (pnj/realisme_v1, 2026-11-26)
+
+Retour utilisateur : « qu'ils fassent parfois un peu moins Playmobil et plus réels dans tout ». Mesure d'abord
+(`outils/mesure_proportions_pnj.gd`) : la tête des corps Quaternius fait déjà 1/7,85 de la taille (0,235 m pour 1,84 m), donc
+**aucune retouche de proportions ni de maillage** ; ce qui faisait « jouet » : visage lisse orangé, yeux ronds grand ouverts (iris
+viré au rouge par la teinte de bande des habitantes), cheveux et étoffes en aplats saturés, tous les habitants identiques.
+`RealismePnj` (`scripts/realisme_pnj.gd`) repeint, APRÈS la construction de l'archétype et sur des COPIES des matériaux :
+- visage : `VisagePnj` (`scripts/visage_pnj.gd`) peint orbites, arcade, nez (arête / flancs / narines), sillons nasogéniens,
+  commissures, pommettes et joues creusées, menton, rougeur du froid, barbe naissante, rides (âge), grain de peau, dans l'atlas
+  de peau Quaternius (repères `REPERES` en fractions de l'atlas, homme et femme) ;
+- yeux (cartes `R_OEIL` de l'atlas des accessoires) : amande, paupière haute qui couvre le haut de l'iris, iris terne (5 teintes) ;
+- étoffes : désaturation nordique, plis, ourlet crotté, éclaboussures, taches, zones râpées ; cheveux : mèches ;
+- saturation par genre de pièce (`SAT`, uniforme `saturation` de ps1_perso) ; stature par individu (`taille`, villageois.gd).
+Profils par PNJ : `RealismePnj.PROFILS` (sexe, âge, barbe naissante, rougeur, salissure, désaturation, taille). Concerne les PNJ
+nommés et habitants de `PnjNordique` (sauf `eirik` et `garde`, corps de la crypte), les bandits et archers bandits
+(`EnnemisNordiques`), et le visage seul des gardes maison (`GardeMaison`, armures inchangées). Images précalculées dans
+`assets/pnj/realisme/` (`outils/generer_realisme_pnj.gd`, à relancer avec `VERSION++`). Rendu d'avant : `-- --pnj-realisme-ancien`.
+Test : `outils/test_realisme_pnj.gd` (mêmes maillages / os / clips, visage repeint, reste de l'atlas intact, crypte non touchée).

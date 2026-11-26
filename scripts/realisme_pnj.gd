@@ -89,6 +89,11 @@ static func appliquer(n: Node3D, id: String) -> void:
 						_regler(mi, s, {"saturation": SAT_ACCESSOIRES})     # pièces modelées (tresses, ceintures, plastron) : un peu ternies
 			continue
 		for s in mi.mesh.get_surface_count():
+			var tb0 := (mi.get_active_material(s) as ShaderMaterial).get_shader_parameter("tex_base") as Texture2D if mi.get_active_material(s) is ShaderMaterial else null
+			if genre in ["cheveux", "barbe"] and tb0 != null and tb0.get_width() * tb0.get_height() > 128 * 128:
+				# grande texture de chevelure (mage) : pas repeinte (ni copiée sur disque), seulement ternie
+				_regler(mi, s, {"saturation": float(SAT[genre]), "teinte": Color(VAL_CHEVEUX, VAL_CHEVEUX * 0.97, VAL_CHEVEUX * 0.97)})
+				continue
 			var t0 := Time.get_ticks_usec()
 			_repeindre(mi, s, genre, p, graine + s * 17 + nom.length() * 31, "%s_%s_%d" % [id, nom, s])
 			if chrono:
@@ -184,8 +189,7 @@ static func _repeindre(mi: MeshInstance3D, s: int, genre: String, p: Dictionary,
 				"yeux":
 					_yeux(img, graine)
 				"cheveux", "barbe":
-					if img.get_width() * img.get_height() <= 128 * 128:     # atlas de coupe Quaternius (64 px) ; pas les grandes textures
-						_meches(img, graine, genre == "barbe")
+					_meches(img, graine, genre == "barbe")
 				_:
 					_usure(img, genre, p, graine)
 			pret = GuerrierTextures.mips_pixel(img) if genre != "peau" else _mips(img)
