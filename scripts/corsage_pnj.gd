@@ -48,9 +48,34 @@ static func ancres(mi: MeshInstance3D, W: int, H: int) -> Dictionary:
 		return d
 	d["col"] = Vector2(uv[icol].x * W, uv[icol].y * H)
 	d["y_col"] = ycol
-	# fibules : sur le haut de la poitrine, à 0,075 m de l'axe, 0,12 m sous l'encolure ; sommet le plus en avant
+	# dessous du buste (devant), aisselles (flancs), coudes (manches)
+	var xmax := 0.0
+	for v in vv:
+		xmax = maxf(xmax, absf(v.x))
+	var x_coude := 0.18 + 0.5 * (xmax - 0.18)
+	var pts := {"buste_g": Vector3(-0.07, ycol - 0.27, 1), "buste_d": Vector3(0.07, ycol - 0.27, 1),
+			"aisselle_g": Vector3(-0.17, ycol - 0.14, 0), "aisselle_d": Vector3(0.17, ycol - 0.14, 0),
+			"coude_g": Vector3(-x_coude, -1.0, 0), "coude_d": Vector3(x_coude, -1.0, 0)}
+	for nom: String in pts:
+		var q: Vector3 = pts[nom]
+		var bi := -1
+		var bdd := 1e9
+		for i in vv.size():
+			var v := vv[i]
+			if uv[i].y >= ChasseresseTextures.V_JUPE or (q.z > 0.5 and v.z < 0.02):
+				continue
+			var dd := absf(v.x - q.x) * 4.0 if q.y < 0.0 else Vector2(v.x, v.y).distance_squared_to(Vector2(q.x, q.y))
+			if q.z > 0.5:
+				dd -= v.z * 0.004
+			if dd < bdd:
+				bdd = dd
+				bi = i
+		if bi >= 0:
+			d[nom] = Vector2(uv[bi].x * W, uv[bi].y * H)
+	# fibules : haut de la poitrine, à 0,06 m de l'axe, 0,19 m sous l'encolure (juste sous le col de fourrure de la mante,
+	# qui couvre jusqu'à ~1,32 m) ; sommet le plus en avant
 	for cote in [-1, 1]:
-		var cible := Vector2(0.075 * cote, ycol - 0.12)
+		var cible := Vector2(0.06 * cote, ycol - 0.19)
 		var best := -1
 		var bd := 1e9
 		for i in vv.size():
@@ -83,19 +108,22 @@ static func _mul(c: Color, f: float) -> Color:
 
 ## Facteur de tissage d'un texel (valeur autour de 1).
 static func _trame(t: String, x: int, y: int) -> float:
+	# fils de 2 texels (un fil d'un texel disparaît au rendu 240 px) ; contraste ±12-15 % de luminance
 	match t:
 		"toile":
-			return 1.05 if (x + y) % 2 == 0 else 0.96
+			return 1.13 if (x / 2 + y / 2) % 2 == 0 else 0.88
 		"serge":
-			return 1.06 if posmod(x + y, 4) < 2 else 0.95
+			var k := posmod(x + y, 6)
+			return 1.14 if k < 3 else (0.84 if k == 5 else 0.90)
 		"chevrons":
-			var s := x if (x / 6) % 2 == 0 else -x
-			return 1.07 if posmod(s + y, 4) < 2 else 0.94
+			var s := x if posmod(x, 16) < 8 else -x
+			var k := posmod(s + y, 6)
+			return 1.14 if k < 3 else (0.84 if k == 5 else 0.90)
 		"losanges":
-			var k := absi(posmod(x, 10) - 5) + absi(posmod(y, 8) - 4)
-			return 1.07 if k % 4 < 2 else 0.95
+			var k := absi(posmod(x, 12) - 6) + absi(posmod(y, 10) - 5)
+			return 1.14 if posmod(k, 5) < 2 else 0.89
 		"cotele":
-			return 1.06 if x % 3 != 0 else 0.90
+			return 1.13 if posmod(x, 4) < 2 else 0.86
 	return 1.0
 
 static func peindre(img: Image, c: Dictionary, g: int) -> void:
@@ -111,7 +139,7 @@ static func peindre(img: Image, c: Dictionary, g: int) -> void:
 			if a < 0.05:
 				continue
 			var f := _trame(tissage, x, y)
-			f += (RealismePnj.bruit(x, y, W, H, 12, 5, g + 401) - 0.5) * 0.16      # teinture inégale
+			f += (RealismePnj.bruit(x, y, W, H, 12, 5, g + 401) - 0.5) * 0.22      # teinture inégale
 			f += (RealismePnj._h(x / 3, y, g + 403) - 0.5) * 0.08                 # fil flammé (irrégulier sur 3 texels)
 			if RealismePnj._h(x, y, g + 405) > 0.985:
 				f -= 0.12                                                          # bouloches / fil sombre
@@ -140,6 +168,52 @@ static func peindre(img: Image, c: Dictionary, g: int) -> void:
 				if y == yn + 2:
 					cc = gc.darkened(0.45)                                         # lisière
 				_px(img, x, y, cc)
+	# 3. plis sous le buste (arc sombre + rehaut au-dessus), plis rayonnants aux aisselles, coudes usés et salis, bas du corsage sali
+	for k in ["buste_g", "buste_d"]:
+		if an.has(k):
+			var b: Vector2 = an[k]
+			for dx in range(-14, 15):
+				var yy := int(b.y) + int(roundf(absf(dx) * absf(dx) / 40.0))
+				_ombrer(img, int(b.x) + dx, yy, 0.55)
+				_ombrer(img, int(b.x) + dx, yy + 1, 0.66)
+				_ombrer(img, int(b.x) + dx, yy + 2, 0.85)
+				_ombrer(img, int(b.x) + dx, yy - 1, 1.14)
+	for k in ["aisselle_g", "aisselle_d"]:
+		if an.has(k):
+			var a: Vector2 = an[k]
+			for r in 5:
+				var ang := -0.9 + r * 0.45
+				for t in range(1, 11):
+					_ombrer(img, int(a.x + sin(ang) * t), int(a.y + cos(ang) * t * 0.8), 0.58 + t * 0.04)
+					_ombrer(img, int(a.x + sin(ang) * t) + 1, int(a.y + cos(ang) * t * 0.8), 1.08)
+	var boue := Color(0.22, 0.18, 0.14)
+	for k in ["coude_g", "coude_d"]:
+		if an.has(k):
+			var e: Vector2 = an[k]
+			for yy in range(-7, 8):
+				for xx in range(-9, 10):
+					var dd := pow(xx / 9.0, 2) + pow(yy / 7.0, 2)
+					if dd > 1.0:
+						continue
+					var px := posmod(int(e.x) + xx, W)
+					var py := int(e.y) + yy
+					if py < 0 or py >= yj:
+						continue
+					var cc := img.get_pixel(px, py)
+					var n := RealismePnj.bruit(px, py, W, H, 40, 20, g + 431)
+					var kk := (1.0 - dd) * (0.35 + 0.5 * n)
+					var l := cc.get_luminance()
+					cc = Color(lerpf(cc.r, l * 1.15, kk * 0.8), lerpf(cc.g, l * 1.08, kk * 0.8), lerpf(cc.b, l, kk * 0.8), cc.a)   # râpé, terne
+					cc = cc.lerp(Color(boue.r, boue.g, boue.b, cc.a), kk * 0.55 * float(n > 0.45))
+					img.set_pixel(px, py, cc)
+	for y in range(maxi(yj - 16, 0), yj):
+		var t := float(y - (yj - 16)) / 16.0
+		for x in W:
+			var n := RealismePnj.bruit(x, y, W, H, 24, 8, g + 441)
+			var cc := img.get_pixel(x, y)
+			if cc.a < 0.05:
+				continue
+			img.set_pixel(x, y, cc.lerp(Color(boue.r, boue.g, boue.b, cc.a), clampf(t * (0.30 + 0.50 * n), 0.0, 0.6)))
 	var x0 := int(col_pos.x)
 	match String(c.get("fermoir", "")):
 		"lacets":
@@ -162,6 +236,11 @@ static func peindre(img: Image, c: Dictionary, g: int) -> void:
 			if an.has("fib_g") and an.has("fib_d"):
 				var pg: Vector2 = an["fib_g"]
 				var pd: Vector2 = an["fib_d"]
+				# le col de fourrure de la mante couvre le haut de la poitrine (vérifié en rendu) : fibules descendues juste au-dessus
+				# du pli du buste, la partie de la poitrine qui se voit
+				if an.has("buste_g") and an.has("buste_d"):
+					pg = Vector2(pg.x, (an["buste_g"] as Vector2).y - 5.0)
+					pd = Vector2(pd.x, (an["buste_d"] as Vector2).y - 5.0)
 				# bretelles de la robe-tablier (laine plus sombre) des fibules à la taille
 				var bret := laine.darkened(0.30)
 				for p in [pg, pd]:
@@ -185,7 +264,16 @@ static func peindre(img: Image, c: Dictionary, g: int) -> void:
 					_px(img, int(roundf(px)), int(roundf(py)), pc)
 					_px(img, int(roundf(px)), int(roundf(py)) + 1, pc.darkened(0.40))
 				for p in [pg, pd]:
-					_broche(img, int(p.x), int(p.y), 3.6, 2.8)
+					_broche(img, int(p.x), int(p.y), 4.2, 3.2)
+
+static func _ombrer(img: Image, x: int, y: int, f: float) -> void:
+	var xx := posmod(x, img.get_width())
+	if y < 0 or y >= img.get_height():
+		return
+	var cc := img.get_pixel(xx, y)
+	if cc.a < 0.05:
+		return
+	img.set_pixel(xx, y, _mul(cc, f))
 
 ## Fibule ovale / broche ronde en bronze terni : contour sombre, dôme, rehaut, bossettes.
 static func _broche(img: Image, cx: int, cy: int, rx: float, ry: float) -> void:

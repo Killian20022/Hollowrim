@@ -15,7 +15,7 @@ class_name RealismePnj
 static var _ancien := -1
 ## Images précalculées (outils/generer_realisme_pnj.gd, VERSION++ après toute modif des peintures) : rien n'est repeint au lancement.
 const DOSSIER := "res://assets/pnj/realisme"
-const VERSION := 4
+const VERSION := 7
 static var enregistrer := false
 static var chrono := false
 
