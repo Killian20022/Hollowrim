@@ -30,7 +30,8 @@ func _process(delta: float) -> void:
 	if _t < PERIODE:
 		return
 	_t = 0.0
-	visible = bool(Jeu.option("affichage", "afficher_ips"))
+	# --sans-hud (captures, planches) : pas de compteur sur les images
+	visible = bool(Jeu.option("affichage", "afficher_ips")) and not OS.get_cmdline_user_args().has("--sans-hud")
 	if not visible:
 		return
 	var ips := Engine.get_frames_per_second()

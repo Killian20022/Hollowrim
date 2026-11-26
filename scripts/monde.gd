@@ -2295,6 +2295,8 @@ func _lot_captures(fichier: String) -> void:
 				dir2.y = 0.0
 				var pos2 := pv2 + dir2.normalized() * c[0]
 				pos2.y = hauteur(pos2.x, pos2.z) + 0.1 - float(opt.get("bas", "0"))
+				if String(opt.get("sol", "")) == "pnj":      # intérieurs : la caméra au niveau du plancher du PNJ (pas du terrain dehors)
+					pos2.y = pv2.y + 0.05 - float(opt.get("bas", "0"))
 				joueur.global_position = pos2
 				var vers2 := pv2 - pos2
 				joueur.rotation.y = atan2(-vers2.x, -vers2.z)

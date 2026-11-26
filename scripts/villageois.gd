@@ -268,6 +268,8 @@ func _ready() -> void:
 		modele = PnjNordique.creer(id)
 	else:
 		modele = Humain.creer(APPARENCES.get(id, APPARENCES["chef"]))
+	if modele.has_meta("realisme_pnj"):     # pnj/realisme_v1 : stature propre à chaque individu (RealismePnj.PROFILS)
+		modele.scale *= RealismePnj.taille(String(modele.get_meta("realisme_pnj")))
 	add_child(modele)
 	anim = modele.get_node("Animations")
 	if points.is_empty():

@@ -61,12 +61,20 @@ func _lancer() -> void:
 		root.add_child(ref)
 		var noms_ref := _visibles(ref)
 		var noms := _visibles(n)
+		# pnj/realisme_v1 passe 2 (AllurePnj) : tenue recombinée À PARTIR des pièces cachées du même archétype, cheveux Quaternius
+		# remplacés par la chevelure en cartes, collet de laine / cuir ; rien d'un autre modèle
+		var allure := AllurePnj.concerne(id)
+		var tous_ref := {}
+		for mi: MeshInstance3D in ref.find_children("*", "MeshInstance3D", true, false):
+			tous_ref[String(mi.name)] = true
 		var perdus := []
 		for k: String in noms_ref:
-			if not noms.has(k):
+			if not noms.has(k) and not (allure and (k.begins_with("Hair_") or k in ["Eyebrows", "mante", "cape"])):
 				perdus.append(k)
 		var greffes := []
 		for k: String in noms:
+			if allure and (tous_ref.has(k) or k in ["chevelure", "collet"]):
+				continue
 			if not noms_ref.has(k) and not k.begins_with("Maillet") and not k.begins_with("Canne"):
 				greffes.append(k)
 		_verif(perdus.is_empty(), "%s : pièces de l'archétype toutes gardées %s" % [id, str(perdus)])

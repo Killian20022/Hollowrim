@@ -67,11 +67,12 @@ static func creer(id: String) -> Node3D:
 		return MageTripo.creer({})
 	if id.begins_with("tripo_"):      # gardes Tripo (lancier, épée, archer) : scripts/garde_tripo.gd
 		return GardeTripo.creer(id)
-	var c := CachePersos.lire("pnj_" + id, "res://scripts/pnj_nordique.gd", {})   # PNJ déjà bâti et teint (cache disque, cache_persos.gd)
+	var cle := "pnj_" + id + ("_r1" if RealismePnj.concerne(id) else "")    # pnj/realisme_v1 : clé à part (bascule --pnj-realisme-ancien)
+	var c := CachePersos.lire(cle, "res://scripts/pnj_nordique.gd", {})   # PNJ déjà bâti et teint (cache disque, cache_persos.gd)
 	if c != null:
 		return c
 	c = _creer(id)
-	CachePersos.ecrire("pnj_" + id, "res://scripts/pnj_nordique.gd", {}, c)
+	CachePersos.ecrire(cle, "res://scripts/pnj_nordique.gd", {}, c)
 	return c
 
 static func _creer(id: String) -> Node3D:
@@ -89,6 +90,7 @@ static func _creer(id: String) -> Node3D:
 		_:
 			push_warning("PnjNordique : id inconnu « %s », la cheffe est créée à la place" % id)
 			n = _chef()
+	RealismePnj.appliquer(n, id)     # pnj/realisme_v1 : visage, étoffes usées, mèches (sans effet pour eirik, garde et sans profil)
 	n.set_meta("pnj_nordique", id)
 	return n
 
