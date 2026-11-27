@@ -4,7 +4,7 @@ extends SceneTree
 ##   godot --path . --fixed-fps 60 --write-movie f.avi --resolution 1280x720 --script res://outils/film_gardes_armes.gd
 ##         -- --nouvelle [--armes=epee_metal,hache_guerre] [--vues=1p,3p] [--titre=APRES] [--gardes-anciennes]
 const SCENE := preload("res://scenes/test_combat.tscn")
-const DT := 1.0 / 60.0
+var DT := 1.0 / 60.0   # --fps=<n> : pas de jeu par image (120 + --fixed-fps 120 lu à 30 : ralenti x0,25)
 const ARMES := ["epee_metal", "dague_acier", "veilleuse", "claymore", "hache_guerre", "hachette", "masse_cloutee", "marteau_guerre", "grand_marteau"]
 
 var s: Node3D
@@ -28,7 +28,7 @@ func _arg(nom: String, defaut := "") -> String:
 func _images(n: int, garde := false, texte := "") -> void:
 	if texte != "":
 		l.text = _titre + texte
-	for i in n:
+	for i in roundi(n / 60.0 / DT):   # n : images à 60 i/s (même durée de jeu quel que soit --fps)
 		if garde:
 			mains.entrees.forcer_garde(0.2)
 		j.vigueur = j.vigueur_max
@@ -63,6 +63,7 @@ func _sequence(id: String, vue: String) -> void:
 	await _images(40, false, nom + " : sortie de garde")
 
 func _go() -> void:
+	DT = 1.0 / float(_arg("fps", "60"))
 	_titre = _arg("titre", "")
 	if _titre != "":
 		_titre += " — "
