@@ -21,10 +21,11 @@ var j: CharacterBody3D
 var mains: Node3D
 var m: MainSort
 var sortie := ""
-var _csv: PackedStringArray = ["sequence,image,coup,clip,t_clip,etat,poignet_x,poignet_y,centre_x,centre_y,marge_bas_px,points_dedans,recul_vm_y"]
+var _csv: PackedStringArray = ["sequence,image,coup,clip,t_clip,etat,poignet_x,poignet_y,centre_x,centre_y,marge_bas_px,points_dedans,recul_vm_y,frappe,angle_lame_deg"]
 var _bilan: PackedStringArray = []
 var _echec := 0
 var _echec3 := 0   # coup 3 seul (défaut A)
+var _angles3: Array = []   # angle de la lame à l'écran pendant la frappe du coup 3
 
 func _init() -> void:
 	_go.call_deferred()
@@ -137,8 +138,17 @@ func _sequence(nom: String, arme: Variant, duree: float, clics: Dictionary) -> v
 		var en_recup: bool = mains.combat.etat == EtatCombat.RECUPERATION and coup > 0
 		var k := coup if (en_coup or en_recup) else 0
 		var acc := cam.unproject_position((mains._accroche_d as Node3D).global_position)
-		print("IMG %s %03d coup=%d clip=%s t=%.3f %s poignet=(%.0f,%.0f) centre=(%.0f,%.0f) marge_bas=%.0f px dedans=%d/4 accroche=(%.0f,%.0f)%s" % [nom, i, k, clip, mains.anim.t, etat, px[0].x, px[0].y, centre.x, centre.y, marge, dedans, acc.x, acc.y, " HORS" if ((en_coup or en_recup) and hors) else ""])
-		_csv.append("%s,%d,%d,%s,%.4f,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%.4f" % [nom, i, k, clip, mains.anim.t, etat, px[0].x, px[0].y, centre.x, centre.y, marge, dedans, recul.y])
+		# lame à l'écran : angle de la droite garde -> pointe depuis la verticale (+ = pointe penchée vers la GAUCHE, sens de la
+		# taille droite -> gauche), sur l'épée affichée (repère de la main affichée × prise)
+		var epee_g: Transform3D = main_g * mains.anim.prise
+		var eg := cam.unproject_position(epee_g * mains._garde_lame)
+		var ep := cam.unproject_position(epee_g * mains._pointe_lame)
+		var ang_lame := rad_to_deg(atan2(-(ep.x - eg.x), -(ep.y - eg.y)))
+		print("IMG %s %03d coup=%d clip=%s t=%.3f %s poignet=(%.0f,%.0f) centre=(%.0f,%.0f) marge_bas=%.0f px dedans=%d/4 accroche=(%.0f,%.0f) lame=%+.0f°%s" % [nom, i, k, clip, mains.anim.t, etat, px[0].x, px[0].y, centre.x, centre.y, marge, dedans, acc.x, acc.y, ang_lame, " HORS" if ((en_coup or en_recup) and hors) else ""])
+		var en_frappe: bool = en_coup and mains._m.has("frappe") and mains.anim.t >= float(mains._m["frappe"]) and mains.anim.t <= float(mains._m.get("fin_frappe", mains._m["frappe"]))
+		_csv.append("%s,%d,%d,%s,%.4f,%s,%.1f,%.1f,%.1f,%.1f,%.1f,%d,%.4f,%d,%.1f" % [nom, i, k, clip, mains.anim.t, etat, px[0].x, px[0].y, centre.x, centre.y, marge, dedans, recul.y, 1 if en_frappe else 0, ang_lame])
+		if en_frappe and k == 3:
+			_angles3.append(ang_lame)
 		if en_coup or en_recup:
 			if not par_coup.has(k):
 				par_coup[k] = [0, 0, 0, INF, clip, 0, 0, INF]
@@ -153,6 +163,16 @@ func _sequence(nom: String, arme: Variant, duree: float, clics: Dictionary) -> v
 			var img := root.get_texture().get_image()
 			DirAccess.make_dir_recursive_absolute(sortie.path_join(nom))
 			img.save_png(sortie.path_join(nom).path_join("%03d.png" % i))
+	if not _angles3.is_empty():
+		var smin := 999.0
+		var som := 0.0
+		for a in _angles3:
+			smin = minf(smin, a)
+			som += a
+		var l3 := "LAME %-12s coup 3 frappe : %d images, angle moyen %+.0f°, minimum %+.0f° (+ = penchée vers la gauche)" % [nom, _angles3.size(), som / _angles3.size(), smin]
+		print(l3)
+		_bilan.append(l3)
+	_angles3.clear()
 	for k in par_coup:
 		var c: Array = par_coup[k]
 		var ligne := "SEQ %-12s coup %d (%s) : attaque images=%d main_hors=%d main_coupee=%d marge_bas_min=%.0f px | recuperation images=%d main_hors=%d marge_bas_min=%.0f px" % [nom, k, c[4], c[0], c[1], c[2], c[3], c[5], c[6], c[7]]

@@ -394,6 +394,12 @@ CLIPS_MIXAMO["coup_t6"].update(poignet=((-28, 45), (-29, -18)), arc=(0.13, 0.23,
 # Écartés (mesurés) : tangage seul > 50° (la lame se redresse vers le ciel), décalage de l'épaule vers le haut (le bout de
 # la rotule entre dans le champ et le cadrage du viewmodel redescend tout). Mesure : outils/mesure_main_combo.gd (main
 # affichée projetée image par image). Butées du poignet : BUTEES OK (flexion -24..45, inclinaison -32..-18, comme avant).
+# Passe 2 (lame « essuie-glace » verticale refusée) : repère de la main tourné de 25° (lacet), 10° (tangage) et 45° (roulis)
+# au lieu de (-20, 30, 0) : la lame se couche de 34 à 45° vers la gauche pendant la frappe (avant : 14-17° vers la droite),
+# la torsion de l'avant-bras l'absorbe, poignet dans ses butées (flexion -11..45, inclinaison -32..-18). Écartés (mesurés) :
+# roulis / lacet du cadrage du bras (lame à peine couchée), images 39-41 de la capture en fin de table (la main resort sous
+# l'écran), suivi d'épaule bridé à 4,6° (+4° de lame seulement, main à -7 px), capture Mixamo « Stable Sword Inward Slash »
+# (lame au-delà de l'horizontale, pointe près de l'œil).
 # Les finishers (décapitation) gardent le cadrage d'avant : COUP_T6_AVANT_CADRAGE.
 COUP_T6_AVANT_CADRAGE = dict(CLIPS_MIXAMO["coup_t6"])
-CLIPS_MIXAMO["coup_t6"].update(cadrage=(5, 48, -25), plein=(0.02, 0.52), amplitude=0.3)  # COMBO3
+CLIPS_MIXAMO["coup_t6"].update(cadrage=(5, 48, -25), plein=(0.02, 0.52), amplitude=0.3, main=(25, 10, 45))  # COMBO3
