@@ -363,7 +363,8 @@ static func reculer(racine: Node3D, cam: Camera3D, dt: float) -> void:
 				ramene = ramene.limit_length(LEVEE_MAX)
 	# essai « ramener la main dans le champ » (LEVEE_MAX) : écarté. Quand la main manque à l'impact (taille_dg6), elle est
 	# CACHÉE PAR LE BRAS qui part loin de l'œil, pas hors champ : remonter le viewmodel ne la montrait pas et faisait entrer
-	# le bout de l'épaule (3 500 px). Ce cas relève du geste (clip), pas du cadrage.
+	# le bout de l'épaule (3 500 px). Ce cas relève du geste (clip), pas du cadrage : réglé dans le clip coup_t6 (cadrage et amplitude
+	# de la capture, combat/combo3_cadrage, 2026-11-27 ; mesure : outils/mesure_main_combo.gd).
 	ramene = Vector2.ZERO
 	vise.y -= clampf(bas, 0.0, limite)
 	recul = recul.lerp(vise, 1.0 - exp(-RECUL_LISSAGE * maxf(dt, 0.0)))

@@ -386,3 +386,14 @@ for _nom, _arc in (("coup_a", (0.16, 0.26, 0.85)), ("coup_b", (0.13, 0.23, 0.85)
 # moins appuyé
 CLIPS_MIXAMO["coup_b6"]["cadrage"] = (0, 25, 80)
 CLIPS_MIXAMO["coup_t6"].update(poignet=((-28, 45), (-29, -18)), arc=(0.13, 0.23, 0.6))
+# COMBO 3 CADRÉ (combat/combo3_cadrage, 2026-11-27 ; défaut A de l'exe 8 : au 3e coup du combo à une main, la main passait
+# sous le bas de l'écran en 1re personne : 14 images sur 14 pendant le coup, toute la récupération). Même capture, même table
+# de temps, mêmes surcouches v6 (poignet verrouillé, arc guidé, creux) ; seuls changent le CADRAGE du clip (rotation rigide
+# du bras autour de l'épaule : tangage 12 -> 48°, lacet 5° vers la gauche, tenu de 0,02 à 0,52 s au lieu de 0,09-0,32) et
+# l'AMPLITUDE (0,55 -> 0,3 : l'armé et le suivi de la capture, qui plongeaient sous l'écran, ramenés vers l'image d'impact).
+# Écartés (mesurés) : tangage seul > 50° (la lame se redresse vers le ciel), décalage de l'épaule vers le haut (le bout de
+# la rotule entre dans le champ et le cadrage du viewmodel redescend tout). Mesure : outils/mesure_main_combo.gd (main
+# affichée projetée image par image). Butées du poignet : BUTEES OK (flexion -24..45, inclinaison -32..-18, comme avant).
+# Les finishers (décapitation) gardent le cadrage d'avant : COUP_T6_AVANT_CADRAGE.
+COUP_T6_AVANT_CADRAGE = dict(CLIPS_MIXAMO["coup_t6"])
+CLIPS_MIXAMO["coup_t6"].update(cadrage=(5, 48, -25), plein=(0.02, 0.52), amplitude=0.3)  # COMBO3

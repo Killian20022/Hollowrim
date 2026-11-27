@@ -112,7 +112,7 @@ SPEC_PLANTEE = dict(source="estoc", ref=0,
 
 # 2. DÉCAPITATION : taille horizontale droite -> gauche (UAL2 « Sword_Regular_Combo », 3e coup : celui des coups v6, validé), armé
 # plus lent (0,27 s) pour que le coup soit lisible, suivi plus long.
-_T = G.CLIPS_MIXAMO["coup_t6"]
+_T = G.COUP_T6_AVANT_CADRAGE   # cadrage d'avant combat/combo3_cadrage (le coup 3 du combo est recadré à part)
 SPEC_DECAP = dict(_T, temps=[(27, 0.0), (31.5, 0.27), (33, 0.31), (38, 0.42), (38.5, 0.50), (38.5, 0.95)], fondu=(0.12, 0.50),
                   plein=(0.12, 0.50), balayage=(0, 40, 0.31, 0.42), arc=(0.31, 0.42, 0.6), poignet=((-28, 45), (-29, -18)))
 

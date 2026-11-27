@@ -26,6 +26,9 @@ const GESTES := {
 	# ci-dessus), clips à poignet verrouillé et arc guidé
 	"diag_dg6": {"clip": "coup_a6", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.0, "elan": 0.35},
 	"revers_gd6": {"clip": "coup_b6", "fenetre": [0.0, 1.0], "cotes": [0, 1], "enchainement": [0.04, 1.0], "force": 1.0, "elan": 0.3},
-	"taille_dg6": {"clip": "coup_t6", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.1, "elan": 0.35},
+	# coup 3 (combat/combo3_cadrage, 2026-11-27) : « suivi » 0 = pas de rotation d'épaule ajoutée après la frappe (AccompagnementCoup,
+	# coups_v4) : elle poussait la main 17° plus loin vers le bas à gauche, hors de l'écran, toute la récupération ; le clip
+	# (capture recadrée, gestes_bras_epee.py « COMBO 3 CADRÉ ») porte seul son suivi
+	"taille_dg6": {"clip": "coup_t6", "fenetre": [0.0, 1.0], "cotes": [1, -1], "enchainement": [0.04, 1.0], "force": 1.1, "elan": 0.35, "suivi": 0.0},
 	"estoc_combo6": {"clip": "coup_c6", "fenetre": [0.25, 1.0], "cotes": [0, 0], "enchainement": [0.06, 0.8], "force": 1.25, "tassement": 0.6, "elan": 0.55},
 }
