@@ -198,6 +198,22 @@ var _cam_prec := Transform3D()
 var _cam_prec_ok := false
 var _pose_figee := ""
 var _baisse := 0.0
+## Cadrage de la TÊTE de l'arme (profils à clé « cadrage_tete » : le grand marteau ; défaut B de l'exe 8, tête coupée par le haut
+## de l'écran pendant l'élan) : quand un coin du fer passerait au-dessus de CADRAGE_HAUT (part de la demi-hauteur d'écran), tout
+## le viewmodel (bras + arme) tourne autour de l'œil vers le bas, juste assez, au plus CADRAGE_MAX (le fer peut dépasser brièvement au sommet de l'armé) ; montée vive, retour amorti.
+## Le geste capturé n'est pas modifié (même trajectoire, vue un peu plus bas) ; le tracé des coups suit (repère des mains).
+const CADRAGE_HAUT := 0.94
+const CADRAGE_MAX := deg_to_rad(8.0)   # 16° gardait le fer entier mais poussait les mains sous l'écran (2026-11-27 : 8°)
+static var _cadrage_max := deg_to_rad(float(_opt_cadrage())) if _opt_cadrage() != "" else CADRAGE_MAX
+static func _opt_cadrage() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--cadrage-max="):
+			return a.substr(14)
+	return ""
+static var sans_cadrage_tete := "--sans-cadrage-tete" in OS.get_cmdline_user_args()   # A/B : rendu d'avant
+var _cadrage := 0.0
+var _coins_tete: Array[Vector3] = []
+var _coins_tete_de := 0
 var _baisse_torche := 0.0
 var _respiration := 0.0
 var _debogage: Node
@@ -1233,13 +1249,57 @@ func avancer(dt: float) -> void:
 
 	# pendant une conversation, on baisse les armes
 	_baisse = lerpf(_baisse, 0.45 if joueur.en_dialogue else 0.0, 1.0 - exp(-6.0 * dt))
-	position = Vector3(0.0, -_baisse, 0.0)
+	_cadrer_tete(dt)
+	transform = Transform3D(Basis(Vector3.RIGHT, -_cadrage), Vector3(0.0, -_baisse, 0.0))
 	_poser_torche(dt)
 	if magie != null:
 		magie.avancer(dt)
 	_lisser_gauche(dt)
 	_cam_prec = _transform_monde()
 	_cam_prec_ok = true
+
+## Coins de la boîte du fer (sommets au-delà de 78 % garde -> pointe), repère du modèle de l'arme ; recalculés au changement d'arme.
+func _maj_coins_tete() -> void:
+	var id := _modele_arme_d.get_instance_id() if _modele_arme_d != null and is_instance_valid(_modele_arme_d) else 0
+	if id == _coins_tete_de:
+		return
+	_coins_tete_de = id
+	_coins_tete.clear()
+	if id == 0:
+		return
+	var inv := _modele_arme_d.global_transform.affine_inverse()
+	var y_min: float = _garde_lame.y + (_pointe_lame.y - _garde_lame.y) * 0.78
+	var mn := Vector3(INF, INF, INF)
+	var mx := -mn
+	for mi in _modele_arme_d.find_children("*", "MeshInstance3D", true, false):
+		var mesh: Mesh = (mi as MeshInstance3D).mesh
+		if mesh == null:
+			continue
+		var xf := inv * (mi as MeshInstance3D).global_transform
+		for v: Vector3 in mesh.get_faces():
+			var q: Vector3 = xf * v
+			if q.y >= y_min:
+				mn = mn.min(q)
+				mx = mx.max(q)
+	if mn.x == INF:
+		return
+	for k in 8:
+		_coins_tete.append(Vector3(mx.x if k & 1 else mn.x, mx.y if k & 2 else mn.y, mx.z if k & 4 else mn.z))
+
+func _cadrer_tete(dt: float) -> void:
+	var voulu := 0.0
+	if arme != null and not sans_cadrage_tete and bool(_profil().get("cadrage_tete", false)) and not joueur.mort:
+		_maj_coins_tete()
+		var lim := atan(CADRAGE_HAUT * ProfilsAnimation.TAN_V)
+		var pe := pivot_epee.transform
+		for c in _coins_tete:
+			var p := pe * c   # repère des mains (œil à l'origine), avant le cadrage
+			voulu = maxf(voulu, atan2(p.y, -p.z) - lim)   # un coin au-dessus et derrière l'œil : angle > 90°
+		voulu = clampf(voulu, 0.0, _cadrage_max)
+	# montée vive (la tête ne sort pas le temps que le cadrage arrive), retour amorti après l'armé
+	_cadrage = lerpf(_cadrage, voulu, 1.0 - exp(-(28.0 if voulu > _cadrage else 7.0) * dt))
+	if _cadrage < voulu:
+		_cadrage = maxf(_cadrage, voulu - deg_to_rad(1.5))
 
 ## Couche additive du bras droit (repère des mains) : mouvements passifs × décalage ponctuel de l'état.
 func _couche() -> Transform3D:

@@ -711,7 +711,15 @@ func _main_gauche_sur_poignee(w: float) -> void:
 	# point de la main qui doit tomber sur la poignée : celui de l'IK de CorpsMainsTps (prise de la torche, pivot_torche), pour que
 	# les deux IK (coup / repos) posent la main au même endroit
 	var poing_local := _poing_gauche_local()
-	var poing_monde := g_main * poing_local
+	# garde du grand marteau (défaut C de l'exe 8 : poignet gauche plié à 32°) : IK de la main gauche SUR LE MANCHE — le poing
+	# serre le manche (axe de prise de la main = axe du manche, même prise que la tenue de repos de CorpsMainsTps), il peut seulement
+	# rouler autour du manche ; ce roulis et la rotation du coude autour de l'axe épaule -> main sont choisis ensemble pour que
+	# l'avant-bras prolonge la main (poignet dans les butées) ; aucune rotation de poignet écrite
+	var wg := _poids_garde_gauche()
+	var b_main := g_main.basis
+	if wg > 0.0:
+		b_main = _main_sur_manche(g_main, g_bras.origin, la, lb, g_avant.origin, poing_local, but_pos, axe, wg)
+	var poing_monde := Transform3D(b_main, g_main.origin) * poing_local
 	var cible := g_main.origin + (but_pos - poing_monde)
 	cible = g_main.origin.lerp(cible, w)
 	var epaule := g_bras.origin
@@ -724,7 +732,10 @@ func _main_gauche_sur_poignee(w: float) -> void:
 	if perp.length() < 1e-4:
 		perp = Vector3(0, -1, 0)
 	perp = perp.normalized()
-	var coude := epaule + dir * (la * cos_a) + perp * (la * sqrt(maxf(0.0, 1.0 - cos_a * cos_a)))
+	var sin_a := sqrt(maxf(0.0, 1.0 - cos_a * cos_a))
+	if wg > 0.0:
+		perp = perp.rotated(dir, deg_to_rad(_pivot_g) * wg)
+	var coude := epaule + dir * (la * cos_a) + perp * (la * sin_a)
 	# rotation du bras : direction épaule -> coude ; avant-bras : coude -> cible
 	var parent_bras := PiedsAuSol.pose_globale(sq, sq.get_bone_parent(i_bras))
 	var r_bras := Quaternion((g_avant.origin - epaule).normalized(), (coude - epaule).normalized()) if (g_avant.origin - epaule).length() > 1e-4 else Quaternion.IDENTITY
@@ -735,5 +746,143 @@ func _main_gauche_sur_poignee(w: float) -> void:
 	var r_av := Quaternion(((g_avant2 * sq.get_bone_pose(i_main)).origin - g_avant2.origin).normalized(), (cible - g_avant2.origin).normalized())
 	var na := Basis(r_av) * g_avant2.basis
 	sq.set_bone_pose_rotation(i_avant, (g_bras2.basis.inverse() * na).get_rotation_quaternion())
-	# main : orientation monde de la capture conservée (les deux mains de la capture Great Sword serrent déjà la poignée)
-	sq.set_bone_pose_rotation(i_main, (na.inverse() * g_main.basis).get_rotation_quaternion())
+	# main : orientation monde de la capture conservée (les deux mains de la capture Great Sword serrent déjà la poignée) ; en garde
+	# du grand marteau, le poing serré sur le manche (_main_sur_manche), poignet ramené dans les butées LIM_MX s'il en sortait encore
+	if wg > 0.0:
+		b_main = _borne_poignet_gauche(b_main, (cible - g_avant2.origin).normalized(), wg)
+		if debug_gauche:
+			var pv = corps.get("pivot_torche")
+			var gy: Vector3 = (b_main * (pv as Node3D).transform.basis.y).normalized() if pv is Node3D else Vector3.UP
+			print("DBG_G prise/manche %.0f deg (poing -> manche %.1f cm)" % [rad_to_deg(gy.angle_to(axe)), (Transform3D(b_main, cible) * poing_local).distance_to(but_pos) * 100.0])
+	sq.set_bone_pose_rotation(i_main, (na.inverse() * b_main).get_rotation_quaternion())
+
+# --- garde du grand marteau : main gauche sur le manche (défaut C, exe 8) --------------------------------------------------
+## Cibles du poignet gauche (critère du brief : déviation <= 25°, flexion <= 60°) : l'IK vise sous ces valeurs, la butée finale les tient.
+const GM_DEV_VISE := 14.0
+const GM_FLEX_VISE := 40.0
+const GM_DEV_MAX := 20.0
+const GM_FLEX_MAX := 55.0
+const GM_PIVOT_MAX := 70.0          # rotation max du coude autour de l'axe épaule -> main (°)
+const GM_PIVOT_VITESSE := 4.0       # °/image
+const GM_ROULIS_MAX := 96.0         # roulis max du poing autour du manche (°)
+static var ik_gauche_garde_ancien := "--ik-gauche-garde-ancien" in OS.get_cmdline_user_args()
+var _pivot_g := 0.0
+var _roulis_g := 0.0
+var _pivot_g_ok := false
+static var debug_gauche := "--debug-gauche" in OS.get_cmdline_user_args()
+var _main_loc := {}                 # axes de la main gauche dans le repère de hand_l : « h » (poignet -> jointures), « x » (auriculaire -> index)
+
+func _poids_garde_gauche() -> float:
+	if ik_gauche_garde_ancien or not _derniere_garde or corps.mains.arme == null or corps.mains.arme.profil != "grand_marteau":
+		_pivot_g_ok = false
+		return 0.0
+	return clampf(_garde_w, 0.0, 1.0)
+
+func _axes_main_gauche() -> Dictionary:
+	if _main_loc.is_empty():
+		var ih := sq.find_bone("hand_l")
+		var ii := sq.find_bone("index_01_l")
+		var ip := sq.find_bone("pinky_01_l")
+		var r := sq.get_bone_global_rest(ih)
+		if ii < 0 or ip < 0:
+			_main_loc = {"h": Vector3.UP, "x": Vector3.RIGHT}
+		else:
+			var a := r.affine_inverse() * sq.get_bone_global_rest(ii).origin
+			var b := r.affine_inverse() * sq.get_bone_global_rest(ip).origin
+			_main_loc = {"h": ((a + b) * 0.5).normalized(), "x": a - b}
+	return _main_loc
+
+## [flexion, déviation] (°) du poignet gauche pour la main `b` et l'avant-bras `f` (même calcul que les tests de gardes).
+func _poignet_gauche_de(b: Basis, f: Vector3) -> Vector2:
+	var ax := _axes_main_gauche()
+	var h := (b * (ax["h"] as Vector3)).normalized()
+	var x := b * (ax["x"] as Vector3)
+	var e2 := (x - f * x.dot(f)).normalized()
+	var e3 := e2.cross(f)
+	return Vector2(rad_to_deg(atan2(h.dot(e3), h.dot(f))), rad_to_deg(atan2(h.dot(e2), h.dot(f))))
+
+## Main gauche serrée sur le manche : orientation de la capture dont l'axe de prise (pivot_torche, comme la tenue de CorpsMainsTps)
+## est amené sur l'axe du manche, puis roulée autour du manche (angle _roulis_g) ; _pivot_g = rotation du coude autour de l'axe
+## épaule -> main. Les deux sont cherchés ensemble (coût : dépassement des cibles du poignet + écart à la capture ; coude jamais
+## au-dessus de l'épaule), puis lissés (GM_PIVOT_VITESSE °/image). Renvoie l'orientation de la main (repère du squelette).
+func _main_sur_manche(g_main: Transform3D, epaule: Vector3, la: float, lb: float, coude0: Vector3, poing_local: Vector3, but_pos: Vector3, axe: Vector3, wg: float) -> Basis:
+	var t0 := Time.get_ticks_usec()
+	var pv = corps.get("pivot_torche")
+	var gy_loc: Vector3 = (pv as Node3D).transform.basis.y.normalized() if pv is Node3D else Vector3.UP
+	var b_cap := g_main.basis.orthonormalized()
+	var gy := b_cap * gy_loc
+	var cible_axe := axe if gy.dot(axe) >= 0.0 else -axe   # le poing garde son sens sur le manche
+	var b0 := Basis(Quaternion(gy, cible_axe)) * b_cap
+	var haut := (sq.global_transform.basis.orthonormalized().inverse() * Vector3.UP).normalized()
+	var meilleur := Vector2.ZERO
+	var cout_min := INF
+	# première image : recherche sur toute la plage ; ensuite autour de la solution précédente seulement (elle ne bouge que de
+	# GM_PIVOT_VITESSE °/image) : ~100 essais au lieu de ~950 (coût mesuré 2 ms -> ~0,2 ms par image)
+	var r_min := -GM_ROULIS_MAX
+	var r_max := GM_ROULIS_MAX
+	var p_min := -GM_PIVOT_MAX
+	var p_max := GM_PIVOT_MAX
+	var pas_r := 6.0
+	var pas_p := 5.0
+	if _pivot_g_ok:
+		r_min = maxf(-GM_ROULIS_MAX, _roulis_g - 12.0)
+		r_max = minf(GM_ROULIS_MAX, _roulis_g + 12.0)
+		p_min = maxf(-GM_PIVOT_MAX, _pivot_g - 15.0)
+		p_max = minf(GM_PIVOT_MAX, _pivot_g + 15.0)
+		pas_r = 3.0
+		pas_p = 3.0
+	var r := r_min
+	while r <= r_max + 1e-3:
+		var b := Basis(cible_axe, deg_to_rad(r)) * b0
+		var cible := but_pos - b * poing_local
+		var dd := clampf(epaule.distance_to(cible), 0.05, (la + lb) * 0.999)
+		var dir := (cible - epaule).normalized()
+		var cos_a := clampf((la * la + dd * dd - lb * lb) / (2.0 * la * dd), -1.0, 1.0)
+		var sin_a := sqrt(maxf(0.0, 1.0 - cos_a * cos_a))
+		var pole := coude0 + Vector3(0, -0.1, 0)
+		var perp := (pole - epaule) - dir * (pole - epaule).dot(dir)
+		perp = perp.normalized() if perp.length() > 1e-4 else Vector3(0, -1, 0)
+		var a := p_min
+		while a <= p_max + 1e-3:
+			var c := epaule + dir * (la * cos_a) + perp.rotated(dir, deg_to_rad(a)) * (la * sin_a)
+			var w := _poignet_gauche_de(b, (cible - c).normalized())
+			var cout := pow(maxf(absf(w.y) - GM_DEV_VISE, 0.0), 2.0) + pow(maxf(absf(w.x) - GM_FLEX_VISE, 0.0), 2.0) + 0.01 * a * a + 0.01 * r * r
+			cout += 40000.0 * maxf((c - epaule).dot(haut) + 0.05, 0.0)
+			if cout < cout_min:
+				cout_min = cout
+				meilleur = Vector2(r, a)
+			a += pas_p
+		r += pas_r
+	if _pivot_g_ok:
+		meilleur.x = _roulis_g + clampf(meilleur.x - _roulis_g, -GM_PIVOT_VITESSE, GM_PIVOT_VITESSE)
+		meilleur.y = _pivot_g + clampf(meilleur.y - _pivot_g, -GM_PIVOT_VITESSE, GM_PIVOT_VITESSE)
+	_roulis_g = meilleur.x
+	_pivot_g = meilleur.y
+	_pivot_g_ok = true
+	var bf := Basis(cible_axe, deg_to_rad(_roulis_g)) * b0
+	if debug_gauche:
+		print("DBG_G cout _main_sur_manche %d us" % (Time.get_ticks_usec() - t0))
+	return Basis(b_cap.get_rotation_quaternion().slerp(bf.get_rotation_quaternion(), wg)).scaled(g_main.basis.get_scale())
+
+## Butée LIM_MX du poignet gauche : si la main sort encore des butées après l'IK, elle est ramenée au bord (rotation minimale).
+func _borne_poignet_gauche(b: Basis, f: Vector3, w: float) -> Basis:
+	var ax := _axes_main_gauche()
+	var b0 := b
+	if debug_gauche:
+		print("DBG_G pivot %.0f roulis %.0f poignet avant butee %s" % [_pivot_g, _roulis_g, _poignet_gauche_de(b, f)])
+	# la rotation de la main change aussi son axe auriculaire -> index (donc le plan de la mesure) : quelques passes
+	for _k in 4:
+		var h := (b * (ax["h"] as Vector3)).normalized()
+		if h.dot(f) < 0.1:
+			break
+		var p := _poignet_gauche_de(b, f)
+		var fc := clampf(p.x, -GM_FLEX_MAX, GM_FLEX_MAX)
+		var dc := clampf(p.y, -GM_DEV_MAX, GM_DEV_MAX)
+		if absf(fc - p.x) < 0.2 and absf(dc - p.y) < 0.2:
+			break
+		var x := b * (ax["x"] as Vector3)
+		var e2 := (x - f * x.dot(f)).normalized()
+		var e3 := e2.cross(f)
+		var h2 := (f + e2 * tan(deg_to_rad(dc)) + e3 * tan(deg_to_rad(fc))).normalized()
+		b = Basis(Quaternion(h, h2)) * b
+	return Basis(b0.get_rotation_quaternion().slerp(b.get_rotation_quaternion(), w)).scaled(b0.get_scale())

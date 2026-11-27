@@ -170,6 +170,7 @@ const PROFILS := {
 	# buste entier) : 1 grand vertical (« great sword slash (2) »), 2 diagonale (« great sword slash ») ; puissante = « great sword
 	# jump attack » (armé haut tenu, tout le corps retombe). Tenues de la famille « deux_mains » (bord des clips = repos_2m exacte).
 	"grand_marteau": {
+		"cadrage_tete": true,   # mains._cadrer_tete : la tête du long marteau reste dans le cadre pendant l'élan (défaut B, exe 8)
 		"combo": ["gms_vertical", "gms_diag"],
 		"lourd": "gms_lourd",
 		"lourds": {},
