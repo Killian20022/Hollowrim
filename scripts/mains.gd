@@ -200,10 +200,10 @@ var _pose_figee := ""
 var _baisse := 0.0
 ## Cadrage de la TÊTE de l'arme (profils à clé « cadrage_tete » : le grand marteau ; défaut B de l'exe 8, tête coupée par le haut
 ## de l'écran pendant l'élan) : quand un coin du fer passerait au-dessus de CADRAGE_HAUT (part de la demi-hauteur d'écran), tout
-## le viewmodel (bras + arme) tourne autour de l'œil vers le bas, juste assez, au plus CADRAGE_MAX ; montée vive, retour amorti.
+## le viewmodel (bras + arme) tourne autour de l'œil vers le bas, juste assez, au plus CADRAGE_MAX (le fer peut dépasser brièvement au sommet de l'armé) ; montée vive, retour amorti.
 ## Le geste capturé n'est pas modifié (même trajectoire, vue un peu plus bas) ; le tracé des coups suit (repère des mains).
 const CADRAGE_HAUT := 0.94
-const CADRAGE_MAX := deg_to_rad(16.0)
+const CADRAGE_MAX := deg_to_rad(8.0)   # 16° gardait le fer entier mais poussait les mains sous l'écran (2026-11-27 : 8°)
 static var _cadrage_max := deg_to_rad(float(_opt_cadrage())) if _opt_cadrage() != "" else CADRAGE_MAX
 static func _opt_cadrage() -> String:
 	for a in OS.get_cmdline_user_args():

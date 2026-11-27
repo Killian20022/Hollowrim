@@ -113,20 +113,20 @@ LIM_MX_GM = dict(torsion=(-85, 85), flexion=(-55, 55), inclinaison=(-24, 18))
 S2 = dict(ref=0, decalage=(0.0, 0.0, -0.25), echelle_epaule=0.6, poignet=POIGNET_GM, lim_mx=LIM_MX_GM)
 CLIPS_GM = {
     # restes de l'exe 8 (défaut B, 2026-11-27) : à amplitude 0,45, l'armé de « great sword slash (2) » et de la « jump attack »
-    # portait le fer du marteau AU-DESSUS ET DERRIÈRE l'œil (coins du fer jusqu'à 91° au-dessus du bord haut, fer entier hors champ
-    # 41 images en jeu, outils/mesure_tete_gm.gd). Mêmes captures, ramenées vers leur image d'impact : amplitude 0,20 (diagonale :
-    # 0,30) ; armé de la puissante abaissé par le cadrage (tangage -25 au lieu de -10, rotation rigide du bras autour de l'épaule).
-    # Il reste au plus 13° de dépassement des coins du long fer (61 cm) au sommet de l'armé, rattrapés en jeu par le cadrage de la
-    # tête (mains._cadrer_tete, viewmodel tourné vers le bas autour de l'œil, <= 16°) : fer entier à l'écran à toute image.
-    "gm_a6": dict(S2, source="gs_slash_2", centre=26, amplitude=0.20, cadrage=(0, 30, 25),
+    # portait le fer du marteau AU-DESSUS ET DERRIÈRE l'œil (coins du fer jusqu'à 94° au-dessus du bord haut, fer entier hors champ
+    # 87 images en jeu, outils/mesure_tete_gm.gd). Mêmes captures, ramenées vers leur image d'impact : amplitude 0,22 (diagonale
+    # 0,30, puissante 0,25), armé de la puissante abaissé par le cadrage (tangage -45, charge et frappe identiques : pas de saut au
+    # raccord). Avec le cadrage de la tête en jeu (mains._cadrer_tete, <= 8°), le fer ne dépasse qu'au sommet de l'armé (<= 10 images,
+    # <= 9°), jamais pendant la frappe ; mains plus visibles qu'avec un cadrage de 16° (décision du 2026-11-27 : armé lourd, mains vues).
+    "gm_a6": dict(S2, source="gs_slash_2", centre=26, amplitude=0.22, cadrage=(0, 30, 25),
                  temps=[(10, 0.0), (16, 0.12), (18, 0.20), (21, 0.24), (27.5, 0.36), (28.5, 0.43), (29.5, 0.52), (29.5, 0.70)],
                  fondu=(0.20, 0.45), plein=(0.20, 0.50), arc=(0.24, 0.36, 0.85), creux=0.05),
     "gm_b6": dict(S2, source="gs_slash", centre=20, amplitude=0.30, cadrage=(0, 35, -10),
                  temps=[(8, 0.0), (13, 0.12), (15.5, 0.20), (16.5, 0.24), (22, 0.36), (23, 0.43), (24, 0.52), (24, 0.70)],
                  fondu=(0.20, 0.45), plein=(0.20, 0.50), arc=(0.24, 0.36, 0.85), creux=0.05),
-    "charge_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.20, cadrage=(0, -25, 10),
+    "charge_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.25, cadrage=(0, -45, 10),
                       temps=[(14, 0.0), (23, 0.38), (25.5, 0.70)], fondu=(0.38, 0.70), plein=(0.38, 0.70)),
-    "lourd_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.20, cadrage=(0, -25, 10),
+    "lourd_gm6": dict(S2, source="gs_jump_attack", centre=31, amplitude=0.25, cadrage=(0, -45, 10),
                      temps=[(25.5, 0.0), (27, 0.08), (35.5, 0.22), (36.5, 0.30), (38, 0.40), (38, 0.60)],
                      fondu=(0.0, 0.40), plein=(0.0, 0.46), arc=(0.08, 0.22, 0.85), creux=0.07),
 }
