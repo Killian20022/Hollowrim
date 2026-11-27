@@ -386,3 +386,20 @@ for _nom, _arc in (("coup_a", (0.16, 0.26, 0.85)), ("coup_b", (0.13, 0.23, 0.85)
 # moins appuyé
 CLIPS_MIXAMO["coup_b6"]["cadrage"] = (0, 25, 80)
 CLIPS_MIXAMO["coup_t6"].update(poignet=((-28, 45), (-29, -18)), arc=(0.13, 0.23, 0.6))
+# COMBO 3 CADRÉ (combat/combo3_cadrage, 2026-11-27 ; défaut A de l'exe 8 : au 3e coup du combo à une main, la main passait
+# sous le bas de l'écran en 1re personne : 14 images sur 14 pendant le coup, toute la récupération). Même capture, même table
+# de temps, mêmes surcouches v6 (poignet verrouillé, arc guidé, creux) ; seuls changent le CADRAGE du clip (rotation rigide
+# du bras autour de l'épaule : tangage 12 -> 48°, lacet 5° vers la gauche, tenu de 0,02 à 0,52 s au lieu de 0,09-0,32) et
+# l'AMPLITUDE (0,55 -> 0,3 : l'armé et le suivi de la capture, qui plongeaient sous l'écran, ramenés vers l'image d'impact).
+# Écartés (mesurés) : tangage seul > 50° (la lame se redresse vers le ciel), décalage de l'épaule vers le haut (le bout de
+# la rotule entre dans le champ et le cadrage du viewmodel redescend tout). Mesure : outils/mesure_main_combo.gd (main
+# affichée projetée image par image). Butées du poignet : BUTEES OK (flexion -24..45, inclinaison -32..-18, comme avant).
+# Passe 2 (lame « essuie-glace » verticale refusée) : repère de la main tourné de 25° (lacet), 10° (tangage) et 45° (roulis)
+# au lieu de (-20, 30, 0) : la lame se couche de 34 à 45° vers la gauche pendant la frappe (avant : 14-17° vers la droite),
+# la torsion de l'avant-bras l'absorbe, poignet dans ses butées (flexion -11..45, inclinaison -32..-18). Écartés (mesurés) :
+# roulis / lacet du cadrage du bras (lame à peine couchée), images 39-41 de la capture en fin de table (la main resort sous
+# l'écran), suivi d'épaule bridé à 4,6° (+4° de lame seulement, main à -7 px), capture Mixamo « Stable Sword Inward Slash »
+# (lame au-delà de l'horizontale, pointe près de l'œil).
+# Les finishers (décapitation) gardent le cadrage d'avant : COUP_T6_AVANT_CADRAGE.
+COUP_T6_AVANT_CADRAGE = dict(CLIPS_MIXAMO["coup_t6"])
+CLIPS_MIXAMO["coup_t6"].update(cadrage=(5, 48, -25), plein=(0.02, 0.52), amplitude=0.3, main=(25, 10, 45))  # COMBO3
