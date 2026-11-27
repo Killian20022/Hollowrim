@@ -74,17 +74,23 @@ CLIPS_M = {
     # passe 3 (« plus un coup plat ») : AUTRE capture, « Sword And Shield Slash (1) » (diagonale haut-droite -> bas-gauche, la
     # capture du coup 1 de l'épée v6), armé 14-16,5, rapide 17,5 -> 21, roulis du bras +20° : la tête plonge à ~41° à l'écran
     # (« revers » : 11°), tête lisible 9/9 à l'impact, à 0,37 m de l'œil au plus près
+    # restes de l'exe 8 (2026-11-27, 3e coup du combo à une main) : en 1re personne la main sortait par le bas (ms_c : 2 images à
+    # l'attaque, 21 au retour, -68 px ; ms_b : 5 et 17, -78 px), le recul de cadrage des épaules (avant_bras.reculer) descendant le
+    # viewmodel de 20 cm au retour bas. Mêmes captures : bras relevé par le cadrage (rotation rigide autour de l'épaule ; ms_b
+    # tangage 60 -> 85, ms_c -37 -> -22) et amplitude resserrée (ms_b 0,45 -> 0,35, ms_c 0,45 -> 0,38) : 3e coup main à l'écran
+    # (masse 0 image hors champ ; marteau 3 au début de l'attaque, héritées du retour de ms_a), outils/mesure_main_combo.gd.
+    # ms_a relevé (tangage 55) ramenait aussi son retour à l'écran mais le crochet passait au-dessus du mannequin : gardé à 30.
     "ms_a": dict(S, source="slash_1", centre=19, amplitude=0.5, cadrage=(25, 30, 20),
                  temps=[(10, 0.0), (14, 0.14), (16.5, 0.24), (17.5, 0.28), (21, 0.42), (22.5, 0.50), (23, 0.62), (23, 0.84)],
                  fondu=(0.24, 0.52), plein=(0.24, 0.58), arc=(0.28, 0.42, 0.85), creux=0.04),
     # revers gauche -> droite : « inward slash », armé sur l'épaule gauche, la tête balaie vers la droite
     # passe 2 : bras relevé de 60° et tourné de 15° vers la droite, frappe lue à partir de l'image 33,4 (la tête montait encore de
     # sous le cadre aux images 32,5-33) : tête lisible à l'impact 9/9
-    "ms_b": dict(S, source="interieur", centre=35, amplitude=0.45, decalage=(0.05, 0.06, -0.40), cadrage=(-15, 60, 15),
+    "ms_b": dict(S, source="interieur", centre=35, amplitude=0.35, decalage=(0.05, 0.06, -0.40), cadrage=(-15, 85, 15),
                  temps=[(24, 0.0), (29, 0.12), (32.2, 0.22), (33.4, 0.26), (38.6, 0.40), (39.8, 0.48), (41, 0.60), (41, 0.80)],
                  fondu=(0.22, 0.50), plein=(0.22, 0.56), arc=(0.26, 0.40, 0.85), creux=0.04),
     # écrasement par-dessus l'épaule droite : « Standing Melee Attack Downward » (cadrage du coup puissant de l'épée v6)
-    "ms_c": dict(S, source="vertical", centre=23, amplitude=0.45, cadrage=(30, -37, 0),
+    "ms_c": dict(S, source="vertical", centre=23, amplitude=0.38, cadrage=(30, -22, 0),
                  temps=[(10, 0.0), (17, 0.14), (19.5, 0.24), (21, 0.28), (27, 0.42), (28, 0.50), (29, 0.62), (29, 0.84)],
                  fondu=(0.24, 0.52), plein=(0.24, 0.58), arc=(0.28, 0.42, 0.85), creux=0.05),
     # puissante : même écrasement, armé tenu pendant la charge
