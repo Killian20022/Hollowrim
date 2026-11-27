@@ -806,6 +806,7 @@ func _poignet_gauche_de(b: Basis, f: Vector3) -> Vector2:
 ## épaule -> main. Les deux sont cherchés ensemble (coût : dépassement des cibles du poignet + écart à la capture ; coude jamais
 ## au-dessus de l'épaule), puis lissés (GM_PIVOT_VITESSE °/image). Renvoie l'orientation de la main (repère du squelette).
 func _main_sur_manche(g_main: Transform3D, epaule: Vector3, la: float, lb: float, coude0: Vector3, poing_local: Vector3, but_pos: Vector3, axe: Vector3, wg: float) -> Basis:
+	var t0 := Time.get_ticks_usec()
 	var pv = corps.get("pivot_torche")
 	var gy_loc: Vector3 = (pv as Node3D).transform.basis.y.normalized() if pv is Node3D else Vector3.UP
 	var b_cap := g_main.basis.orthonormalized()
@@ -815,8 +816,23 @@ func _main_sur_manche(g_main: Transform3D, epaule: Vector3, la: float, lb: float
 	var haut := (sq.global_transform.basis.orthonormalized().inverse() * Vector3.UP).normalized()
 	var meilleur := Vector2.ZERO
 	var cout_min := INF
-	var r := -GM_ROULIS_MAX
-	while r <= GM_ROULIS_MAX + 1e-3:
+	# première image : recherche sur toute la plage ; ensuite autour de la solution précédente seulement (elle ne bouge que de
+	# GM_PIVOT_VITESSE °/image) : ~100 essais au lieu de ~950 (coût mesuré 2 ms -> ~0,2 ms par image)
+	var r_min := -GM_ROULIS_MAX
+	var r_max := GM_ROULIS_MAX
+	var p_min := -GM_PIVOT_MAX
+	var p_max := GM_PIVOT_MAX
+	var pas_r := 6.0
+	var pas_p := 5.0
+	if _pivot_g_ok:
+		r_min = maxf(-GM_ROULIS_MAX, _roulis_g - 12.0)
+		r_max = minf(GM_ROULIS_MAX, _roulis_g + 12.0)
+		p_min = maxf(-GM_PIVOT_MAX, _pivot_g - 15.0)
+		p_max = minf(GM_PIVOT_MAX, _pivot_g + 15.0)
+		pas_r = 3.0
+		pas_p = 3.0
+	var r := r_min
+	while r <= r_max + 1e-3:
 		var b := Basis(cible_axe, deg_to_rad(r)) * b0
 		var cible := but_pos - b * poing_local
 		var dd := clampf(epaule.distance_to(cible), 0.05, (la + lb) * 0.999)
@@ -826,8 +842,8 @@ func _main_sur_manche(g_main: Transform3D, epaule: Vector3, la: float, lb: float
 		var pole := coude0 + Vector3(0, -0.1, 0)
 		var perp := (pole - epaule) - dir * (pole - epaule).dot(dir)
 		perp = perp.normalized() if perp.length() > 1e-4 else Vector3(0, -1, 0)
-		var a := -GM_PIVOT_MAX
-		while a <= GM_PIVOT_MAX + 1e-3:
+		var a := p_min
+		while a <= p_max + 1e-3:
 			var c := epaule + dir * (la * cos_a) + perp.rotated(dir, deg_to_rad(a)) * (la * sin_a)
 			var w := _poignet_gauche_de(b, (cible - c).normalized())
 			var cout := pow(maxf(absf(w.y) - GM_DEV_VISE, 0.0), 2.0) + pow(maxf(absf(w.x) - GM_FLEX_VISE, 0.0), 2.0) + 0.01 * a * a + 0.01 * r * r
@@ -835,8 +851,8 @@ func _main_sur_manche(g_main: Transform3D, epaule: Vector3, la: float, lb: float
 			if cout < cout_min:
 				cout_min = cout
 				meilleur = Vector2(r, a)
-			a += 5.0
-		r += 6.0
+			a += pas_p
+		r += pas_r
 	if _pivot_g_ok:
 		meilleur.x = _roulis_g + clampf(meilleur.x - _roulis_g, -GM_PIVOT_VITESSE, GM_PIVOT_VITESSE)
 		meilleur.y = _pivot_g + clampf(meilleur.y - _pivot_g, -GM_PIVOT_VITESSE, GM_PIVOT_VITESSE)
@@ -844,6 +860,8 @@ func _main_sur_manche(g_main: Transform3D, epaule: Vector3, la: float, lb: float
 	_pivot_g = meilleur.y
 	_pivot_g_ok = true
 	var bf := Basis(cible_axe, deg_to_rad(_roulis_g)) * b0
+	if debug_gauche:
+		print("DBG_G cout _main_sur_manche %d us" % (Time.get_ticks_usec() - t0))
 	return Basis(b_cap.get_rotation_quaternion().slerp(bf.get_rotation_quaternion(), wg)).scaled(g_main.basis.get_scale())
 
 ## Butée LIM_MX du poignet gauche : si la main sort encore des butées après l'IK, elle est ramenée au bord (rotation minimale).

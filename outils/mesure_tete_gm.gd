@@ -17,6 +17,8 @@ var mains: Node3D
 var etiq := "x"
 var _coins: Array[Vector3] = []
 var _lignes: Array[String] = []
+var _cadrage_max := 0.0
+var _mains_cachees := 0
 
 func _init() -> void:
 	_go.call_deferred()
@@ -86,6 +88,16 @@ func _echantillon() -> Dictionary:
 	for c in _coins:
 		ctr += c / 8.0
 	var qc := cam.affine_inverse() * (m.global_transform * ctr)
+	var sqm: Skeleton3D = mains._sq
+	var mains_vues := 0
+	for o in ["hand_r", "hand_l"]:
+		var e := _ecran(sqm.global_transform * sqm.get_bone_global_pose(sqm.find_bone(o)).origin)
+		if e.z > 0.05 and absf(e.x) <= 1.0 and e.y >= -1.0:
+			mains_vues += 1
+	if mains_vues == 0:
+		_mains_cachees += 1
+	var cg = mains.get("_cadrage")
+	_cadrage_max = maxf(_cadrage_max, rad_to_deg(float(cg)) if cg != null else 0.0)
 	return {"clip": String(mains.anim.reel(mains.anim.clip)), "tc": float(mains.anim.t), "ymax": ymax, "yc": rad_to_deg(atan2(qc.y, -qc.z)) - haut, "dedans": dedans, "devant": devant,
 		"etat": int(mains.combat.etat)}
 
@@ -188,7 +200,7 @@ func _go() -> void:
 	_coins_tete()
 	var r1 := _analyser("combo", await _sequence("combo", [[0.0, 0.05], [0.8, 0.05], [1.6, 0.05]]))
 	var r2 := _analyser("puissant", await _sequence("puissant", [[0.0, 0.9]]))
-	print("TETE_GM_RESUME %s images tete coupee : combo %d (serie max %d) puissant %d (serie max %d)" % [etiq, r1["coupe"], r1["serie"], r2["coupe"], r2["serie"]])
+	print("TETE_GM_RESUME %s images tete coupee : combo %d (serie max %d) puissant %d (serie max %d) | cadrage du viewmodel max %.1f deg | images sans aucune main a l'ecran %d" % [etiq, r1["coupe"], r1["serie"], r2["coupe"], r2["serie"], _cadrage_max, _mains_cachees])
 	var csv := _arg("csv", "")
 	if csv != "":
 		var f := FileAccess.open(csv, FileAccess.WRITE)
